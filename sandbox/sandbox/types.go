@@ -31,12 +31,22 @@ const (
 // (i.e. not DangerFullAccess, which means "don't sandbox this at all").
 func (m Mode) Confined() bool { return m == ReadOnly || m == WorkspaceWrite }
 
-// ExecutionPolicy is the caller's intended file-effect policy for one
-// command, before it's known whether that policy needs confining at all.
+// ExecutionPolicy is the caller's intended policy for one command, before
+// it's known whether that policy needs confining at all: Mode governs file
+// writes, Network governs outbound networking — two independent axes, not
+// escalation targets of each other (see EscalationTargets, which is
+// Mode-only; a caller wanting network access sets Network directly on the
+// Policy NewPolicy returns, e.g. via its own approval flow — see
+// shell/toolbash's "network" tool parameter).
 type ExecutionPolicy struct {
 	Mode          Mode
 	WorkspaceRoot string
 	SessionID     string // "" when the call isn't tied to a session
+	// Network grants outbound network access when true. Defaults to false —
+	// every backend denies networking unless a Policy explicitly asks for
+	// it (see sandbox/local's README for what each runner actually does
+	// with this).
+	Network bool
 }
 
 // Policy is an ExecutionPolicy already known to need confinement — its Mode
@@ -46,8 +56,9 @@ type Policy struct {
 	ExecutionPolicy
 }
 
-// NewPolicy validates mode and returns a Policy a Provider can confine.
-// DangerFullAccess is rejected here, not silently downgraded — a caller
+// NewPolicy validates mode and returns a Policy a Provider can confine, with
+// Network defaulting to false — set p.Network = true on the result to grant
+// it. DangerFullAccess is rejected here, not silently downgraded — a caller
 // that reaches this constructor with DangerFullAccess has a bug: that mode
 // means "call the command directly, no Provider involved at all."
 func NewPolicy(mode Mode, workspaceRoot, sessionID string) (Policy, error) {

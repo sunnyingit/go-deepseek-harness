@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>竞品山寨海报 → 品牌海报 对照</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Merriweather:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#1E40AF; --primary-dark:#1E3A8A; --secondary:#60A5FA;
+    --teal:#14B8A6; --white:#fff; --g100:#F3F4F6; --g200:#E5E7EB;
+    --g500:#6B7280; --g600:#4B5563; --g800:#1F2937;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',sans-serif;background:var(--g100);color:var(--g800);padding:32px 16px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1100px;margin:0 auto}
+  .wrap>h1{font-size:30px;font-weight:800;letter-spacing:-0.02em}
+  .wrap>.sub{font-family:'Merriweather',serif;font-size:16px;color:var(--g600);margin:8px 0 40px;line-height:1.6}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+  @media(max-width:820px){.grid{grid-template-columns:1fr}}
+
+  .col>.tag{font-size:13px;font-weight:700;letter-spacing:.04em;padding:6px 0;margin-bottom:12px}
+  .col.before .tag{color:#B91C1C}
+  .col.after .tag{color:var(--primary)}
+
+  /* ===== generic poster shell for both ===== */
+  .frame{border-radius:14px;overflow:hidden;box-shadow:0 20px 60px -20px rgba(0,0,0,.25);background:var(--white)}
+
+  /* ============ 山寨版 styles (deliberately off-brand) ============ */
+  .clip{font-family:'Impact',sans-serif;text-transform:uppercase;background:linear-gradient(90deg,chocolate,orangered,darkred);
+        -webkit-background-clip:text;background-clip:text;color:transparent}
+  .imp{font-family:'Impact','Arial Black',sans-serif;text-transform:uppercase;letter-spacing:1px;line-height:1.1}
+  .imp1{background:linear-gradient(180deg,#ff0 0%,#ff8c00 60%,#ff4500 100%);color:transparent;-webkit-background-clip:text;background-clip:text;
+        text-shadow:0 3px 0 rgba(0,0,0,.9);font-size:30px;text-align:center;padding:10px}
+  .imp2{color:#fff;font-size:28px;text-shadow:3px 3px 0 #000;text-align:center}
+  .rainbow{background:repeating-linear-gradient(90deg,red,orange,yellow,green,blue,violet);padding:6px 0;text-align:center;color:#fff;
+           font-family:'Impact',sans-serif;text-transform:uppercase;letter-spacing:2px;font-size:16px}
+  .cheap{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px;font-family:'Comic Sans MS','Verdana',sans-serif}
+  .cheap .b{padding:12px;border-radius:10px;color:#fff;text-align:center;font-weight:700;font-size:15px}
+  .b1{background:#ff0000}.b2{background:#00b300}.b3{background:#0000ff}.b4{background:#ff00cc}
+  .marquee{background:#000;color:#0ff;font-family:'Courier New',monospace;text-align:center;padding:8px;font-size:14px;letter-spacing:1px}
+  .cheapfoot{background:#333;color:#aaa;font-family:'Verdana',sans-serif;text-align:center;font-size:11px;padding:10px}
+  .cheaptop{background:radial-gradient(circle at top,#ff0,#f60,#c00);padding:10px 0;text-align:center;
+            font-family:'Impact',sans-serif;color:#fff;text-shadow:2px 2px 0 #000;font-size:18px;text-transform:uppercase}
+
+  /* ============ 品牌版 styles (on-brand) ============ */
+  .brand-top{background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:24px 40px}
+  .bl{display:flex;align-items:center;gap:12px}
+  .bm{width:36px;height:36px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:800;font-size:18px}
+  .bt{font-weight:700;font-size:20px}.bt span{font-weight:300;color:var(--secondary)}
+  .bttag{font-size:13px;font-weight:500;color:var(--secondary);background:rgba(255,255,255,.1);padding:8px 16px;border-radius:999px}
+  .hero{background:linear-gradient(135deg,var(--primary-dark),var(--primary) 60%,#1E4FBF);color:#fff;padding:64px 40px 48px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-80px;top:-60px;width:320px;height:320px;
+               background:radial-gradient(circle,rgba(96,165,250,.35),transparent 65%);border-radius:50%}
+  .eyebrow{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--secondary);margin-bottom:16px}
+  .herot{font-size:42px;font-weight:800;line-height:1.15;letter-spacing:-.02em;max-width:620px;margin-bottom:16px}
+  .herot .a{color:var(--secondary)}
+  .lead{font-family:'Merriweather',serif;font-size:17px;line-height:1.7;color:rgba(255,255,255,.92);max-width:540px;margin-bottom:32px}
+  .feats{display:grid;grid-template-columns:1fr 1fr 1fr;background:#fff}
+  .feat{padding:32px 24px;border-right:1px solid var(--g100)}
+  .feat:last-child{border-right:none}
+  .fico{width:44px;height:44px;border-radius:12px;background:var(--g100);border:1px solid var(--g200);
+        display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+  .fico svg{stroke:var(--primary)}
+  .feat h3{font-size:18px;font-weight:700;color:var(--g800);margin-bottom:8px}
+  .feat p{font-size:14px;line-height:1.6;color:var(--g600)}
+  .met{background:var(--primary-dark);color:#fff;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;padding:48px 40px}
+  .mn{font-size:36px;font-weight:800;line-height:1;color:#fff}
+  .mn em{font-style:normal;color:var(--teal)}
+  .ml{font-size:13px;color:rgba(255,255,255,.75);margin-top:8px;line-height:1.5}
+  .cta{background:var(--g100);padding:48px 40px;text-align:center;border-top:1px solid var(--g200)}
+  .cta h4{font-size:24px;font-weight:800;color:var(--g800);margin-bottom:8px}
+  .cta p{font-family:'Merriweather',serif;font-size:15px;color:var(--g600);max-width:480px;margin:0 auto 24px;line-height:1.6}
+  .btn{display:inline-block;background:var(--primary);color:#fff;font-weight:600;font-size:15px;padding:16px 32px;border-radius:10px;text-decoration:none}
+  .bfoot{background:var(--g800);color:rgba(255,255,255,.7);font-size:12px;padding:16px 40px;display:flex;justify-content:space-between;align-items:center}
+  .bfoot .wf{font-weight:600;color:#fff}
+  @media(max-width:820px){.feats,.met{grid-template-columns:1fr}.feat{border-right:none;border-bottom:1px solid var(--g100)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>山寨海报 → 品牌海报</h1>
+  <p class="sub">左边是典型的竞品山寨风（特效堆砌、字体杂乱、色彩混乱、满屏感叹号）；右边按 TechFlow 品牌规范逐项改造后的成品。</p>
+
+  <div class="grid">
+    <!-- 山寨版 -->
+    <div class="col before">
+      <div class="tag">❌ 山寨 / 竞品风</div>
+      <div class="frame">
+        <div class="cheaptop">💥 HOT DEAL!!! 超值优惠 💥</div>
+        <div class="imp1">革命性颠覆级产品!!!</div>
+        <div class="imp2">全场 1 折 · 错过等一年!!!</div>
+        <div class="rainbow">限量 最后100名 手慢无</div>
+        <div class="cheap">
+          <div class="b b1" style="font-size:18px">⭐ 顶级实力</div>
+          <div class="b b2" style="font-size:18px">🔥 疯狂秒杀</div>
+          <div class="b b3" style="font-size:18px">🚀 突破科技</div>
+          <div class="b b4" style="font-size:18px">💰 白菜价格</div>
+        </div>
+        <div class="marquee">>> 立即下单 抢购从速 倒计时 00:59:59 <<</div>
+        <div class="cheapfoot">© 某山寨公司 版权所有</div>
+      </div>
+      <p style="font-size:12px;color:var(--g500);margin-top:10px;line-height:1.6">
+        问题：10+ 种乱用字体、彩虹/渐变大字、红黄绿紫撞色、感叹号轰炸、纯恐惧式逼单、无品牌一致性。
+      </p>
+    </div>
+
+    <!-- 品牌版 -->
+    <div class="col after">
+      <div class="tag">✓ TechFlow 品牌版</div>
+      <div class="frame">
+        <div class="brand-top">
+          <div class="bl">
+            <div class="bm">T</div>
+            <div class="bt">TechFlow<span>Solutions</span></div>
+          </div>
+          <div class="bttag">企业软件 · 简单上手</div>
+        </div>
+        <div class="hero">
+          <div class="eyebrow">企业软件 · 简单上手</div>
+          <div class="herot">复杂的科技，<br><span class="a">交给我们变简单</span></div>
+          <p class="lead">我们为企业提供真正用得起的企业级软件：直观好用、随你成长，把专业支持带到你身边。</p>
+        </div>
+        <div class="feats">
+          <div class="feat">
+            <div class="fico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/></svg></div>
+            <h3>化繁为简</h3><p>直观的设计，人人立刻上手。</p>
+          </div>
+          <div class="feat">
+            <div class="fico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
+            <h3>随你成长</h3><p>业务越大，平台越跟得上。</p>
+          </div>
+          <div class="feat">
+            <div class="fico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.6-7-10a7 7 0 0 1 14 0c0 5.4-7 10-7 10z"/><circle cx="12" cy="11" r="2.5"/></svg></div>
+            <h3>专家随时在</h3><p>专业支持，不收天价。</p>
+          </div>
+        </div>
+        <div class="met">
+          <div><div class="mn">5000<em>+</em></div><div class="ml">全球付费客户</div></div>
+          <div><div class="mn">10<em>+</em></div><div class="ml">每周省下的操作小时</div></div>
+          <div><div class="mn">99.9<em>%</em></div><div class="ml">服务可用性</div></div>
+        </div>
+        <div class="cta">
+          <h4>想亲自试试？</h4>
+          <p>用真实业务场景体验一下，5 分钟就能跑起来，无需信用卡。</p>
+          <a class="btn" href="#">立即开始 · 免费试用</a>
+        </div>
+        <div class="bfoot"><span class="wf">TechFlow Solutions</span><span>innovation made simple</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

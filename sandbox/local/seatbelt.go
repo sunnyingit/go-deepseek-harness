@@ -51,6 +51,26 @@ func (r *seatbeltRunner) confine(argv []string, policy sandbox.Policy) (sandbox.
 // port shares that posture, matching roots.ts's own write-only vocabulary):
 // reads are allowed everywhere, writes are denied by default except
 // /dev/null, plus sandbox.WritableRoots(policy) under workspace-write.
+//
+// sysctl-read is also granted unconditionally, in the same spirit as
+// file-read*: it's read-only kernel/system introspection (uname, CPU
+// count, ...), not a write-confinement concern. Without it, importing
+// numpy — and anything that transitively imports numpy, e.g. pandas —
+// fails at import time: numpy's platform-detection code calls
+// os.uname(), which macOS implements via sysctl, and Seatbelt's default
+// deny blocks that even though it's exactly the kind of read this policy
+// otherwise never restricts. Caught by tools/python's own real-package
+// dependencies, not a synthetic test: a plain print()/file-write script
+// never exercises this path, only a real `import pandas` does.
+//
+// policy.Network adds a blanket (allow network*) — outbound connect, DNS,
+// the lot. Verified empirically against the real sandbox-exec binary (see
+// seatbelt_test.go): network* alone is enough for a real DNS-resolved
+// HTTPS request to succeed, no separate mach-lookup/system-socket rule
+// needed. Not scoped further (e.g. to specific hosts/ports) — Seatbelt's
+// operation-level grammar has nothing narrower than "outbound networking
+// allowed or not," so a caller wanting less than that has to not request
+// Network at all rather than ask for a subset of it.
 func seatbeltProfile(policy sandbox.Policy) string {
 	var b strings.Builder
 	b.WriteString("(version 1)\n")
@@ -58,10 +78,14 @@ func seatbeltProfile(policy sandbox.Policy) string {
 	b.WriteString("(allow process-fork)\n")
 	b.WriteString("(allow process-exec)\n")
 	b.WriteString("(allow file-read*)\n")
+	b.WriteString("(allow sysctl-read)\n")
 	b.WriteString("(allow file-write-data (literal \"/dev/null\"))\n")
 	b.WriteString("(allow file-write* (literal \"/dev/null\"))\n")
 	for _, root := range sandbox.WritableRoots(policy.ExecutionPolicy) {
 		fmt.Fprintf(&b, "(allow file-write* (subpath %s))\n", quoteSeatbelt(root))
+	}
+	if policy.Network {
+		b.WriteString("(allow network*)\n")
 	}
 	return b.String()
 }

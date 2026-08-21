@@ -67,6 +67,41 @@ func newTestAdapter(t *testing.T, baseURL string) *Adapter {
 	return a
 }
 
+func TestNewAppliesConnectTimeouts(t *testing.T) {
+	a, err := New(Config{
+		APIKey:              "k",
+		ConnectTimeout:      2 * time.Second,
+		TLSHandshakeTimeout: 3 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.cfg.HTTPClient == http.DefaultClient {
+		t.Fatal("New should not reuse http.DefaultClient when building from timeouts")
+	}
+	tr, ok := a.cfg.HTTPClient.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("Transport = %T", a.cfg.HTTPClient.Transport)
+	}
+	if tr.TLSHandshakeTimeout != 3*time.Second {
+		t.Fatalf("TLSHandshakeTimeout = %s", tr.TLSHandshakeTimeout)
+	}
+	if a.cfg.HTTPClient.Timeout != 0 {
+		t.Fatalf("Client.Timeout = %s, must stay 0 so streams are not cut off", a.cfg.HTTPClient.Timeout)
+	}
+}
+
+func TestNewKeepsCallerHTTPClient(t *testing.T) {
+	c := &http.Client{Timeout: time.Second}
+	a, err := New(Config{APIKey: "k", HTTPClient: c, ConnectTimeout: time.Millisecond})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.cfg.HTTPClient != c {
+		t.Fatal("New should keep the caller-supplied HTTPClient")
+	}
+}
+
 func userMsg(text string) agentloop.Message {
 	return agentloop.Message{Role: agentloop.RoleUser, Content: []agentloop.ContentBlock{{Kind: agentloop.BlockText, Text: text}}}
 }
@@ -225,16 +260,19 @@ func TestStreamTextResponse(t *testing.T) {
 		t.Fatalf("Stream: %v", err)
 	}
 	chunks := collect(t, ch)
-	if len(chunks) != 1 {
-		t.Fatalf("got %d chunks, want 1 (one finished text block)", len(chunks))
+	if len(chunks) != 2 {
+		t.Fatalf("got %d chunks, want 2 live text deltas", len(chunks))
 	}
-	if chunks[0].Err != nil {
-		t.Fatalf("chunk error: %v", chunks[0].Err)
+	if chunks[0].Err != nil || chunks[1].Err != nil {
+		t.Fatalf("chunk error: %v / %v", chunks[0].Err, chunks[1].Err)
 	}
-	if chunks[0].Delta.Kind != agentloop.BlockText || chunks[0].Delta.Text != "hi there" {
-		t.Fatalf("delta = %+v, want text %q", chunks[0].Delta, "hi there")
+	if chunks[0].Delta.Kind != agentloop.BlockText || chunks[0].Delta.Text != "hi " {
+		t.Fatalf("delta 0 = %+v, want text %q", chunks[0].Delta, "hi ")
 	}
-	if chunks[0].MaxTokens {
+	if chunks[1].Delta.Kind != agentloop.BlockText || chunks[1].Delta.Text != "there" {
+		t.Fatalf("delta 1 = %+v, want text %q", chunks[1].Delta, "there")
+	}
+	if chunks[0].MaxTokens || chunks[1].MaxTokens {
 		t.Fatal("MaxTokens = true, want false for a stop finish")
 	}
 }
@@ -310,8 +348,19 @@ func TestStreamMaxTokensFinishMarksLastChunk(t *testing.T) {
 		t.Fatalf("Stream: %v", err)
 	}
 	chunks := collect(t, ch)
-	if len(chunks) != 1 || !chunks[0].MaxTokens {
-		t.Fatalf("chunks = %+v, want exactly 1 chunk with MaxTokens=true", chunks)
+	var sawMax bool
+	var text string
+	for _, c := range chunks {
+		if c.Err != nil {
+			t.Fatalf("unexpected error chunk: %v", c.Err)
+		}
+		text += c.Delta.Text
+		if c.MaxTokens {
+			sawMax = true
+		}
+	}
+	if text != "cut off" || !sawMax {
+		t.Fatalf("chunks = %+v, want streamed text %q with MaxTokens on some chunk", chunks, "cut off")
 	}
 }
 
@@ -350,12 +399,12 @@ func TestStreamUnknownFinishReasonIsError(t *testing.T) {
 		t.Fatalf("Stream: %v", err)
 	}
 	chunks := collect(t, ch)
-	if len(chunks) != 1 || chunks[0].Err == nil {
-		t.Fatalf("chunks = %+v, want exactly 1 error chunk", chunks)
+	if len(chunks) == 0 || chunks[len(chunks)-1].Err == nil {
+		t.Fatalf("chunks = %+v, want a trailing error chunk", chunks)
 	}
 	var derr *Error
-	if !asError(chunks[0].Err, &derr) || derr.Code != CodeModelStopped {
-		t.Fatalf("err = %v, want CodeModelStopped", chunks[0].Err)
+	if !asError(chunks[len(chunks)-1].Err, &derr) || derr.Code != CodeModelStopped {
+		t.Fatalf("err = %v, want CodeModelStopped", chunks[len(chunks)-1].Err)
 	}
 }
 
@@ -391,12 +440,12 @@ func TestStreamEndsWithoutDoneIsError(t *testing.T) {
 		t.Fatalf("Stream: %v", err)
 	}
 	chunks := collect(t, ch)
-	if len(chunks) != 1 || chunks[0].Err == nil {
-		t.Fatalf("chunks = %+v, want exactly 1 error chunk", chunks)
+	if len(chunks) == 0 || chunks[len(chunks)-1].Err == nil {
+		t.Fatalf("chunks = %+v, want a trailing error chunk", chunks)
 	}
 	var derr *Error
-	if !asError(chunks[0].Err, &derr) || derr.Code != CodeStreamClosed {
-		t.Fatalf("err = %v, want CodeStreamClosed", chunks[0].Err)
+	if !asError(chunks[len(chunks)-1].Err, &derr) || derr.Code != CodeStreamClosed {
+		t.Fatalf("err = %v, want CodeStreamClosed", chunks[len(chunks)-1].Err)
 	}
 }
 
@@ -457,13 +506,16 @@ func TestStreamContextCancellationStopsPromptly(t *testing.T) {
 	}
 	cancel()
 
-	select {
-	case _, ok := <-ch:
-		if ok {
-			t.Fatal("expected the channel to close without delivering a chunk after cancellation")
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case _, ok := <-ch:
+			if !ok {
+				return // closed promptly, any live delta before cancel is fine
+			}
+		case <-deadline:
+			t.Fatal("Stream did not stop promptly after context cancellation")
 		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("Stream did not stop promptly after context cancellation")
 	}
 }
 

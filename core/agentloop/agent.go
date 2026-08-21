@@ -47,6 +47,30 @@ func toolCallsIn(blocks []ContentBlock) []ContentBlock {
 	return calls
 }
 
+// coalesceBlocks merges consecutive text (and consecutive reasoning) deltas
+// into one block each. Live streaming emits many tiny assistant/chunk
+// events; the durable assistant/message still wants one text block, which
+// is what DeriveMessages / serialize replay. Tool-call blocks are never
+// merged — each call is its own Action.
+func coalesceBlocks(blocks []ContentBlock) []ContentBlock {
+	if len(blocks) < 2 {
+		return blocks
+	}
+	out := make([]ContentBlock, 0, len(blocks))
+	for _, b := range blocks {
+		if n := len(out); n > 0 && (b.Kind == BlockText || b.Kind == BlockReasoning) && out[n-1].Kind == b.Kind {
+			out[n-1].Text += b.Text
+			continue
+		}
+		out = append(out, b)
+	}
+	return out
+}
+
+func isEmptyTextish(b ContentBlock) bool {
+	return (b.Kind == BlockText || b.Kind == BlockReasoning) && b.Text == ""
+}
+
 // ---- Session log: the single source of truth ---------------------------
 //
 // Also owned by core/session: its Session type is the real event-sourced
@@ -179,6 +203,16 @@ type Hooks struct {
 	RequestError func(ctx context.Context, turn, step int, err error) (retry bool)
 	// TurnStopping is the terminal, non-retryable checkpoint before a turn closes.
 	TurnStopping func(ctx context.Context, turn int)
+	// TurnEnded fires exactly once per turn, from the same deferred cleanup
+	// that guarantees turn/end always gets appended — unlike TurnStopping,
+	// this runs on every exit path without exception: normal completion,
+	// max-tokens, a rejected PreStep, an aborted (cancelled) turn, a
+	// request error that gave up, and a recovered panic all reach it. A
+	// caller whose durable side effects must not depend on a client still
+	// being connected (e.g. flushing a session to persistent storage —
+	// see web/server.go's syncPersistence wiring) belongs here, not in
+	// TurnStopping, which a cancelled or errored turn skips entirely.
+	TurnEnded func(ctx context.Context, turn int, reason string)
 }
 
 // ---- Phase state machine -------------------------------------------------
@@ -284,6 +318,16 @@ func (a *Agent) WithReasoningEffort(effort string) *Agent {
 // session-state plugin (e.g. planmode.Controller) needs to fold durable
 // state and extend it, without agentloop knowing that plugin exists.
 func (a *Agent) Session() Session { return a.session }
+
+// SystemPrompt returns the system prompt this Agent sends with every
+// request — the same string a caller wanting to price a hypothetical next
+// request's structural overhead (e.g. llm/tokenmeter.Header.System) needs,
+// without duplicating whatever constant buildAgent constructed it from.
+func (a *Agent) SystemPrompt() string { return a.system }
+
+// ToolSchemas returns the tool declarations this Agent sends with every
+// request — the other half of llm/tokenmeter.Header, alongside SystemPrompt.
+func (a *Agent) ToolSchemas() []ToolSchema { return a.tools.Schemas() }
 
 func (a *Agent) Status() string {
 	a.mu.Lock()
@@ -422,7 +466,21 @@ func (a *Agent) turn(ctx context.Context) (cont bool, err error) {
 		if r := recover(); r != nil {
 			reason, err, cont = "error", fmt.Errorf("agent: turn %d panicked: %v", turnNum, r), false
 		}
-		a.session.Append("turn/end", map[string]any{"turn": turnNum, "reason": reason})
+		endData := map[string]any{"turn": turnNum, "reason": reason}
+		if err != nil {
+			// Durable, not just an in-memory return value: err is otherwise
+			// discarded by kick()'s own `cont, _ := a.turn(ctx)` (its caller
+			// only cares whether to keep looping), so without this the
+			// specific reason a turn failed — a model request that ran out of
+			// retries, a tool that errored — would never reach anything
+			// reading the session log after the fact, including a client
+			// watching live via GET /sessions/{id}/stream.
+			endData["error"] = err.Error()
+		}
+		a.session.Append("turn/end", endData)
+		if a.hooks.TurnEnded != nil {
+			a.hooks.TurnEnded(ctx, turnNum, reasonString(reason))
+		}
 	}()
 
 	var turnEnd StepEndReason
@@ -496,6 +554,24 @@ func (a *Agent) turn(ctx context.Context) (cont bool, err error) {
 	return true, nil
 }
 
+// reasonString normalizes turn/end's reason field (a StepEndReason, a plain
+// string like "blocked"/"aborted"/"error", or nil) to a string for
+// Hooks.TurnEnded — the same duck-typing turnEndReason's own test helper
+// already treats as equivalent, ported to production code instead of a
+// _test.go file so a real hook doesn't have to redo it.
+func reasonString(reason any) string {
+	switch r := reason.(type) {
+	case nil:
+		return ""
+	case string:
+		return r
+	case StepEndReason:
+		return string(r)
+	default:
+		return fmt.Sprint(r)
+	}
+}
+
 // step is the inner ReAct cycle: Thought (assistant text) + Action
 // (tool-call blocks) go out, Observation (tool results) come back as
 // tool/result log events — DeriveMessages() picks them up on the next
@@ -514,6 +590,9 @@ func (a *Agent) step(ctx context.Context, turn, stepNum int) (StepEndReason, err
 		}
 		stream, err := a.llm.Stream(ctx, req)
 		if err != nil {
+			if a.hooks.RequestError != nil && a.hooks.RequestError(ctx, turn, stepNum, err) {
+				continue // retry in place, same step
+			}
 			return stepContinue, err
 		}
 
@@ -525,9 +604,16 @@ func (a *Agent) step(ctx context.Context, turn, stepNum int) (StepEndReason, err
 				streamErr = chunk.Err
 				break
 			}
+			if chunk.MaxTokens {
+				maxTokens = true
+			}
+			// A MaxTokens marker may ride on an empty delta (the adapter
+			// already streamed the text live). Don't persist a blank block.
+			if chunk.Delta.Kind == "" || isEmptyTextish(chunk.Delta) {
+				continue
+			}
 			a.session.Append("assistant/chunk", map[string]any{"turn": turn, "step": stepNum, "chunk": chunk.Delta})
 			blocks = append(blocks, chunk.Delta)
-			maxTokens = chunk.MaxTokens
 		}
 
 		if streamErr != nil {
@@ -537,7 +623,7 @@ func (a *Agent) step(ctx context.Context, turn, stepNum int) (StepEndReason, err
 			return stepContinue, streamErr
 		}
 
-		msg := Message{Role: RoleAssistant, Content: blocks}
+		msg := Message{Role: RoleAssistant, Content: coalesceBlocks(blocks)}
 		a.session.Append("assistant/message", map[string]any{"turn": turn, "step": stepNum, "message": msg},
 			session.WithSurfaceOp(session.AppendOp()))
 

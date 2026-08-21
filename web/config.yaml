@@ -1,0 +1,68 @@
+# go-harness web 运行时配置。
+# 启动时读取（默认 ./config.yaml，或 -config / WEB_DEMO_CONFIG）。
+# 空字段会填包内默认值。密钥等可用环境变量覆盖，不必写进文件。
+
+server:
+  port: 8083
+  # 空 = $TMPDIR/go-harness-web-demo
+  data_dir: ""
+  shutdown_timeout: 60s
+
+llm:
+  # 空则读 DEEPSEEK_API_KEY
+  api_key: "sk-fe1f2cbbba6740e58de3f7be1f5f6f9a"
+  # 空则用 https://api.deepseek.com，或 DEEPSEEK_BASE_URL
+  base_url: ""
+  model: deepseek-chat
+  stream_idle_timeout: 10m
+  # TCP 建连；0 或不写 = 30s（与 Go 默认 Transport 一致）
+  connect_timeout: 100s
+  # TLS 握手；0 或不写 = 10s
+  tls_handshake_timeout: 100s
+  # 空 = 走 DeepSeek 默认 thinking；设为 disabled 可关掉
+  thinking: ""
+  max_tokens: 0
+  # 省略或 null = 不传 temperature
+  temperature: null
+  reasoning_effort: ""
+  retry:
+    # normal = 只重试 retryable_codes，最多 max_retries 次
+    # always = 失败就重试直到上下文取消
+    mode: normal
+    max_retries: 5
+    initial_delay: 500ms
+    max_delay: 10s
+    jitter_ratio: 0.1
+    retryable_codes:
+      - EMPTY_RESPONSE
+      - RATE_LIMIT
+      - SERVER
+      - TIMEOUT
+      - TRANSPORT
+
+sandbox:
+  # read-only | workspace-write | danger-full-access
+  bash_mode: danger-full-access
+  bash_network: true
+  python_mode: danger-full-access
+  fs_mode: danger-full-access
+  auto_approve_escalation: true
+
+python:
+  # 空 = UserCacheDir/go-harness/python-venv
+  cache_dir: ""
+  bin: python3
+  install_timeout: 5m
+  run_timeout: 300s
+  # 空 = 使用 DefaultDocumentPackages
+  packages: []
+
+tools:
+  bash_timeout: 120s
+  max_upload_bytes: 67108864
+  max_parallel_tool_calls: 10
+
+agent:
+  auto_approve_plan: true
+  # 空 = 使用代码里的默认 system prompt（对用户用简体中文）
+  system_prompt: ""

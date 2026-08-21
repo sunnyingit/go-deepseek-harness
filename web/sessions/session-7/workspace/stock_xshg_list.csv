@@ -1,0 +1,11 @@
+ticker,name,is_active,exchange_code,country_code,currency_code
+600020,中原高速,1,XSHG,CHN,CNY
+600026,中远海能,1,XSHG,CHN,CNY
+600105,永鼎股份,1,XSHG,CHN,CNY
+600122,*ST宏图,0,XSHG,CHN,CNY
+600129,太极集团,1,XSHG,CHN,CNY
+600131,国网信通,1,XSHG,CHN,CNY
+600136,ST明诚,1,XSHG,CHN,CNY
+600183,生益科技,1,XSHG,CHN,CNY
+600225,退市卓朗,0,XSHG,CHN,CNY
+600230,沧州大化,1,XSHG,CHN,CNY

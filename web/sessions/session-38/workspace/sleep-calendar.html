@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>最近 30 天睡眠日历热力图（可拖拽）</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --border: #334155;
+    --txt: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; width: 100%; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--txt); }
+  .app { max-width: 980px; margin: 0 auto; padding: 24px 20px 40px; }
+  header { margin-bottom: 16px; }
+  header h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .controls button, .controls select {
+    background: var(--panel); color: var(--txt);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 14px; font-size: 13px; cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .controls button:hover { background: var(--panel-2); border-color: var(--accent); }
+  .controls button:active { transform: translateY(1px); }
+  .pill { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; margin-left: auto; }
+  .stage { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 12px;
+    background: radial-gradient(1200px 600px at 20% -10%, #22335500, #223355 70%), var(--panel);
+    height: 520px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #tip {
+    position: absolute; pointer-events: none; z-index: 20;
+    background: #0b1220; border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; font-size: 12px; line-height: 1.6; color: var(--txt);
+    box-shadow: 0 8px 22px rgba(0,0,0,.45); opacity: 0; transition: opacity .12s;
+    max-width: 240px; white-space: nowrap;
+    transform: translate(0, -50%);
+  }
+  #tip b { color: var(--accent); }
+  .hint { margin-top: 10px; color: var(--muted); font-size: 12px; text-align: center; }
+  .axis-lbl { fill: var(--muted); font-size: 11px; font-weight: 500; }
+  .cell { transition: filter .12s; }
+  .cell:hover { filter: brightness(1.15); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>😴 最近 30 天睡眠日历</h1>
+    <p>颜色越亮 = 睡得越好。格子里的数字是日期，鼠标悬停看当天详情，按住拖动画布可平移浏览。
+       <span id="range" style="color:var(--accent)"></span></p>
+  </header>
+
+  <div class="controls">
+    <select id="metric">
+      <option value="hours">睡眠时长（小时）</option>
+      <option value="quality">睡眠质量（分）</option>
+      <option value="awake">夜间清醒（分钟）</option>
+    </select>
+    <button id="today">📍 回到今天</button>
+    <button id="fit">⤢ 显示全部</button>
+    <span class="pill" id="legend-pill"></span>
+  </div>
+
+  <div class="stage" id="stage"></div>
+  <div class="hint">🖱️ 按住拖动平移　·　滚轮缩放　·　点格子查看当天详情</div>
+</div>
+
+<div id="tip"></div>
+
+<script src="./d3.min.js"></script>
+<script>
+(async function () {
+  // ================= 数据：最近 30 天睡眠 =================
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const data = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const r = (s) => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+    const weekend = d.getDay() === 0 || d.getDay() === 6;
+    const base = weekend ? 7.9 : 7.1;
+    const hours = +(base + (r(i * 7 + 3) - 0.5) * 2.2).toFixed(1);
+    let quality;
+    if (hours >= 8.2) quality = 72 + Math.round(r(i * 13) * 26);
+    else if (hours >= 6.8) quality = 52 + Math.round(r(i * 17) * 30);
+    else if (hours >= 5.5) quality = 34 + Math.round(r(i * 19) * 30);
+    else quality = 18 + Math.round(r(i * 27) * 20);
+    const awake = hours >= 7.2 ? Math.round(r(i * 23) * 14) : Math.round(r(i * 29) * 46 + 10);
+    data.push({ date: d, hours, quality, awake,
+      label: `${d.getMonth()+1}月${d.getDate()}日 · 周${"日一二三四五六"[d.getDay()]}`,
+      day: d.getDate(), month: d.getMonth()+1 });
+  }
+  // 显示范围：最近 30 天
+  const rangeLabel = `${data[0].month}月${data[0].day}日 – ${data[29].month}月${data[29].day}日`;
+  // 把数据按"距首日周数"布局进虚拟画布（在首日所在周之前保留空行，方便拖拽看周首）
+  const firstDate = data[0].date;
+  const weekday0 = (firstDate.getDay() + 6) % 7;         // 首日周几（周一=0）
+  const TOTAL_ROWS = 7;                                  // 预生成可纵向拖动浏览的行数
+  const rowIndex = {};                                   // date -> 行号（含首日前空白行）
+
+  function rowOf(date, offset) {
+    const diffDays = Math.round((date - firstDate) / 86400000);
+    return offset + Math.floor((diffDays) / 7);
+  }
+  data.forEach(d => {
+    const diffDays = Math.round((d.date - firstDate) / 86400000);
+    d.row = Math.floor((diffDays + weekday0) / 7);       // 以日历自然的周一为一周起点
+  });
+
+  // ================= 布局尺寸 =================
+  const stage = document.getElementById("stage");
+  const CELL = 44, GAP = 10;
+  const M = { top: 44, left: 44, right: 10, bottom: 10 };
+  const svgW = M.left + 7 * (CELL + GAP) + M.right;
+  const svgH = M.top + TOTAL_ROWS * (CELL + GAP) + M.bottom;
+  // 用自然周的周日作为列位置
+  function colOf(date) { return (date.getDay() + 6) % 7; }
+  function cx(d) { return M.left + colOf(d.date) * (CELL + GAP) + CELL / 2; }
+  function cy(d) { return M.top + d.row * (CELL + GAP) + CELL / 2; }
+
+  // ================= zoom / 拖拽 =================
+  const zoom = d3.zoom()
+    .scaleExtent([0.5, 3])
+    .filter(e => !e.ctrlKey)          // ctrl+滚轮保留给系统缩放
+    .on("zoom", (e) => grid.attr("transform", e.transform));
+
+  const svg = d3.select("#stage").append("svg")
+    .attr("width", "100%").attr("height", "100%")
+    .attr("viewBox", `0 0 ${svgW} ${svgH}`)
+    .attr("preserveAspectRatio", "xMidYMid meet")
+    .style("cursor", "grab")
+    .call(zoom)
+    .on("mousedown", () => svg.style("cursor", "grabbing"))
+    .on("mouseup", () => svg.style("cursor", "grab"))
+    .on("mouseleave", () => svg.style("cursor", "grab"));
+
+  const grid = svg.append("g");
+
+  // ================= 周首标签（纵向坐标，随拖动移动） =================
+  const weekStartDates = [];
+  // 首日所在周一作为第一个周标签
+  const firstMonday = new Date(firstDate);
+  firstMonday.setDate(firstMonday.getDate() - weekday0);
+  for (let r = 0; r < TOTAL_ROWS; r++) {
+    const w = new Date(firstMonday); w.setDate(w.getDate() + r * 7);
+    weekStartDates.push(w);
+  }
+
+  // 周标签（左侧纵向，随整体平移）
+  svg.selectAll(".week-lbl")
+    .data(weekStartDates)
+    .join("text")
+    .attr("class", "axis-lbl")
+    .attr("x", M.left - 8)
+    .attr("y", (d, i) => M.top + i * (CELL + GAP) + CELL / 2)
+    .attr("text-anchor", "end")
+    .attr("dominant-baseline", "middle")
+    .text(d => {
+      const m = d.getMonth() + 1, day = d.getDate();
+      return `${m}/${day}`;
+    });
+
+  // ================= 颜色 =================
+  const metric = document.getElementById("metric");
+  const colors = {
+    hours:   { domain: [5, 9],     range: ["#1e3a8a", "#facc15"], fmt: v => `${v} 小时` },
+    quality: { domain: [20, 100],  range: ["#7c2d12", "#22c55e"], fmt: v => `${Math.round(v)} 分` },
+    awake:   { domain: [0, 65],    range: ["#38bdf8", "#7f1d1d"], fmt: v => `${Math.round(v)} 分钟` }
+  };
+  function colorScale(key) {
+    const c = colors[key];
+    return d3.scaleLinear().domain(c.domain).range(c.range).clamp(true);
+  }
+  let cScale = colorScale(metric.value);
+
+  // ================= 图例 =================
+  const legendPill = document.getElementById("legend-pill");
+  function updateLegend() {
+    const c = colors[metric.value];
+    const n = 5;
+    const stops = d3.range(n).map(i => {
+      const t = i / (n - 1);
+      return colorScale(metric.value)(c.domain[0] + t * (c.domain[1] - c.domain[0]));
+    }).join(",");
+    legendPill.innerHTML = '';
+    const span = document.createElement("span");
+    span.style.background = `linear-gradient(90deg, ${stops})`;
+    span.style.display = "inline-block"; span.style.width = "90px"; span.style.height = "10px";
+    span.style.borderRadius = "5px";
+    legendPill.appendChild(span);
+    let end = document.createTextNode(
+      `${c.fmt(c.domain[0])} ← ${c.fmt(c.domain[1])}`);
+    legendPill.appendChild(end);
+  }
+  updateLegend();
+
+  // ================= Tooltip =================
+  const tip = d3.select("#tip");
+  const stageRect = () => stage.getBoundingClientRect();
+  function showTip(event, d) {
+    tip.style("opacity", 1)
+      .style("visibility", "visible")
+      .html(`<b>${d.label}</b><br/>😴 睡眠：<b>${d.hours}</b> 小时<br/>🌟 质量：${d.quality} 分<br/>⏰ 夜间清醒：${d.awake} 分钟`)
+      .style("left", (event.clientX - stageRect().left + 14) + "px")
+      .style("top", (event.clientY - stageRect().top) + "px");
+  }
+  function hideTip() { tip.style("opacity", 0); }
+
+  // ================= 绘制 =================
+  function render() {
+    cScale = colorScale(metric.value);
+    const cells = grid.selectAll(".cell")
+      .data(data, d => d.date.toDateString());
+
+    cells.join("rect")
+      .attr("class", "cell")
+      .attr("width", CELL - 6)
+      .attr("height", CELL - 6)
+      .attr("rx", 8)
+      .attr("cursor", "pointer")
+      .attr("fill", d => cScale(d[metric.value]))
+      .attr("stroke", "#0b1220")
+      .attr("stroke-width", 1)
+      .attr("transform", d => `translate(${cx(d) - (CELL-6)/2}, ${cy(d) - (CELL-6)/2})`)
+      .on("mousemove", function (event, d) { showTip(event, d); })
+      .on("mouseout", hideTip);
+
+    // 每格里的日期数字（深浅自动适配格子亮度）
+    grid.selectAll(".daynum")
+      .data(data, d => d.date.toDateString())
+      .join("text")
+      .attr("class", "daynum")
+      .attr("x", d => cx(d))
+      .attr("y", d => cy(d) + 1)
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .style("font-size", "11px")
+      .style("font-weight", "600")
+      .style("fill", d => {
+        const col = d3.color(cScale(d[metric.value])).rgb();
+        // 相对亮度 YIQ
+        const lum = (col.r * 299 + col.g * 587 + col.b * 114) / 1000;
+        return lum > 160 ? "#0f172a" : "#f1f5f9";
+      })
+      .style("pointer-events", "none")
+      .text(d => d.month === now.getMonth() + 1 && d.day === now.getDate() ? "今" : d.day);
+
+    // 今天格子加亮框
+    grid.selectAll(".today-ring")
+      .data(data.filter(d => d.date.getTime() === now.getTime()), d => d.date.toDateString())
+      .join("rect")
+      .attr("class", "today-ring")
+      .attr("width", CELL - 2)
+      .attr("height", CELL - 2)
+      .attr("rx", 10)
+      .attr("fill", "none")
+      .attr("stroke", "#f8fafc")
+      .attr("stroke-width", 2)
+      .attr("stroke-dasharray", "3 2")
+      .attr("pointer-events", "none")
+      .attr("transform", d => `translate(${cx(d) - (CELL-2)/2}, ${cy(d) - (CELL-2)/2})`);
+  }
+
+  // ================= 初始与复位 =================
+  // 让"今天"居中：计算今天所在行
+  const todayRow = data.find(d => d.date.getTime() === now.getTime())?.row ?? 4;
+  const tx = -M.left;
+  const ty = -(todayRow * (CELL + GAP)) + svgH * 0.42;
+
+  // 显示全部范围（30 天）
+  const minR = Math.min(...data.map(d => d.row));
+  const maxR = Math.max(...data.map(d => d.row));
+  const spanY = (maxR - minR) * (CELL + GAP) + CELL;
+  const fitScale = Math.min(1, (svgH * 0.72) / spanY, svgW / (7 * CELL));
+  const fitTy = svgH * 0.5 - ((minR + maxR) / 2 + 0.5) * (CELL + GAP);
+  const fitTx = -M.left;
+
+  function applyToday() {
+    svg.transition().duration(450)
+      .call(zoom.transform, d3.zoomIdentity.translate(tx, ty));
+  }
+  function applyFit() {
+    svg.transition().duration(450)
+      .call(zoom.transform, d3.zoomIdentity.translate(fitTx, fitTy).scale(fitScale));
+  }
+
+  grid.attr("transform", `translate(${tx},${ty})`);
+  svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty));
+  render();
+
+  // 事件
+  metric.addEventListener("change", () => { render(); updateLegend(); });
+  document.getElementById("today").addEventListener("click", applyToday);
+  document.getElementById("fit").addEventListener("click", applyFit);
+
+  // 顶部显示范围
+  const rangeEl = document.getElementById("range");
+  if (rangeEl) rangeEl.textContent = rangeLabel;
+})();
+</script>
+</body>
+</html>

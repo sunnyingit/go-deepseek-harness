@@ -62,6 +62,37 @@ func TestBwrapConfineReadOnlyGrantsNoWorkspaceBind(t *testing.T) {
 	}
 }
 
+func TestBwrapConfineSharesNetOnlyWhenPolicyNetworkTrue(t *testing.T) {
+	r := newBwrapRunner()
+
+	withoutNet := mustPolicy(t, sandbox.ReadOnly, "/ws")
+	result, err := r.confine([]string{"echo"}, withoutNet)
+	if err != nil {
+		t.Fatalf("confine: %v", err)
+	}
+	for _, arg := range result.Argv {
+		if arg == "--share-net" {
+			t.Fatalf("argv = %v, want no --share-net when policy.Network is false", result.Argv)
+		}
+	}
+
+	withNet := mustPolicy(t, sandbox.ReadOnly, "/ws")
+	withNet.Network = true
+	result, err = r.confine([]string{"echo"}, withNet)
+	if err != nil {
+		t.Fatalf("confine: %v", err)
+	}
+	found := false
+	for _, arg := range result.Argv {
+		if arg == "--share-net" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("argv = %v, want --share-net when policy.Network is true", result.Argv)
+	}
+}
+
 func TestBwrapConfineRejectsEmptyArgv(t *testing.T) {
 	r := newBwrapRunner()
 	policy := mustPolicy(t, sandbox.ReadOnly, "/ws")

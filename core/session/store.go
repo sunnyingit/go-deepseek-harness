@@ -66,6 +66,24 @@ func (st *Store) Get(id SessionId) (*Session, bool) {
 	return s, ok
 }
 
+// Adopt registers an already-built session under its own id — the
+// counterpart to Create, which always mints a fresh session from scratch.
+// This is how a caller restoring sessions from a persistence backend (see
+// session/sessionpersistence) makes a loaded *Session live again: Create
+// has no way to accept a pre-existing log, and nothing else in this type
+// exposes the sessions map to insert into directly. Fails if id is
+// already registered, the same collision Create itself guards against.
+func (st *Store) Adopt(s *Session) error {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	id := s.ID()
+	if _, exists := st.sessions[id]; exists {
+		return fmt.Errorf("session: %q already exists", id)
+	}
+	st.sessions[id] = s
+	return nil
+}
+
 // List returns every live session, in no particular order.
 func (st *Store) List() []*Session {
 	st.mu.Lock()

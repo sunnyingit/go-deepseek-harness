@@ -51,6 +51,16 @@ func (e *Error) Error() string {
 
 func (e *Error) Unwrap() error { return e.Err }
 
+// RetryCode exposes Code as the stable string vocabulary a provider-agnostic
+// retry policy (llm/llmretry) classifies against, without that package
+// importing this one.
+func (e *Error) RetryCode() string { return string(e.Code) }
+
+// ProviderRetryDelay exposes RetryAfter under the name a retry policy's
+// classification interface expects — RetryAfter itself is already a struct
+// field, so a same-named method isn't legal Go.
+func (e *Error) ProviderRetryDelay() time.Duration { return e.RetryAfter }
+
 // httpError classifies a non-2xx response into the stable Code vocabulary.
 // body is the (already read) response body, parsed best-effort as a
 // wireError; a body that isn't JSON still yields a generic message from the

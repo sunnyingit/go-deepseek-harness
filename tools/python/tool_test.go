@@ -2,6 +2,7 @@ package python
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -148,6 +149,44 @@ with open("should-not-exist.txt", "w") as f:
 	if _, statErr := os.Stat(filepath.Join(workspace, "should-not-exist.txt")); statErr == nil {
 		t.Fatal("the denied write must not have happened")
 	}
+}
+
+func TestRunToolDangerFullAccessBypassesProvider(t *testing.T) {
+	env := systemPythonEnv(t)
+	workspace := t.TempDir()
+	outside := t.TempDir()
+	target := filepath.Join(outside, "unconfined.txt")
+
+	def, err := NewRunTool(RunToolOptions{
+		Env: env, Provider: panicProvider{t}, WorkspaceRoot: workspace, Mode: sandbox.DangerFullAccess,
+	})
+	if err != nil {
+		t.Fatalf("NewRunTool: %v", err)
+	}
+
+	script := fmt.Sprintf(`
+with open(%q, "w") as f:
+    f.write("ok")
+print("done")
+`, target)
+	result, err := runViaRegistry(t, def, script)
+	if err != nil || result.IsError {
+		t.Fatalf("result = %+v, err = %v", result, err)
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("expected write outside workspace: %v", err)
+	}
+	if string(data) != "ok" {
+		t.Fatalf("content = %q", data)
+	}
+}
+
+type panicProvider struct{ t *testing.T }
+
+func (p panicProvider) Confine([]string, sandbox.Policy) (sandbox.ConfinedArgv, error) {
+	p.t.Fatal("Confine must never be called under danger-full-access")
+	return sandbox.ConfinedArgv{}, nil
 }
 
 func TestRunToolTimeout(t *testing.T) {

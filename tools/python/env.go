@@ -87,6 +87,15 @@ func EnsureEnv(ctx context.Context, opts EnvOptions) (*Env, error) {
 	sorted := slices.Clone(packages)
 	slices.Sort(sorted)
 
+	// Relocatable interpreters (python-build-standalone in the desktop
+	// bundle) ship packages already installed, recorded next to the prefix.
+	// Reuse that interpreter instead of creating a venv with baked-in paths.
+	if prefix := interpreterPrefix(pythonBin); prefix != "" {
+		if cached, ok := readMarker(prefix); ok && slices.Equal(cached, sorted) {
+			return &Env{Root: prefix, PythonPath: pythonBin, Packages: packages}, nil
+		}
+	}
+
 	if cached, ok := readMarker(opts.CacheDir); ok && slices.Equal(cached, sorted) {
 		return &Env{Root: opts.CacheDir, PythonPath: venvPython(opts.CacheDir), Packages: packages}, nil
 	}
@@ -110,6 +119,21 @@ func EnsureEnv(ctx context.Context, opts EnvOptions) (*Env, error) {
 	}
 
 	return &Env{Root: opts.CacheDir, PythonPath: venvPython(opts.CacheDir), Packages: packages}, nil
+}
+
+// interpreterPrefix is the install root of an absolute Python binary
+// (…/python/bin/python3 or …/python/python.exe). Relative names like
+// "python3" are looked up on PATH and are not treated as a bundle prefix.
+func interpreterPrefix(pythonBin string) string {
+	if pythonBin == "" || !filepath.IsAbs(pythonBin) {
+		return ""
+	}
+	dir := filepath.Dir(pythonBin)
+	base := filepath.Base(dir)
+	if base == "bin" || base == "Scripts" {
+		return filepath.Dir(dir)
+	}
+	return dir
 }
 
 func venvPython(root string) string {

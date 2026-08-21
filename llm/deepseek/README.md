@@ -18,7 +18,8 @@ The TS original is the source of truth this port follows instead.
 ```go
 adapter, err := deepseek.New(deepseek.Config{
     APIKey: os.Getenv("DEEPSEEK_API_KEY"),
-    // BaseURL, Thinking, StreamIdleTimeout, HTTPClient all optional
+    // BaseURL, Thinking, StreamIdleTimeout, ConnectTimeout,
+    // TLSHandshakeTimeout, HTTPClient all optional
 })
 agent := agentloop.NewAgent(session, adapter, tools, "you are a helpful assistant", agentloop.Hooks{}).
     WithModel("deepseek-chat")
@@ -47,12 +48,12 @@ agent := agentloop.NewAgent(session, adapter, tools, "you are a helpful assistan
 
 ## Deliberate simplifications vs. the TS original
 
-- **One `StreamChunk` per finished block, not per delta.** The TS protocol
-  streams a live delta per keystroke for UI replay and fine-grained session
-  logging; `agentloop.step()` only ever consumes whole blocks
-  (`blocks = append(blocks, chunk.Delta)`), so finer granularity would be
-  precision this port can't use. Blocks are accumulated internally and
-  emitted once, at `[DONE]`.
+- **Live text/reasoning deltas, assembled tool calls.** Wire SSE tokens
+  for `content` / `reasoning_content` are forwarded as `StreamChunk`s as
+  they arrive so a UI can paint them. Tool-call arguments still assemble
+  internally and emit once at `[DONE]` (partial JSON is not executable).
+  `agentloop.step()` coalesces consecutive text/reasoning deltas onto the
+  durable `assistant/message`, so the transcript shape is unchanged.
 - **No dynamic settings/credentials re-resolution.** `Config` is fixed at
   construction; the TS adapter re-reads connection facts through a thunk once
   per call so a live settings/credential change reaches the next request

@@ -83,3 +83,36 @@ func TestEnsureEnvRequiresCacheDir(t *testing.T) {
 		t.Fatal("want an error when CacheDir is empty")
 	}
 }
+
+func TestEnsureEnvReusesPreinstalledInterpreter(t *testing.T) {
+	root := t.TempDir()
+	binDir := filepath.Join(root, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stub := filepath.Join(binDir, "python3")
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeMarker(root, []string{"Pillow", "pandas"}); err != nil {
+		t.Fatal(err)
+	}
+	cache := filepath.Join(t.TempDir(), "venv")
+	env, err := EnsureEnv(context.Background(), EnvOptions{
+		CacheDir:  cache,
+		PythonBin: stub,
+		Packages:  []string{"pandas", "Pillow"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if env.PythonPath != stub {
+		t.Fatalf("PythonPath = %q, want bundled interpreter %q", env.PythonPath, stub)
+	}
+	if env.Root != root {
+		t.Fatalf("Root = %q, want prefix %q", env.Root, root)
+	}
+	if _, err := os.Stat(cache); err == nil {
+		t.Fatal("preinstalled interpreter should not create a venv")
+	}
+}

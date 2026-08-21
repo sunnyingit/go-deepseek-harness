@@ -185,3 +185,16 @@ func (s *Session) DeriveMessages() []Message {
 	copy(out, s.derived)
 	return out
 }
+
+// SurfaceSeqs returns the seq of every event currently on the surface, in
+// positional order — the same ordered node list DeriveMessages walks,
+// exposed directly for a caller that needs to know which log events are
+// shadowed rather than derive their content (e.g. core/sessionquery's
+// current/shadowed/log-only classification).
+func (s *Session) SurfaceSeqs() []int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]int, len(s.surface.nodes))
+	copy(out, s.surface.nodes)
+	return out
+}

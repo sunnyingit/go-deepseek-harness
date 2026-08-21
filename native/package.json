@@ -1,0 +1,61 @@
+{
+  "name": "pabuddy-native",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Electron client for the go-harness web UI (index, dialog, space)",
+  "author": "PABuddy",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^36.2.1",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "ai.pabuddy.native",
+    "productName": "PABuddy",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "setup.html",
+      "setup.js",
+      "splash.html",
+      "icon.png",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime/",
+        "to": "runtime",
+        "filter": [
+          "**/*",
+          "!**/*.tar.gz",
+          "!**/*.zip",
+          "!README.md"
+        ]
+      }
+    ],
+    "afterPack": "./scripts/after-pack.js",
+    "icon": "build/icon.png",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "identity": null,
+      "target": [
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "zip"
+      ]
+    }
+  }
+}

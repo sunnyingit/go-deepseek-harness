@@ -55,6 +55,33 @@ func TestStoreGetAndList(t *testing.T) {
 	}
 }
 
+func TestStoreAdoptRegistersAnAlreadyBuiltSession(t *testing.T) {
+	st := NewStore()
+	built := New("restored", Header{CWD: "/work/proj"})
+	built.Append("turn/start", 1)
+
+	if err := st.Adopt(built); err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok := st.Get("restored")
+	if !ok || got != built {
+		t.Fatalf("Get(restored) = %v, %v, want the exact adopted *Session", got, ok)
+	}
+	if len(st.List()) != 1 {
+		t.Fatalf("List() has %d entries, want 1", len(st.List()))
+	}
+}
+
+func TestStoreAdoptRejectsDuplicateID(t *testing.T) {
+	st := NewStore()
+	st.Create("s1", Header{})
+
+	if err := st.Adopt(New("s1", Header{})); err == nil {
+		t.Fatal("expected an error adopting a session under an id that's already live")
+	}
+}
+
 func TestStoreForkDefaultsBoundaryToLastEventAndRecordsLineage(t *testing.T) {
 	st := NewStore()
 	parent, _ := st.Create("parent", Header{CWD: "/work"})

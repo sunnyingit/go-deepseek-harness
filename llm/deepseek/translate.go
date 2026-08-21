@@ -1,10 +1,10 @@
-// Port of translate.ts: assemble DeepSeek SSE payloads into agentloop
-// StreamChunks. Unlike the TS original (which streams a live delta per
-// content/reasoning/tool-call index for UI replay), this port accumulates
-// each block internally and emits exactly one StreamChunk per finished
-// block on [DONE] — agentloop.step() treats each received chunk.Delta as
-// one already-complete content block, so finer-grained deltas would be
-// wasted precision this port doesn't consume.
+// Port of translate.ts: fold DeepSeek SSE payloads into agentloop
+// StreamChunks. Text and reasoning are emitted live (one delta per wire
+// chunk) so a UI can paint tokens as they arrive. Tool-call arguments are
+// still assembled internally and emitted once at [DONE] — partial JSON is
+// not a valid tool call. agentloop.step() coalesces consecutive text/
+// reasoning deltas into one block on the durable assistant/message, so the
+// live granularity is a streaming concern, not a transcript shape change.
 package deepseek
 
 import (
@@ -39,9 +39,12 @@ func newBlockAssembler() *blockAssembler {
 	return &blockAssembler{tools: map[int]*openBlock{}}
 }
 
-// consume folds one wire chunk's choices into the accumulator. It never
-// itself produces StreamChunks — see finish.
-func (b *blockAssembler) consume(wc wireChunk) {
+// consume folds one wire chunk's choices into the accumulator and returns
+// live text/reasoning deltas for this payload (empty when the chunk only
+// carried tool-call fragments or a finish reason). Tool calls stay buffered
+// until finish — their arguments arrive as JSON fragments.
+func (b *blockAssembler) consume(wc wireChunk) []agentloop.StreamChunk {
+	var live []agentloop.StreamChunk
 	for _, choice := range wc.Choices {
 		if choice.FinishReason != "" {
 			b.finishReason = choice.FinishReason
@@ -57,6 +60,9 @@ func (b *blockAssembler) consume(wc wireChunk) {
 				b.order = append(b.order, b.reasoning)
 			}
 			b.reasoning.text.WriteString(d.ReasoningContent)
+			live = append(live, agentloop.StreamChunk{Delta: agentloop.ContentBlock{
+				Kind: agentloop.BlockReasoning, Text: d.ReasoningContent,
+			}})
 		}
 
 		if len(d.Content) > 0 {
@@ -65,6 +71,9 @@ func (b *blockAssembler) consume(wc wireChunk) {
 				b.order = append(b.order, b.text)
 			}
 			b.text.text.WriteString(d.Content)
+			live = append(live, agentloop.StreamChunk{Delta: agentloop.ContentBlock{
+				Kind: agentloop.BlockText, Text: d.Content,
+			}})
 		}
 
 		for _, call := range d.ToolCalls {
@@ -85,14 +94,14 @@ func (b *blockAssembler) consume(wc wireChunk) {
 			}
 		}
 	}
+	return live
 }
 
-// finish closes the stream at [DONE] and returns the finished blocks as
-// StreamChunks, in the order they first opened. A "length" finish marks the
-// last chunk StreamChunk.MaxTokens; an unrecognized finish reason
-// (content_filter, insufficient_system_resource, …) or a "stop"/"tool_calls"
-// finish with nothing ever opened becomes an error instead of a chunk list,
-// mirroring translate.ts's degenerate-completion and unknown-reason handling.
+// finish closes the stream at [DONE]. Text and reasoning already went out
+// live from consume; this returns only completed tool-call blocks (and a
+// MaxTokens marker on a length finish). An unrecognized finish reason
+// (content_filter, …) or a "stop"/"tool_calls" finish with nothing ever
+// opened becomes an error instead of a chunk list.
 func (b *blockAssembler) finish() ([]agentloop.StreamChunk, error) {
 	reason := b.finishReason
 	if reason == "" {
@@ -103,32 +112,33 @@ func (b *blockAssembler) finish() ([]agentloop.StreamChunk, error) {
 		if len(b.order) == 0 {
 			return nil, &Error{Code: CodeEmptyResponse, Message: "model returned a completed response with no content"}
 		}
-		return b.chunks(false), nil
+		return b.toolChunks(false), nil
 	case "length":
-		return b.chunks(true), nil
+		return b.toolChunks(true), nil
 	default:
 		return nil, &Error{Code: CodeModelStopped, Message: fmt.Sprintf("model stopped: %s", reason)}
 	}
 }
 
-func (b *blockAssembler) chunks(maxTokens bool) []agentloop.StreamChunk {
-	out := make([]agentloop.StreamChunk, len(b.order))
-	for i, blk := range b.order {
-		var cb agentloop.ContentBlock
-		if blk.kind == agentloop.BlockToolCall {
-			cb = agentloop.ContentBlock{
-				Kind:     blk.kind,
-				CallID:   blk.callID,
-				ToolName: blk.toolName,
-				Args:     parseArguments(blk.text.String()),
-			}
-		} else {
-			cb = agentloop.ContentBlock{Kind: blk.kind, Text: blk.text.String()}
+func (b *blockAssembler) toolChunks(maxTokens bool) []agentloop.StreamChunk {
+	var out []agentloop.StreamChunk
+	for _, blk := range b.order {
+		if blk.kind != agentloop.BlockToolCall {
+			continue
 		}
-		out[i] = agentloop.StreamChunk{Delta: cb}
+		out = append(out, agentloop.StreamChunk{Delta: agentloop.ContentBlock{
+			Kind:     blk.kind,
+			CallID:   blk.callID,
+			ToolName: blk.toolName,
+			Args:     parseArguments(blk.text.String()),
+		}})
 	}
-	if maxTokens && len(out) > 0 {
-		out[len(out)-1].MaxTokens = true
+	if maxTokens {
+		if len(out) > 0 {
+			out[len(out)-1].MaxTokens = true
+		} else {
+			out = append(out, agentloop.StreamChunk{MaxTokens: true})
+		}
 	}
 	return out
 }

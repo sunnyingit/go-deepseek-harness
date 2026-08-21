@@ -3,6 +3,7 @@ package agentloop
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -219,6 +220,26 @@ func turnEndReason(t *testing.T, s Session, turn int) string {
 	return ""
 }
 
+func turnEndErrorMessage(t *testing.T, s Session, turn int) string {
+	t.Helper()
+	for _, ev := range s.Events() {
+		if ev.Type != "turn/end" {
+			continue
+		}
+		data, ok := ev.Data.(map[string]any)
+		if !ok {
+			continue
+		}
+		if tn, _ := data["turn"].(int); tn != turn {
+			continue
+		}
+		msg, _ := data["error"].(string)
+		return msg
+	}
+	t.Fatalf("no turn/end event found for turn %d", turn)
+	return ""
+}
+
 // ---- tests ----------------------------------------------------------------
 
 func TestSingleStepCompletion(t *testing.T) {
@@ -242,6 +263,47 @@ func TestSingleStepCompletion(t *testing.T) {
 	})
 	if reason := turnEndReason(t, session, 1); reason != "completed" {
 		t.Fatalf("turn/end reason = %q, want completed", reason)
+	}
+}
+
+func TestLiveTextDeltasCoalesceOnAssistantMessage(t *testing.T) {
+	session := NewMemorySession()
+	llm := &scriptedLLM{responses: [][]StreamChunk{
+		{
+			{Delta: ContentBlock{Kind: BlockText, Text: "hel"}},
+			{Delta: ContentBlock{Kind: BlockText, Text: "lo"}},
+			{Delta: ContentBlock{Kind: BlockText, Text: " there"}},
+		},
+	}}
+	agent := NewAgent(session, llm, echoTool{}, "sys", Hooks{})
+	agent.Followup(userMsg("hi"))
+	agent.WhenIdle()
+
+	var chunks int
+	for _, ev := range session.Events() {
+		if ev.Type == "assistant/chunk" {
+			chunks++
+		}
+	}
+	if chunks != 3 {
+		t.Fatalf("assistant/chunk count = %d, want 3 live deltas", chunks)
+	}
+
+	var got string
+	var textBlocks int
+	for _, m := range session.DeriveMessages() {
+		if m.Role != RoleAssistant {
+			continue
+		}
+		for _, b := range m.Content {
+			if b.Kind == BlockText {
+				textBlocks++
+				got += b.Text
+			}
+		}
+	}
+	if textBlocks != 1 || got != "hello there" {
+		t.Fatalf("assistant message text blocks = %d %q, want 1 coalesced %q", textBlocks, got, "hello there")
 	}
 }
 
@@ -341,6 +403,64 @@ func TestPreStepRejectClosesTurnWithoutAStep(t *testing.T) {
 	}
 }
 
+// erroringThenSucceedingLLM fails its Stream call synchronously (the shape
+// llm/deepseek's adapter actually returns for HTTP-level failures — rate
+// limits, 5xx, transport errors, all surface as Stream's own error return,
+// not a mid-stream chunk) for the first `failures` calls, then succeeds.
+type erroringThenSucceedingLLM struct {
+	failures  int
+	calls     int
+	responses [][]StreamChunk
+}
+
+func (e *erroringThenSucceedingLLM) Stream(ctx context.Context, req GenerateRequest) (<-chan StreamChunk, error) {
+	i := e.calls
+	e.calls++
+	if i < e.failures {
+		return nil, fmt.Errorf("simulated synchronous request failure %d", i)
+	}
+	ch := make(chan StreamChunk, len(e.responses[i-e.failures]))
+	for _, c := range e.responses[i-e.failures] {
+		ch <- c
+	}
+	close(ch)
+	return ch, nil
+}
+
+// TestRequestErrorHookFiresForSynchronousStreamError guards against a real
+// gap this suite didn't previously cover: Stream's own synchronous error
+// return (as opposed to a StreamChunk.Err mid-stream) used to skip
+// hooks.RequestError entirely and fail the step outright, so a retry policy
+// wired via that hook would never see the errors that matter most.
+func TestRequestErrorHookFiresForSynchronousStreamError(t *testing.T) {
+	session := NewMemorySession()
+	llm := &erroringThenSucceedingLLM{
+		failures: 2,
+		responses: [][]StreamChunk{
+			{{Delta: ContentBlock{Kind: BlockText, Text: "recovered"}}},
+		},
+	}
+	var seenErrors []error
+	hooks := Hooks{RequestError: func(ctx context.Context, turn, step int, err error) bool {
+		seenErrors = append(seenErrors, err)
+		return true // always retry in this test
+	}}
+	agent := NewAgent(session, llm, echoTool{}, "sys", hooks)
+
+	agent.Followup(userMsg("hello"))
+	agent.WhenIdle()
+
+	if len(seenErrors) != 2 {
+		t.Fatalf("RequestError hook fired %d times, want 2 (one per synchronous failure)", len(seenErrors))
+	}
+	if llm.calls != 3 {
+		t.Fatalf("llm called %d times, want 3 (2 failures + 1 success)", llm.calls)
+	}
+	if reason := turnEndReason(t, session, 1); reason != "completed" {
+		t.Fatalf("turn/end reason = %q, want completed", reason)
+	}
+}
+
 func TestCancelAbortsInFlightTurn(t *testing.T) {
 	session := NewMemorySession()
 	llm := &blockingLLM{started: make(chan struct{}), block: make(chan struct{})}
@@ -360,6 +480,121 @@ func TestCancelAbortsInFlightTurn(t *testing.T) {
 	}
 	if reason := turnEndReason(t, session, 1); reason != "aborted" {
 		t.Fatalf("turn/end reason = %q, want aborted", reason)
+	}
+}
+
+// TestTurnEndedFiresOnEveryExitPath is the regression test for the gap
+// web/server.go's syncPersistence used to have: relying on whichever HTTP
+// handler happened to still be polling when a turn went idle meant a
+// client that disconnected mid-turn (or a turn that errored/was cancelled)
+// could finish without its durable side effects ever running. TurnEnded is
+// the fix — it must fire regardless of *why* the turn ended, unlike
+// TurnStopping, which only covers the clean-completion path.
+func TestTurnEndedFiresOnEveryExitPath(t *testing.T) {
+	t.Run("completed", func(t *testing.T) {
+		sess := NewMemorySession()
+		llm := &scriptedLLM{responses: [][]StreamChunk{{{Delta: ContentBlock{Kind: BlockText, Text: "hi"}}}}}
+		var got []string
+		hooks := Hooks{TurnEnded: func(_ context.Context, turn int, reason string) {
+			got = append(got, reason)
+		}}
+		agent := NewAgent(sess, llm, echoTool{}, "sys", hooks)
+		agent.Followup(userMsg("hello"))
+		agent.WhenIdle()
+		if len(got) != 1 || got[0] != "completed" {
+			t.Fatalf("TurnEnded calls = %v, want [completed]", got)
+		}
+	})
+
+	t.Run("blocked", func(t *testing.T) {
+		sess := NewMemorySession()
+		llm := &scriptedLLM{responses: [][]StreamChunk{{{Delta: ContentBlock{Kind: BlockText, Text: "should not run"}}}}}
+		var got []string
+		hooks := Hooks{
+			PreStep:   func(context.Context, *Agent, int, int, []Message) (bool, []Message) { return false, nil },
+			TurnEnded: func(_ context.Context, turn int, reason string) { got = append(got, reason) },
+		}
+		agent := NewAgent(sess, llm, echoTool{}, "sys", hooks)
+		agent.Followup(userMsg("hello"))
+		agent.WhenIdle()
+		if len(got) != 1 || got[0] != "blocked" {
+			t.Fatalf("TurnEnded calls = %v, want [blocked]", got)
+		}
+	})
+
+	t.Run("aborted by Cancel", func(t *testing.T) {
+		sess := NewMemorySession()
+		llm := &blockingLLM{started: make(chan struct{}), block: make(chan struct{})}
+		var got []string
+		hooks := Hooks{TurnEnded: func(_ context.Context, turn int, reason string) { got = append(got, reason) }}
+		agent := NewAgent(sess, llm, echoTool{}, "sys", hooks)
+
+		agent.Followup(userMsg("hang"))
+		<-llm.started
+		agent.Cancel(CancelCause{Kind: "user", Reason: "stop"}, false)
+		close(llm.block)
+		agent.WhenIdle()
+
+		if len(got) != 1 || got[0] != "aborted" {
+			t.Fatalf("TurnEnded calls = %v, want [aborted]", got)
+		}
+	})
+
+	t.Run("error after RequestError gives up", func(t *testing.T) {
+		sess := NewMemorySession()
+		llm := &erroringThenSucceedingLLM{failures: 1, responses: [][]StreamChunk{{{Delta: ContentBlock{Kind: BlockText, Text: "unreached"}}}}}
+		var got []string
+		hooks := Hooks{
+			RequestError: func(context.Context, int, int, error) bool { return false }, // never retry
+			TurnEnded:    func(_ context.Context, turn int, reason string) { got = append(got, reason) },
+		}
+		agent := NewAgent(sess, llm, echoTool{}, "sys", hooks)
+		agent.Followup(userMsg("hello"))
+		agent.WhenIdle()
+		if len(got) != 1 || got[0] != "error" {
+			t.Fatalf("TurnEnded calls = %v, want [error]", got)
+		}
+	})
+
+	t.Run("panic recovered", func(t *testing.T) {
+		sess := NewMemorySession()
+		var got []string
+		hooks := Hooks{TurnEnded: func(_ context.Context, turn int, reason string) { got = append(got, reason) }}
+		agent := NewAgent(sess, panickingLLM{}, echoTool{}, "sys", hooks)
+		agent.Followup(userMsg("hello"))
+		agent.WhenIdle()
+		if len(got) != 1 || got[0] != "error" {
+			t.Fatalf("TurnEnded calls = %v, want [error]", got)
+		}
+	})
+}
+
+// TestTurnEndCarriesTheActualErrorText is the regression test for the other
+// half of the same gap TestTurnEndedFiresOnEveryExitPath covers: knowing a
+// turn ended in "error" isn't enough for a client to explain what actually
+// went wrong — kick()'s own `cont, _ := a.turn(ctx)` throws the real error
+// away, so without turn/end recording it, the specific failure (e.g. a
+// model request that ran out of retries) was lost the moment the turn
+// closed, even though the log otherwise durably records everything else
+// about it.
+func TestTurnEndCarriesTheActualErrorText(t *testing.T) {
+	sess := NewMemorySession()
+	llm := &erroringThenSucceedingLLM{failures: 1, responses: [][]StreamChunk{{{Delta: ContentBlock{Kind: BlockText, Text: "unreached"}}}}}
+	hooks := Hooks{RequestError: func(context.Context, int, int, error) bool { return false }} // never retry
+	agent := NewAgent(sess, llm, echoTool{}, "sys", hooks)
+
+	agent.Followup(userMsg("hello"))
+	agent.WhenIdle()
+
+	if reason := turnEndReason(t, sess, 1); reason != "error" {
+		t.Fatalf("turn/end reason = %q, want error", reason)
+	}
+	msg := turnEndErrorMessage(t, sess, 1)
+	if msg == "" {
+		t.Fatal("turn/end has no error text, want the underlying failure message")
+	}
+	if !strings.Contains(msg, "simulated synchronous request failure") {
+		t.Fatalf("turn/end error = %q, want it to contain the underlying LLM error", msg)
 	}
 }
 

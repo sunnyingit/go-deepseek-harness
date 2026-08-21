@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WorkBuddy AI · 个人空间</title>
+    <link rel="stylesheet" href="/static/vendor/fonts/inter.css" />
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            background: #ffffff;
+            height: 100%;
+        }
+        .dashboard {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            min-height: 44px;
+            border-bottom: 1px solid #eceff3;
+            background: #ffffff;
+            flex-wrap: nowrap;
+            gap: 12px;
+            flex-shrink: 0;
+            -webkit-app-region: drag;
+        }
+        .navbar .brand, .navbar .nav-right, .navbar button { -webkit-app-region: no-drag; }
+        .nav-left { display: flex; align-items: center; gap: 16px; }
+        .brand {
+            display: flex; align-items: center; gap: 8px;
+            font-weight: 600; font-size: 15px; color: #0b1a33; cursor: pointer;
+        }
+        .brand i {
+            font-size: 15px; color: #f97316;
+            background: none; padding: 0; border-radius: 0;
+        }
+        .nav-right { display: flex; align-items: center; gap: 18px; }
+        .nav-right i {
+            font-size: 18px; color: #4f5b6b; cursor: pointer; padding: 6px; border-radius: 50%;
+        }
+        .nav-right i:hover { background: #f0f2f6; color: #f97316; }
+        .avatar {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, #f97316, #fb923c);
+            border-radius: 40px; display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 600; font-size: 15px; cursor: pointer;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 24px;
+            padding: 16px 24px 20px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .sidebar { display: flex; flex-direction: column; gap: 20px; min-height: 0; overflow: hidden; }
+        .user-card {
+            position: relative;
+            display: flex; align-items: center; gap: 8px;
+            margin-top: auto; padding: 10px 6px 4px;
+            border-top: 1px solid rgba(0,0,0,0.06);
+            flex-shrink: 0; cursor: pointer; border-radius: 12px;
+        }
+        .user-card:hover { background: rgba(249, 115, 22, 0.04); }
+        .user-card .avatar { width: 32px; height: 32px; font-size: 13px; flex-shrink: 0; }
+        .user-meta { min-width: 0; flex: 1; }
+        .user-meta .name {
+            font-size: 13px; font-weight: 600; color: #0b1a33; line-height: 1.2;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .user-meta .email {
+            font-size: 11px; color: #8a95a8; margin-top: 2px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .user-settings {
+            width: 28px; height: 28px; flex-shrink: 0; border: none; background: transparent;
+            color: #4f5b6b; border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .user-settings:hover { background: #eef1f6; color: #f97316; }
+        .user-menu {
+            position: absolute; left: 0; right: 0; bottom: calc(100% + 6px);
+            background: #fff; border: 1px solid #eef1f6; border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(15, 30, 50, 0.12);
+            padding: 6px; display: none; z-index: 20;
+        }
+        .user-menu.show { display: block; }
+        .user-menu button {
+            width: 100%; display: flex; align-items: center; gap: 8px;
+            padding: 8px 10px; border: none; background: transparent; border-radius: 8px;
+            font-size: 13px; color: #1c2a44; cursor: pointer; text-align: left;
+        }
+        .user-menu button:hover { background: #fff7ed; color: #f97316; }
+        .user-menu button i { width: 14px; font-size: 12px; color: inherit; }
+        .side-nav { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+        .quick-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: 14px;
+            color: #1c2a44; font-weight: 500; font-size: 14px; cursor: pointer;
+        }
+        .quick-item:hover { background: rgba(249, 115, 22, 0.06); }
+        .quick-item.active { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+        .quick-item.active i { color: #f97316; }
+        .quick-item i { width: 20px; font-size: 16px; color: #4f5b6b; }
+        .history-panel {
+            flex: 1; min-height: 0; display: flex; flex-direction: column;
+            padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        .history-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; }
+        .history-empty { font-size: 12px; color: #9aa7b9; padding: 8px 12px; }
+        .history-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px; border-radius: 12px; font-size: 13px; color: #1c2a44; cursor: pointer;
+        }
+        .history-item:hover { background: #eef1f6; }
+        .history-item i { color: #f97316; font-size: 13px; width: 16px; }
+        .history-item .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+        .history-item .time { margin-left: auto; font-size: 11px; color: #8f9cae; flex-shrink: 0; }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .files-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+
+        .space-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+        .space-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+        .space-avatar {
+            width: 48px; height: 48px; flex-shrink: 0;
+            background: linear-gradient(135deg, #f97316, #fb923c);
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 700; font-size: 18px;
+            box-shadow: 0 8px 18px rgba(249, 115, 22, 0.22);
+        }
+        .space-header h2 { font-size: 22px; color: #0b1a33; letter-spacing: -0.3px; }
+        .space-header p { font-size: 13px; color: #8a95a8; margin-top: 3px; }
+        .space-stats { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+        .stat-pill {
+            background: #fff;
+            border: 1px solid #eef1f6;
+            border-radius: 14px;
+            padding: 8px 12px;
+            min-width: 76px;
+        }
+        .stat-pill span { display: block; font-size: 11px; color: #8a95a8; }
+        .stat-pill strong { font-size: 16px; color: #0b1a33; font-weight: 650; }
+
+        .space-toolbar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .space-tabs {
+            display: flex;
+            gap: 4px;
+            background: #f0f2f6;
+            padding: 4px;
+            border-radius: 40px;
+        }
+        .space-tab {
+            border: none;
+            background: transparent;
+            color: #3c4a5e;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 7px 14px;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+        .space-tab:hover { background: rgba(255,255,255,0.55); }
+        .space-tab.active {
+            background: #fff;
+            color: #0b1a33;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .space-search {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff;
+            border: 1px solid #eef1f6;
+            border-radius: 40px;
+            padding: 0 14px;
+            height: 38px;
+            min-width: 180px;
+            max-width: 260px;
+            flex: 1;
+        }
+        .space-search i { color: #9aa7b9; font-size: 13px; }
+        .space-search input {
+            border: none; outline: none; background: transparent;
+            font-size: 13px; color: #1c2a44; width: 100%;
+        }
+        .space-search input::placeholder { color: #9aa8bb; }
+
+        .files-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+        .file-section { margin-bottom: 18px; }
+        .file-section[hidden] { display: none; }
+        .file-section h3 {
+            font-size: 12px; font-weight: 600; color: #8a95a8;
+            letter-spacing: 0.3px; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .file-section h3 .count {
+            background: #eef1f6; color: #5f6c80;
+            font-size: 11px; padding: 1px 8px; border-radius: 20px; font-weight: 600;
+        }
+
+        .file-empty {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; gap: 6px;
+            padding: 28px 16px;
+            background: #fafbfd;
+            border: 1px dashed #e4e9f2;
+            border-radius: 18px;
+            color: #9aa7b9;
+        }
+        .file-empty .empty-icon {
+            width: 44px; height: 44px; border-radius: 14px;
+            background: #fff7ed; color: #f97316;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; margin-bottom: 4px;
+        }
+        .file-empty p { font-size: 14px; color: #3c4a5e; font-weight: 600; }
+        .file-empty span { font-size: 12px; }
+
+        .file-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: #fff;
+            border: 1px solid #eef1f6;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .file-row:hover {
+            border-color: #ffedd5;
+            box-shadow: 0 6px 16px rgba(249, 115, 22, 0.06);
+        }
+        .file-row.selected {
+            background: #f5f9ff;
+            border-color: #f97316;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.08);
+        }
+        .file-row .file-icon {
+            width: 40px; height: 40px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-size: 16px;
+        }
+        .file-icon.kind-excel { background: #e8f6ee; color: #1d7a46; }
+        .file-icon.kind-pdf { background: #fdeeee; color: #c0392b; }
+        .file-icon.kind-word { background: #eef3fb; color: #2b579a; }
+        .file-icon.kind-ppt { background: #fdeee8; color: #c43e1c; }
+        .file-icon.kind-image { background: #f3efff; color: #c2410c; }
+        .file-icon.kind-html { background: #fff7ed; color: #f97316; }
+        .file-icon.kind-code { background: #e6f7f4; color: #0f766e; }
+        .file-icon.kind-archive { background: #fef6e8; color: #b45309; }
+        .file-icon.kind-file { background: #fff7ed; color: #f97316; }
+
+        .file-meta { min-width: 0; flex: 1; }
+        .file-meta .name {
+            font-size: 14px; font-weight: 600; color: #1c2a44;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .file-meta .sub {
+            font-size: 12px; color: #8a95a8; margin-top: 3px;
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .source-tag {
+            font-size: 10px; font-weight: 600;
+            padding: 1px 7px; border-radius: 20px;
+        }
+        .source-tag.upload { background: #fff7ed; color: #f97316; }
+        .source-tag.generated { background: #eef8f0; color: #22633a; }
+        .file-actions { display: flex; gap: 4px; flex-shrink: 0; opacity: 0; transition: 0.12s; }
+        .file-row:hover .file-actions { opacity: 1; }
+        .file-actions button {
+            border: none; background: #f4f6fa; color: #6b7a8f;
+            width: 30px; height: 30px; border-radius: 9px; cursor: pointer;
+        }
+        .file-actions button:hover { background: #fff7ed; color: #f97316; }
+        .file-actions button.danger:hover { background: #fdecec; color: #d14c4c; }
+
+        .preview-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(15, 23, 42, 0.42);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .preview-modal.show { display: flex; }
+        .preview-dialog {
+            width: min(920px, 100%);
+            height: min(780px, calc(100vh - 48px));
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .preview-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 18px 12px;
+            border-bottom: 1px solid #eef1f6;
+            flex-shrink: 0;
+        }
+        .preview-title { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #0b1a33; font-size: 15px; min-width: 0; }
+        .preview-title i { color: #f97316; }
+        .preview-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .preview-close {
+            border: none; background: #f0f2f6; color: #6b7a8f;
+            width: 32px; height: 32px; border-radius: 50%; cursor: pointer; flex-shrink: 0;
+        }
+        .preview-close:hover { background: #fdecec; color: #d14c4c; }
+        .preview-meta { font-size: 12px; color: #8a95a8; margin-top: 6px; display: flex; gap: 12px; flex-wrap: wrap; }
+        .preview-body {
+            flex: 1; min-height: 0; overflow: auto; background: #fafbfd;
+            padding: 14px 16px; font-size: 13px; line-height: 1.7;
+            color: #1c2a44; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        .preview-body.is-frame { padding: 0; white-space: normal; background: #fff; }
+        .preview-body.is-frame iframe, .preview-body.is-frame img { width: 100%; height: 100%; min-height: 420px; border: 0; }
+        .preview-body.is-frame img { object-fit: contain; background: repeating-conic-gradient(#f4f6fa 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+        .csv-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .csv-table th, .csv-table td { padding: 6px 8px; border: 1px solid #eef1f6; text-align: left; }
+        .csv-table th { background: #fff7ed; color: #f97316; position: sticky; top: 0; }
+        .preview-actions { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #eef1f6; flex-shrink: 0; }
+        .preview-actions button {
+            padding: 8px 14px; border-radius: 30px; font-size: 13px; border: none; cursor: pointer;
+            display: flex; align-items: center; gap: 6px; font-weight: 500;
+        }
+        .btn-primary { background: #f97316; color: #fff; }
+        .btn-primary:hover { background: #ea580c; }
+        .btn-danger { background: #fdecec; color: #d14c4c; }
+        .btn-danger:hover { background: #f8d4d4; }
+
+        .toast {
+            position: fixed; bottom: 30px; left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #1c2a44; color: white; padding: 12px 24px; border-radius: 60px;
+            font-size: 13px; box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+            opacity: 0; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none; z-index: 1000; display: flex; align-items: center; gap: 12px;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        @media (max-width: 1100px) {
+            .space-header { flex-direction: column; }
+            .space-stats { justify-content: flex-start; }
+        }
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; gap: 20px; }
+            .sidebar { max-height: 260px; }
+            .navbar { padding: 10px 16px; }
+            .main-grid { padding: 12px 16px 16px; }
+            .preview-modal { padding: 12px; }
+            .preview-dialog { height: min(100vh - 24px, 100%); border-radius: 18px; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <div id="toast" class="toast"><i class="fas fa-check-circle"></i><span id="toastMessage">操作成功</span></div>
+    <header class="navbar">
+        <div class="nav-left">
+            <div class="brand" id="brandLogo"><i class="fas fa-robot"></i><span>PABuddy AI</span></div>
+        </div>
+        <div class="nav-right">
+            <i class="fas fa-search" id="searchBtn" title="搜索"></i>
+            <i class="fas fa-bell" id="notifBtn" title="通知"></i>
+        </div>
+    </header>
+    <div class="main-grid">
+        <aside class="sidebar">
+            <nav class="side-nav">
+                <div class="quick-item" data-nav="task"><i class="fas fa-plus"></i> 新建任务</div>
+                <div class="quick-item active" data-nav="space"><i class="fas fa-user"></i> 个人空间</div>
+                <div class="quick-item" data-nav="schedule"><i class="fas fa-clock"></i> 定时任务</div>
+                <div class="quick-item" data-nav="history"><i class="fas fa-comments"></i> 历史对话</div>
+            </nav>
+            <div class="history-panel">
+                <div class="history-list" id="historyList">
+                    <div class="history-empty">暂无对话</div>
+                </div>
+            </div>
+            <div class="user-card" id="userCard">
+                <div class="avatar">F</div>
+                <div class="user-meta">
+                    <div class="name">Felice</div>
+                    <div class="email">felicex@gmail.com</div>
+                </div>
+                <button type="button" class="user-settings" id="settingsBtn" title="设置" aria-label="设置">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <div class="user-menu" id="userMenu">
+                    <button type="button" data-action="space"><i class="fas fa-folder-open"></i> 个人空间</button>
+                    <button type="button" data-action="notify"><i class="fas fa-bell"></i> 通知</button>
+                    <button type="button" data-action="settings"><i class="fas fa-sliders-h"></i> 设置</button>
+                </div>
+            </div>
+        </aside>
+        <main class="content">
+            <div class="files-col">
+                <div class="space-header">
+                    <div class="space-identity">
+                        <div class="space-avatar">F</div>
+                        <div>
+                            <h2>个人空间</h2>
+                            <p id="spaceSummary">felicex@gmail.com · 加载文件中…</p>
+                        </div>
+                    </div>
+                    <div class="space-stats">
+                        <div class="stat-pill"><span>上传</span><strong id="statUpload">0</strong></div>
+                        <div class="stat-pill"><span>生成</span><strong id="statGen">0</strong></div>
+                        <div class="stat-pill"><span>占用</span><strong id="statSize">0</strong></div>
+                    </div>
+                </div>
+                <div class="space-toolbar">
+                    <div class="space-tabs">
+                        <button type="button" class="space-tab active" data-filter="all">全部</button>
+                        <button type="button" class="space-tab" data-filter="upload">上传</button>
+                        <button type="button" class="space-tab" data-filter="generated">生成</button>
+                    </div>
+                    <label class="space-search">
+                        <i class="fas fa-search"></i>
+                        <input id="fileSearch" type="search" placeholder="搜索文件名…" autocomplete="off" />
+                    </label>
+                </div>
+                <div class="files-scroll">
+                    <section class="file-section" id="uploadSection">
+                        <h3>上传的文件 <span class="count" id="uploadCount">0</span></h3>
+                        <div id="uploadList"></div>
+                    </section>
+                    <section class="file-section" id="generatedSection">
+                        <h3>生成的文件 <span class="count" id="generatedCount">0</span></h3>
+                        <div id="generatedList"></div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div class="preview-modal" id="previewModal">
+    <div class="preview-dialog" role="dialog" aria-modal="true" aria-labelledby="previewFileName">
+        <div class="preview-head">
+            <div>
+                <div class="preview-title">
+                    <i class="fas fa-file" id="previewIcon"></i>
+                    <span id="previewFileName">文档预览</span>
+                </div>
+                <div class="preview-meta" id="previewMeta"></div>
+            </div>
+            <button type="button" class="preview-close" id="previewClose" title="关闭"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="preview-body" id="previewBody"></div>
+        <div class="preview-actions">
+            <button class="btn-primary" id="previewDownloadBtn"><i class="fas fa-download"></i> 下载</button>
+            <button class="btn-danger" id="previewDeleteBtn"><i class="fas fa-trash-alt"></i> 删除</button>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    let toastTimer = null;
+    function showToast(message, icon = 'fa-check-circle', duration = 2500) {
+        toastMessage.textContent = message;
+        toast.querySelector('i').className = `fas ${icon}`;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    async function api(path, opts) {
+        const res = await fetch(path, opts);
+        if (res.status === 204) return null;
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || res.statusText);
+        return body;
+    }
+
+    const FILE_ICON_BY_EXT = {
+        csv: 'fa-file-csv', xlsx: 'fa-file-excel', xls: 'fa-file-excel', xlsm: 'fa-file-excel',
+        pdf: 'fa-file-pdf', doc: 'fa-file-word', docx: 'fa-file-word',
+        ppt: 'fa-file-powerpoint', pptx: 'fa-file-powerpoint',
+        png: 'fa-file-image', jpg: 'fa-file-image', jpeg: 'fa-file-image',
+        gif: 'fa-file-image', svg: 'fa-file-image', webp: 'fa-file-image',
+        py: 'fa-file-code', js: 'fa-file-code', ts: 'fa-file-code', json: 'fa-file-code',
+        html: 'fa-globe', htm: 'fa-globe', css: 'fa-file-code', sh: 'fa-file-code', yaml: 'fa-file-code', yml: 'fa-file-code',
+        md: 'fa-file-alt', txt: 'fa-file-alt', log: 'fa-file-alt',
+        zip: 'fa-file-archive', tar: 'fa-file-archive', gz: 'fa-file-archive'
+    };
+    const KIND_BY_EXT = {
+        csv: 'excel', xlsx: 'excel', xls: 'excel',
+        pdf: 'pdf', doc: 'word', docx: 'word',
+        ppt: 'ppt', pptx: 'ppt',
+        png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', svg: 'image', webp: 'image',
+        html: 'html', htm: 'html',
+        py: 'code', js: 'code', ts: 'code', json: 'code', css: 'code', sh: 'code', yaml: 'code', yml: 'code', xml: 'code',
+        zip: 'archive', tar: 'archive', gz: 'archive'
+    };
+    const TEXT_PREVIEW_EXT = new Set(['csv', 'json', 'log', 'md', 'py', 'js', 'ts', 'css', 'sh', 'yaml', 'yml', 'txt', 'xml']);
+    const IMAGE_PREVIEW_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp']);
+    const HTML_PREVIEW_EXT = new Set(['html', 'htm']);
+    const MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024;
+
+    function extOf(name) {
+        const idx = name.lastIndexOf('.');
+        return idx === -1 ? '' : name.slice(idx + 1).toLowerCase();
+    }
+    function fileIcon(name) { return FILE_ICON_BY_EXT[extOf(name)] || 'fa-file'; }
+    function fileKind(name) { return KIND_BY_EXT[extOf(name)] || 'file'; }
+    function fileKey(file) { return `${file.sessionId}:${file.path}`; }
+    function formatSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    }
+    function timeAgo(iso) {
+        const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+        if (mins < 1) return '刚刚';
+        if (mins < 60) return `${mins}min`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h`;
+        return `${Math.floor(hrs / 24)}d`;
+    }
+    function sessionLabel(s) {
+        const title = (s.title || '').trim();
+        if (title) return title;
+        const id = s.id || '';
+        const short = id.length > 10 ? id.slice(0, 8) : id;
+        return s.parentSession ? `${short} (fork)` : short;
+    }
+    function fileUrl(file, download) {
+        const encoded = file.path.split('/').map(encodeURIComponent).join('/');
+        const base = `/sessions/${encodeURIComponent(file.sessionId)}/files/${encoded}`;
+        return download ? `${base}?download=1` : base;
+    }
+
+    const uploadList = document.getElementById('uploadList');
+    const generatedList = document.getElementById('generatedList');
+    const uploadSection = document.getElementById('uploadSection');
+    const generatedSection = document.getElementById('generatedSection');
+    const previewModal = document.getElementById('previewModal');
+    const previewBody = document.getElementById('previewBody');
+    let currentFile = null;
+    let allFiles = [];
+    let activeFilter = 'all';
+    let searchQuery = '';
+
+    function emptyState(icon, title, hint) {
+        return `<div class="file-empty"><div class="empty-icon"><i class="fas ${icon}"></i></div><p>${title}</p><span>${hint}</span></div>`;
+    }
+
+    function renderFileRow(file) {
+        const row = document.createElement('div');
+        row.className = 'file-row' + (currentFile && fileKey(currentFile) === fileKey(file) ? ' selected' : '');
+        row.dataset.key = fileKey(file);
+        const isUpload = file.source === 'upload';
+        row.innerHTML = `
+            <div class="file-icon kind-${fileKind(file.name)}"><i class="fas ${fileIcon(file.name)}"></i></div>
+            <div class="file-meta">
+                <div class="name"></div>
+                <div class="sub">
+                    <span class="source-tag ${isUpload ? 'upload' : 'generated'}">${isUpload ? '上传' : '生成'}</span>
+                    <span class="size"></span>
+                    <span class="when"></span>
+                </div>
+            </div>
+            <div class="file-actions">
+                <button type="button" title="预览" data-act="preview"><i class="fas fa-eye"></i></button>
+                <button type="button" title="下载" data-act="download"><i class="fas fa-download"></i></button>
+                <button type="button" class="danger" title="删除" data-act="delete"><i class="fas fa-trash-alt"></i></button>
+            </div>`;
+        row.querySelector('.name').textContent = file.name;
+        row.querySelector('.size').textContent = formatSize(file.size);
+        row.querySelector('.when').textContent = timeAgo(file.modTime);
+        row.querySelector('[data-act="preview"]').addEventListener('click', (e) => { e.stopPropagation(); openPreview(file); });
+        row.querySelector('[data-act="download"]').addEventListener('click', (e) => { e.stopPropagation(); downloadFile(file); });
+        row.querySelector('[data-act="delete"]').addEventListener('click', (e) => { e.stopPropagation(); deleteFile(file); });
+        row.addEventListener('click', () => openPreview(file));
+        return row;
+    }
+
+    function fillList(el, files, empty) {
+        el.innerHTML = '';
+        if (!files.length) {
+            el.innerHTML = empty;
+            return;
+        }
+        files.forEach(f => el.appendChild(renderFileRow(f)));
+    }
+
+    function matchesQuery(file) {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return true;
+        return `${file.name} ${file.path}`.toLowerCase().includes(q);
+    }
+
+    function renderLists() {
+        const uploads = allFiles.filter(f => f.source === 'upload' && matchesQuery(f));
+        const generated = allFiles.filter(f => f.source !== 'upload' && matchesQuery(f));
+        const showUpload = activeFilter !== 'generated';
+        const showGenerated = activeFilter !== 'upload';
+        uploadSection.hidden = !showUpload;
+        generatedSection.hidden = !showGenerated;
+        document.getElementById('uploadCount').textContent = String(uploads.length);
+        document.getElementById('generatedCount').textContent = String(generated.length);
+        const noMatch = '没有符合条件的文件';
+        fillList(uploadList, uploads, emptyState('fa-cloud-upload-alt', searchQuery ? noMatch : '还没有上传文件', '在首页对话里上传，就会出现在这里'));
+        fillList(generatedList, generated, emptyState('fa-magic', searchQuery ? noMatch : '还没有生成文件', '让助手产出表格、网页或海报后，会汇总到这里'));
+    }
+
+    function markSelected() {
+        const key = currentFile ? fileKey(currentFile) : '';
+        document.querySelectorAll('.file-row').forEach(el => {
+            el.classList.toggle('selected', el.dataset.key === key);
+        });
+    }
+
+    async function refreshFiles() {
+        allFiles = await api('/files');
+        const uploads = allFiles.filter(f => f.source === 'upload');
+        const generated = allFiles.filter(f => f.source !== 'upload');
+        const totalBytes = allFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+        document.getElementById('statUpload').textContent = String(uploads.length);
+        document.getElementById('statGen').textContent = String(generated.length);
+        document.getElementById('statSize').textContent = formatSize(totalBytes);
+        document.getElementById('spaceSummary').textContent =
+            `felicex@gmail.com · ${allFiles.length} 个文件`;
+        renderLists();
+        if (currentFile && !allFiles.some(f => fileKey(f) === fileKey(currentFile))) {
+            closePreview();
+        }
+    }
+
+    function downloadFile(file) {
+        const a = document.createElement('a');
+        a.href = fileUrl(file, true);
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast(`正在下载 ${file.name}`, 'fa-download');
+    }
+
+    async function deleteFile(file) {
+        if (!confirm(`删除文件「${file.name}」？此操作不可恢复。`)) return;
+        try {
+            await api(`/sessions/${encodeURIComponent(file.sessionId)}/files/${file.path.split('/').map(encodeURIComponent).join('/')}`, { method: 'DELETE' });
+            showToast(`已删除 ${file.name}`, 'fa-trash-alt');
+            if (currentFile && fileKey(currentFile) === fileKey(file)) closePreview();
+            await refreshFiles();
+        } catch (err) {
+            showToast('删除失败: ' + err.message, 'fa-exclamation-circle');
+        }
+    }
+
+    function closePreview() {
+        currentFile = null;
+        previewModal.classList.remove('show');
+        previewBody.replaceChildren();
+        markSelected();
+    }
+
+    async function openPreview(file) {
+        currentFile = file;
+        previewModal.classList.add('show');
+        markSelected();
+        document.getElementById('previewFileName').textContent = file.name;
+        document.getElementById('previewIcon').className = `fas ${fileIcon(file.name)}`;
+        document.getElementById('previewMeta').innerHTML =
+            `<span>${formatSize(file.size)}</span><span>${new Date(file.modTime).toLocaleString()}</span><span>${file.path}</span>`;
+        const ext = extOf(file.name);
+        const url = fileUrl(file, false);
+        previewBody.classList.remove('is-frame');
+        previewBody.replaceChildren();
+        if (HTML_PREVIEW_EXT.has(ext)) {
+            previewBody.classList.add('is-frame');
+            const iframe = document.createElement('iframe');
+            iframe.title = file.name;
+            iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups');
+            iframe.src = url;
+            previewBody.appendChild(iframe);
+        } else if (IMAGE_PREVIEW_EXT.has(ext)) {
+            previewBody.classList.add('is-frame');
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = file.name;
+            previewBody.appendChild(img);
+        } else if (ext === 'pdf' || ext === 'ppt' || ext === 'pptx' || ext === 'pptm' || ext === 'xls' || ext === 'xlsx' || ext === 'xlsm') {
+            previewBody.classList.add('is-frame');
+            const iframe = document.createElement('iframe');
+            iframe.title = file.name;
+            iframe.src = url;
+            previewBody.appendChild(iframe);
+        } else if (TEXT_PREVIEW_EXT.has(ext) && file.size <= MAX_TEXT_PREVIEW_BYTES) {
+            previewBody.textContent = '加载中...';
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(res.statusText);
+                const text = await res.text();
+                if (currentFile && fileKey(currentFile) !== fileKey(file)) return;
+                if (ext === 'csv') {
+                    const lines = text.split('\n').filter(l => l.length > 0);
+                    if (!lines.length) { previewBody.textContent = '(空文件)'; return; }
+                    const table = document.createElement('table');
+                    table.className = 'csv-table';
+                    const thead = document.createElement('thead');
+                    const hr = document.createElement('tr');
+                    lines[0].split(',').forEach(h => { const th = document.createElement('th'); th.textContent = h.trim(); hr.appendChild(th); });
+                    thead.appendChild(hr);
+                    table.appendChild(thead);
+                    const tbody = document.createElement('tbody');
+                    lines.slice(1).forEach(row => {
+                        const tr = document.createElement('tr');
+                        row.split(',').forEach(c => { const td = document.createElement('td'); td.textContent = c.trim(); tr.appendChild(td); });
+                        tbody.appendChild(tr);
+                    });
+                    table.appendChild(tbody);
+                    previewBody.replaceChildren(table);
+                } else {
+                    previewBody.textContent = text;
+                }
+            } catch (err) {
+                previewBody.textContent = '预览失败: ' + err.message;
+            }
+        } else {
+            previewBody.textContent = '该类型无法在线预览，请下载后查看。';
+        }
+    }
+
+    document.getElementById('previewDownloadBtn').addEventListener('click', () => { if (currentFile) downloadFile(currentFile); });
+    document.getElementById('previewDeleteBtn').addEventListener('click', () => { if (currentFile) deleteFile(currentFile); });
+    document.getElementById('previewClose').addEventListener('click', closePreview);
+    previewModal.addEventListener('click', (e) => {
+        if (e.target === previewModal) closePreview();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && previewModal.classList.contains('show')) closePreview();
+    });
+
+    document.querySelectorAll('.space-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            activeFilter = this.dataset.filter;
+            document.querySelectorAll('.space-tab').forEach(t => t.classList.toggle('active', t === this));
+            renderLists();
+        });
+    });
+    document.getElementById('fileSearch').addEventListener('input', function() {
+        searchQuery = this.value;
+        renderLists();
+    });
+
+    document.querySelectorAll('.quick-item').forEach(el => {
+        el.addEventListener('click', function() {
+            const nav = this.dataset.nav;
+            if (nav === 'task') window.location.href = '/';
+            if (nav === 'schedule') { showToast('🕒 定时任务正在开发中', 'fa-clock'); return; }
+            if (nav === 'history') document.getElementById('historyList').scrollIntoView({ block: 'nearest' });
+        });
+    });
+    document.getElementById('brandLogo').addEventListener('click', () => { window.location.href = '/'; });
+    document.getElementById('searchBtn').addEventListener('click', () => {
+        const input = document.getElementById('fileSearch');
+        input.focus();
+        input.select();
+    });
+    document.getElementById('notifBtn').addEventListener('click', () => showToast('暂无新通知', 'fa-bell'));
+
+    (function bindUserChrome() {
+        const card = document.getElementById('userCard');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const menu = document.getElementById('userMenu');
+        card.addEventListener('click', function(e) {
+            if (e.target.closest('#settingsBtn, #userMenu')) return;
+            window.location.href = '/space.html';
+        });
+        settingsBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            menu.classList.toggle('show');
+        });
+        menu.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const action = e.target.closest('[data-action]') && e.target.closest('[data-action]').dataset.action;
+            if (action === 'space') window.location.href = '/space.html';
+            if (action === 'notify') {
+                menu.classList.remove('show');
+                showToast('暂无新通知', 'fa-bell');
+            }
+            if (action === 'settings') {
+                menu.classList.remove('show');
+                showToast('设置即将推出', 'fa-cog');
+            }
+        });
+        document.addEventListener('click', function() { menu.classList.remove('show'); });
+    })();
+
+    async function refreshHistory() {
+        const list = document.getElementById('historyList');
+        const sessions = await api('/sessions');
+        list.innerHTML = '';
+        if (!sessions.length) {
+            list.innerHTML = '<div class="history-empty">暂无对话</div>';
+            return;
+        }
+        sessions.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).forEach(s => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            const label = sessionLabel(s);
+            item.title = label;
+            item.innerHTML = `<i class="fas fa-comment-dots"></i><span class="label"></span><span class="time"></span>`;
+            item.querySelector('.label').textContent = label;
+            item.querySelector('.time').textContent = s.status || '';
+            item.addEventListener('click', () => { window.location.href = `dialog.html?session=${encodeURIComponent(s.id)}`; });
+            list.appendChild(item);
+        });
+    }
+
+    refreshFiles().catch(err => showToast('加载文件失败: ' + err.message, 'fa-exclamation-circle'));
+    refreshHistory().catch(() => {});
+})();
+</script>
+</body>
+</html>

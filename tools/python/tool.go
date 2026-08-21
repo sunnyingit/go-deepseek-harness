@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -64,14 +65,25 @@ func NewRunTool(opts RunToolOptions) (tools.ToolDefinition, error) {
 		timeout = 30 * time.Second
 	}
 
-	return tools.ToolDefinition{
-		Name: "run_python",
-		Description: fmt.Sprintf(
-			"Run a Python script in a sandboxed interpreter pre-installed with: %s. "+
-				"Use it to read or produce Word/PowerPoint/Excel/PDF documents and other files under the workspace. "+
+	desc := fmt.Sprintf(
+		"Run a Python script in a sandboxed interpreter pre-installed with: %s. "+
+			"Use it to read or produce Word/PowerPoint/Excel/PDF documents and other files under the workspace. "+
+			"Print anything you want returned to yourself — stdout and stderr are both captured.",
+		strings.Join(opts.Env.Packages, ", "),
+	)
+	if mode == sandbox.DangerFullAccess {
+		desc = fmt.Sprintf(
+			"Run a Python script in an interpreter pre-installed with: %s. "+
+				"The sandbox is fully open: every directory is readable and writable. "+
+				"Use it to read or produce Word/PowerPoint/Excel/PDF documents. "+
 				"Print anything you want returned to yourself — stdout and stderr are both captured.",
 			strings.Join(opts.Env.Packages, ", "),
-		),
+		)
+	}
+
+	return tools.ToolDefinition{
+		Name:        "run_python",
+		Description: desc,
 		Parameters: tools.ParameterSchema{
 			"code": {ValueSchema: tools.ValueSchema{Kind: tools.KindString, Description: "the complete Python script to run"}, Required: true},
 		},
@@ -103,34 +115,41 @@ func runScript(ctx context.Context, opts RunToolOptions, mode sandbox.Mode, code
 		return "", fmt.Errorf("staging script: %w", err)
 	}
 
-	policy, err := sandbox.NewPolicy(mode, opts.WorkspaceRoot, "")
-	if err != nil {
-		return "", err
-	}
-	confined, err := opts.Provider.Confine([]string{opts.Env.PythonPath, scriptFile.Name()}, policy)
-	if err != nil {
-		return "", err
+	argv := []string{opts.Env.PythonPath, scriptFile.Name()}
+	if mode != sandbox.DangerFullAccess {
+		policy, err := sandbox.NewPolicy(mode, opts.WorkspaceRoot, "")
+		if err != nil {
+			return "", err
+		}
+		confined, err := opts.Provider.Confine(argv, policy)
+		if err != nil {
+			return "", err
+		}
+		argv = confined.Argv
 	}
 
-	output, err := RunConfined(ctx, confined.Argv, opts.WorkspaceRoot)
+	output, err := runConfined(ctx, argv, opts.WorkspaceRoot)
 	if err != nil {
 		return "", fmt.Errorf("script %s", err)
 	}
 	return output, nil
 }
 
-// RunConfined runs a sandbox.Provider.Confine-wrapped argv with dir as its
+// runConfined runs a sandbox.Provider.Confine-wrapped argv with dir as its
 // working directory, capturing up to maxOutputBytes of combined
 // stdout+stderr, and distinguishing a context-cancelled run ("timed out")
-// from any other non-zero exit ("failed"). Exported so another package that
-// dispatches through the same sandbox.Provider — e.g. skill/exec's
-// run_skill_script, running a script bundled with a loaded skill instead of
-// model-supplied inline code — doesn't have to reimplement bounded-output
-// capture or that distinction; only the argv construction differs between
-// the two callers.
-func RunConfined(ctx context.Context, argv []string, dir string) (output string, err error) {
+// from any other non-zero exit ("failed"). The actual process supervision
+// (starting argv, killing its whole process group on ctx cancellation —
+// necessary because argv[0] is a sandbox wrapper that can fork an
+// unsupervised grandchild) lives in sandbox.RunSupervised, shared with
+// shell/bashsandbox's executor.
+func runConfined(ctx context.Context, argv []string, dir string) (output string, err error) {
 	out := &limitedBuffer{max: maxOutputBytes}
-	runErr := runConfined(ctx, argv, dir, out)
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Dir = dir
+	cmd.Stdout = out
+	cmd.Stderr = out
+	runErr := sandbox.RunSupervised(ctx, cmd)
 	captured := strings.TrimSpace(out.String())
 	if runErr != nil {
 		if ctx.Err() != nil {

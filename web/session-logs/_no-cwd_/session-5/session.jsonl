@@ -1,0 +1,423 @@
+{"Version":0,"ID":"session-5","CreatedAt":1787314559213,"CWD":"","ParentSession":"","SeedLength":0,"Origin":"","DelegationDepth":0}
+{"type":"turn/start","seq":0,"time":1787314559676,"data":1}
+{"type":"step/start","seq":1,"time":1787314559676,"data":{"step":1,"turn":1}}
+{"type":"user/message","seq":2,"time":1787314559676,"data":{"Role":"user","Content":[{"Kind":"text","Text":"生成一个markdown文件，展示表格内容","CallID":"","ToolName":"","Args":null}]},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"assistant/chunk","seq":3,"time":1787314560575,"data":{"chunk":{"Kind":"text","Text":"I","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":4,"time":1787314560682,"data":{"chunk":{"Kind":"text","Text":"'ll","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":5,"time":1787314560705,"data":{"chunk":{"Kind":"text","Text":" help","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":6,"time":1787314560705,"data":{"chunk":{"Kind":"text","Text":" you","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":7,"time":1787314560705,"data":{"chunk":{"Kind":"text","Text":" create","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":8,"time":1787314560705,"data":{"chunk":{"Kind":"text","Text":" a","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":9,"time":1787314560727,"data":{"chunk":{"Kind":"text","Text":" mark","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":10,"time":1787314560727,"data":{"chunk":{"Kind":"text","Text":"down","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":11,"time":1787314560727,"data":{"chunk":{"Kind":"text","Text":" file","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":12,"time":1787314560727,"data":{"chunk":{"Kind":"text","Text":" with","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":13,"time":1787314560727,"data":{"chunk":{"Kind":"text","Text":" table","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":14,"time":1787314560727,"data":{"chunk":{"Kind":"text","Text":" content","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":15,"time":1787314560751,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":16,"time":1787314560751,"data":{"chunk":{"Kind":"text","Text":" Let","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":17,"time":1787314560751,"data":{"chunk":{"Kind":"text","Text":" me","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":18,"time":1787314560751,"data":{"chunk":{"Kind":"text","Text":" ask","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":19,"time":1787314560770,"data":{"chunk":{"Kind":"text","Text":" -","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":20,"time":1787314560792,"data":{"chunk":{"Kind":"text","Text":" what","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":21,"time":1787314560792,"data":{"chunk":{"Kind":"text","Text":" table","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":22,"time":1787314560814,"data":{"chunk":{"Kind":"text","Text":" content","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":23,"time":1787314560838,"data":{"chunk":{"Kind":"text","Text":" would","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":24,"time":1787314560838,"data":{"chunk":{"Kind":"text","Text":" you","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":25,"time":1787314560838,"data":{"chunk":{"Kind":"text","Text":" like","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":26,"time":1787314560838,"data":{"chunk":{"Kind":"text","Text":" me","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":27,"time":1787314560838,"data":{"chunk":{"Kind":"text","Text":" to","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":28,"time":1787314560862,"data":{"chunk":{"Kind":"text","Text":" include","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":29,"time":1787314560862,"data":{"chunk":{"Kind":"text","Text":"?","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":30,"time":1787314560936,"data":{"chunk":{"Kind":"text","Text":" \n\n","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":31,"time":1787314560936,"data":{"chunk":{"Kind":"text","Text":"Actually","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":32,"time":1787314560936,"data":{"chunk":{"Kind":"text","Text":",","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":33,"time":1787314560936,"data":{"chunk":{"Kind":"text","Text":" let","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":34,"time":1787314560936,"data":{"chunk":{"Kind":"text","Text":" me","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":35,"time":1787314560936,"data":{"chunk":{"Kind":"text","Text":" create","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":36,"time":1787314560936,"data":{"chunk":{"Kind":"text","Text":" a","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":37,"time":1787314560936,"data":{"chunk":{"Kind":"text","Text":" sample","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":38,"time":1787314560936,"data":{"chunk":{"Kind":"text","Text":" mark","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":39,"time":1787314560975,"data":{"chunk":{"Kind":"text","Text":"down","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":40,"time":1787314560975,"data":{"chunk":{"Kind":"text","Text":" file","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":41,"time":1787314560975,"data":{"chunk":{"Kind":"text","Text":" with","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":42,"time":1787314560975,"data":{"chunk":{"Kind":"text","Text":" a","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":43,"time":1787314560975,"data":{"chunk":{"Kind":"text","Text":" table","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":44,"time":1787314560975,"data":{"chunk":{"Kind":"text","Text":" that","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":45,"time":1787314560975,"data":{"chunk":{"Kind":"text","Text":" I","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":46,"time":1787314560978,"data":{"chunk":{"Kind":"text","Text":" can","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":47,"time":1787314560978,"data":{"chunk":{"Kind":"text","Text":" demonstrate","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":48,"time":1787314561079,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":49,"time":1787314561079,"data":{"chunk":{"Kind":"text","Text":" Let","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":50,"time":1787314561080,"data":{"chunk":{"Kind":"text","Text":" me","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":51,"time":1787314561080,"data":{"chunk":{"Kind":"text","Text":" think","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":52,"time":1787314561094,"data":{"chunk":{"Kind":"text","Text":" about","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":53,"time":1787314561094,"data":{"chunk":{"Kind":"text","Text":" what","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":54,"time":1787314561094,"data":{"chunk":{"Kind":"text","Text":" you","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":55,"time":1787314561094,"data":{"chunk":{"Kind":"text","Text":" might","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":56,"time":1787314561095,"data":{"chunk":{"Kind":"text","Text":" want","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":57,"time":1787314561095,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":58,"time":1787314561095,"data":{"chunk":{"Kind":"text","Text":" Since","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":59,"time":1787314561095,"data":{"chunk":{"Kind":"text","Text":" you","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":60,"time":1787314561095,"data":{"chunk":{"Kind":"text","Text":" didn","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":61,"time":1787314561095,"data":{"chunk":{"Kind":"text","Text":"'t","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":62,"time":1787314561134,"data":{"chunk":{"Kind":"text","Text":" specify","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":63,"time":1787314561134,"data":{"chunk":{"Kind":"text","Text":" particular","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":64,"time":1787314561134,"data":{"chunk":{"Kind":"text","Text":" content","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":65,"time":1787314561134,"data":{"chunk":{"Kind":"text","Text":",","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":66,"time":1787314561135,"data":{"chunk":{"Kind":"text","Text":" let","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":67,"time":1787314561135,"data":{"chunk":{"Kind":"text","Text":" me","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":68,"time":1787314561135,"data":{"chunk":{"Kind":"text","Text":" create","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":69,"time":1787314561135,"data":{"chunk":{"Kind":"text","Text":" a","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":70,"time":1787314561305,"data":{"chunk":{"Kind":"text","Text":" useful","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":71,"time":1787314561305,"data":{"chunk":{"Kind":"text","Text":" example","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":72,"time":1787314561305,"data":{"chunk":{"Kind":"text","Text":" -","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":73,"time":1787314561305,"data":{"chunk":{"Kind":"text","Text":" perhaps","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":74,"time":1787314561305,"data":{"chunk":{"Kind":"text","Text":" a","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":75,"time":1787314561305,"data":{"chunk":{"Kind":"text","Text":" product","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":76,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":" comparison","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":77,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":" table","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":78,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":" or","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":79,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":" data","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":80,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":" overview","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":81,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":" table","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":82,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":".\n\n","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":83,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":"Let","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":84,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":" me","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":85,"time":1787314561449,"data":{"chunk":{"Kind":"text","Text":" create","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":86,"time":1787314561454,"data":{"chunk":{"Kind":"text","Text":" a","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":87,"time":1787314561454,"data":{"chunk":{"Kind":"text","Text":" nice","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":88,"time":1787314561454,"data":{"chunk":{"Kind":"text","Text":" mark","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":89,"time":1787314561454,"data":{"chunk":{"Kind":"text","Text":"down","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":90,"time":1787314561454,"data":{"chunk":{"Kind":"text","Text":" file","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":91,"time":1787314561454,"data":{"chunk":{"Kind":"text","Text":" with","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":92,"time":1787314561609,"data":{"chunk":{"Kind":"text","Text":" table","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":93,"time":1787314561609,"data":{"chunk":{"Kind":"text","Text":" content","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":94,"time":1787314561609,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":1,"turn":1}}
+{"type":"assistant/chunk","seq":95,"time":1787314565105,"data":{"chunk":{"Kind":"tool-call","Text":"","CallID":"call_00_B0DGMudzMw4zbpNnXmRo5240","ToolName":"write","Args":{"content":"# 示例表格\n\n这是一个使用 Markdown 语法生成的表格示例文件。\n\n## 产品销售数据\n\n| 产品名称 | 类别 | 单价（元） | 销量（件） | 销售额（元） |\n| :--- | :--- | ---: | ---: | ---: |\n| 无线蓝牙耳机 | 数码 | 299 | 1200 | 358,800 |\n| 智能手表 | 数码 | 899 | 350 | 314,650 |\n| 保温杯 | 家居 | 89 | 2300 | 204,700 |\n| 办公椅 | 家居 | 499 | 180 | 89,820 |\n| 机械键盘 | 数码 | 459 | 460 | 211,140 |\n\n## 团队成员\n\n| 姓名 | 职位 | 入职时间 | 城市 | 邮箱 |\n| :--- | :--- | :--- | :--- | :--- |\n| 张三 | 产品经理 | 2020-03-15 | 北京 | zhangsan@example.com |\n| 李四 | 前端工程师 | 2021-07-01 | 上海 | lisi@example.com |\n| 王五 | 后端工程师 | 2019-11-20 | 深圳 | wangwu@example.com |\n| 赵六 | 设计师 | 2022-02-10 | 杭州 | zhaoliu@example.com |\n\n## 项目进度\n\n| 任务名称 | 负责人 | 状态 | 完成度 | 截止日期 |\n| :--- | :--- | :--- | ---: | :--- |\n| 需求分析 | 张三 | 已完成 | 100% | 2024-01-10 |\n| 原型设计 | 赵六 | 进行中 | 60% | 2024-02-05 |\n| 前端开发 | 李四 | 进行中 | 40% | 2024-03-01 |\n| 后端开发 | 王五 | 未开始 | 0% | 2024-03-15 |\n| 系统测试 | - | 未开始 | 0% | 2024-04-01 |\n","file_path":"示例表格.md"}},"step":1,"turn":1}}
+{"type":"assistant/message","seq":96,"time":1787314565106,"data":{"message":{"Role":"assistant","Content":[{"Kind":"text","Text":"I'll help you create a markdown file with table content. Let me ask - what table content would you like me to include? \n\nActually, let me create a sample markdown file with a table that I can demonstrate. Let me think about what you might want. Since you didn't specify particular content, let me create a useful example - perhaps a product comparison table or data overview table.\n\nLet me create a nice markdown file with table content.","CallID":"","ToolName":"","Args":null},{"Kind":"tool-call","Text":"","CallID":"call_00_B0DGMudzMw4zbpNnXmRo5240","ToolName":"write","Args":{"content":"# 示例表格\n\n这是一个使用 Markdown 语法生成的表格示例文件。\n\n## 产品销售数据\n\n| 产品名称 | 类别 | 单价（元） | 销量（件） | 销售额（元） |\n| :--- | :--- | ---: | ---: | ---: |\n| 无线蓝牙耳机 | 数码 | 299 | 1200 | 358,800 |\n| 智能手表 | 数码 | 899 | 350 | 314,650 |\n| 保温杯 | 家居 | 89 | 2300 | 204,700 |\n| 办公椅 | 家居 | 499 | 180 | 89,820 |\n| 机械键盘 | 数码 | 459 | 460 | 211,140 |\n\n## 团队成员\n\n| 姓名 | 职位 | 入职时间 | 城市 | 邮箱 |\n| :--- | :--- | :--- | :--- | :--- |\n| 张三 | 产品经理 | 2020-03-15 | 北京 | zhangsan@example.com |\n| 李四 | 前端工程师 | 2021-07-01 | 上海 | lisi@example.com |\n| 王五 | 后端工程师 | 2019-11-20 | 深圳 | wangwu@example.com |\n| 赵六 | 设计师 | 2022-02-10 | 杭州 | zhaoliu@example.com |\n\n## 项目进度\n\n| 任务名称 | 负责人 | 状态 | 完成度 | 截止日期 |\n| :--- | :--- | :--- | ---: | :--- |\n| 需求分析 | 张三 | 已完成 | 100% | 2024-01-10 |\n| 原型设计 | 赵六 | 进行中 | 60% | 2024-02-05 |\n| 前端开发 | 李四 | 进行中 | 40% | 2024-03-01 |\n| 后端开发 | 王五 | 未开始 | 0% | 2024-03-15 |\n| 系统测试 | - | 未开始 | 0% | 2024-04-01 |\n","file_path":"示例表格.md"}}]},"step":1,"turn":1},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"tool/call","seq":97,"time":1787314565107,"data":{"call":{"Kind":"tool-call","Text":"","CallID":"call_00_B0DGMudzMw4zbpNnXmRo5240","ToolName":"write","Args":{"content":"# 示例表格\n\n这是一个使用 Markdown 语法生成的表格示例文件。\n\n## 产品销售数据\n\n| 产品名称 | 类别 | 单价（元） | 销量（件） | 销售额（元） |\n| :--- | :--- | ---: | ---: | ---: |\n| 无线蓝牙耳机 | 数码 | 299 | 1200 | 358,800 |\n| 智能手表 | 数码 | 899 | 350 | 314,650 |\n| 保温杯 | 家居 | 89 | 2300 | 204,700 |\n| 办公椅 | 家居 | 499 | 180 | 89,820 |\n| 机械键盘 | 数码 | 459 | 460 | 211,140 |\n\n## 团队成员\n\n| 姓名 | 职位 | 入职时间 | 城市 | 邮箱 |\n| :--- | :--- | :--- | :--- | :--- |\n| 张三 | 产品经理 | 2020-03-15 | 北京 | zhangsan@example.com |\n| 李四 | 前端工程师 | 2021-07-01 | 上海 | lisi@example.com |\n| 王五 | 后端工程师 | 2019-11-20 | 深圳 | wangwu@example.com |\n| 赵六 | 设计师 | 2022-02-10 | 杭州 | zhaoliu@example.com |\n\n## 项目进度\n\n| 任务名称 | 负责人 | 状态 | 完成度 | 截止日期 |\n| :--- | :--- | :--- | ---: | :--- |\n| 需求分析 | 张三 | 已完成 | 100% | 2024-01-10 |\n| 原型设计 | 赵六 | 进行中 | 60% | 2024-02-05 |\n| 前端开发 | 李四 | 进行中 | 40% | 2024-03-01 |\n| 后端开发 | 王五 | 未开始 | 0% | 2024-03-15 |\n| 系统测试 | - | 未开始 | 0% | 2024-04-01 |\n","file_path":"示例表格.md"}},"step":1,"turn":1}}
+{"type":"tool/result","seq":98,"time":1787314565109,"data":{"message":{"Role":"user","Content":[{"Kind":"tool-result","Text":"created 示例表格.md (1252 bytes)","CallID":"call_00_B0DGMudzMw4zbpNnXmRo5240","ToolName":"","Args":null}]},"step":1,"turn":1},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"step/end","seq":99,"time":1787314565109,"data":{"step":1,"turn":1}}
+{"type":"step/start","seq":100,"time":1787314565109,"data":{"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":101,"time":1787314566025,"data":{"chunk":{"Kind":"text","Text":"我已经","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":102,"time":1787314566038,"data":{"chunk":{"Kind":"text","Text":"创建","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":103,"time":1787314566060,"data":{"chunk":{"Kind":"text","Text":"了","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":104,"time":1787314566060,"data":{"chunk":{"Kind":"text","Text":" `","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":105,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":"示例","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":106,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":"表格","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":107,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":".md","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":108,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":"`","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":109,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":110,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":"文件","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":111,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":"，","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":112,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":"里面","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":113,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":"包含了","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":114,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":"几个","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":115,"time":1787314566160,"data":{"chunk":{"Kind":"text","Text":"不同","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":116,"time":1787314566174,"data":{"chunk":{"Kind":"text","Text":"场景","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":117,"time":1787314566201,"data":{"chunk":{"Kind":"text","Text":"的","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":118,"time":1787314566201,"data":{"chunk":{"Kind":"text","Text":"表格","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":119,"time":1787314566201,"data":{"chunk":{"Kind":"text","Text":"示例","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":120,"time":1787314566201,"data":{"chunk":{"Kind":"text","Text":"：\n\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":121,"time":1787314566201,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":122,"time":1787314566302,"data":{"chunk":{"Kind":"text","Text":"文件","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":123,"time":1787314566302,"data":{"chunk":{"Kind":"text","Text":"内容","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":124,"time":1787314566302,"data":{"chunk":{"Kind":"text","Text":"概","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":125,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"览","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":126,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"：","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":127,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"**\n\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":128,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"1","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":129,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":130,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":" **","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":131,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"产品销售","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":132,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"数据","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":133,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"表","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":134,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":135,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":" —","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":136,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":137,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"包含","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":138,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"产品","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":139,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"名称","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":140,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":141,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"类别","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":142,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":143,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"单价","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":144,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":145,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"销量","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":146,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":147,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"销售额","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":148,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"，","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":149,"time":1787314566505,"data":{"chunk":{"Kind":"text","Text":"并","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":150,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"演示","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":151,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"了","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":152,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"列","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":153,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"对齐","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":154,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"方式","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":155,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"（","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":156,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"右","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":157,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"对齐","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":158,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"金额","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":159,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"数字","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":160,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"）\n\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":161,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"2","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":162,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":163,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":" **","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":164,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"团队成员","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":165,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"表","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":166,"time":1787314566619,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":167,"time":1787314566620,"data":{"chunk":{"Kind":"text","Text":" —","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":168,"time":1787314566620,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":169,"time":1787314566620,"data":{"chunk":{"Kind":"text","Text":"姓名","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":170,"time":1787314566620,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":171,"time":1787314566620,"data":{"chunk":{"Kind":"text","Text":"职位","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":172,"time":1787314566620,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":173,"time":1787314566620,"data":{"chunk":{"Kind":"text","Text":"入职","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":174,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"时间","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":175,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":176,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"城市","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":177,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":178,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"邮箱","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":179,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"等","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":180,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"个人信息","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":181,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"\n\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":182,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"3","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":183,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":184,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":" **","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":185,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"项目","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":186,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"进度","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":187,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"表","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":188,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":189,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":" —","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":190,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":191,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"任务","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":192,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":193,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"负责人","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":194,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":195,"time":1787314566685,"data":{"chunk":{"Kind":"text","Text":"状态","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":196,"time":1787314566699,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":197,"time":1787314566699,"data":{"chunk":{"Kind":"text","Text":"完成","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":198,"time":1787314566728,"data":{"chunk":{"Kind":"text","Text":"度","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":199,"time":1787314566728,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":200,"time":1787314566728,"data":{"chunk":{"Kind":"text","Text":"截止","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":201,"time":1787314566728,"data":{"chunk":{"Kind":"text","Text":"日期","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":202,"time":1787314566747,"data":{"chunk":{"Kind":"text","Text":"\n\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":203,"time":1787314566747,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":204,"time":1787314566747,"data":{"chunk":{"Kind":"text","Text":"Mark","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":205,"time":1787314566772,"data":{"chunk":{"Kind":"text","Text":"down","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":206,"time":1787314566772,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":207,"time":1787314566772,"data":{"chunk":{"Kind":"text","Text":"表格","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":208,"time":1787314566773,"data":{"chunk":{"Kind":"text","Text":"语法","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":209,"time":1787314566792,"data":{"chunk":{"Kind":"text","Text":"要点","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":210,"time":1787314566792,"data":{"chunk":{"Kind":"text","Text":"：","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":211,"time":1787314566815,"data":{"chunk":{"Kind":"text","Text":"**\n\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":212,"time":1787314566815,"data":{"chunk":{"Kind":"text","Text":"-","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":213,"time":1787314566815,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":214,"time":1787314566838,"data":{"chunk":{"Kind":"text","Text":"表","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":215,"time":1787314566838,"data":{"chunk":{"Kind":"text","Text":"头","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":216,"time":1787314566838,"data":{"chunk":{"Kind":"text","Text":"行","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":217,"time":1787314566860,"data":{"chunk":{"Kind":"text","Text":"后","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":218,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"需要","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":219,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":" `","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":220,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"---","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":221,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"`","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":222,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":223,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"分隔","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":224,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"行","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":225,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":226,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"-","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":227,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":228,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"通过","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":229,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":" `","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":230,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":":`","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":231,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":232,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"控制","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":233,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"对齐","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":234,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"：","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":235,"time":1787314567246,"data":{"chunk":{"Kind":"text","Text":"`:","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":236,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"---","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":237,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"`","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":238,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":239,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"左","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":240,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"对齐","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":241,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":242,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"`","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":243,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"---","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":244,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":":`","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":245,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":246,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"右","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":247,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"对齐","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":248,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":249,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"`:","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":250,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"---","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":251,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":":`","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":252,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":253,"time":1787314567247,"data":{"chunk":{"Kind":"text","Text":"居","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":254,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"中对","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":255,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"齐","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":256,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":257,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"-","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":258,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":259,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"用","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":260,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":" `","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":261,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"|","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":262,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"`","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":263,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":264,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"分隔","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":265,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"单元格","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":266,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":267,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":"-","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":268,"time":1787314567380,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":269,"time":1787314567439,"data":{"chunk":{"Kind":"text","Text":"第一","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":270,"time":1787314567439,"data":{"chunk":{"Kind":"text","Text":"列","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":271,"time":1787314567439,"data":{"chunk":{"Kind":"text","Text":"通常","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":272,"time":1787314567439,"data":{"chunk":{"Kind":"text","Text":"默认","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":273,"time":1787314567439,"data":{"chunk":{"Kind":"text","Text":"左","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":274,"time":1787314567439,"data":{"chunk":{"Kind":"text","Text":"对齐","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":275,"time":1787314567439,"data":{"chunk":{"Kind":"text","Text":"\n\n","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":276,"time":1787314567439,"data":{"chunk":{"Kind":"text","Text":"如果你","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":277,"time":1787314567439,"data":{"chunk":{"Kind":"text","Text":"有","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":278,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":279,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"具体的","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":280,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"表格","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":281,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"数据","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":282,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":283,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"或","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":284,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"特定的","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":285,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"排版","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":286,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"要求","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":287,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"，","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":288,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"请","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":289,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"告诉我","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":290,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"，","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":291,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"我可以","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":292,"time":1787314567600,"data":{"chunk":{"Kind":"text","Text":"为你","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":293,"time":1787314567719,"data":{"chunk":{"Kind":"text","Text":"生成","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":294,"time":1787314567719,"data":{"chunk":{"Kind":"text","Text":"定制","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":295,"time":1787314567719,"data":{"chunk":{"Kind":"text","Text":"化的","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":296,"time":1787314567719,"data":{"chunk":{"Kind":"text","Text":" mark","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":297,"time":1787314567719,"data":{"chunk":{"Kind":"text","Text":"down","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":298,"time":1787314567719,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":299,"time":1787314567719,"data":{"chunk":{"Kind":"text","Text":"文件","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/chunk","seq":300,"time":1787314567719,"data":{"chunk":{"Kind":"text","Text":"！","CallID":"","ToolName":"","Args":null},"step":2,"turn":1}}
+{"type":"assistant/message","seq":301,"time":1787314567719,"data":{"message":{"Role":"assistant","Content":[{"Kind":"text","Text":"我已经创建了 `示例表格.md` 文件，里面包含了几个不同场景的表格示例：\n\n**文件内容概览：**\n\n1. **产品销售数据表** — 包含产品名称、类别、单价、销量、销售额，并演示了列对齐方式（右对齐金额数字）\n\n2. **团队成员表** — 姓名、职位、入职时间、城市、邮箱等个人信息\n\n3. **项目进度表** — 任务、负责人、状态、完成度、截止日期\n\n**Markdown 表格语法要点：**\n\n- 表头行后需要 `---` 分隔行\n- 通过 `:` 控制对齐：`:---` 左对齐、`---:` 右对齐、`:---:` 居中对齐\n- 用 `|` 分隔单元格\n- 第一列通常默认左对齐\n\n如果你有**具体的表格数据**或特定的排版要求，请告诉我，我可以为你生成定制化的 markdown 文件！","CallID":"","ToolName":"","Args":null}]},"step":2,"turn":1},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"step/end","seq":302,"time":1787314567719,"data":{"step":2,"turn":1}}
+{"type":"turn/end","seq":303,"time":1787314567719,"data":{"reason":"completed","turn":1}}
+{"type":"turn/start","seq":304,"time":1787314597843,"data":2}
+{"type":"step/start","seq":305,"time":1787314597843,"data":{"step":1,"turn":2}}
+{"type":"user/message","seq":306,"time":1787314597843,"data":{"Role":"user","Content":[{"Kind":"text","Text":"在对话框里展示出来","CallID":"","ToolName":"","Args":null}]},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"assistant/chunk","seq":307,"time":1787314598883,"data":{"chunk":{"Kind":"text","Text":"你说","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":308,"time":1787314598883,"data":{"chunk":{"Kind":"text","Text":"得","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":309,"time":1787314598883,"data":{"chunk":{"Kind":"text","Text":"对","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":310,"time":1787314598883,"data":{"chunk":{"Kind":"text","Text":"，","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":311,"time":1787314598883,"data":{"chunk":{"Kind":"text","Text":"我","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":312,"time":1787314598883,"data":{"chunk":{"Kind":"text","Text":"应该在","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":313,"time":1787314598883,"data":{"chunk":{"Kind":"text","Text":"对话框中","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":314,"time":1787314598883,"data":{"chunk":{"Kind":"text","Text":"用","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":315,"time":1787314598899,"data":{"chunk":{"Kind":"text","Text":"表格","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":316,"time":1787314598899,"data":{"chunk":{"Kind":"text","Text":"工具","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":317,"time":1787314598923,"data":{"chunk":{"Kind":"text","Text":"展示","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":318,"time":1787314598923,"data":{"chunk":{"Kind":"text","Text":"出来","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":319,"time":1787314598923,"data":{"chunk":{"Kind":"text","Text":"。","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":320,"time":1787314598923,"data":{"chunk":{"Kind":"text","Text":"现在","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":321,"time":1787314598947,"data":{"chunk":{"Kind":"text","Text":"我把","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":322,"time":1787314598947,"data":{"chunk":{"Kind":"text","Text":"刚才","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":323,"time":1787314598974,"data":{"chunk":{"Kind":"text","Text":"的内容","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":324,"time":1787314598992,"data":{"chunk":{"Kind":"text","Text":"展示","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":325,"time":1787314598992,"data":{"chunk":{"Kind":"text","Text":"出来","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":326,"time":1787314599016,"data":{"chunk":{"Kind":"text","Text":"。","CallID":"","ToolName":"","Args":null},"step":1,"turn":2}}
+{"type":"assistant/chunk","seq":327,"time":1787314600384,"data":{"chunk":{"Kind":"tool-call","Text":"","CallID":"call_00_4hQS2QxM0asdHq8lMSRU2168","ToolName":"show_table","Args":{"caption":"产品销售数据","headers":["产品名称","类别","单价（元）","销量（件）","销售额（元）"],"rows":[["无线蓝牙耳机","数码",299,1200,358800],["智能手表","数码",899,350,314650],["保温杯","家居",89,2300,204700],["办公椅","家居",499,180,89820],["机械键盘","数码",459,460,211140]]}},"step":1,"turn":2}}
+{"type":"assistant/message","seq":328,"time":1787314600384,"data":{"message":{"Role":"assistant","Content":[{"Kind":"text","Text":"你说得对，我应该在对话框中用表格工具展示出来。现在我把刚才的内容展示出来。","CallID":"","ToolName":"","Args":null},{"Kind":"tool-call","Text":"","CallID":"call_00_4hQS2QxM0asdHq8lMSRU2168","ToolName":"show_table","Args":{"caption":"产品销售数据","headers":["产品名称","类别","单价（元）","销量（件）","销售额（元）"],"rows":[["无线蓝牙耳机","数码",299,1200,358800],["智能手表","数码",899,350,314650],["保温杯","家居",89,2300,204700],["办公椅","家居",499,180,89820],["机械键盘","数码",459,460,211140]]}}]},"step":1,"turn":2},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"tool/call","seq":329,"time":1787314600384,"data":{"call":{"Kind":"tool-call","Text":"","CallID":"call_00_4hQS2QxM0asdHq8lMSRU2168","ToolName":"show_table","Args":{"caption":"产品销售数据","headers":["产品名称","类别","单价（元）","销量（件）","销售额（元）"],"rows":[["无线蓝牙耳机","数码",299,1200,358800],["智能手表","数码",899,350,314650],["保温杯","家居",89,2300,204700],["办公椅","家居",499,180,89820],["机械键盘","数码",459,460,211140]]}},"step":1,"turn":2}}
+{"type":"tool/result","seq":330,"time":1787314600385,"data":{"message":{"Role":"user","Content":[{"Kind":"tool-result","Text":"Displayed to the user.","CallID":"call_00_4hQS2QxM0asdHq8lMSRU2168","ToolName":"","Args":null}]},"step":1,"turn":2},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"step/end","seq":331,"time":1787314600385,"data":{"step":1,"turn":2}}
+{"type":"step/start","seq":332,"time":1787314600385,"data":{"step":2,"turn":2}}
+{"type":"assistant/chunk","seq":333,"time":1787314603249,"data":{"chunk":{"Kind":"tool-call","Text":"","CallID":"call_00_BOK98LCNPFCVnN1d8QjD7221","ToolName":"show_table","Args":{"caption":"团队成员","headers":["姓名","职位","入职时间","城市","邮箱"],"rows":[["张三","产品经理","2020-03-15","北京","zhangsan@example.com"],["李四","前端工程师","2021-07-01","上海","lisi@example.com"],["王五","后端工程师","2019-11-20","深圳","wangwu@example.com"],["赵六","设计师","2022-02-10","杭州","zhaoliu@example.com"]]}},"step":2,"turn":2}}
+{"type":"assistant/chunk","seq":334,"time":1787314603249,"data":{"chunk":{"Kind":"tool-call","Text":"","CallID":"call_01_zFaT1YSiiNf81lEFMn646390","ToolName":"show_table","Args":{"caption":"项目进度","headers":["任务名称","负责人","状态","完成度","截止日期"],"rows":[["需求分析","张三","已完成","100%","2024-01-10"],["原型设计","赵六","进行中","60%","2024-02-05"],["前端开发","李四","进行中","40%","2024-03-01"],["后端开发","王五","未开始","0%","2024-03-15"],["系统测试","-","未开始","0%","2024-04-01"]]}},"step":2,"turn":2}}
+{"type":"assistant/message","seq":335,"time":1787314603249,"data":{"message":{"Role":"assistant","Content":[{"Kind":"tool-call","Text":"","CallID":"call_00_BOK98LCNPFCVnN1d8QjD7221","ToolName":"show_table","Args":{"caption":"团队成员","headers":["姓名","职位","入职时间","城市","邮箱"],"rows":[["张三","产品经理","2020-03-15","北京","zhangsan@example.com"],["李四","前端工程师","2021-07-01","上海","lisi@example.com"],["王五","后端工程师","2019-11-20","深圳","wangwu@example.com"],["赵六","设计师","2022-02-10","杭州","zhaoliu@example.com"]]}},{"Kind":"tool-call","Text":"","CallID":"call_01_zFaT1YSiiNf81lEFMn646390","ToolName":"show_table","Args":{"caption":"项目进度","headers":["任务名称","负责人","状态","完成度","截止日期"],"rows":[["需求分析","张三","已完成","100%","2024-01-10"],["原型设计","赵六","进行中","60%","2024-02-05"],["前端开发","李四","进行中","40%","2024-03-01"],["后端开发","王五","未开始","0%","2024-03-15"],["系统测试","-","未开始","0%","2024-04-01"]]}}]},"step":2,"turn":2},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"tool/call","seq":336,"time":1787314603249,"data":{"call":{"Kind":"tool-call","Text":"","CallID":"call_00_BOK98LCNPFCVnN1d8QjD7221","ToolName":"show_table","Args":{"caption":"团队成员","headers":["姓名","职位","入职时间","城市","邮箱"],"rows":[["张三","产品经理","2020-03-15","北京","zhangsan@example.com"],["李四","前端工程师","2021-07-01","上海","lisi@example.com"],["王五","后端工程师","2019-11-20","深圳","wangwu@example.com"],["赵六","设计师","2022-02-10","杭州","zhaoliu@example.com"]]}},"step":2,"turn":2}}
+{"type":"tool/call","seq":337,"time":1787314603249,"data":{"call":{"Kind":"tool-call","Text":"","CallID":"call_01_zFaT1YSiiNf81lEFMn646390","ToolName":"show_table","Args":{"caption":"项目进度","headers":["任务名称","负责人","状态","完成度","截止日期"],"rows":[["需求分析","张三","已完成","100%","2024-01-10"],["原型设计","赵六","进行中","60%","2024-02-05"],["前端开发","李四","进行中","40%","2024-03-01"],["后端开发","王五","未开始","0%","2024-03-15"],["系统测试","-","未开始","0%","2024-04-01"]]}},"step":2,"turn":2}}
+{"type":"tool/result","seq":338,"time":1787314603250,"data":{"message":{"Role":"user","Content":[{"Kind":"tool-result","Text":"Displayed to the user.","CallID":"call_00_BOK98LCNPFCVnN1d8QjD7221","ToolName":"","Args":null}]},"step":2,"turn":2},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"tool/result","seq":339,"time":1787314603250,"data":{"message":{"Role":"user","Content":[{"Kind":"tool-result","Text":"Displayed to the user.","CallID":"call_01_zFaT1YSiiNf81lEFMn646390","ToolName":"","Args":null}]},"step":2,"turn":2},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"step/end","seq":340,"time":1787314603250,"data":{"step":2,"turn":2}}
+{"type":"step/start","seq":341,"time":1787314603250,"data":{"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":342,"time":1787314603875,"data":{"chunk":{"Kind":"text","Text":"表格","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":343,"time":1787314604051,"data":{"chunk":{"Kind":"text","Text":"已经在","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":344,"time":1787314604051,"data":{"chunk":{"Kind":"text","Text":"对话框","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":345,"time":1787314604051,"data":{"chunk":{"Kind":"text","Text":"里","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":346,"time":1787314604051,"data":{"chunk":{"Kind":"text","Text":"展示","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":347,"time":1787314604051,"data":{"chunk":{"Kind":"text","Text":"出来了","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":348,"time":1787314604051,"data":{"chunk":{"Kind":"text","Text":"：\n\n","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":349,"time":1787314604051,"data":{"chunk":{"Kind":"text","Text":"1","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":350,"time":1787314604051,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":351,"time":1787314604273,"data":{"chunk":{"Kind":"text","Text":" **","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":352,"time":1787314604273,"data":{"chunk":{"Kind":"text","Text":"产品销售","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":353,"time":1787314604273,"data":{"chunk":{"Kind":"text","Text":"数据","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":354,"time":1787314604273,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":355,"time":1787314604273,"data":{"chunk":{"Kind":"text","Text":" —","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":356,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":357,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"各","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":358,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"产品的","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":359,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"单价","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":360,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"、","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":361,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"销量","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":362,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"和","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":363,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"销售额","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":364,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"对比","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":365,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"\n","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":366,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"2","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":367,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":368,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":" **","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":369,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"团队成员","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":370,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":371,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":" —","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":372,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":373,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"成员","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":374,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"的基本","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":375,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"信息","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":376,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"\n","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":377,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"3","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":378,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":".","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":379,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":" **","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":380,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"项目","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":381,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"进度","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":382,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"**","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":383,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":" —","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":384,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":385,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"各","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":386,"time":1787314604274,"data":{"chunk":{"Kind":"text","Text":"任务的","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":387,"time":1787314604448,"data":{"chunk":{"Kind":"text","Text":"完成","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":388,"time":1787314604448,"data":{"chunk":{"Kind":"text","Text":"状态","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":389,"time":1787314604448,"data":{"chunk":{"Kind":"text","Text":"和时间","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":390,"time":1787314604448,"data":{"chunk":{"Kind":"text","Text":"安排","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":391,"time":1787314604449,"data":{"chunk":{"Kind":"text","Text":"\n\n","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":392,"time":1787314604449,"data":{"chunk":{"Kind":"text","Text":"如果你","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":393,"time":1787314604449,"data":{"chunk":{"Kind":"text","Text":"有","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":394,"time":1787314604449,"data":{"chunk":{"Kind":"text","Text":"实际的","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":395,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"表格","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":396,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"数据","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":397,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"，","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":398,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"把","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":399,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"内容","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":400,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"发","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":401,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"给我","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":402,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"，","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":403,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"我可以","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":404,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"帮你","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":405,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"整理","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":406,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"成","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":407,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"这样的","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":408,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"展示","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":409,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"，","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":410,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"同时","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":411,"time":1787314604599,"data":{"chunk":{"Kind":"text","Text":"也会","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":412,"time":1787314604771,"data":{"chunk":{"Kind":"text","Text":"生成","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":413,"time":1787314604771,"data":{"chunk":{"Kind":"text","Text":"对应的","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":414,"time":1787314604771,"data":{"chunk":{"Kind":"text","Text":" mark","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":415,"time":1787314604771,"data":{"chunk":{"Kind":"text","Text":"down","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":416,"time":1787314604771,"data":{"chunk":{"Kind":"text","Text":" ","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":417,"time":1787314604771,"data":{"chunk":{"Kind":"text","Text":"文件","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/chunk","seq":418,"time":1787314604771,"data":{"chunk":{"Kind":"text","Text":"。","CallID":"","ToolName":"","Args":null},"step":3,"turn":2}}
+{"type":"assistant/message","seq":419,"time":1787314604771,"data":{"message":{"Role":"assistant","Content":[{"Kind":"text","Text":"表格已经在对话框里展示出来了：\n\n1. **产品销售数据** — 各产品的单价、销量和销售额对比\n2. **团队成员** — 成员的基本信息\n3. **项目进度** — 各任务的完成状态和时间安排\n\n如果你有实际的表格数据，把内容发给我，我可以帮你整理成这样的展示，同时也会生成对应的 markdown 文件。","CallID":"","ToolName":"","Args":null}]},"step":3,"turn":2},"surfaceOp":{"Replace":false,"Start":0,"End":0}}
+{"type":"step/end","seq":420,"time":1787314604771,"data":{"step":3,"turn":2}}
+{"type":"turn/end","seq":421,"time":1787314604771,"data":{"reason":"completed","turn":2}}

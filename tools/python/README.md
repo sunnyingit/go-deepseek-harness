@@ -45,17 +45,22 @@ child. Argv's first element here is always a confinement wrapper
 grandchild), but bwrap forks and supervises its target, so killing only the
 wrapper would leave the real Python process running unbounded and leave
 `Cmd.Wait()` blocked forever on a stdout pipe an orphaned grandchild still
-holds open. `run_unix.go` starts the confined command in its own process
-group (`Setpgid: true`) and kills the whole group (`Kill(-pid, ...)`) on
-context cancellation instead — caught by `TestRunToolTimeout` actually
-hanging during development, not by inspection.
+holds open. The fix — start the confined command in its own process group
+(`Setpgid: true`) and kill the whole group (`Kill(-pid, ...)`) on context
+cancellation — was caught by `TestRunToolTimeout` actually hanging during
+development, not by inspection. It originally lived here as
+`run_unix.go`/`run_windows.go`; once `shell/bashsandbox` needed the
+identical supervision for a different command entirely, it moved to
+`sandbox.RunSupervised` (see that package's README) — the grandchild
+problem is a property of sandbox wrapping itself, not of running Python
+specifically. `runConfined` in `tool.go` now just builds the `*exec.Cmd`
+and calls it.
 
 A related bug the same test session caught: the confined process's working
 directory wasn't being set at all, so a script's relative
 `open("output.txt", "w")` resolved against the *test binary's* cwd — outside
 every granted root — and was (correctly) denied by the sandbox. Fixed by
-setting `cmd.Dir` to the workspace root in both `runConfined`
-implementations.
+setting `cmd.Dir` to the workspace root before running.
 
 ## Verified for real, not mocked
 

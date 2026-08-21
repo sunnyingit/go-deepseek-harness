@@ -1,0 +1,561 @@
+/* ============ 全局 & 变量 ============ */
+:root {
+  --ink: #2b2420;
+  --paper: #f3ecdc;
+  --paper-deep: #e8ddc4;
+  --red: #a32025;
+  --red-deep: #7f1a1e;
+  --gold: #b98a2f;
+  --sepia: #c9b98f;
+  --cream: #faf5e8;
+
+  --serif: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+  --kai: "Kaiti SC", "STKaiti", "KaiTi", "Noto Serif SC", serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--serif);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: var(--paper);
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+/* 阅读进度条 */
+.progressbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 4px;
+  background: var(--red);
+  z-index: 100;
+  width: 0;
+  transition: width 0.05s linear;
+}
+
+/* ============ Hero ============ */
+.hero {
+  position: relative;
+  min-height: 92vh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background:
+    radial-gradient(1200px 500px at 20% 10%, rgba(185, 138, 47, 0.18), transparent 60%),
+    radial-gradient(1000px 600px at 90% 0%, rgba(163, 32, 37, 0.14), transparent 55%),
+    linear-gradient(180deg, #f8f1e0 0%, var(--paper) 45%);
+  border-bottom: 6px solid var(--red);
+}
+
+.hero__grain {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.02) 0px,
+    rgba(0, 0, 0, 0.02) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+  pointer-events: none;
+}
+
+.hero__content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 70px 24px 90px;
+}
+
+.hero__sub {
+  font-family: var(--kai);
+  letter-spacing: 0.6em;
+  color: var(--gold);
+  font-size: 0.95rem;
+  margin-bottom: 26px;
+  padding-left: 0.6em;
+}
+
+.hero__title {
+  font-size: clamp(4rem, 13vw, 9rem);
+  font-weight: 700;
+  color: var(--red-deep);
+  letter-spacing: 0.28em;
+  line-height: 1.1;
+  margin-left: 0.28em;
+  text-shadow: 2px 3px 0 rgba(163, 32, 37, 0.12);
+  font-family: var(--kai);
+}
+
+.hero__subsub {
+  margin-top: 20px;
+  font-size: 1.05rem;
+  letter-spacing: 0.35em;
+  color: var(--ink);
+  opacity: 0.78;
+}
+
+.hero__tags {
+  margin-top: 26px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.hero__tag {
+  padding: 4px 16px;
+  border: 1px solid rgba(163, 32, 37, 0.4);
+  color: var(--red);
+  font-size: 0.9rem;
+  letter-spacing: 0.2em;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hero__rule {
+  width: 120px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--sepia), transparent);
+  margin: 34px auto 22px;
+}
+
+.hero__epitaph {
+  font-family: var(--kai);
+  font-size: 1.5rem;
+  color: var(--ink);
+  letter-spacing: 0.1em;
+}
+
+.hero__cta {
+  display: inline-block;
+  margin-top: 34px;
+  padding: 12px 34px;
+  background: var(--red);
+  color: var(--cream);
+  text-decoration: none;
+  letter-spacing: 0.35em;
+  font-size: 1rem;
+  border-radius: 2px;
+  transition: background 0.25s ease, transform 0.2s ease;
+}
+
+.hero__cta:hover {
+  background: var(--red-deep);
+  transform: translateY(-2px);
+}
+
+/* ============ 引言 ============ */
+.intro {
+  padding: 90px 9%;
+  text-align: center;
+  background: var(--paper-deep);
+  border-top: 1px solid rgba(185, 138, 47, 0.25);
+  border-bottom: 1px solid rgba(185, 138, 47, 0.25);
+}
+
+.intro__text {
+  max-width: 760px;
+  margin: 0 auto;
+  font-size: 1.22rem;
+  line-height: 2.1;
+  font-family: var(--kai);
+  color: var(--ink);
+  text-align: justify;
+}
+
+.intro__sig {
+  margin-top: 30px;
+  font-family: var(--kai);
+  color: var(--gold);
+  letter-spacing: 0.4em;
+  text-align: right;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ============ 章节通用 ============ */
+.section__title {
+  font-family: var(--kai);
+  font-size: 2rem;
+  letter-spacing: 0.5em;
+  padding-left: 0.5em;
+  color: var(--red-deep);
+  text-align: center;
+}
+
+.section__lead {
+  text-align: center;
+  color: #8a7a5a;
+  letter-spacing: 0.2em;
+  margin: 12px 0 46px;
+  font-size: 0.95rem;
+}
+
+.section__title--light {
+  color: var(--cream);
+}
+
+.section__lead--light {
+  color: rgba(250, 245, 232, 0.7);
+}
+
+/* ============ 时间线 ============ */
+.timeline {
+  padding: 90px 9% 60px;
+}
+
+.timeline__rail {
+  position: relative;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+/* 中央竖线 */
+.timeline__rail::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, transparent, var(--sepia) 8%, var(--sepia) 92%, transparent);
+}
+
+.timeline__item {
+  position: relative;
+  width: 50%;
+  margin-bottom: 40px;
+}
+
+.timeline__item--left {
+  left: 0;
+  padding-right: 40px;
+}
+
+.timeline__item--right {
+  left: 50%;
+  padding-left: 40px;
+}
+
+.timeline__dot {
+  position: absolute;
+  top: 18px;
+  width: 14px;
+  height: 14px;
+  background: var(--red);
+  border-radius: 50%;
+  border: 3px solid var(--cream);
+  box-shadow: 0 0 0 2px var(--red);
+}
+
+.timeline__item--left .timeline__dot {
+  right: -9px;
+}
+
+.timeline__item--right .timeline__dot {
+  left: -6px;
+}
+
+.timeline__card {
+  background: var(--cream);
+  border: 1px solid rgba(185, 138, 47, 0.3);
+  border-left: 4px solid var(--red);
+  padding: 18px 22px;
+  border-radius: 2px;
+  box-shadow: 4px 6px 18px rgba(80, 60, 20, 0.08);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.timeline__item--right .timeline__card {
+  border-left: 1px solid rgba(185, 138, 47, 0.3);
+  border-right: 4px solid var(--red);
+}
+
+.timeline__card:hover {
+  transform: translateY(-4px);
+  box-shadow: 6px 10px 26px rgba(80, 60, 20, 0.14);
+}
+
+.timeline__year {
+  font-family: var(--kai);
+  font-size: 1.05rem;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.timeline__h {
+  margin: 6px 0 8px;
+  font-size: 1.2rem;
+  color: var(--red-deep);
+  letter-spacing: 0.08em;
+}
+
+.timeline__p {
+  font-size: 0.98rem;
+  color: #4a4038;
+  text-align: justify;
+}
+
+/* ============ 功绩 ============ */
+.achievements {
+  padding: 90px 9%;
+  background:
+    radial-gradient(1000px 400px at 80% 0%, rgba(185, 138, 47, 0.15), transparent 55%),
+    linear-gradient(160deg, var(--red) 0%, var(--red-deep) 100%);
+  color: var(--cream);
+}
+
+.achievements__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+.achievement__card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(250, 245, 232, 0.24);
+  border-radius: 2px;
+  padding: 28px 24px;
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+
+.achievement__card:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-5px);
+}
+
+.achievement__icon {
+  font-size: 2rem;
+  margin-bottom: 14px;
+}
+
+.achievement__h {
+  font-size: 1.25rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(250, 245, 232, 0.25);
+  padding-bottom: 10px;
+}
+
+.achievement__p {
+  font-size: 0.97rem;
+  color: rgba(250, 245, 232, 0.92);
+  text-align: justify;
+}
+
+/* ============ 名言 ============ */
+.quotes {
+  padding: 90px 9%;
+}
+
+.quotes__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.quote__card {
+  position: relative;
+  background: var(--cream);
+  border: 1px solid rgba(185, 138, 47, 0.3);
+  border-radius: 2px;
+  padding: 30px 26px;
+  font-family: var(--kai);
+  font-size: 1.35rem;
+  line-height: 1.9;
+  color: var(--ink);
+  text-align: center;
+  letter-spacing: 0.08em;
+  box-shadow: 4px 6px 18px rgba(80, 60, 20, 0.07);
+  transition: transform 0.25s ease;
+}
+
+.quote__card:hover {
+  transform: translateY(-4px) rotate(-0.4deg);
+}
+
+.quote__mark {
+  position: absolute;
+  top: -6px;
+  left: 12px;
+  font-size: 3rem;
+  color: var(--red);
+  opacity: 0.22;
+  font-family: var(--serif);
+  line-height: 1;
+}
+
+/* ============ 诗词 ============ */
+.poems {
+  padding: 90px 9%;
+  background: var(--paper-deep);
+  border-top: 1px solid rgba(185, 138, 47, 0.25);
+}
+
+.poems__list {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.poem__block {
+  background: var(--cream);
+  border: 1px solid rgba(185, 138, 47, 0.3);
+  border-radius: 2px;
+  padding: 32px 36px;
+  box-shadow: 5px 7px 22px rgba(80, 60, 20, 0.08);
+}
+
+.poem__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(163, 32, 37, 0.2);
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+
+.poem__title {
+  font-family: var(--kai);
+  font-size: 1.6rem;
+  color: var(--red-deep);
+  letter-spacing: 0.15em;
+}
+
+.poem__year {
+  color: var(--gold);
+  font-family: var(--kai);
+  letter-spacing: 0.2em;
+}
+
+.poem__body {
+  font-family: var(--kai);
+  font-size: 1.1rem;
+  line-height: 2;
+  white-space: pre-line;
+  color: #3d352c;
+  letter-spacing: 0.05em;
+}
+
+/* ============ 脚注 ============ */
+.foot {
+  padding: 80px 9% 60px;
+  text-align: center;
+  background: #2b2420;
+  color: var(--cream);
+}
+
+.foot__great {
+  font-family: var(--kai);
+  font-size: 1.9rem;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+}
+
+.foot__note {
+  margin-top: 18px;
+  letter-spacing: 0.35em;
+  font-size: 0.95rem;
+  opacity: 0.8;
+}
+
+.foot__rule {
+  width: 80px;
+  height: 2px;
+  background: var(--sepia);
+  margin: 34px auto;
+  opacity: 0.5;
+}
+
+.foot__tiny {
+  font-size: 0.9rem;
+  letter-spacing: 0.2em;
+  opacity: 0.55;
+}
+
+/* ============ 响应式 ============ */
+@media (max-width: 720px) {
+  .hero {
+    min-height: 70vh;
+  }
+
+  .hero__title {
+    font-size: 3.4rem;
+  }
+
+  .hero__subsub {
+    letter-spacing: 0.18em;
+    font-size: 0.9rem;
+  }
+
+  .hero__epitaph {
+    font-size: 1.15rem;
+  }
+
+  .timeline__rail::before {
+    left: 10px;
+  }
+
+  .timeline__item,
+  .timeline__item--right {
+    left: 0;
+    width: 100%;
+    padding-left: 40px;
+    padding-right: 0;
+  }
+
+  .timeline__item--left .timeline__dot {
+    left: 3px;
+    right: auto;
+  }
+
+  .timeline__item--right .timeline__dot {
+    left: 3px;
+  }
+
+  .timeline__card,
+  .timeline__item--right .timeline__card {
+    border-left: 4px solid var(--red);
+    border-right: 1px solid rgba(185, 138, 47, 0.3);
+  }
+
+  .timeline {
+    padding: 60px 7%;
+  }
+
+  .intro,
+  .achievements,
+  .quotes,
+  .poems,
+  .foot {
+    padding-left: 7%;
+    padding-right: 7%;
+  }
+
+  .poem__body {
+    white-space: pre-line;
+  }
+}

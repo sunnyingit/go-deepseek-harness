@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>东方既白 · 毛泽东生平档案</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon fill='%23DE2910' points='16,2 20.12,12.47 31.51,12.47 22.2,18.94 25.64,29.53 16,22.9 6.36,29.53 9.8,18.94 0.49,12.47 11.88,12.47'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --ink: #201812;
+    --ink-soft: #4a3a2a;
+    --ink-faint: #6e5a44;
+    --paper: #f2e9d8;
+    --paper-deep: #e7dcc4;
+    --accent: #a3202f;
+    --accent-deep: #7a1a24;
+    --gold: #b8953f;
+    --line: rgba(51,37,20,.22);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  html, body {
+    margin: 0;
+    background: var(--paper);
+    background-image:
+      radial-gradient(ellipse at 20% 8%, rgba(184,149,63,.10), transparent 45%),
+      radial-gradient(ellipse at 85% 90%, rgba(163,32,47,.07), transparent 55%),
+      repeating-linear-gradient(0deg, rgba(120,90,40,.025) 0 1px, transparent 1px 4px);
+    color: var(--ink);
+    font-family: "Songti SC","STSong","SimSun","Kaiti SC","Kaiti","KaiTi",Georgia,serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 顶部朱红绶带 */
+  .topribbon {
+    position: fixed; top:0; left:0; right:0; height:6px; z-index:60;
+    background: linear-gradient(90deg, var(--accent-deep), var(--accent) 30%, #c0392e 70%, var(--accent-deep));
+    box-shadow: 0 1px 0 rgba(122,26,36,.6);
+  }
+
+  /* 左侧竖排年份导轨 */
+  .rail { display:none; }
+  @media (min-width: 1080px) {
+    .rail {
+      display:flex; flex-direction:column; gap:22px;
+      position:fixed; left:34px; top:50%; transform:translateY(-50%);
+      font-size:12px; color:var(--ink-faint); letter-spacing:.35em; writing-mode:vertical-rl;
+      z-index:30;
+    }
+    .rail span { transition:color .3s; cursor:pointer; padding:6px 4px; }
+    .rail span:hover, .rail span.act { color: var(--accent); text-shadow:0 0 6px rgba(163,32,47,.3); }
+  }
+
+  /* 章节主体 */
+  main { max-width:1000px; margin:0 auto; padding: 0 26px 40px; }
+
+  /* 封面 */
+  header.cover {
+    padding: 130px 0 70px;
+    text-align: center;
+    position: relative;
+  }
+  header.cover .glyph {
+    display:inline-block; width:86px; height:86px; position:relative;
+    animation: enter 1s ease forwards;
+  }
+  header.cover .glyph svg { width:100%; height:100%; }
+  header.cover .glyph::after {
+    content:"1893 · 1976";
+    position:absolute; left:50%; bottom:-30px; transform:translateX(-50%);
+    font-size:13px; color:var(--ink-faint); letter-spacing:.4em; white-space:nowrap;
+  }
+  @keyframes enter { from { opacity:0; transform:translateY(18px);} to {opacity:1; transform:none;} }
+
+  .cover-title {
+    font-size: clamp(40px, 9vw, 86px);
+    font-weight: 900;
+    letter-spacing: .18em;
+    margin: 66px 0 6px;
+    line-height: 1.1;
+    color: var(--accent-deep);
+    text-shadow: 0 3px 0 rgba(122,26,36,.06);
+  }
+  .cover-sub {
+    font-size: clamp(15px, 2.4vw, 20px);
+    color: var(--ink-soft);
+    letter-spacing: .55em;
+    margin: 0 0 30px;
+  }
+  .cover-line { width: 120px; height:1px; background:var(--gold); margin:18px auto; opacity:.7; }
+  .cover-epi {
+    font-size: clamp(15px,2.2vw,19px);
+    color: var(--ink-faint);
+    letter-spacing: .12em;
+    line-height: 2;
+    font-style: italic;
+  }
+
+  /* 档案馆导览格 */
+  .index-grid {
+    display:grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap:14px;
+    margin: 46px 0 20px;
+  }
+  .tile {
+    border:1px solid var(--line);
+    background: rgba(242,233,216,.55);
+    padding: 18px 16px;
+    cursor:pointer;
+    transition: transform .25s, background .25s, border-color .25s;
+    position: relative;
+  }
+  .tile:hover { transform: translateY(-3px); background: rgba(255,250,238,.8); border-color: var(--accent); }
+  .tile .no { font-size:12px; color:var(--accent); letter-spacing:.4em; display:block; }
+  .tile .tt { font-size:21px; font-weight:700; letter-spacing:.16em; margin-top:8px; color:var(--ink); }
+  .tile .ds { font-size:13px; color:var(--ink-faint); letter-spacing:.06em; margin-top:6px; line-height:1.7; }
+  .tile .arr { position:absolute; right:14px; bottom:12px; color:var(--accent); font-size:16px; opacity:0; transition:opacity .25s, transform .25s; }
+  .tile:hover .arr { opacity:1; transform:translateX(3px); }
+
+  /* 时间线 */
+  .timeline { margin: 60px 0 30px; position:relative; }
+  .sec-head {
+    font-size: clamp(26px,5vw,38px);
+    font-weight:900; letter-spacing:.22em; color:var(--accent-deep);
+    margin: 0 0 8px; padding-left: 18px; position:relative;
+  }
+  .sec-head::before {
+    content:""; position:absolute; left:0; top:0.2em; bottom:0.2em; width:5px; background:var(--accent);
+  }
+  .sec-desc { padding-left:18px; color:var(--ink-faint); letter-spacing:.12em; font-size:14px; margin:0 0 30px; }
+
+  .tl {
+    border-left: 2px solid var(--gold);
+    margin-left: 22px;
+    padding-left: 28px;
+    position: relative;
+  }
+  .tl::before {
+    content:""; position:absolute; left:-7px; top:0; bottom:0; width:1px;
+    background: repeating-linear-gradient(0deg, var(--gold), var(--gold) 8px, transparent 8px, transparent 16px);
+  }
+  .tl-item { position:relative; padding: 12px 0 22px; }
+  .tl-item::before {
+    content:""; position:absolute; left: calc(-28px - 8px); top: 22px;
+    width: 13px; height:13px; border-radius:50%;
+    background: var(--paper); border: 2px solid var(--accent);
+    transition: background .25s, transform .25s;
+  }
+  .tl-item:hover::before { background: var(--accent); transform: scale(1.25); }
+  .tl-item.open::before { background: var(--accent); }
+  .tl-date {
+    font-size: 14px; letter-spacing:.35em; color: var(--accent); font-weight:700; margin:0 0 2px;
+  }
+  .tl-title { font-size: 21px; font-weight:700; letter-spacing:.1em; color:var(--ink); margin:0 0 4px; cursor:pointer; }
+  .tl-title:hover { color:var(--accent-deep); }
+  .tl-sub { font-size:13px; color:var(--ink-faint); letter-spacing:.1em; margin:0; }
+  .tl-body {
+    max-height:0; overflow:hidden; transition: max-height .5s ease, padding .3s ease;
+    color: var(--ink-soft); font-size:15px; line-height:2; letter-spacing:.05em;
+  }
+  .tl-item.open .tl-body { max-height: 900px; padding-top: 12px; }
+  .tl-body p { margin:0; }
+
+  /* 总结卷轴 */
+  footer {
+    margin-top: 70px;
+    border-top: 2px solid var(--accent-deep);
+    padding: 40px 22px 50px;
+    position:relative;
+  }
+  footer .seal {
+    width:64px; height:64px; border:2px solid var(--accent); color:var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px; font-weight:900; letter-spacing:.15em;
+    position:absolute; top:-34px; right:30px; background:var(--paper-deep);
+    box-shadow: inset 0 0 12px rgba(163,32,47,.25);
+    font-style: italic;
+  }
+  footer .end-title { font-size:28px; font-weight:900; letter-spacing:.25em; color:var(--ink); margin:10px 0 16px; }
+  footer .end-text { color:var(--ink-soft); font-size:15px; line-height:2.1; letter-spacing:.06em; }
+  footer .quote {
+    font-size: clamp(18px,3vw,24px); color:var(--accent-deep); font-style:italic;
+    letter-spacing:.12em; line-height:1.9; margin:26px 0 10px;
+  }
+  footer .sig { text-align:right; color:var(--ink-faint); font-size:13px; letter-spacing:.25em; }
+
+  /* 进场动效 */
+  .reveal { opacity:0; transform: translateY(22px); transition: opacity .9s ease, transform .9s ease; }
+  .reveal.in { opacity:1; transform:none; }
+
+  ::selection { background: rgba(163,32,47,.18); }
+</style>
+</head>
+<body>
+  <div class="topribbon"></div>
+
+  <nav class="rail" id="rail"></nav>
+
+  <main>
+    <!-- 封面 -->
+    <header class="cover">
+      <div class="glyph">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <polygon fill="#a3202f" points="16,2 20.12,12.47 31.51,12.47 22.2,18.94 25.64,29.53 16,22.9 6.36,29.53 9.8,18.94 0.49,12.47 11.88,12.47"/>
+          <circle cx="16" cy="16" r="11" fill="none" stroke="#b8953f" stroke-width="1"/>
+        </svg>
+      </div>
+      <h1 class="cover-title">东方既白</h1>
+      <div class="cover-line"></div>
+      <p class="cover-sub">毛 泽 东 · 生 平 档 案</p>
+      <p class="cover-epi">「数风流人物，还看今朝。」</p>
+    </header>
+
+    <!-- 导览格 -->
+    <div class="index-grid">
+      <div class="tile" data-go="#s1"><span class="no">壹</span><div class="tt">少年立志 · 求学之路</div><div class="ds">1893—1920</div><span class="arr">→</span></div>
+      <div class="tile" data-go="#s2"><span class="no">贰</span><div class="tt">星火燎原 · 革命奠基</div><div class="ds">1921—1936</div><span class="arr">→</span></div>
+      <div class="tile" data-go="#s3"><span class="no">叁</span><div class="tt">救亡图存 · 抗战岁月</div><div class="ds">1937—1945</div><span class="arr">→</span></div>
+      <div class="tile" data-go="#s4"><span class="no">肆</span><div class="tt">建国立业 · 人民共和</div><div class="ds">1946—1956</div><span class="arr">→</span></div>
+      <div class="tile" data-go="#s5"><span class="no">伍</span><div class="tt">探索前行 · 思想遗产</div><div class="ds">1957—1976</div><span class="arr">→</span></div>
+    </div>
+
+    <!-- 时间线 -->
+    <section class="timeline reveal">
+      <h2 class="sec-head" id="s1">壹 · 少年立志 · 求学之路</h2>
+      <p class="sec-desc">1893 · 湖南湘潭韶山冲</p>
+      <div class="tl">
+        <div class="tl-item open">
+          <p class="tl-date">一八九三年</p>
+          <p class="tl-title">泽东降生</p>
+          <p class="tl-sub">湖南湘潭县韶山冲</p>
+          <div class="tl-body"><p>出生于一个农民家庭，字润之。少年入私塾读书，敏而好学，广泛涉猎经史子集与稗官野史，尤爱读造反与英雄故事，深受中国传统文化的浸润。</p></div>
+        </div>
+        <div class="tl-item">
+          <p class="tl-date">一九一〇 — 一九一三年</p>
+          <p class="tl-title">走出韶山</p>
+          <p class="tl-sub">东山高小 · 长沙</p>
+          <div class="tl-body"><p>离家求学，写《咏蛙》明志，入湖南全省立第一中学，后考入湖南省立第四师范（后并入一师），师从杨昌济等，开始系统接触新学新知。此间立下「改造中国与世界」，探索救国救民之道。</p></div>
+        </div>
+        <div class="tl-item">
+          <p class="tl-date">一九一八 — 一九二〇年</p>
+          <p class="tl-title">新民学会 · 驱张运动</p>
+          <p class="tl-sub">北京 · 长沙</p>
+          <div class="tl-body"><p>组织新民学会，倡导「革新学术、砥砺品行、改良人心风俗」。两赴北京，在北京大学图书馆任助理员，结识李大钊、陈独秀等人，在阅读《共产党宣言》后确立马克思主义信仰，走上革命道路。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="timeline reveal">
+      <h2 class="sec-head" id="s2">贰 · 星火燎原 · 革命奠基</h2>
+      <p class="sec-desc">1921 · 建党与武装斗争</p>
+      <div class="tl">
+        <div class="tl-item">
+          <p class="tl-date">一九二一年</p>
+          <p class="tl-title">参加中共一大</p>
+          <p class="tl-sub">上海 · 嘉兴南湖</p>
+          <div class="tl-body"><p>作为湖南代表出席中国共产党第一次全国代表大会，参与缔造了中国共产党，中国从此有了无产阶级新型政党。</p></div>
+        </div>
+        <div class="tl-item">
+          <p class="tl-date">一九二七年</p>
+          <p class="tl-title">秋收起义</p>
+          <p class="tl-sub">湘赣边界 · 井冈山</p>
+          <div class="tl-body"><p>大革命失败后，提出「枪杆子里面出政权」，领导湘赣边界秋收起义，创建工农革命军，率部上井冈山，开辟了农村包围城市、武装夺取政权的革命道路，点燃了中国革命的星星之火。</p></div>
+        </div>
+        <div class="tl-item">
+          <p class="tl-date">一九三四 — 一九三五年</p>
+          <p class="tl-title">长征 · 遵义会议</p>
+          <p class="tl-sub">赣南出发 · 会宁会师</p>
+          <div class="tl-body"><p>带领红军踏上了二万五千里长征的伟大征途。遵义会议上纠正了军事路线上的错误，确立了在党中央和红军中的领导地位。长征精神成为中国革命走向胜利的丰碑。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="timeline reveal">
+      <h2 class="sec-head" id="s3">叁 · 救亡图存 · 抗战岁月</h2>
+      <p class="sec-desc">1937 · 全民族抗战</p>
+      <div class="tl">
+        <div class="tl-item">
+          <p class="tl-date">一九三七年</p>
+          <p class="tl-title">论持久战</p>
+          <p class="tl-sub">延安 · 抗日烽火</p>
+          <div class="tl-body"><p>在延安，系统提出了「持久战」的战略方针，主张从相持到反攻，确立全民族抗战的统一战线，为中国人民抗日战争指引了方向。</p></div>
+        </div>
+        <div class="tl-item">
+          <p class="tl-date">一九三六 — 一九四五年</p>
+          <p class="tl-title">延安岁月 · 整风明辨</p>
+          <p class="tl-sub">延安 · 陕北高原</p>
+          <div class="tl-body"><p>领导延安整风运动，反对主观主义、宗派主义、党八股，实现思想上的空前统一。一九四五年中共七大将毛泽东思想确立为党的指导思想，实现了马克思主义中国化的第一次历史性飞跃。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="timeline reveal">
+      <h2 class="sec-head" id="s4">肆 · 建国立业 · 人民共和</h2>
+      <p class="sec-desc">1949 · 开国大典</p>
+      <div class="tl">
+        <div class="tl-item">
+          <p class="tl-date">一九四九年</p>
+          <p class="tl-title">中国人民站起来了</p>
+          <p class="tl-sub">北京 · 天安门</p>
+          <div class="tl-body"><p>十月一日，在天安门城楼庄严宣告中华人民共和国中央人民政府成立。中国人民从此站起来了。领导土地改革，废除封建剥削制度，广大农民翻身得解放。</p></div>
+        </div>
+        <div class="tl-item">
+          <p class="tl-date">一九五〇 — 一九五三年</p>
+          <p class="tl-title">保家卫国 · 抗美援朝</p>
+          <p class="tl-sub">朝鲜战场</p>
+          <div class="tl-body"><p>面对帝国主义侵略威胁，毅然决定抗美援朝、保家卫国。这场伟大战争拼来了山河无恙、家国安宁，打出了新中国的大国地位与尊严。</p></div>
+        </div>
+        <div class="tl-item">
+          <p class="tl-date">一九五六 — 一九五七年</p>
+          <p class="tl-title">确立社会主义制度</p>
+          <p class="tl-sub">社会主义改造</p>
+          <div class="tl-body"><p>领导完成对农业、手工业和资本主义工商业的社会主义改造，确立了社会主义基本制度，实现了中国历史上最深刻、最伟大的社会变革。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="timeline reveal">
+      <h2 class="sec-head" id="s5">伍 · 探索前行 · 思想遗产</h2>
+      <p class="sec-desc">1957 · 建设与思考</p>
+      <div class="tl">
+        <div class="tl-item">
+          <p class="tl-date">一九六四 — 一九七〇年</p>
+          <p class="tl-title">两弹一星 · 自立自强</p>
+          <p class="tl-sub">国防尖端事业</p>
+          <div class="tl-body"><p>顶住外部封锁压力，领导自力更生搞国防科技，成功研制原子弹、氢弹，发射人造地球卫星。「两弹一星」极大增强了国家实力与民族志气。</p></div>
+        </div>
+        <div class="tl-item">
+          <p class="tl-date">一九七五年</p>
+          <p class="tl-title">晚年忧思 · 江山后继</p>
+          <p class="tl-sub">垂暮之年</p>
+          <div class="tl-body"><p>进入晚年仍关心国家前途与人民命运，担忧党和国家永不变色、事业后继有人，为党和国家留下宝贵的精神遗产与深刻的历史思考。</p></div>
+        </div>
+        <div class="tl-item">
+          <p class="tl-date">思想遗产</p>
+          <p class="tl-title">毛泽东思想 · 永续长青</p>
+          <p class="tl-sub">实事求是 · 群众路线 · 独立自主</p>
+          <div class="tl-body"><p>毛泽东思想是马克思主义中国化的第一次历史性飞跃，是党的宝贵精神财富。其核心精髓——实事求是、群众路线、独立自主，至今仍是我们党治国理政的重要思想武器，指引着中国人民在复兴之路上阔步前行。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 总结 -->
+    <footer class="reveal">
+      <div class="seal">泽</div>
+      <h2 class="end-title">为人民服务</h2>
+      <p class="end-text">
+        毛泽东同志是伟大的马克思主义者，伟大的无产阶级革命家、战略家、理论家，是党的第一代中央领导集体的核心。
+        他为中国共产党和中国人民解放军的创立和发展，为中国各族人民解放事业的胜利，为中华人民共和国的缔造和中国社会主义事业的发展，
+        建立了不可磨灭的历史功勋。他的思想跨越时空、历久弥新，永远是中国共产党人取之不尽的精神宝库。
+      </p>
+      <p class="quote">「为有牺牲多壮志，敢教日月换新天。」</p>
+      <p class="sig">— 录自《七律·到韶山》</p>
+    </footer>
+  </main>
+
+<script>
+  /* 竖排年份导轨 */
+  (function(){
+    var headings = Array.prototype.slice.call(document.querySelectorAll('.sec-head'));
+    if(!headings.length) return;
+    var rail = document.getElementById('rail');
+    var map = {};
+    headings.forEach(function(h){
+      var sp = document.createElement('span');
+      var text = h.textContent;
+      sp.textContent = text.slice(text.indexOf('·')).replace(' · ','');
+      sp.dataset.go = '#'+h.id;
+      sp.onclick = function(){ document.querySelector(sp.dataset.go).scrollIntoView({behavior:'smooth'}); };
+      rail.appendChild(sp);
+      map[h.id] = sp;
+    });
+
+    var observer = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting && e.intersectionRatio>0.4){
+          Object.keys(map).forEach(function(k){ map[k].classList.remove('act'); });
+          if(map[e.target.id]) map[e.target.id].classList.add('act');
+        }
+      });
+    }, { threshold: 0.4 });
+    headings.forEach(function(h){ observer.observe(h); });
+  })();
+
+  /* 时间线点击展开 */
+  document.querySelectorAll('.tl-item').forEach(function(item){
+    var title = item.querySelector('.tl-title');
+    if(!title) return;
+    title.onclick = function(){
+      item.classList.toggle('open');
+    };
+    item.onclick = function(e){ if(e.target===item || e.target.tagName==='P'&&!e.target.classList.contains('tl-title')) return; };
+  });
+
+  /* 进场动画 */
+  var ro = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('in'); ro.unobserve(e.target); }
+    });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(function(el){ ro.observe(el); });
+
+  /* 导览格跳转 */
+  document.querySelectorAll('.tile[data-go]').forEach(function(t){
+    t.onclick = function(){ document.querySelector(t.dataset.go).scrollIntoView({behavior:'smooth'}); };
+  });
+</script>
+</body>
+</html>

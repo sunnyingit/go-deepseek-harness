@@ -39,7 +39,10 @@ func (r *bwrapRunner) confine(argv []string, policy sandbox.Policy) (sandbox.Con
 		"--proc", "/proc",
 		"--tmpfs", "/tmp", // a fresh, empty /tmp — WritableRoots re-grants it explicitly below when applicable
 		"--die-with-parent",
-		"--unshare-all", "--share-net", // isolate every namespace except networking (a confined build/test command still needs it)
+		"--unshare-all", // isolate every namespace, including networking — re-shared below iff policy.Network
+	}
+	if policy.Network {
+		wrapped = append(wrapped, "--share-net")
 	}
 	for _, root := range sandbox.WritableRoots(policy.ExecutionPolicy) {
 		wrapped = append(wrapped, "--bind", root, root)

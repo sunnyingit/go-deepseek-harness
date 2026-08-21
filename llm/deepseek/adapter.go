@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -24,6 +25,13 @@ const DefaultBaseURL = "https://api.deepseek.com"
 // DefaultStreamIdleTimeout bounds each outstanding read while a stream is
 // in flight; it does not count time the consumer spends between chunks.
 const DefaultStreamIdleTimeout = 5 * time.Minute
+
+// DefaultConnectTimeout is Go's own DefaultTransport dial timeout — used
+// when Config.ConnectTimeout is unset so behavior matches stock net/http.
+const DefaultConnectTimeout = 30 * time.Second
+
+// DefaultTLSHandshakeTimeout matches net/http.DefaultTransport.
+const DefaultTLSHandshakeTimeout = 10 * time.Second
 
 // unmarshalChunk is a seam over json.Unmarshal so tests can force pump's
 // recover path without needing a real malformed-input edge case that
@@ -44,7 +52,13 @@ type Config struct {
 	Thinking string
 
 	StreamIdleTimeout time.Duration // default DefaultStreamIdleTimeout
-	HTTPClient        *http.Client  // default http.DefaultClient
+	// ConnectTimeout bounds TCP dial to the API. Default DefaultConnectTimeout.
+	// Ignored when HTTPClient is set.
+	ConnectTimeout time.Duration
+	// TLSHandshakeTimeout bounds the TLS handshake. Default
+	// DefaultTLSHandshakeTimeout. Ignored when HTTPClient is set.
+	TLSHandshakeTimeout time.Duration
+	HTTPClient          *http.Client // default: client built from the timeouts above
 }
 
 // Adapter is a DeepSeek chat-completions transport. It implements
@@ -67,10 +81,32 @@ func New(cfg Config) (*Adapter, error) {
 	if cfg.StreamIdleTimeout <= 0 {
 		cfg.StreamIdleTimeout = DefaultStreamIdleTimeout
 	}
+	if cfg.ConnectTimeout <= 0 {
+		cfg.ConnectTimeout = DefaultConnectTimeout
+	}
+	if cfg.TLSHandshakeTimeout <= 0 {
+		cfg.TLSHandshakeTimeout = DefaultTLSHandshakeTimeout
+	}
 	if cfg.HTTPClient == nil {
-		cfg.HTTPClient = http.DefaultClient
+		cfg.HTTPClient = defaultHTTPClient(cfg.ConnectTimeout, cfg.TLSHandshakeTimeout)
 	}
 	return &Adapter{cfg: cfg}, nil
+}
+
+func defaultHTTPClient(connect, tlsHandshake time.Duration) *http.Client {
+	var transport *http.Transport
+	if dt, ok := http.DefaultTransport.(*http.Transport); ok {
+		transport = dt.Clone()
+	} else {
+		transport = &http.Transport{}
+	}
+	transport.DialContext = (&net.Dialer{
+		Timeout:   connect,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+	transport.TLSHandshakeTimeout = tlsHandshake
+	// Do not set Client.Timeout: it would cancel a still-streaming generation.
+	return &http.Client{Transport: transport}
 }
 
 // Stream implements agentloop.LLM. A non-nil error return means the request
@@ -122,8 +158,9 @@ func (a *Adapter) Stream(ctx context.Context, req agentloop.GenerateRequest) (<-
 }
 
 // pump owns resp.Body for the lifetime of the stream: it parses SSE,
-// accumulates blocks, and emits the finished blocks (or one error) before
-// closing out. It always closes both out and body, on every exit path.
+// forwards live text/reasoning deltas, and emits assembled tool-call
+// blocks (or one error) at [DONE] before closing out. It always closes
+// both out and body, on every exit path.
 //
 // pump runs in its own goroutine (Stream's caller never sees it), so a
 // recover() here is not decoration: nothing else in the process can catch a
@@ -211,7 +248,11 @@ func (a *Adapter) pump(ctx context.Context, body io.ReadCloser, out chan<- agent
 				send(agentloop.StreamChunk{Err: &Error{Code: CodeMalformedResponse, Message: fmt.Sprintf("malformed SSE payload: %.120s", payload), Err: err}})
 				return
 			}
-			assembler.consume(wc)
+			for _, chunk := range assembler.consume(wc) {
+				if !send(chunk) {
+					return
+				}
+			}
 		}
 	}
 }

@@ -35,13 +35,41 @@ This package imports `go-harness/sandbox/sandbox` for the vocabulary
   precisely why `sandbox.CanonicalPath` exists and why every root
   `WritableRoots` returns is already canonicalized before a profile ever
   embeds it.
+
+  **A second real gap, caught the same way** — running an actual confined
+  process, not a synthetic test: the profile also grants `(allow
+  sysctl-read)` unconditionally, in the same read-only spirit as
+  `file-read*`. Without it, `import numpy` (and so `import pandas`, and so
+  a `bash` call running any pandas-using skill script — see
+  `shell/toolbash`) fails at import time — numpy's platform detection calls
+  `os.uname()`,
+  which macOS implements via `sysctl`, and Seatbelt's default deny blocked
+  it even though nothing about it is a write. A script that only prints or
+  writes a file never exercises this path; only a real third-party import
+  does, which is why no earlier test (including this package's own) caught
+  it until `web`'s end-to-end wiring did.
+
+  **`policy.Network` adds `(allow network*)`** — not part of `profiles.ts`,
+  since `sandbox.ExecutionPolicy` didn't have a network dimension to port in
+  the first place (see `../sandbox/README.md`'s "Additions" section). Every
+  other rule above is unconditional; this is the one gated by policy, off
+  by default, matching the TS profile's own network-less baseline. Verified
+  the same rigorous way as the write-confinement tests — a real `curl`
+  through the real `sandbox-exec` binary against a local `httptest` server
+  (`TestSeatbeltRealConfinementNetworkAccess`), denied without `Network` set
+  and succeeding with it — plus empirical spot-checks during development
+  against a real internet host confirming `network*` alone is enough for
+  DNS resolution too, no separate `mach-lookup`/`system-socket` rule needed.
 - **The Linux bwrap runner**: `confine` builds a `bwrap --ro-bind / /
-  --tmpfs /tmp --unshare-all --share-net … --bind <root> <root> … --
-  <argv>` command. Structurally correct, but **unverified against a real
-  confined process** — this development machine has no Linux or `bwrap` to
-  run it against. `bwrap_test.go` covers argv shape only (separator
-  placement, root binds present under `workspace-write` and absent under
-  `read-only`), not actual enforcement.
+  --tmpfs /tmp --unshare-all … --bind <root> <root> … -- <argv>` command,
+  adding `--share-net` only when `policy.Network` is true (off by default,
+  same as Seatbelt above — this is a behavior change from an earlier version
+  of this port, which shared the network namespace unconditionally).
+  Structurally correct, but **unverified against a real confined process**
+  — this development machine has no Linux or `bwrap` to run it against.
+  `bwrap_test.go` covers argv shape only (separator placement, root binds
+  present under `workspace-write` and absent under `read-only`,
+  `--share-net` present iff `policy.Network`), not actual enforcement.
 
 ## Deliberately not ported
 

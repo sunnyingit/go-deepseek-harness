@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>数字员工世界 · 打工小队上线</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky-top:#CDEBFF;
+    --sky-mid:#E4E9FF;
+    --sky-bottom:#FBEAF7;
+    --ink:#1B2340;
+    --ink-soft:#5A6088;
+    --gold:#FFC24B;
+    --gold-dark:#E8A11E;
+
+    --blue:#3E8EDE;      --blue-d:#2A6BB0;      --blue-l:#DCEEFF;
+    --orange:#FF8A3D;    --orange-d:#DB6A22;    --orange-l:#FFE7D6;
+    --green:#39AE7C;     --green-d:#268A5D;     --green-l:#DAF3E7;
+    --purple:#9767D6;    --purple-d:#7548B0;    --purple-l:#EDE1FA;
+    --pink:#FF6FA0;      --pink-d:#DB4F82;      --pink-l:#FFE0EC;
+
+    --panel-dark:#171F36;
+    --panel-line:#2C3653;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"Noto Sans SC", sans-serif;
+    color:var(--ink);
+    background:linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 38%, var(--sky-bottom) 100%);
+    min-height:100svh;
+    padding-bottom:10vh;
+  }
+  .num{ font-family:"Fredoka","Noto Sans SC",sans-serif; }
+  button{ font-family:inherit; border:none; background:none; cursor:pointer; }
+  ::selection{ background:var(--gold); color:var(--ink); }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ---------- hero ---------- */
+  .hero{
+    position:relative;
+    padding:7vh 5vw 3vh;
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    overflow:hidden;
+  }
+  .cloud{ position:absolute; background:#fff; border-radius:100px; opacity:.85; }
+  .cloud::before,.cloud::after{ content:""; position:absolute; background:#fff; border-radius:100px; }
+  .cloud1{ width:110px; height:36px; top:6%; left:6%; animation:drift 40s linear infinite; }
+  .cloud1::before{ width:54px; height:54px; top:-24px; left:14px; }
+  .cloud1::after{ width:40px; height:40px; top:-16px; left:56px; }
+  .cloud2{ width:80px; height:28px; top:10%; right:8%; animation:drift 48s linear infinite reverse; }
+  .cloud2::before{ width:42px; height:42px; top:-20px; left:8px; }
+  .cloud2::after{ width:32px; height:32px; top:-12px; left:40px; }
+  @keyframes drift{ from{ transform:translateX(-40px);} to{ transform:translateX(calc(100vw + 40px));} }
+
+  .eyebrow{
+    font-family:"Fredoka",sans-serif; font-size:13px; letter-spacing:.28em;
+    color:var(--orange-d); background:#fff; padding:6px 16px; border-radius:999px;
+    box-shadow:0 3px 0 rgba(219,106,34,.18); position:relative; z-index:2;
+  }
+  h1.title{ margin-top:18px; font-size:clamp(28px,5vw,52px); font-weight:900; line-height:1.15; position:relative; z-index:2; }
+  h1.title .hl{ color:var(--orange); text-shadow:3px 3px 0 rgba(27,35,64,.12); }
+  .subtitle{ margin-top:12px; font-size:clamp(13px,1.8vw,16px); color:var(--ink-soft); max-width:520px; z-index:2; position:relative; }
+
+  /* ---------- category filter ---------- */
+  .filters{
+    display:flex; flex-wrap:wrap; justify-content:center; gap:10px;
+    margin-top:26px; z-index:2; position:relative;
+    max-width:760px;
+  }
+  .filter-pill{
+    font-size:13px; font-weight:700; color:var(--ink-soft);
+    background:#fff; padding:9px 18px; border-radius:999px;
+    border:1.5px solid transparent;
+    box-shadow:0 2px 6px rgba(27,35,64,.08);
+    display:flex; align-items:center; gap:7px;
+    transition:transform .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .filter-pill .dot{ width:8px; height:8px; border-radius:50%; background:var(--dot,#ccc); }
+  .filter-pill:hover{ transform:translateY(-2px); }
+  .filter-pill.active{ color:var(--ink); border-color:var(--dot,var(--ink)); }
+
+  /* ---------- card grid ---------- */
+  .grid{
+    max-width:1320px;
+    margin:5vh auto 0;
+    padding:0 4vw;
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(210px, 1fr));
+    gap:20px;
+  }
+  .card-3d{
+    width:100%; height:340px;
+    perspective:1100px;
+    opacity:0; transform:translateY(20px) scale(.98);
+    animation:riseIn .55s cubic-bezier(.2,.8,.2,1) forwards;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .card-3d.hidden{ display:none; }
+  .card-3d:nth-child(5n+1){ animation-delay:.03s; }
+  .card-3d:nth-child(5n+2){ animation-delay:.1s; }
+  .card-3d:nth-child(5n+3){ animation-delay:.17s; }
+  .card-3d:nth-child(5n+4){ animation-delay:.24s; }
+  .card-3d:nth-child(5n+5){ animation-delay:.31s; }
+  @keyframes riseIn{ to{ opacity:1; transform:translateY(0) scale(1);} }
+
+  .card-inner{
+    position:relative; width:100%; height:100%;
+    border-radius:22px;
+    background:linear-gradient(160deg, var(--c-light) 0%, #fff 62%);
+    border:1px solid rgba(0,0,0,.04);
+    box-shadow:0 18px 34px -14px rgba(27,35,64,.28), 0 2px 0 rgba(255,255,255,.6) inset;
+    padding:20px 20px 18px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    cursor:pointer;
+    transform-style:preserve-3d;
+    transition:transform .16s ease-out, box-shadow .16s ease-out;
+  }
+  .card-inner:hover{ box-shadow:0 24px 42px -16px rgba(27,35,64,.34), 0 2px 0 rgba(255,255,255,.6) inset; }
+
+  /* ---------- 数字员工大盘 banner ---------- */
+  .dash-banner{
+    max-width:1080px; margin:5vh auto 0; padding:0 5vw;
+  }
+  .dash-banner a{
+    display:flex; align-items:center; gap:22px; flex-wrap:wrap;
+    background:linear-gradient(160deg, var(--panel-dark, #171F36) 0%, #0F1424 120%);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:20px; padding:22px 26px;
+    box-shadow:0 18px 40px -18px rgba(15,20,36,.55);
+    transition:transform .18s ease, box-shadow .18s ease;
+  }
+  .dash-banner a:hover{ transform:translateY(-3px); box-shadow:0 24px 48px -18px rgba(15,20,36,.65); }
+  .dash-banner .db-icon{
+    width:46px; height:46px; border-radius:14px; flex:0 0 auto;
+    background:linear-gradient(160deg, var(--blue), var(--purple));
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+  }
+  .dash-banner .db-body{ flex:1; min-width:180px; }
+  .dash-banner .db-title{ color:#fff; font-size:15.5px; font-weight:900; display:flex; align-items:center; gap:8px; }
+  .dash-banner .db-live{ display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; color:var(--green); background:rgba(57,174,124,.15); padding:2px 8px; border-radius:999px; }
+  .dash-banner .db-live i{ width:5px; height:5px; border-radius:50%; background:var(--green); box-shadow:0 0 0 2px rgba(57,174,124,.3); }
+  .dash-banner .db-sub{ color:rgba(255,255,255,.5); font-size:12px; margin-top:4px; }
+  .dash-banner .db-stats{ display:flex; gap:22px; flex-wrap:wrap; }
+  .dash-banner .db-stat{ text-align:center; }
+  .dash-banner .db-stat .v{ font-family:"Fredoka",sans-serif; font-size:17px; font-weight:700; color:#fff; }
+  .dash-banner .db-stat .k{ font-size:10px; color:rgba(255,255,255,.4); margin-top:2px; }
+  .dash-banner .db-cta{
+    flex:0 0 auto; font-size:12.5px; font-weight:700; color:#10162A;
+    background:#fff; padding:11px 20px; border-radius:999px;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  @media (max-width:640px){ .dash-banner .db-stats{ display:none; } }
+
+  .card-topline{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .card-cat{
+    font-size:10.5px; font-weight:700; color:var(--c-dark);
+    background:var(--c-light); padding:4px 10px; border-radius:999px;
+    white-space:nowrap;
+  }
+  .card-role{ font-size:10.5px; color:var(--ink-soft); }
+
+  .stage3d{ flex:1; display:flex; align-items:center; justify-content:center; perspective:600px; }
+  .pal{ position:relative; width:96px; height:120px; transition:transform .16s ease-out; }
+  .pal .shadow{ position:absolute; width:54px; height:15px; left:50%; bottom:2px; margin-left:-27px; background:rgba(20,25,50,.18); border-radius:50%; filter:blur(3px); }
+  .pal .body{ position:absolute; width:62px; height:78px; left:50%; margin-left:-31px; top:12px; background:var(--c-main); border-radius:44% 44% 50% 50% / 48% 48% 52% 52%; box-shadow:inset -9px -11px 0 rgba(0,0,0,.12), inset 7px 9px 0 rgba(255,255,255,.28); }
+  .pal .goggle{ position:absolute; width:40px; height:26px; left:50%; margin-left:-20px; top:28px; background:#fff; border:3px solid var(--ink); border-radius:14px; display:flex; align-items:center; justify-content:center; }
+  .pal .goggle svg{ width:19px; height:19px; }
+  .pal .arm{ position:absolute; width:9px; height:24px; border-radius:6px; top:40px; background:var(--c-main); }
+  .pal .arm.l{ left:50%; margin-left:-38px; transform-origin:top center; animation:swayL 2.6s ease-in-out infinite; }
+  .pal .arm.r{ left:50%; margin-left:29px; transform-origin:top center; animation:swayR 2.6s ease-in-out infinite; }
+  @keyframes swayL{ 0%,100%{ transform:rotate(6deg);} 50%{ transform:rotate(-4deg);} }
+  @keyframes swayR{ 0%,100%{ transform:rotate(-6deg);} 50%{ transform:rotate(4deg);} }
+  .pal-bob{ animation:bob 3s ease-in-out infinite; transform-style:preserve-3d; }
+  @keyframes bob{ 0%,100%{ transform:translateZ(0) translateY(0);} 50%{ transform:translateZ(26px) translateY(-6px);} }
+
+  .card-bottom .name{ font-size:20px; font-weight:900; color:var(--ink); }
+  .card-bottom .hook{ font-size:11.5px; color:var(--c-dark); margin-top:6px; line-height:1.5; min-height:2.7em; }
+  .card-bottom .cta-hint{ margin-top:10px; font-size:11px; font-weight:700; color:var(--c-dark); display:flex; align-items:center; gap:4px; }
+
+  .c-blue{ --c-main:var(--blue); --c-dark:var(--blue-d); --c-light:var(--blue-l); --dot:var(--blue); }
+  .c-orange{ --c-main:var(--orange); --c-dark:var(--orange-d); --c-light:var(--orange-l); --dot:var(--orange); }
+  .c-green{ --c-main:var(--green); --c-dark:var(--green-d); --c-light:var(--green-l); --dot:var(--green); }
+  .c-purple{ --c-main:var(--purple); --c-dark:var(--purple-d); --c-light:var(--purple-l); --dot:var(--purple); }
+  .c-pink{ --c-main:var(--pink); --c-dark:var(--pink-d); --c-light:var(--pink-l); --dot:var(--pink); }
+
+  @media (max-width:640px){
+    .grid{ gap:16px; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); }
+    .card-3d{ height:330px; }
+  }
+
+  /* ================= MODAL ================= */
+  .overlay{
+    position:fixed; inset:0; z-index:100;
+    background:rgba(10,14,28,.6);
+    backdrop-filter:blur(3px);
+    display:flex; align-items:flex-end; justify-content:center;
+    opacity:0; visibility:hidden;
+    transition:opacity .3s ease, visibility 0s linear .3s;
+  }
+  .overlay.open{ opacity:1; visibility:visible; transition:opacity .3s ease; }
+  @media (min-width:720px){ .overlay{ align-items:center; padding:4vh 0; } }
+
+  .modal{
+    position:relative;
+    width:100%; max-width:760px; max-height:94vh;
+    background:var(--panel-dark); color:#fff;
+    border-radius:24px 24px 0 0; overflow:hidden;
+    display:flex; flex-direction:column;
+    transform:translateY(28px);
+    transition:transform .35s cubic-bezier(.2,.8,.2,1);
+    box-shadow:0 -10px 50px rgba(0,0,0,.4);
+  }
+  @media (min-width:720px){ .modal{ border-radius:24px; max-height:88vh; } }
+  .overlay.open .modal{ transform:translateY(0); }
+
+  .modal-head{
+    position:relative; padding:22px 22px 18px; display:flex; align-items:center; gap:16px;
+    background:linear-gradient(160deg, var(--c-main) 0%, var(--panel-dark) 130%);
+    flex:0 0 auto;
+  }
+  .modal-close{ position:absolute; top:14px; right:14px; width:32px; height:32px; border-radius:50%; background:rgba(0,0,0,.25); color:#fff; font-size:16px; display:flex; align-items:center; justify-content:center; }
+  .modal-avatar{ position:relative; width:70px; height:88px; flex:0 0 auto; }
+  .modal-avatar .body{ position:absolute; width:60px; height:74px; left:5px; top:10px; background:var(--c-main); border-radius:44% 44% 50% 50%/48% 48% 52% 52%; box-shadow:inset -8px -10px 0 rgba(0,0,0,.15), inset 6px 8px 0 rgba(255,255,255,.25); }
+  .modal-avatar .goggle{ position:absolute; width:38px; height:24px; left:16px; top:26px; background:#fff; border:2.5px solid #10162A; border-radius:13px; display:flex; align-items:center; justify-content:center; }
+  .modal-avatar .goggle svg{ width:18px; height:18px; }
+  .modal-id{ flex:1; min-width:0; }
+  .modal-id .name{ font-size:22px; font-weight:900; }
+  .modal-id .role{ font-size:12.5px; color:rgba(255,255,255,.85); margin-top:2px; }
+  .modal-id .meta{ font-size:11px; color:rgba(255,255,255,.65); margin-top:6px; display:flex; gap:10px; flex-wrap:wrap; }
+  .modal-id .cat-chip{ font-size:10.5px; font-weight:700; background:rgba(255,255,255,.18); padding:3px 9px; border-radius:999px; margin-top:6px; display:inline-block; }
+  .status-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:#4CD97B; margin-right:4px; box-shadow:0 0 0 3px rgba(76,217,123,.25); }
+
+  .health-ring{ flex:0 0 auto; width:64px; height:64px; position:relative; }
+  .health-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .health-ring .track{ fill:none; stroke:rgba(255,255,255,.18); stroke-width:6; }
+  .health-ring .prog{ fill:none; stroke:#fff; stroke-width:6; stroke-linecap:round; transition:stroke-dashoffset 1s ease; }
+  .health-ring .val{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .health-ring .val b{ font-family:"Fredoka",sans-serif; font-size:17px; }
+  .health-ring .val span{ font-size:8px; color:rgba(255,255,255,.7); }
+
+  .modal-body{ overflow-y:auto; padding:4px 22px 28px; }
+  .sec{ margin-top:22px; }
+  .sec-title{ font-size:12.5px; font-weight:700; letter-spacing:.04em; color:rgba(255,255,255,.55); display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .sec-title::before{ content:""; width:3px; height:13px; border-radius:2px; background:var(--c-main); }
+
+  .scenario{ display:flex; align-items:flex-start; gap:10px; background:rgba(255,255,255,.04); border:1px solid var(--panel-line); border-radius:12px; padding:11px 13px; margin-bottom:8px; }
+  .scenario .flow{ font-size:12.5px; line-height:1.55; }
+  .scenario .flow .trig{ color:rgba(255,255,255,.6); }
+  .scenario .flow .act{ color:#fff; font-weight:700; }
+  .scenario .eff{ margin-top:5px; display:inline-block; font-size:11px; font-weight:700; color:var(--c-main); background:rgba(255,255,255,.06); padding:2px 9px; border-radius:999px; }
+
+  .skill-row{ margin-bottom:9px; }
+  .skill-row .top{ display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; }
+  .skill-row .top .sname{ color:#fff; font-weight:500; }
+  .skill-row .top .spct{ color:rgba(255,255,255,.55); font-family:"Fredoka",sans-serif; }
+  .skill-bar{ height:6px; border-radius:4px; background:rgba(255,255,255,.08); overflow:hidden; }
+  .skill-bar i{ display:block; height:100%; background:var(--c-main); border-radius:4px; }
+
+  .tagwrap{ display:flex; flex-wrap:wrap; gap:7px; }
+  .tagwrap span{ font-size:11.5px; color:rgba(255,255,255,.85); background:rgba(255,255,255,.06); border:1px solid var(--panel-line); padding:5px 11px; border-radius:999px; }
+  .bound-row{ display:flex; gap:8px; font-size:12px; margin-bottom:6px; color:rgba(255,255,255,.75); }
+  .bound-row b{ color:#fff; font-weight:700; min-width:64px; flex:0 0 auto; }
+
+  .effect-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  @media (min-width:520px){ .effect-grid{ grid-template-columns:repeat(4,1fr); } }
+  .effect-card{ background:linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border:1px solid var(--panel-line); border-radius:14px; padding:13px 10px; text-align:center; }
+  .effect-card .v{ font-family:"Fredoka",sans-serif; font-size:17px; font-weight:700; color:var(--c-main); line-height:1.2; }
+  .effect-card .k{ font-size:10.5px; color:rgba(255,255,255,.6); margin-top:4px; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  @media (min-width:520px){ .stat-grid{ grid-template-columns:repeat(4,1fr); } }
+  .stat-card{ background:#10162A; border:1px solid var(--panel-line); border-radius:11px; padding:10px; }
+  .stat-card .v{ font-family:"Fredoka",sans-serif; font-size:15px; font-weight:700; color:#fff; }
+  .stat-card .k{ font-size:10px; color:rgba(255,255,255,.5); margin-top:2px; }
+
+  .trend{ display:flex; align-items:flex-end; gap:4px; height:44px; margin-top:12px; }
+  .trend i{ flex:1; background:var(--c-main); opacity:.35; border-radius:3px 3px 0 0; }
+  .trend i:last-child{ opacity:1; }
+
+  .health-breakdown{ display:flex; gap:14px; margin-top:12px; flex-wrap:wrap; }
+  .hb-item{ flex:1; min-width:120px; }
+  .hb-item .top{ display:flex; justify-content:space-between; font-size:11px; color:rgba(255,255,255,.6); margin-bottom:4px; }
+  .hb-bar{ height:5px; border-radius:3px; background:rgba(255,255,255,.08); overflow:hidden; }
+  .hb-bar i{ display:block; height:100%; border-radius:3px; }
+
+  .cta-final{ margin-top:24px; width:100%; background:var(--c-main); color:#10162A; font-weight:700; font-size:14px; padding:14px 0; border-radius:999px; text-align:center; transition:filter .15s ease, transform .15s ease; }
+  .cta-final:hover{ filter:brightness(1.08); transform:translateY(-2px); }
+
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translate(-50%,20px);
+    background:#10162A; color:#fff; border:1px solid rgba(255,255,255,.12);
+    padding:12px 20px; border-radius:999px; font-size:13px;
+    opacity:0; transition:opacity .25s ease, transform .25s ease;
+    z-index:120; pointer-events:none;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="cloud cloud1"></div>
+  <div class="cloud cloud2"></div>
+  <span class="eyebrow">CLOUD FACTORY · 云端工厂招工中</span>
+  <h1 class="title">欢迎来到<span class="hl">数字员工</span>世界</h1>
+  <p class="subtitle">五个圆滚滚的打工人，24 小时不打烊。按分类找到你需要的那一个。</p>
+  <div class="filters" id="filters"></div>
+</header>
+
+<div class="dash-banner">
+  <a href="./统计维度总览.html">
+    <div class="db-icon">📊</div>
+    <div class="db-body">
+      <div class="db-title">数字员工大盘 <span class="db-live"><i></i>LIVE</span></div>
+      <div class="db-sub">四个粒度看懂平台、部门、每个数字员工和每个人的运行数据</div>
+    </div>
+    <div class="db-stats">
+      <div class="db-stat"><div class="v">135,480</div><div class="k">今日任务</div></div>
+      <div class="db-stat"><div class="v">92.2%</div><div class="k">平均成功率</div></div>
+      <div class="db-stat"><div class="v">20</div><div class="k">在线数字员工</div></div>
+    </div>
+    <div class="db-cta">进入大盘 →</div>
+  </a>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const categories = [
+    {id:'all', name:'全部员工'},
+    {id:'chat', name:'会话交互类'},
+    {id:'growth', name:'营销转化类'},
+    {id:'data', name:'数据洞察类'},
+    {id:'content', name:'内容生成类'},
+    {id:'ops', name:'流程运营类'}
+  ];
+
+  const chars = [
+    {
+      id:'blue', cls:'c-blue', cat:'chat', name:'蓝仔', role:'智能客服',
+      hook:'客户消息一进来，秒懂问题，秒配答案。',
+      dept:'零售客户服务中心', onboard:'2024-03 上线',
+      icon:'<path d="M4 13a8 8 0 0 1 16 0"/><path d="M4 13v5a2 2 0 0 0 2 2h1v-7H4z"/><path d="M19 13v5a2 2 0 0 1-2 2h-1v-7h3z"/>',
+      scenarios:[
+        {trig:'客户凌晨咨询账单', act:'秒级响应，无需等人工上班', eff:'响应 15分钟→8秒'},
+        {trig:'外籍客户多语言咨询', act:'自动识别并切换语言', eff:'覆盖 12 种语言'},
+        {trig:'情绪激动的投诉客户', act:'先安抚情绪，再转人工兜底', eff:'升级率 -42%'}
+      ],
+      skills:[['意图识别',32],['多轮对话',28],['工单创建',22],['情绪识别与安抚',18]],
+      tools:['CRM 系统','知识库','工单系统','账单查询接口'],
+      boundary:[['渠道','APP / 网页 / 企业微信'],['语言','12 种'],['权限','客户基础信息只读 + 工单创建']],
+      effect:[['14分52秒','单均省时'],['12倍','处理效率'],['≈18人','人力等效'],['26,400小时','累计节省']],
+      metrics:[['91%','一次解决率'],['8秒','平均响应'],['96%','满意度CSAT'],['6.4%','人工介入率'],['12,480','今日处理量'],['¥0.18','单次成本(中位数¥3.2)'],['0','风险事件'],['100%','合规通过率']],
+      trend:[40,52,48,63,58,71,86],
+      health:{total:94, quality:96, risk:100, cost:88},
+      cta:'让蓝仔帮你接客'
+    },
+    {
+      id:'voice', cls:'c-blue', cat:'chat', name:'晓声', role:'语音导航员',
+      hook:'电话一接通，就知道你要办什么。',
+      dept:'智能语音中心', onboard:'2024-04 上线',
+      icon:'<path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/>',
+      scenarios:[
+        {trig:'客户来电口音较重', act:'方言识别+语义纠偏，直接派单', eff:'转人工率 -35%'},
+        {trig:'高峰期呼入量激增', act:'并发接听不限量，零排队', eff:'排队时长 8分钟→0'}
+      ],
+      skills:[['语音识别',35],['意图路由',30],['方言适配',20],['话术播报',15]],
+      tools:['IVR 系统','语音识别引擎','工单系统'],
+      boundary:[['渠道','客服热线'],['方言','6 种主流方言'],['权限','语音路由 + 工单创建']],
+      effect:[['6分钟','单次省时'],['20倍','并发接听'],['≈15人','人力等效'],['9,800小时','累计节省']],
+      metrics:[['89%','首次路由准确率'],['3秒','平均接通'],['94%','满意度'],['5,600','今日呼入量'],['¥0.12','单次成本'],['100%','合规通过率']],
+      trend:[35,42,38,50,46,58],
+      health:{total:92, quality:93, risk:100, cost:85},
+      cta:'让晓声接听你的热线'
+    },
+    {
+      id:'faq', cls:'c-blue', cat:'chat', name:'敏答', role:'智能问答助手',
+      hook:'制度文件问题，秒查秒答，不用翻手册。',
+      dept:'员工服务中心', onboard:'2024-07 上线',
+      icon:'<path d="M4 5h16v11H9l-4 4V5z"/><path d="M8 9h8M8 12h5"/>',
+      scenarios:[
+        {trig:'新员工咨询报销流程', act:'直接引用最新制度条款作答', eff:'查找时间 20分钟→10秒'},
+        {trig:'制度更新后大量重复提问', act:'自动同步新版内容，答案实时更新', eff:'HR咨询量 -55%'}
+      ],
+      skills:[['制度检索',34],['条款问答',28],['多轮澄清',22],['来源引用',16]],
+      tools:['内部知识库','HR 系统','企业微信'],
+      boundary:[['渠道','企业微信'],['知识范围','已授权制度库'],['权限','只读']],
+      effect:[['19分50秒','单次省时'],['8倍','解答效率'],['≈5人','人力等效'],['4,200小时','累计节省']],
+      metrics:[['93%','回答准确率'],['5秒','平均响应'],['91%','满意度'],['2,150','今日咨询量'],['¥0.05','单次成本'],['100%','引用可溯源率']],
+      trend:[18,22,20,27,25,31],
+      health:{total:91, quality:92, risk:100, cost:82},
+      cta:'让敏答解答制度问题'
+    },
+    {
+      id:'video', cls:'c-blue', cat:'chat', name:'慧聊', role:'视频客服',
+      hook:'视频一接通，辅助柜员实时核验、递资料。',
+      dept:'远程银行中心', onboard:'2024-08 上线',
+      icon:'<rect x="3" y="7" width="12" height="10" rx="2"/><path d="M15 10.5l6-3v9l-6-3z"/>',
+      scenarios:[
+        {trig:'客户远程办理大额业务', act:'实时人脸核验 + 资料同屏批注', eff:'办理时长 -40%'},
+        {trig:'柜员业务不熟悉需要支援', act:'实时话术提示 + 流程引导', eff:'差错率 -50%'}
+      ],
+      skills:[['人脸核验',30],['同屏批注',26],['话术提示',24],['流程引导',20]],
+      tools:['视频柜台系统','人脸识别接口','业务知识库'],
+      boundary:[['渠道','远程视频柜台'],['业务范围','开户 / 大额转账等'],['权限','辅助操作，不代客户签字']],
+      effect:[['9分12秒','单笔省时'],['2.5倍','办理效率'],['≈6人','人力等效'],['3,600小时','累计节省']],
+      metrics:[['96%','核验通过率'],['12秒','平均接入'],['95%','满意度'],['680','今日办理量'],['¥3.5','单次成本'],['100%','合规通过率']],
+      trend:[10,13,12,16,15,19],
+      health:{total:93, quality:94, risk:100, cost:87},
+      cta:'让慧聊辅助视频办理'
+    },
+    {
+      id:'orange', cls:'c-orange', cat:'growth', name:'橙子', role:'销售助手',
+      hook:'名单丢给它，自动分冷热、写话术。',
+      dept:'零售信贷营销部', onboard:'2024-05 上线',
+      icon:'<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3"/>',
+      scenarios:[
+        {trig:'月初新一批潜客导入', act:'自动分层并生成当日跟进清单', eff:'建档 2天→10分钟'},
+        {trig:'老客户到期唤醒', act:'生成专属话术并提醒跟进', eff:'唤醒转化 +2.3倍'},
+        {trig:'高意向客户流失预警', act:'实时打标推送对应客户经理', eff:'挽回率 +18%'}
+      ],
+      skills:[['客户分层',30],['话术生成',26],['意向打分',24],['跟进提醒',20]],
+      tools:['CRM 系统','名单管理平台','话术库','企业微信'],
+      boundary:[['渠道','企业微信 / 电话工单'],['覆盖客群','零售信贷全量'],['权限','名单读取 + 标签写入']],
+      effect:[['1天42分','单批省时'],['3倍','跟进效率'],['≈9人','人力等效'],['8,900小时','累计节省']],
+      metrics:[['+2.3倍','唤醒转化提升'],['3分钟','平均响应'],['93%','标签准确率'],['15%','人工复核率'],['3,260','今日处理量'],['¥0.6','单次成本(中位数¥5.4)'],['0','风险事件'],['100%','合规通过率']],
+      trend:[30,44,38,55,49,60,72],
+      health:{total:90, quality:91, risk:100, cost:80},
+      cta:'派橙子去找客户'
+    },
+    {
+      id:'referral', cls:'c-orange', cat:'growth', name:'引荐', role:'转介绍助手',
+      hook:'老客户一句话推荐，它就能接住并跟进。',
+      dept:'零售信贷营销部', onboard:'2024-09 上线',
+      icon:'<circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/>',
+      scenarios:[
+        {trig:'老客户口头推荐朋友', act:'自动建档 + 分配跟进人', eff:'建档时间 1天→5分钟'},
+        {trig:'转介绍奖励核算', act:'自动核对达成条件并发放提醒', eff:'核算时间 -80%'}
+      ],
+      skills:[['线索建档',28],['奖励核算',26],['跟进分配',24],['进度追踪',22]],
+      tools:['CRM 系统','奖励核算引擎','企业微信'],
+      boundary:[['渠道','企业微信 / APP'],['覆盖业务','零售信贷 / 信用卡'],['权限','线索读写 + 奖励计算']],
+      effect:[['23小时','单次省时'],['4倍','建档效率'],['≈5人','人力等效'],['3,100小时','累计节省']],
+      metrics:[['87%','线索转化率'],['5分钟','平均响应'],['92%','满意度'],['420','今日新增线索'],['¥0.8','单次成本'],['100%','合规通过率']],
+      trend:[12,15,14,18,17,21],
+      health:{total:88, quality:87, risk:100, cost:78},
+      cta:'让引荐帮你管好转介绍'
+    },
+    {
+      id:'wealth', cls:'c-orange', cat:'growth', name:'招财', role:'理财顾问助手',
+      hook:'客户风险画像一出，匹配产品秒推荐。',
+      dept:'财富管理部', onboard:'2024-04 上线',
+      icon:'<circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 9.5c0-.9 1-1.5 2.5-1.5s2.5.6 2.5 1.5-1 1.3-2.5 1.5-2.5.6-2.5 1.5 1 1.5 2.5 1.5 2.5-.6 2.5-1.5"/>',
+      scenarios:[
+        {trig:'客户到期资金待配置', act:'按风险画像匹配产品组合', eff:'配置建议 1小时→2分钟'},
+        {trig:'市场波动客户咨询', act:'自动生成波动解读 + 安抚话术', eff:'客户咨询响应 -60%'}
+      ],
+      skills:[['风险画像',30],['产品匹配',28],['市场解读',24],['话术生成',18]],
+      tools:['理财系统','风险测评引擎','市场数据源'],
+      boundary:[['渠道','APP / 客户经理工作台'],['产品范围','已备案理财产品'],['权限','建议生成，人工确认下单']],
+      effect:[['58分钟','单次省时'],['6倍','配置效率'],['≈8人','人力等效'],['6,400小时','累计节省']],
+      metrics:[['81%','建议采纳率'],['2分钟','平均响应'],['90%','满意度'],['1,050','今日服务量'],['¥1.5','单次成本'],['100%','合规通过率']],
+      trend:[20,25,22,29,26,33],
+      health:{total:90, quality:89, risk:100, cost:81},
+      cta:'让招财帮客户配资产'
+    },
+    {
+      id:'channel', cls:'c-orange', cat:'growth', name:'拓客', role:'异业获客助手',
+      hook:'异业渠道来的线索，自动清洗分发。',
+      dept:'渠道合作部', onboard:'2024-10 上线',
+      icon:'<circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5M12 12l-6 5M12 12l6 5"/>',
+      scenarios:[
+        {trig:'合作商户批量导入客户名单', act:'自动去重清洗并分发到网点', eff:'处理时间 2天→20分钟'},
+        {trig:'渠道效果核算', act:'自动生成渠道转化报表', eff:'核算周期 周→天'}
+      ],
+      skills:[['名单清洗',30],['渠道分发',26],['转化追踪',26],['报表生成',18]],
+      tools:['渠道管理系统','CRM 系统','BI 平台'],
+      boundary:[['渠道','异业合作伙伴接口'],['覆盖网点','全辖区'],['权限','名单处理 + 报表生成']],
+      effect:[['1天40分','单批省时'],['5倍','处理效率'],['≈4人','人力等效'],['2,800小时','累计节省']],
+      metrics:[['95%','去重准确率'],['20分钟','单批处理'],['88%','满意度'],['3,400','今日处理线索'],['¥0.4','单次成本'],['100%','合规通过率']],
+      trend:[15,19,17,23,20,26],
+      health:{total:87, quality:86, risk:100, cost:79},
+      cta:'让拓客处理渠道线索'
+    },
+    {
+      id:'green', cls:'c-green', cat:'data', name:'绿仔', role:'数据分析师',
+      hook:'四条手臂同时干活，异常数据秒预警。',
+      dept:'数据智能中心', onboard:'2024-01 上线',
+      icon:'<path d="M4 20V10M11 20V4M18 20v-7"/>',
+      scenarios:[
+        {trig:'月末数据核对', act:'自动生成异常清单', eff:'核对轮次 3轮→1轮'},
+        {trig:'临时数据需求', act:'自然语言提问，秒出图表', eff:'出报表 2小时→3分钟'},
+        {trig:'指标异常波动', act:'实时预警并归因分析', eff:'发现时间 次日→实时'}
+      ],
+      skills:[['数据清洗',25],['可视化生成',27],['异常检测',26],['归因分析',22]],
+      tools:['数据仓库','BI 平台','内部数据源','邮件系统'],
+      boundary:[['渠道','内部数据平台'],['数据范围','授权数据集'],['权限','只读 + 报告发布']],
+      effect:[['1小时57分','单次省时'],['40倍','四线并行提效'],['≈6人','人力等效'],['15,200小时','累计节省']],
+      metrics:[['98%','异常捕获率'],['3分钟','平均响应'],['97%','报告准确率'],['9%','人工复核率'],['860','今日处理量'],['¥1.2','单次成本(中位数¥18)'],['0','风险事件'],['100%','合规通过率']],
+      trend:[20,28,26,34,31,40,47],
+      health:{total:93, quality:95, risk:100, cost:84},
+      cta:'让绿仔分析你的数据'
+    },
+    {
+      id:'risk-eye', cls:'c-green', cat:'data', name:'慧眼', role:'风险监测员',
+      hook:'交易一异常，它比谁都先发现。',
+      dept:'风险管理部', onboard:'2024-02 上线',
+      icon:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+      scenarios:[
+        {trig:'账户出现异常大额交易', act:'实时拦截并推送风控专员', eff:'发现时间 分钟级→秒级'},
+        {trig:'新型欺诈模式出现', act:'自动学习特征并更新规则', eff:'识别率 +25%'}
+      ],
+      skills:[['异常检测',34],['规则学习',28],['实时拦截',22],['风险评分',16]],
+      tools:['风控引擎','交易监控平台','案件管理系统'],
+      boundary:[['渠道','风控中台'],['监测范围','全渠道交易'],['权限','监测 + 拦截，人工复核放行']],
+      effect:[['实时','发现提速'],['3倍','识别覆盖'],['≈10人','人力等效'],['18,000小时','累计节省']],
+      metrics:[['99%','异常捕获率'],['0.8秒','平均响应'],['0.3%','误报率'],['86,000','今日监测笔数'],['¥0.02','单次成本'],['100%','合规通过率']],
+      trend:[60,68,64,75,70,82],
+      health:{total:96, quality:97, risk:100, cost:91},
+      cta:'让慧眼帮你盯紧风险'
+    },
+    {
+      id:'report', cls:'c-green', cat:'data', name:'明镜', role:'财报解读助手',
+      hook:'一份财报丢进去，风险点自动标红。',
+      dept:'公司信贷部', onboard:'2024-05 上线',
+      icon:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+      scenarios:[
+        {trig:'新增授信客户财报审查', act:'自动提取关键指标 + 标注异常', eff:'审查时间 1天→15分钟'},
+        {trig:'存量客户财报季度复核', act:'自动对比历史数据生成趋势', eff:'复核效率 提升4倍'}
+      ],
+      skills:[['指标提取',30],['异常标注',28],['趋势对比',24],['报告生成',18]],
+      tools:['信贷审查系统','企业征信接口','财务数据库'],
+      boundary:[['渠道','信贷审查平台'],['数据范围','已授权企业财务数据'],['权限','分析生成，人工终审']],
+      effect:[['45分钟','单份省时'],['4倍','审查效率'],['≈6人','人力等效'],['5,900小时','累计节省']],
+      metrics:[['94%','指标提取准确率'],['15分钟','单份耗时'],['92%','审查通过率'],['320','今日处理份数'],['¥4.2','单次成本'],['100%','合规通过率']],
+      trend:[14,17,16,20,18,23],
+      health:{total:91, quality:92, risk:100, cost:83},
+      cta:'让明镜帮你审财报'
+    },
+    {
+      id:'fundflow', cls:'c-green', cat:'data', name:'智算', role:'资金流分析师',
+      hook:'资金流水一进来，异常路径自动画出来。',
+      dept:'数据智能中心', onboard:'2024-03 上线',
+      icon:'<path d="M3 12h3l2-7 4 14 3-10 2 3h4"/>',
+      scenarios:[
+        {trig:'可疑资金拆分转账', act:'自动追踪资金链路并可视化', eff:'追踪时间 半天→5分钟'},
+        {trig:'月度资金流分析报告', act:'自动生成图表化报告', eff:'报告产出 提前2天'}
+      ],
+      skills:[['资金链路追踪',32],['异常路径识别',28],['可视化生成',24],['报告产出',16]],
+      tools:['反洗钱系统','数据仓库','可视化平台'],
+      boundary:[['渠道','内部分析平台'],['数据范围','授权账户流水'],['权限','只读 + 分析生成']],
+      effect:[['4小时50分','单次省时'],['10倍','追踪效率'],['≈5人','人力等效'],['7,200小时','累计节省']],
+      metrics:[['97%','异常识别率'],['5分钟','平均响应'],['95%','报告准确率'],['540','今日分析笔数'],['¥2.0','单次成本'],['100%','合规通过率']],
+      trend:[22,26,24,30,27,34],
+      health:{total:94, quality:95, risk:100, cost:86},
+      cta:'让智算帮你查资金流'
+    },
+    {
+      id:'purple', cls:'c-purple', cat:'content', name:'紫紫', role:'内容创作',
+      hook:'一个关键词，同时画出好几种风格。',
+      dept:'品牌市场部', onboard:'2024-06 上线',
+      icon:'<path d="M12 20l7-15 2 1-9 16z"/><path d="M12 20l-7-2 3-6z"/>',
+      scenarios:[
+        {trig:'新品上线需多平台文案', act:'一次生成 5 种风格', eff:'产出 1天→8分钟'},
+        {trig:'监管新规解读', act:'自动生成合规通俗版解读', eff:'审核通过率 +35%'},
+        {trig:'活动海报文案', act:'关键词直出多版本可选', eff:'选稿时间 -70%'}
+      ],
+      skills:[['文案框架生成',28],['多风格改写',26],['多平台适配',24],['合规措辞校验',22]],
+      tools:['内容库','品牌规范库','多平台发布接口','合规词库'],
+      boundary:[['渠道','公众号 / 小红书 / APP push'],['风格数','5 种'],['权限','草稿生成，人工终审发布']],
+      effect:[['7小时52分','单篇省时'],['5倍','风格并出'],['≈4人','人力等效'],['5,100小时','累计节省']],
+      metrics:[['78%','初稿采纳率'],['90秒','平均响应'],['5种','风格并出'],['100%','人工终审率'],['210','今日处理量'],['¥2.1','单次成本(中位数¥45)'],['0','风险事件'],['100%','合规通过率']],
+      trend:[8,12,10,15,13,18,21],
+      health:{total:89, quality:88, risk:100, cost:76},
+      cta:'请紫紫写篇文案'
+    },
+    {
+      id:'compliance-copy', cls:'c-purple', cat:'content', name:'文心', role:'合规文案审校员',
+      hook:'文案写完先过一遍，违规措辞自动标出。',
+      dept:'品牌市场部', onboard:'2024-06 上线',
+      icon:'<path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+      scenarios:[
+        {trig:'新营销文案发布前审核', act:'自动比对合规词库并标注风险', eff:'审核时间 2小时→3分钟'},
+        {trig:'监管新规发布', act:'自动更新词库并重新扫描存量文案', eff:'排查存量文案 1000+篇/天'}
+      ],
+      skills:[['合规词检测',32],['措辞改写',28],['风险标注',24],['词库更新',16]],
+      tools:['合规词库','内容发布系统','监管公告源'],
+      boundary:[['渠道','内容发布平台'],['覆盖内容','全渠道营销文案'],['权限','标注 + 改写建议，人工终审']],
+      effect:[['1小时57分','单篇省时'],['40倍','排查效率'],['≈4人','人力等效'],['4,800小时','累计节省']],
+      metrics:[['99%','违规检出率'],['3分钟','单篇耗时'],['96%','改写采纳率'],['680','今日审核篇数'],['¥0.3','单次成本'],['100%','合规通过率']],
+      trend:[16,20,18,24,21,27],
+      health:{total:95, quality:96, risk:100, cost:89},
+      cta:'让文心帮你审文案'
+    },
+    {
+      id:'poster', cls:'c-purple', cat:'content', name:'绘影', role:'海报设计助手',
+      hook:'关键词一给，海报草稿秒出多版。',
+      dept:'品牌市场部', onboard:'2024-08 上线',
+      icon:'<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5-4 4-2-2-5 5"/>',
+      scenarios:[
+        {trig:'网点活动需要海报物料', act:'按品牌规范自动生成多版本设计', eff:'设计周期 3天→10分钟'},
+        {trig:'节日主题物料批量需求', act:'一键套用模板批量产出', eff:'产出量 提升8倍'}
+      ],
+      skills:[['版式生成',30],['品牌规范适配',28],['多版本产出',24],['素材匹配',18]],
+      tools:['设计素材库','品牌规范库','多平台发布接口'],
+      boundary:[['渠道','网点物料 / APP banner'],['风格数','6 种模板'],['权限','草稿生成，人工终审发布']],
+      effect:[['2天59分','单张省时'],['8倍','产出效率'],['≈3人','人力等效'],['3,300小时','累计节省']],
+      metrics:[['74%','初稿采纳率'],['90秒','单张耗时'],['6种','模板风格'],['150','今日产出张数'],['¥1.8','单次成本'],['100%','人工终审率']],
+      trend:[9,11,10,14,12,16],
+      health:{total:86, quality:85, risk:100, cost:75},
+      cta:'请绘影出一版海报'
+    },
+    {
+      id:'translate', cls:'c-purple', cat:'content', name:'译通', role:'多语言翻译官',
+      hook:'跨境文件一进来，多语言版本同时出。',
+      dept:'国际业务部', onboard:'2024-09 上线',
+      icon:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.5 4 5.8 4 9s-1.5 6.5-4 9c-2.5-2.5-4-5.8-4-9s1.5-6.5 4-9z"/>',
+      scenarios:[
+        {trig:'跨境业务合同需要多语言版本', act:'同步生成中英日等多语言译文', eff:'翻译周期 3天→1小时'},
+        {trig:'外籍客户咨询文件条款', act:'实时翻译 + 术语库校对', eff:'咨询响应 -70%'}
+      ],
+      skills:[['文档翻译',32],['术语校对',26],['多语言同步',24],['格式还原',18]],
+      tools:['翻译引擎','金融术语库','文档管理系统'],
+      boundary:[['渠道','国际业务系统'],['语言','8 种'],['权限','翻译生成，人工复核关键条款']],
+      effect:[['2天59分','单份省时'],['15倍','翻译效率'],['≈4人','人力等效'],['4,000小时','累计节省']],
+      metrics:[['92%','术语准确率'],['3分钟','单页耗时'],['8种','覆盖语言'],['210','今日处理页数'],['¥1.1','单次成本'],['100%','关键条款人工复核率']],
+      trend:[11,14,13,17,15,19],
+      health:{total:90, quality:89, risk:100, cost:82},
+      cta:'让译通帮你翻文件'
+    },
+    {
+      id:'pink', cls:'c-pink', cat:'ops', name:'粉粉', role:'流程管家',
+      hook:'任务再乱，一秒排好优先级。',
+      dept:'运营管理部', onboard:'2024-02 上线',
+      icon:'<circle cx="12" cy="13" r="7"/><path d="M12 9v4l3 2"/>',
+      scenarios:[
+        {trig:'多部门审批流转', act:'自动排优先级并提醒节点', eff:'超时率 -60%'},
+        {trig:'季度合规自查', act:'自动核查并生成台账', eff:'自查 5天→6小时'},
+        {trig:'任务遗漏排查', act:'全流程比对主动预警', eff:'遗漏事件 0'}
+      ],
+      skills:[['优先级排序',24],['节点提醒',26],['合规核查',28],['台账生成',22]],
+      tools:['OA 系统','审批流引擎','合规知识库','日历系统'],
+      boundary:[['渠道','OA / 企业微信提醒'],['覆盖流程','全行审批 + 自查类'],['权限','流程读取 + 提醒发送']],
+      effect:[['4天18小时','单次自查省时'],['100%','流程覆盖'],['≈7人','人力等效'],['11,600小时','累计节省']],
+      metrics:[['-60%','超时率下降'],['实时','响应速度'],['100%','流程覆盖率'],['12%','人工复核率'],['4,150','今日处理量'],['¥0.3','单次成本(中位数¥6.5)'],['0','风险事件'],['100%','合规通过率']],
+      trend:[50,58,55,66,60,74,88],
+      health:{total:95, quality:94, risk:100, cost:90},
+      cta:'交给粉粉去跟进'
+    },
+    {
+      id:'audit', cls:'c-pink', cat:'ops', name:'稽核', role:'合规稽核员',
+      hook:'制度自查全流程覆盖，问题无处可藏。',
+      dept:'合规管理部', onboard:'2024-01 上线',
+      icon:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8l1.5 1.5L14 6M9 14l1.5 1.5L14 12"/>',
+      scenarios:[
+        {trig:'季度合规自查', act:'自动核查全量业务并生成台账', eff:'自查周期 5天→6小时'},
+        {trig:'监管现场检查前准备', act:'自动生成问题清单与整改建议', eff:'准备时间 -65%'}
+      ],
+      skills:[['制度核查',30],['问题识别',28],['台账生成',24],['整改追踪',18]],
+      tools:['合规知识库','稽核系统','业务台账系统'],
+      boundary:[['渠道','合规稽核平台'],['覆盖范围','全行业务条线'],['权限','核查 + 台账生成']],
+      effect:[['4天18小时','单次省时'],['20倍','核查覆盖'],['≈8人','人力等效'],['10,500小时','累计节省']],
+      metrics:[['100%','业务覆盖率'],['实时','核查速度'],['0','漏检事件'],['5,200','今日核查笔数'],['¥0.15','单次成本'],['100%','整改闭环率']],
+      trend:[45,52,48,58,53,64],
+      health:{total:97, quality:97, risk:100, cost:93},
+      cta:'交给稽核做自查'
+    },
+    {
+      id:'oncall', cls:'c-pink', cat:'ops', name:'值班', role:'应急值守助手',
+      hook:'系统一告警，它比值班员先响应。',
+      dept:'科技运营中心', onboard:'2024-05 上线',
+      icon:'<path d="M12 4a5 5 0 0 0-5 5v4l-2 3h14l-2-3V9a5 5 0 0 0-5-5z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+      scenarios:[
+        {trig:'凌晨系统告警触发', act:'自动分级并通知对应责任人', eff:'响应时间 15分钟→30秒'},
+        {trig:'故障复盘', act:'自动生成时间线与影响范围报告', eff:'复盘产出 提前1天'}
+      ],
+      skills:[['告警分级',30],['责任人通知',28],['影响评估',24],['复盘生成',18]],
+      tools:['监控告警平台','值班排班系统','企业微信'],
+      boundary:[['渠道','企业微信 / 电话'],['覆盖系统','核心生产系统'],['权限','告警分发，不做系统操作']],
+      effect:[['14分30秒','单次省时'],['30倍','响应提速'],['≈6人','人力等效'],['6,600小时','累计节省']],
+      metrics:[['98%','告警分级准确率'],['30秒','平均响应'],['0','漏报事件'],['320','今日告警量'],['¥0.25','单次成本'],['100%','通知送达率']],
+      trend:[25,30,27,35,31,38],
+      health:{total:94, quality:93, risk:100, cost:88},
+      cta:'让值班帮你盯系统'
+    },
+    {
+      id:'archive', cls:'c-pink', cat:'ops', name:'归档', role:'档案管理员',
+      hook:'文件一上传，自动分类归档不出错。',
+      dept:'运营管理部', onboard:'2024-03 上线',
+      icon:'<path d="M3 7h6l2 2h10v10H3z"/>',
+      scenarios:[
+        {trig:'业务办理产生大量电子档案', act:'自动分类归档并索引', eff:'归档时间 1小时→2分钟'},
+        {trig:'档案调阅需求', act:'关键词秒级检索定位', eff:'调阅时间 30分钟→10秒'}
+      ],
+      skills:[['自动分类',28],['索引生成',26],['检索定位',26],['留存期管理',20]],
+      tools:['电子档案系统','OCR 识别引擎','存储平台'],
+      boundary:[['渠道','内部档案系统'],['覆盖范围','全业务电子档案'],['权限','归档 + 检索，不可删除']],
+      effect:[['58分钟','单次省时'],['30倍','归档效率'],['≈5人','人力等效'],['8,100小时','累计节省']],
+      metrics:[['99%','分类准确率'],['10秒','检索耗时'],['0','档案丢失事件'],['7,800','今日归档笔数'],['¥0.08','单次成本'],['100%','留存期合规率']],
+      trend:[38,44,40,49,45,54],
+      health:{total:96, quality:95, risk:100, cost:92},
+      cta:'让归档帮你整理文件'
+    }
+  ];
+
+  const catNameById = Object.fromEntries(categories.map(c => [c.id, c.name]));
+
+  // filters
+  const filtersEl = document.getElementById('filters');
+  filtersEl.innerHTML = categories.map(c => `
+    <button class="filter-pill ${c.id==='all' ? 'active c-blue' : 'c-'+({chat:'blue',growth:'orange',data:'green',content:'purple',ops:'pink'}[c.id])}" data-cat="${c.id}">
+      <span class="dot"></span>${c.name}
+    </button>
+  `).join('');
+
+  // grid
+  const grid = document.getElementById('grid');
+  grid.innerHTML = chars.map(c => `
+    <div class="card-3d ${c.cls}" data-id="${c.id}" data-cat="${c.cat}">
+      <div class="card-inner">
+        <div class="card-topline">
+          <span class="card-cat">${catNameById[c.cat]}</span>
+          <span class="card-role">${c.role}</span>
+        </div>
+        <div class="stage3d">
+          <div class="pal pal-bob">
+            <div class="shadow"></div>
+            <div class="arm l"></div><div class="arm r"></div>
+            <div class="body"></div>
+            <div class="goggle"><svg viewBox="0 0 24 24" fill="none" stroke="#1B2340" stroke-width="2.2">${c.icon}</svg></div>
+          </div>
+        </div>
+        <div class="card-bottom">
+          <div class="name">${c.name}</div>
+          <div class="hook">${c.hook}</div>
+          <div class="cta-hint">点击查看能力 →</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  // filter interaction
+  filtersEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-pill');
+    if(!btn) return;
+    filtersEl.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const cat = btn.dataset.cat;
+    document.querySelectorAll('.card-3d').forEach(card => {
+      const match = cat === 'all' || card.dataset.cat === cat;
+      card.classList.toggle('hidden', !match);
+    });
+  });
+
+  // tilt hover (front-only, no flip — click opens modal)
+  document.querySelectorAll('.card-3d').forEach(card => {
+    const inner = card.querySelector('.card-inner');
+    const pal = card.querySelector('.pal');
+    card.addEventListener('mousemove', (e) => {
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      inner.style.transform = `rotateY(${px*14}deg) rotateX(${-py*14}deg) translateZ(4px)`;
+      if(pal) pal.style.transform = `translate(${-px*12}px, ${-py*9}px)`;
+    });
+    card.addEventListener('mouseleave', () => {
+      inner.style.transform = '';
+      if(pal) pal.style.transform = '';
+    });
+    card.addEventListener('click', () => openModal(card.dataset.id));
+  });
+
+  // modal
+  const overlay = document.getElementById('overlay');
+  const modal = document.getElementById('modal');
+  const CIRC = 2 * Math.PI * 27;
+
+  function renderModal(c){
+    const dash = CIRC * (1 - c.health.total/100);
+    modal.innerHTML = `
+      <button class="modal-close" id="modalClose">✕</button>
+      <div class="modal-head">
+        <div class="modal-avatar">
+          <div class="body"></div>
+          <div class="goggle"><svg viewBox="0 0 24 24" fill="none" stroke="#10162A" stroke-width="2.4">${c.icon}</svg></div>
+        </div>
+        <div class="modal-id">
+          <div class="name">${c.name}</div>
+          <div class="role">${c.role}</div>
+          <div class="meta">
+            <span><span class="status-dot"></span>运行中</span>
+            <span>${c.dept}</span>
+            <span>${c.onboard}</span>
+          </div>
+          <span class="cat-chip">${catNameById[c.cat]}</span>
+        </div>
+        <div class="health-ring">
+          <svg viewBox="0 0 64 64">
+            <circle class="track" cx="32" cy="32" r="27"></circle>
+            <circle class="prog" cx="32" cy="32" r="27" stroke-dasharray="${CIRC}" stroke-dashoffset="${dash}"></circle>
+          </svg>
+          <div class="val"><b>${c.health.total}</b><span>健康分</span></div>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="sec">
+          <div class="sec-title">使用场景 &amp; 效果</div>
+          ${c.scenarios.map(s => `
+            <div class="scenario">
+              <div style="flex:1">
+                <div class="flow"><span class="trig">${s.trig}</span> → <span class="act">${s.act}</span></div>
+                <span class="eff">效果：${s.eff}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="sec">
+          <div class="sec-title">使用效果总览</div>
+          <div class="effect-grid">
+            ${c.effect.map(e => `<div class="effect-card"><div class="v">${e[0]}</div><div class="k">${e[1]}</div></div>`).join('')}
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-title">技能清单</div>
+          ${c.skills.map(s => `
+            <div class="skill-row">
+              <div class="top"><span class="sname">${s[0]}</span><span class="spct">${s[1]}%</span></div>
+              <div class="skill-bar"><i style="width:${s[1]*2.2}%"></i></div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="sec">
+          <div class="sec-title">接入工具</div>
+          <div class="tagwrap">${c.tools.map(t => `<span>${t}</span>`).join('')}</div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-title">服务边界</div>
+          ${c.boundary.map(b => `<div class="bound-row"><b>${b[0]}</b><span>${b[1]}</span></div>`).join('')}
+        </div>
+
+        <div class="sec">
+          <div class="sec-title">统计维度</div>
+          <div class="stat-grid">
+            ${c.metrics.map(m => `<div class="stat-card"><div class="v">${m[0]}</div><div class="k">${m[1]}</div></div>`).join('')}
+          </div>
+          <div class="trend">
+            ${c.trend.map(v => `<i style="height:${v}%"></i>`).join('')}
+          </div>
+          <div class="health-breakdown">
+            <div class="hb-item"><div class="top"><span>质量 40%</span><span>${c.health.quality}</span></div><div class="hb-bar"><i style="width:${c.health.quality}%; background:var(--c-main)"></i></div></div>
+            <div class="hb-item"><div class="top"><span>风险 35%</span><span>${c.health.risk}</span></div><div class="hb-bar"><i style="width:${c.health.risk}%; background:#4CD97B"></i></div></div>
+            <div class="hb-item"><div class="top"><span>成本 25%</span><span>${c.health.cost}</span></div><div class="hb-bar"><i style="width:${c.health.cost}%; background:var(--gold)"></i></div></div>
+          </div>
+        </div>
+
+        <button class="cta-final" data-cta="${c.name}">${c.cta} →</button>
+      </div>
+    `;
+    modal.style.setProperty('--c-main', getComputedStyle(document.querySelector(`.card-3d[data-id="${c.id}"] .card-inner`)).getPropertyValue('--c-main'));
+    modal.querySelector('#modalClose').addEventListener('click', closeModal);
+  }
+
+  function openModal(id){
+    const c = chars.find(x => x.id === id);
+    renderModal(c);
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(){
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
+  window.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
+
+  const toastEl = document.getElementById('toast');
+  let toastTimer;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
+  }
+  modal.addEventListener('click', (e) => {
+    const btn = e.target.closest('.cta-final');
+    if(!btn) return;
+    showToast(`已收到！${btn.dataset.cta} 的申请，稍后会有人联系你 🎉`);
+  });
+})();
+</script>
+</body>
+</html>

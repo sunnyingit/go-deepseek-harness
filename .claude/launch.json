@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-demo",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["DEEPSEEK_API_KEY=sk-preview-placeholder", "go", "run", "./web"],
+      "port": 8081,
+      "autoPort": true
+    }
+  ]
+}

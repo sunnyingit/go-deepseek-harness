@@ -10,18 +10,38 @@ import (
 )
 
 // CanonicalPath resolves path to the form an enforcement backend actually
-// compares against — symlinks and all. On most platforms /tmp is itself a
-// symlink (macOS: /tmp -> /private/tmp); a backend that grants access to
+// compares against — symlinks and all. On most platforms a temp directory
+// is itself reached through a symlink (macOS: /tmp -> /private/tmp, and
+// the whole /var tree -> /private/var); a backend that grants access to
 // the un-resolved spelling silently grants nothing, since the kernel-level
-// check sees the resolved path. Falls back to path unchanged when
-// resolution fails (path, or a prefix of it, is missing or unreadable —
-// still meaningful to grant, e.g. a workspace root that doesn't exist yet).
+// check sees the resolved path.
+//
+// filepath.EvalSymlinks requires the full path to exist, so a target that
+// doesn't exist yet (a file about to be created, a workspace root that
+// doesn't exist yet) can't be resolved directly. This walks upward to the
+// nearest ancestor that does exist, resolves that, and rejoins the
+// non-existent tail unchanged — so an ancestor symlink still gets caught
+// even for a brand new nested path. Falls back to path unchanged only when
+// no ancestor at all is resolvable (fixed by fs/fssandbox's own tests: a
+// single-level fallback missed exactly this case for a multi-level-missing
+// path under a symlinked temp root).
 func CanonicalPath(path string) string {
-	resolved, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return path
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
 	}
-	return resolved
+	dir := filepath.Dir(path)
+	tail := filepath.Base(path)
+	for {
+		if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+			return filepath.Join(resolved, tail)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return path // reached the filesystem root without resolving anything
+		}
+		tail = filepath.Join(filepath.Base(dir), tail)
+		dir = parent
+	}
 }
 
 // WritableRoots derives the canonical, deduplicated allow-list of

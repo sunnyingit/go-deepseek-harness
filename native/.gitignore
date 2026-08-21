@@ -1,0 +1,15 @@
+node_modules/
+dist/
+out/
+.DS_Store
+build/icon.iconset/
+runtime/bin/
+runtime/python/
+runtime/node/
+runtime/git/
+runtime/wheels/
+runtime/skills/
+runtime/config.yaml
+runtime/*.tar.gz
+runtime/*.zip
+runtime/cpython-*
