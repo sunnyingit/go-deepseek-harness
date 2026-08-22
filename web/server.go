@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	coreagent "go-harness/core/agent"
 	"go-harness/core/agentloop"
@@ -110,6 +111,8 @@ type Server struct {
 	pythonEnv      *python.Env
 	llm            *deepseek.Adapter
 	cfg            config
+	configPath     string
+	cfgMu          sync.Mutex
 	// persistence is nil-able by construction (Open can't fail short of a
 	// filesystem error, so it's always set in practice) — kept as a plain
 	// field rather than assumed non-nil so a future caller could construct

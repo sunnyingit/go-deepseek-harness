@@ -156,7 +156,7 @@
         }
 
         .main-grid.panel-open {
-            grid-template-columns: 200px 1fr 420px;
+            grid-template-columns: 30% minmax(0, 1fr) 420px;
         }
 
         /* ===== 左侧边栏 ===== */
@@ -338,6 +338,16 @@
             color: #8f9cae;
             flex-shrink: 0;
         }
+        .history-item .file-count {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: #8a8278;
+            font-weight: 500;
+        }
+        .history-item .file-count i { width: auto; font-size: 11px; color: inherit; }
 
         /* ===== 对话区域 ===== */
         .chat-area {
@@ -1373,13 +1383,13 @@
         /* ===== 响应式 ===== */
         @media (max-width: 1200px) {
             .main-grid.panel-open {
-                grid-template-columns: 200px 1fr 340px;
+                grid-template-columns: 30% minmax(0, 1fr) 340px;
             }
         }
 
         @media (max-width: 1000px) {
             .main-grid.panel-open {
-                grid-template-columns: 200px 1fr 300px;
+                grid-template-columns: 30% minmax(0, 1fr) 300px;
             }
         }
 
@@ -2778,6 +2788,44 @@
             return FILE_ICON_BY_EXT[extOf(name)] || 'fa-file';
         }
 
+        const CHAT_FILE_EXT = new Set([
+            'xlsx', 'xls', 'xlsm', 'csv', 'pptx', 'ppt', 'pptm', 'pdf', 'doc', 'docx',
+            'html', 'htm', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'md', 'txt'
+        ]);
+
+        function isChatFile(file) {
+            if (!file) return false;
+            if (file.source === 'upload') return true;
+            return CHAT_FILE_EXT.has(extOf(file.name || file.path || ''));
+        }
+
+        function sortFilesForList(files) {
+            const rank = (f) => {
+                if (isChatFile(f)) return 0;
+                return 1;
+            };
+            return (files || []).slice().sort((a, b) => {
+                const d = rank(a) - rank(b);
+                if (d) return d;
+                return String(b.modTime || '').localeCompare(String(a.modTime || ''));
+            });
+        }
+
+        function fileCardAlreadyShown(path) {
+            if (!path) return false;
+            return [...document.querySelectorAll('.file-link')].some((el) => el.title === path);
+        }
+
+        // SSE "file" events are not stored in the message log, so reopening a
+        // session used to replay text only. Re-attach workspace files into the
+        // transcript (and the right-hand list already comes from GET .../files).
+        function restoreFileCards(files) {
+            const pending = sortFilesForList(files).filter((f) => isChatFile(f) && !fileCardAlreadyShown(f.path));
+            pending.slice(0, 24).forEach((f) => {
+                protocolHandler.dispatch({ type: 'file', content: f });
+            });
+        }
+
         function formatSize(bytes) {
             if (!bytes) return '0 B';
             if (bytes < 1024) return `${bytes} B`;
@@ -2821,11 +2869,12 @@
             const list = document.getElementById('recentFilesList');
             if (!list) return;
             list.innerHTML = '';
-            if (!files.length) {
+            const shown = sortFilesForList(files || []);
+            if (!shown.length) {
                 list.innerHTML = '<div style="font-size:12px;color:#9aa7b9;padding:4px 10px;">暂无生成的文件</div>';
                 return;
             }
-            files.forEach(f => {
+            shown.forEach(f => {
                 const item = document.createElement('div');
                 item.className = 'recent-item';
                 item.title = f.path;
@@ -3689,7 +3738,7 @@
             });
             settingsBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                menu.classList.toggle('show');
+                window.location.href = '/settings.html';
             });
             menu.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -3699,9 +3748,9 @@
                     menu.classList.remove('show');
                     showToast('🔔 暂无新通知', 'fa-bell');
                 }
-                if (action === 'settings') {
+                    if (action === 'settings') {
                     menu.classList.remove('show');
-                    showToast('⚙️ 设置即将推出', 'fa-cog');
+                    window.location.href = '/settings.html';
                 }
             });
             document.addEventListener('click', function() { menu.classList.remove('show'); });
@@ -3755,9 +3804,19 @@
                         item.className = 'history-item' + (s.id === currentSessionId ? ' active' : '');
                         const label = sessionLabel(s);
                         item.title = label;
-                        item.innerHTML = `<i class="fas fa-comment-dots"></i><span class="label"></span><span class="time"></span>`;
+                        item.innerHTML = `<i class="fas fa-comment-dots"></i><span class="label"></span>`;
                         item.querySelector('.label').textContent = label;
-                        item.querySelector('.time').textContent = s.status || '';
+                        if (s.fileCount) {
+                            const badge = document.createElement('span');
+                            badge.className = 'file-count';
+                            badge.title = `${s.fileCount} 个文件`;
+                            badge.innerHTML = `<i class="fas fa-paperclip"></i>${s.fileCount}`;
+                            item.appendChild(badge);
+                        }
+                        const time = document.createElement('span');
+                        time.className = 'time';
+                        time.textContent = s.status || '';
+                        item.appendChild(time);
                         if (s.id === currentSessionId && label && label !== s.id) {
                             const titleEl = document.getElementById('chatTitleText');
                             if (titleEl && (titleEl.textContent === '新对话' || titleEl.textContent.startsWith('技能 ·'))) {
@@ -3823,6 +3882,7 @@
             } catch (e) {
                 // 历史加载失败不阻塞本轮对话
             }
+            restoreFileCards(listed);
 
             if (text) {
                 const titleEl = document.getElementById('chatTitleText');

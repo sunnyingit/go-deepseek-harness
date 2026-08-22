@@ -36,6 +36,13 @@ func (d *duration) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
+func (d duration) MarshalYAML() (interface{}, error) {
+	if time.Duration(d) == 0 {
+		return "", nil
+	}
+	return time.Duration(d).String(), nil
+}
+
 func (d duration) Duration() time.Duration { return time.Duration(d) }
 
 // fileConfig is the on-disk YAML shape. loadConfigFile converts it into the
@@ -210,19 +217,19 @@ func decodeConfig(data []byte) (config, error) {
 	return cfg, nil
 }
 
-func loadConfig(explicitPath string) (config, error) {
+func loadConfig(explicitPath string) (config, string, error) {
 	path, err := findConfigPath(explicitPath)
 	if err != nil {
-		return config{}, err
+		return config{}, "", err
 	}
 	cfg, err := loadConfigFile(path)
 	if err != nil {
-		return config{}, err
+		return config{}, "", err
 	}
 	if cfg.APIKey == "" {
-		return config{}, fmt.Errorf("set llm.api_key in %s or DEEPSEEK_API_KEY", path)
+		return config{}, "", fmt.Errorf("set llm.api_key in %s or DEEPSEEK_API_KEY", path)
 	}
-	return cfg, nil
+	return cfg, path, nil
 }
 
 func findConfigPath(explicit string) (string, error) {

@@ -52,6 +52,10 @@ type sessionDTO struct {
 	// Title is the first user question, when the session has one — the
 	// sidebar uses it instead of the opaque session-N id.
 	Title string `json:"title,omitempty"`
+	// FileCount is how many user-visible workspace files this session still
+	// has on disk — the sidebar uses it so a reopened chat isn't a blank
+	// conversation list with no hint that an xlsx/html was generated.
+	FileCount int `json:"fileCount,omitempty"`
 	// CreatedAt is Unix epoch milliseconds — the sidebar sorts on this
 	// rather than the session id string, whose lexicographic order breaks
 	// once ids pass "session-9" -> "session-10".

@@ -200,7 +200,7 @@ func TestLoadConfigRequiresAPIKey(t *testing.T) {
 	}
 	t.Setenv("DEEPSEEK_API_KEY", "")
 	t.Setenv("WEB_DEMO_CONFIG", path)
-	if _, err := loadConfig(path); err == nil {
+	if _, _, err := loadConfig(path); err == nil {
 		t.Fatal("want missing api key to fail")
 	}
 }

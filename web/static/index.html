@@ -421,6 +421,16 @@
             white-space: nowrap;
             min-width: 0;
         }
+        .history-item .file-count {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: #8a95a8;
+            font-weight: 500;
+        }
+        .history-item .file-count i { width: auto; font-size: 11px; color: inherit; }
 
         .space-view { padding: 12px 0 40px; }
         .space-card {
@@ -1612,9 +1622,19 @@
                     item.className = 'history-item' + (s.id === state.sessionId ? ' active' : '');
                     const label = sessionLabel(s);
                     item.title = label;
-                    item.innerHTML = `<i class="fas fa-comment-dots"></i><span class="label"></span><span class="time"></span>`;
+                    item.innerHTML = `<i class="fas fa-comment-dots"></i><span class="label"></span>`;
                     item.querySelector('.label').textContent = label;
-                    item.querySelector('.time').textContent = s.status || '';
+                    if (s.fileCount) {
+                        const badge = document.createElement('span');
+                        badge.className = 'file-count';
+                        badge.title = `${s.fileCount} 个文件`;
+                        badge.innerHTML = `<i class="fas fa-paperclip"></i>${s.fileCount}`;
+                        item.appendChild(badge);
+                    }
+                    const time = document.createElement('span');
+                    time.className = 'time';
+                    time.textContent = s.status || '';
+                    item.appendChild(time);
                     item.addEventListener('click', () => openSession(s.id));
                     historyList.appendChild(item);
                 });
@@ -1920,7 +1940,7 @@
             });
             settingsBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                menu.classList.toggle('show');
+                window.location.href = '/settings.html';
             });
             menu.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -1932,7 +1952,7 @@
                 }
                 if (action === 'settings') {
                     menu.classList.remove('show');
-                    showToast('⚙️ 设置即将推出', 'fa-cog');
+                    window.location.href = '/settings.html';
                 }
             });
             document.addEventListener('click', function() { menu.classList.remove('show'); });

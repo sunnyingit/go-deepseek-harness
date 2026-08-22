@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>小作文 · 夏夜萤火</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon fill='%23DE2910' points='16,2 20.12,12.47 31.51,12.47 22.2,18.94 25.64,29.53 16,22.9 6.36,29.53 9.8,18.94 0.49,12.47 11.88,12.47'/%3E%3C/svg%3E" />
+  <style>
+    :root { --ink: #2a2118; --paper: #f7f1e4; --accent: #6b4f2f; }
+    html, body { margin: 0; min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 30% 20%, #fbf6ea 0%, transparent 55%),
+        linear-gradient(160deg, #f5eddb 0%, #efe4cb 100%);
+      color: var(--ink);
+      font-family: "Songti SC", "STSong", "SimSun", "Kaiti SC", "KaiTi", Georgia, serif; }
+    body { display: flex; align-items: center; justify-content: center; padding: 32px; }
+    .card { max-width: 640px; background: #fdfaf1;
+      padding: 46px 54px 40px; border: 1px solid #d9c9a5;
+      box-shadow: 0 18px 45px rgba(90, 60, 25, 0.18);
+      position: relative; animation: rise .9s ease-out both; }
+    .card::before { content: ""; position: absolute; inset: 8px; border: 1px dashed #d3c19a; pointer-events: none; }
+    h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; text-align: center; letter-spacing: 6px; color: var(--accent); }
+    .rule { width: 64px; height: 1px; background: var(--accent); margin: 12px auto 24px; opacity: .5; }
+    p { font-size: 19px; line-height: 2; text-align: justify; text-indent: 2em; margin: 0; }
+    .foot { margin-top: 26px; text-align: right; font-size: 14px; color: #8a7a5c; letter-spacing: 2px; }
+    @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>夏 夜 萤 火</h1>
+    <div class="rule"></div>
+    <p>夏夜稻田边，微风裹着青草香。一只萤火虫提起小灯笼，悠悠掠过水面，落在祖母摇动的蒲扇上。她眯眼笑道："虫子也爱乘凉呢。"我抬头望天，漫天星子与萤火交相辉映。忽然明白，最亮的不是灯火，而是身边那双温柔注视的眼睛。</p>
+    <div class="foot">—— 记那个温软的童年之夜</div>
+  </main>
+</body>
+</html>

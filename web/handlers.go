@@ -34,6 +34,9 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /dailog.html", s.handleDialog)
 	mux.HandleFunc("GET /dialog.html", s.handleDialog)
 	mux.HandleFunc("GET /space.html", s.handleSpace)
+	mux.HandleFunc("GET /settings.html", s.handleSettings)
+	mux.HandleFunc("GET /config", s.handleGetConfig)
+	mux.HandleFunc("PUT /config", s.handlePutConfig)
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /skills", s.handleListSkills)
 	mux.HandleFunc("POST /sessions", s.handleCreateSession)
@@ -679,12 +682,16 @@ func (s *Server) sessionDTOFromHandle(id string, ag coreagent.Agent) sessionDTO 
 	if concrete, ok := ag.(*agentloop.Agent); ok {
 		active, _ = s.planController.Get(concrete)
 	}
-	return sessionDTO{
+	dto := sessionDTO{
 		ID: id, CWD: header.CWD, ParentSession: string(header.ParentSession),
 		PlanModeActive: active, Status: ag.Status(),
 		Title:     sessionTitle(ag.Session()),
 		CreatedAt: header.CreatedAt,
 	}
+	if entries, err := listWorkspaceFiles(s.workspaceRoot(id)); err == nil {
+		dto.FileCount = len(entries)
+	}
+	return dto
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

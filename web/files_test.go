@@ -143,13 +143,37 @@ func TestListWorkspaceFilesSkipsInstallTrees(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "page.html"), []byte("<h1>ok</h1>"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(root, "dist"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "dist", "index.html"), []byte("<h1>built</h1>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	entries, err := listWorkspaceFiles(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 1 || entries[0].Path != "page.html" {
-		t.Fatalf("got %+v, want only page.html", entries)
+	byPath := map[string]fileEntryDTO{}
+	for _, e := range entries {
+		byPath[e.Path] = e
+	}
+	if _, ok := byPath["page.html"]; !ok {
+		t.Fatalf("got %+v, want page.html", entries)
+	}
+	if _, ok := byPath["dist/index.html"]; !ok {
+		t.Fatalf("got %+v, want dist/index.html (built artifacts must stay visible)", entries)
+	}
+	if _, ok := byPath["package.json"]; ok {
+		t.Fatalf("package.json should be hidden from the file list: %+v", entries)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Path, "node_modules") {
+			t.Fatalf("node_modules leaked into listing: %+v", e)
+		}
 	}
 }
 
@@ -503,6 +527,71 @@ func TestUploadDeleteAndListAllFiles(t *testing.T) {
 		defer del.Body.Close()
 		if del.StatusCode != http.StatusBadRequest {
 			t.Fatalf("status = %d", del.StatusCode)
+		}
+	})
+}
+
+func TestListFilesWithoutLiveAgent(t *testing.T) {
+	s, _ := newTestServer(t)
+	const orphan = "orphan-sess"
+	root := s.workspaceRoot(orphan)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "budget.xlsx"), []byte("PK"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(s.routes())
+	t.Cleanup(srv.Close)
+
+	t.Run("per-session listing", func(t *testing.T) {
+		res, err := http.Get(srv.URL + "/sessions/" + orphan + "/files")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d", res.StatusCode)
+		}
+		var entries []fileEntryDTO
+		if err := json.NewDecoder(res.Body).Decode(&entries); err != nil {
+			t.Fatal(err)
+		}
+		if len(entries) != 1 || entries[0].Path != "budget.xlsx" {
+			t.Fatalf("listing = %+v, want budget.xlsx", entries)
+		}
+	})
+
+	t.Run("GET /files includes orphan workspace", func(t *testing.T) {
+		res, err := http.Get(srv.URL + "/files")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		var entries []fileEntryDTO
+		if err := json.NewDecoder(res.Body).Decode(&entries); err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, e := range entries {
+			if e.SessionID == orphan && e.Path == "budget.xlsx" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("orphan file missing from /files: %+v", entries)
+		}
+	})
+
+	t.Run("inline preview still works", func(t *testing.T) {
+		res, err := http.Get(srv.URL + "/sessions/" + orphan + "/files/budget.xlsx")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d", res.StatusCode)
 		}
 	})
 }

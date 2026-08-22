@@ -19,7 +19,7 @@ import (
 // already registers — session management, chat, file upload, skills,
 // plan-mode, fork — nothing more.
 //
-//go:embed static/index.html static/dailog.html static/space.html static/vendor
+//go:embed static/index.html static/dailog.html static/space.html static/settings.html static/vendor
 var staticFS embed.FS
 
 func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +39,10 @@ func (s *Server) handleDialog(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSpace(w http.ResponseWriter, r *http.Request) {
 	serveStaticFile(w, "static/space.html")
+}
+
+func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
+	serveStaticFile(w, "static/settings.html")
 }
 
 // handleStaticAsset serves vendored CSS/fonts/images under /static/vendor/... —

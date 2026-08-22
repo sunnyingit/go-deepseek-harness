@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>夜间的露天咖啡馆 · 梵高</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230b4f8a'/%3E%3Cpath d='M16 6l2.4 5 5.1.7-3.7 3.6.9 5.1-4.7-2.5-4.7 2.5.9-5.1L8.5 11.7l5.1-.7z' fill='%23f5d66a'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --night: #0b1220;
+    --night-2: #101a2e;
+    --night-3: #182642;
+    --gold: #f2c94c;
+    --gold-soft: #f6d876;
+    --gold-deep: #e0a52e;
+    --cobalt: #2b4f9e;
+    --paper: #f4ecdc;
+    --ink: #221a10;
+    --green-adv: #8fae6b;
+    --kakhi: #3f3426;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; scroll-behavior: smooth; }
+  body {
+    font-family: "Songti SC", "STSong", "SimSun", "Kaiti SC", "STKaiti", "KaiTi", Georgia, serif;
+    background: var(--night);
+    color: #e9e2d4;
+    line-height: 1.85;
+  }
+
+  /* ---------- 侧栏导航 ---------- */
+  nav {
+    position: fixed; left: 24px; top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 6px; z-index: 50;
+  }
+  nav a {
+    writing-mode: vertical-rl;
+    font-size: 13px; letter-spacing: 3px;
+    color: rgba(233,226,212,.5);
+    text-decoration: none; padding: 8px 4px;
+    border-left: 1px solid transparent;
+    transition: all .3s;
+  }
+  nav a:hover, nav a.active { color: var(--gold); border-left-color: var(--gold); }
+
+  /* ---------- 章节通用 ---------- */
+  section { max-width: 960px; margin: 0 auto; padding: 90px 40px; }
+  .kicker {
+    font-size: 14px; letter-spacing: 6px;
+    color: var(--gold); text-transform: uppercase; margin-bottom: 14px;
+  }
+  h2 { font-size: 40px; margin: 0 0 8px; font-weight: 500; color: #fff; letter-spacing: 2px; }
+  .rule { width: 64px; height: 2px; background: var(--gold); margin: 18px 0 30px; }
+  p { color: rgba(233,226,212,.86); }
+
+  /* ---------- 首页英雄 ---------- */
+  #hero {
+    max-width: none; min-height: 100vh; padding: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  #hero::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(242,201,76,.18), transparent 45%),
+      radial-gradient(circle at 75% 70%, rgba(43,79,158,.35), transparent 55%),
+      radial-gradient(circle at 60% 40%, rgba(242,201,76,.06), transparent 40%);
+    z-index: 0;
+  }
+  /* 星星 */
+  #hero .stars { position: absolute; inset: 0; z-index: 0; opacity: .7; }
+  .star { position: absolute; background: #fff; border-radius: 50%; animation: twinkle 3.5s infinite; }
+  @keyframes twinkle { 0%,100%{opacity:.2} 50%{opacity:1} }
+  #hero .content { position: relative; z-index: 2; padding: 0 24px; }
+  #hero .ct {
+    font-size: 15px; letter-spacing: 10px; color: var(--gold); margin-bottom: 22px;
+  }
+  #hero h1 {
+    font-size: clamp(44px, 8vw, 92px); margin: 0; font-weight: 400;
+    letter-spacing: 6px; color: #fff; text-shadow: 0 0 40px rgba(242,201,76,.35);
+  }
+  #hero .sub { margin-top: 18px; font-size: 20px; letter-spacing: 4px; color: rgba(233,226,212,.75); }
+  #hero .scroll {
+    position: absolute; bottom: 30px; z-index: 2;
+    color: var(--gold); letter-spacing: 3px; font-size: 13px;
+    animation: bob 2s infinite;
+  }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(8px)} }
+
+  /* ---------- 画作展示区：CSS 复现色彩氛围 ---------- */
+  .canvas-wrap { display: grid; gap: 10px; margin-top: 30px; }
+  .canvas {
+    position: relative; border-radius: 4px; overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .canvas .frame { padding: 14px; background: linear-gradient(#f0e6cf, #d8c8a4); }
+  .canvas .art { height: 460px; position: relative; overflow: hidden; }
+  /* 用色块+笔触拼出咖啡馆露台氛围 */
+  .art .sky { position:absolute; inset:0 0 55% 0;
+    background: linear-gradient(to bottom, #0a1730 0%, #123061 55%, #1c4a8a 100%); }
+  .art .stars2 { position:absolute; inset:0 0 55% 0; }
+  .art .stars2 i { position:absolute; width:5px; height:5px; border-radius:50%;
+    background:#f6e9b0; filter: blur(1px); box-shadow:0 0 12px #f6e9b0; }
+  .art .roof { position:absolute; top:38%; left:0; right:0; height:22%;
+    background: #1c3a5e;
+    box-shadow: inset 0 -30px 40px rgba(10,20,40,.9); }
+  .art .awning { position:absolute; top:34%; left:8%; right:8%; height:16%;
+    background:
+      repeating-linear-gradient(90deg, #caa13a 0 6%, #10203c 6% 9%),
+      #caa13a;
+    border-radius: 3px 3px 0 0; }
+  .art .glow { position:absolute; top:36%; left:6%; right:6%; height:30%;
+    background: radial-gradient(ellipse at top, rgba(255,214,102,.85), rgba(255,182,60,.35) 55%, transparent 75%); }
+  .art .street { position:absolute; bottom:0; left:0; right:0; height:34%;
+    background: linear-gradient(to bottom, #1a2f52, #0a1424); }
+  .art .table { position:absolute; bottom:12%; width:10px; height:6px; border-radius:2px;
+    background:#e9d9a8; box-shadow:0 6px 0 #333, 0 12px 0 #333; }
+
+  /* ---------- 内容卡 ---------- */
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  .card {
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 6px; padding: 26px;
+  }
+  .card h3 { margin-top: 0; color: var(--gold-soft); font-weight: 500; letter-spacing: 2px; font-size: 20px; }
+  .card p { margin: 8px 0; }
+  .num { font-size: 15px; color: var(--gold); letter-spacing: 2px; margin-bottom: 6px; display:block; }
+
+  /* ---------- 色彩面板 ---------- */
+  .swatches { display: flex; gap: 14px; margin-top: 20px; flex-wrap: wrap; }
+  .swatch { flex: 1; min-width: 120px; }
+  .swatch .c { height: 84px; border-radius: 6px; border: 1px solid rgba(255,255,255,.15); }
+  .swatch .l { font-size: 13px; margin-top: 8px; color: rgba(233,226,212,.75); text-align:center; letter-spacing:1px; }
+
+  /* ---------- 引语 ---------- */
+  blockquote {
+    border-left: 3px solid var(--gold); margin: 40px 0;
+    padding: 6px 24px; font-size: 20px; color: var(--gold-soft);
+    font-style: italic; line-height: 1.9;
+  }
+  blockquote .who { display: block; margin-top: 12px; font-style: normal; color: rgba(233,226,212,.6); font-size: 14px; }
+
+  /* ---------- 时间线 ---------- */
+  .timeline { margin-top: 30px; border-left: 1px solid rgba(255,255,255,.15); padding-left: 26px; }
+  .tl-item { position: relative; padding: 0 0 28px 20px; }
+  .tl-item::before { content:""; position:absolute; left:-5px; top:6px; width:9px; height:9px;
+    border-radius:50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+  .tl-item .y { color: var(--gold); letter-spacing: 2px; font-size: 15px; }
+
+  /* ---------- 页脚 ---------- */
+  footer { text-align: center; padding: 40px; color: rgba(233,226,212,.45); font-size: 13px; letter-spacing: 2px; border-top: 1px solid rgba(255,255,255,.06); }
+
+  @media (max-width: 720px) {
+    nav { display: none; }
+    section { padding: 60px 22px; }
+    h2 { font-size: 30px; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#hero">卷首</a>
+  <a href="#paint">画作</a>
+  <a href="#context">背景</a>
+  <a href="#content">画面</a>
+  <a href="#meaning">意义</a>
+</nav>
+
+<!-- 首页 -->
+<section id="hero">
+  <div class="stars" id="stars"></div>
+  <div class="content">
+    <div class="ct">VINCENT VAN GOGH · 1888</div>
+    <h1>夜间的露天咖啡馆</h1>
+    <div class="sub">Café Terrace at Night · 画布油画 · 90 × 70 厘米</div>
+  </div>
+  <div class="scroll">向下翻阅 ↓</div>
+</section>
+
+<!-- 画作区 -->
+<section id="paint">
+  <div class="kicker">The Painting</div>
+  <h2>看这幅画</h2>
+  <div class="rule"></div>
+
+  <div class="canvas" style="max-width:660px; margin:0 auto;">
+    <div class="frame">
+      <div class="art">
+        <div class="sky"></div>
+        <div class="stars2" id="artStars"></div>
+        <div class="roof"></div>
+        <div class="awning"></div>
+        <div class="glow"></div>
+        <div class="street"></div>
+      </div>
+    </div>
+  </div>
+  <p style="text-align:center; margin-top:16px; font-size:14px; color:rgba(233,226,212,.55)">
+    上为页面据此画作的夜蓝、灯光与露台色彩氛围所做的示意——原作现藏于荷兰阿姆斯特丹克勒勒-穆勒博物馆。
+  </p>
+
+  <!-- 色彩分析 -->
+  <h3 style="color:var(--gold-soft); letter-spacing:2px; margin-top:50px;">它的色调</h3>
+  <div class="swatches">
+    <div class="swatch"><div class="c" style="background:#0a1730"></div><div class="l">夜空的深蓝</div></div>
+    <div class="swatch"><div class="c" style="background:#1c4a8a"></div><div class="l">钴蓝的过渡</div></div>
+    <div class="swatch"><div class="c" style="background:#f2c94c"></div><div class="l">煤气灯的金黄</div></div>
+    <div class="swatch"><div class="c" style="background:#e9a52e"></div><div class="l">暖橘的光晕</div></div>
+    <div class="swatch"><div class="c" style="background:#3c2f22"></div><div class="l">夜色的沉褐</div></div>
+  </div>
+</section>
+
+<!-- 背景 -->
+<section id="context">
+  <div class="kicker">Context</div>
+  <h2>创作背景</h2>
+  <div class="rule"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <span class="num">① 阿尔勒 · 1888 年 9 月</span>
+      <h3>南法的一盏灯火</h3>
+      <p>1888 年，梵高离开巴黎，只身来到法国南部小镇阿尔勒，梦想建立一个「南方画室」。他在当地租下的「黄房子」离这幅画的咖啡厅原址不远，正处镇中心共和广场边，今以「梵高咖啡厅」闻名。</p>
+    </div>
+    <div class="card">
+      <span class="num">② 夜作画的新课题</span>
+      <h3>他要画出「没黑的黑」</h3>
+      <p>在给妹妹威尔的信中，梵高写下著名的想法：「夜晚比白天更有颜色……我想证明夜晚并非只得黑色与灰色，它同样能比日光拥有更浓烈的色彩。」露天咖啡馆，正是这一实验的舞台。</p>
+    </div>
+    <div class="card">
+      <span class="num">③ 草稿与正幅</span>
+      <h3>一气呵成的画布</h3>
+      <p>这幅 90 × 70 厘米的画布作品通常被认为是在 9 月的一两个夜晚直接完成的。相较他对面的另一幅《夜晚的咖啡馆—室内景》，这幅「露天的」显得温暖、明亮、充满希望。</p>
+    </div>
+    <div class="card">
+      <span class="num">④ 与友人的约定</span>
+      <h3>走向 24 幅系列</h3>
+      <p>它被梵高纳入计划中的「夜色系列」，与《罗讷河上的星夜》等一并推进。他始终强调「这可能是迄今我画得最好的画」，对完成的作品相当满意。</p>
+    </div>
+  </div>
+
+  <blockquote>
+    夜晚远比白昼更有生气、更有色彩。你看，我正想证明给人们看。
+    <span class="who">—— 文森特·梵高，致其兄西奥，1888 年</span>
+  </blockquote>
+</section>
+
+<!-- 画面内容 -->
+<section id="content">
+  <div class="kicker">The Scene</div>
+  <h2>画面里有什么</h2>
+  <div class="rule"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>露台 · 暖光的支点</h3>
+      <p>画面正中的咖啡露台被桔黄色的煤气灯光笼罩，米白与赭黄的桌凳、遮阳棚在光线里柔和地起伏。这团暖光让整幅画有了重心，也成了「夜」的对偶。</p>
+    </div>
+    <div class="card">
+      <h3>行人 · 灯下的剪影</h3>
+      <p>几位顾客与过路人以或坐或立、寥寥几笔的深色剪影出现，并不刻意刻画五官。他们更像是被灯光邀请来的人影，加强了生活的现场感。</p>
+    </div>
+    <div class="card">
+      <h3>星空 · 新式的光</h3>
+      <p>左上方夜空里闪着大颗的星星，梵高用一圈一圈的笔触勾出星芒，与屋顶以下的人造灯火相呼应。他后来写道：「自然中没有一条直线，一切都要……以旋转的体积去捕捉。」</p>
+    </div>
+    <div class="card">
+      <h3>屋宇 · 钴蓝的街巷</h3>
+      <p>背景里一栋栋房屋墙体被钴蓝与深蓝调开，窗里透出零星灯光，通向画幅深处的蓝色街道逐渐隐没——白天的街市，在夜里被光重新洗过。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 意义 -->
+<section id="meaning">
+  <div class="kicker">Why It Matters</div>
+  <h2>它为什么重要</h2>
+  <div class="rule"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <span class="num">★ 补色的革命</span>
+      <h3>金黄对钴蓝</h3>
+      <p>画中钻石般对撞的暖黄与冷蓝，印证了梵高对互补色的执念。他不按「所见」画，而按「所感」画——颜色不再描摹光线，而是表达情绪。</p>
+    </div>
+    <div class="card">
+      <span class="num">★ 表现主义的先声</span>
+      <h3>情绪先于写实</h3>
+      <p>大胆的笔触、被放大的色彩与主观的光影安排，让写实退居其次。评论界普遍认为，这幅画已站在日后表现主义、甚至是野兽派的路口。</p>
+    </div>
+    <div class="card">
+      <span class="num">★ 构图的示范</span>
+      <h3>一角裁景</h3>
+      <p>露台被斜切进画框，街巷由近及远纵伸，构成稳定的空间透视，同时保持画面充沛的能量。这在很多后来的现代画中被反复参照。</p>
+    </div>
+    <div class="card">
+      <span class="num">★ 文化的坐标</span>
+      <h3>从阿尔勒到世界</h3>
+      <p>它是「星夜家族」里最早被人熟知的一幅，也是大众最早认识梵高色彩体系的门径。原址咖啡厅如今按画中色调重新粉饰，成为阿尔勒的地标。</p>
+    </div>
+  </div>
+
+  <div class="timeline">
+    <div class="tl-item"><span class="y">1888 · 9 月</span><p>在阿尔勒完成画作，梵高自称「可能是他迄今最好的作品」。</p></div>
+    <div class="tl-item"><span class="y">1890 · 7 月</span><p>梵高辞世，此画随后辗转收藏。</p></div>
+    <div class="tl-item"><span class="y">今</span><p>藏于荷兰阿姆斯特丹克勒勒-穆勒博物馆；原址被复原为「梵高咖啡厅」。</p></div>
+  </div>
+
+  <blockquote>
+    在这幅画中，我需要一个露台、一盏灯、和一点蓝。宁可糊涂，也不要太清楚。
+    <span class="who">—— 后世对梵高画作的常见解读</span>
+  </blockquote>
+</section>
+
+<footer>文森特·梵高《夜间的露天咖啡馆》介绍页 · 页内图像为色彩氛围示意</footer>
+
+<script>
+  // 首页星星
+  const starsEl = document.getElementById('stars');
+  const N = 90;
+  for (let i=0;i<N;i++){
+    const s=document.createElement('span');
+    s.className='star';
+    const size = Math.random()*2+1;
+    s.style.width=size+'px'; s.style.height=size+'px';
+    s.style.left=(Math.random()*100)+'%';
+    s.style.top=(Math.random()*70)+'%';
+    s.style.animationDelay=(Math.random()*3.5)+'s';
+    starsEl.appendChild(s);
+  }
+  // 画作区星星
+  const artStars = document.getElementById('artStars');
+  const M = 26;
+  for (let i=0;i<M;i++){
+    const st=document.createElement('i');
+    const sz=Math.random()*4+2;
+    st.style.width=sz+'px'; st.style.height=sz+'px';
+    st.style.left=(Math.random()*100)+'%';
+    st.style.top=(Math.random()*100)+'%';
+    artStars.appendChild(st);
+  }
+  // 露台小桌
+  const art = document.querySelector('.art');
+  for(let i=0;i<5;i++){
+    const t=document.createElement('div');
+    t.className='table';
+    t.style.left=(14+i*16)+'%';
+    art.appendChild(t);
+  }
+  // 滚动高亮导航
+  const links=[...document.querySelectorAll('nav a')];
+  const sections=[...document.querySelectorAll('section')];
+  window.addEventListener('scroll',()=>{
+    let idx=0;
+    sections.forEach((s,i)=>{ if(window.scrollY>=s.offsetTop-150) idx=i; });
+    links.forEach((a,i)=>a.classList.toggle('active', i===idx));
+  });
+</script>
+</body>
+</html>

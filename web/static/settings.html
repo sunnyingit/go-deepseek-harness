@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WorkBuddy AI · 设置</title>
+    <link rel="stylesheet" href="/static/vendor/fonts/inter.css" />
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        html, body { height: 100%; overflow: hidden; }
+        body { background: #ffffff; height: 100%; }
+        .dashboard { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+        .navbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 16px; min-height: 44px; border-bottom: 1px solid #eceff3;
+            background: #fff; flex-shrink: 0; -webkit-app-region: drag;
+        }
+        .navbar .brand, .navbar .nav-right, .navbar button { -webkit-app-region: no-drag; }
+        .nav-left { display: flex; align-items: center; gap: 16px; }
+        .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; color: #0b1a33; cursor: pointer; }
+        .brand i { font-size: 15px; color: #f97316; }
+        .nav-right { display: flex; align-items: center; gap: 18px; }
+        .nav-right i { font-size: 18px; color: #4f5b6b; cursor: pointer; padding: 6px; border-radius: 50%; }
+        .main-grid {
+            display: grid; grid-template-columns: 200px 1fr; gap: 24px;
+            flex: 1; min-height: 0; padding: 16px 24px 20px; overflow: hidden;
+        }
+        .sidebar { display: flex; flex-direction: column; gap: 20px; min-height: 0; overflow: hidden; }
+        .quick-item {
+            display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+            border-radius: 12px; font-size: 13px; color: #1c2a44; cursor: pointer;
+        }
+        .quick-item:hover { background: #eef1f6; }
+        .quick-item.active { background: #fff7ed; color: #f97316; font-weight: 500; }
+        .quick-item i { color: #f97316; width: 16px; font-size: 13px; }
+        .user-card {
+            margin-top: auto; display: flex; align-items: center; gap: 10px;
+            padding: 8px; border-radius: 14px; position: relative;
+        }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background: #f97316; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+        .user-meta .name { font-size: 13px; font-weight: 600; color: #0b1a33; }
+        .user-meta .email { font-size: 11px; color: #8a95a8; }
+        .content { min-height: 0; overflow: auto; padding-bottom: 28px; }
+        .page-head { margin-bottom: 18px; }
+        .page-head h2 { font-size: 22px; color: #0b1a33; }
+        .page-head p { font-size: 13px; color: #6b778c; margin-top: 6px; }
+        .path-chip {
+            display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+            font-size: 12px; color: #8a95a8; background: #f4f6fa; border-radius: 999px; padding: 4px 10px;
+        }
+        .banner {
+            display: none; margin-bottom: 14px; padding: 10px 12px; border-radius: 12px;
+            font-size: 13px; line-height: 1.45;
+        }
+        .banner.show { display: block; }
+        .banner.warn { background: #fff7ed; color: #9a3412; }
+        .banner.ok { background: #ecfdf5; color: #047857; }
+        .banner.err { background: #fef2f2; color: #b91c1c; }
+        .card {
+            background: #fff; border: 1px solid #eef1f6; border-radius: 18px;
+            padding: 18px 20px; margin-bottom: 14px;
+        }
+        .card h3 { font-size: 14px; color: #0b1a33; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .card h3 i { color: #f97316; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+        .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .field.span-2 { grid-column: 1 / -1; }
+        label { font-size: 12px; font-weight: 600; color: #5f6c80; }
+        .hint { font-size: 11px; color: #9aa7b9; font-weight: 400; }
+        input, select, textarea {
+            width: 100%; border: 1px solid #e4e9f2; border-radius: 10px;
+            padding: 8px 10px; font-size: 13px; color: #1c2a44; background: #fff;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #fdba74; box-shadow: 0 0 0 3px rgba(249,115,22,.12); }
+        textarea { min-height: 88px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1c2a44; padding-top: 22px; }
+        .check input { width: auto; }
+        .actions {
+            position: sticky; bottom: 0; display: flex; gap: 10px; justify-content: flex-end;
+            padding: 12px 0 4px; background: linear-gradient(transparent, #fff 30%);
+        }
+        .btn {
+            border: 0; border-radius: 12px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+        .btn-primary { background: #f97316; color: #fff; }
+        .btn-primary:hover { background: #ea580c; }
+        .btn-ghost { background: #eef1f6; color: #3c4a5e; }
+        .advanced { margin-top: 8px; }
+        .advanced summary { cursor: pointer; font-size: 13px; color: #f97316; font-weight: 600; }
+        .toast {
+            position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(12px);
+            background: #0b1a33; color: #fff; border-radius: 999px; padding: 10px 16px;
+            font-size: 13px; opacity: 0; transition: .2s; z-index: 20;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <header class="navbar">
+        <div class="nav-left">
+            <div class="brand" id="brandBtn"><i class="fas fa-robot"></i> WorkBuddy AI</div>
+        </div>
+        <div class="nav-right">
+            <i class="fas fa-bell" title="通知"></i>
+        </div>
+    </header>
+    <div class="main-grid">
+        <aside class="sidebar">
+            <nav>
+                <div class="quick-item" data-nav="/"><i class="fas fa-plus"></i> 新建任务</div>
+                <div class="quick-item" data-nav="/space.html"><i class="fas fa-user"></i> 个人空间</div>
+                <div class="quick-item active"><i class="fas fa-sliders-h"></i> 设置</div>
+            </nav>
+            <div class="user-card">
+                <div class="avatar">F</div>
+                <div class="user-meta">
+                    <div class="name">Felice</div>
+                    <div class="email">felicex@gmail.com</div>
+                </div>
+            </div>
+        </aside>
+        <main class="content">
+            <div class="page-head">
+                <h2>设置</h2>
+                <p>修改会写入 config.yaml。模型、超时和沙箱对之后的新对话立即生效；端口和数据目录需要重启服务。</p>
+                <div class="path-chip" id="configPath"><i class="fas fa-file-code"></i> 加载中…</div>
+            </div>
+            <div class="banner warn" id="envBanner"></div>
+            <div class="banner" id="saveBanner"></div>
+            <form id="settingsForm">
+                <section class="card">
+                    <h3><i class="fas fa-brain"></i> 模型</h3>
+                    <div class="grid">
+                        <div class="field span-2">
+                            <label>API Key <span class="hint" id="keyHint"></span></label>
+                            <input id="api_key" type="password" autocomplete="off" placeholder="留空则保留已保存的密钥" />
+                        </div>
+                        <div class="field">
+                            <label>模型</label>
+                            <input id="model" placeholder="deepseek-chat" />
+                        </div>
+                        <div class="field">
+                            <label>接口地址 <span class="hint">空 = DeepSeek 默认</span></label>
+                            <input id="base_url" placeholder="https://api.deepseek.com" />
+                        </div>
+                        <div class="field">
+                            <label>思考模式</label>
+                            <select id="thinking">
+                                <option value="">默认开启</option>
+                                <option value="disabled">关闭 thinking</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>温度 temperature <span class="hint">空 = 不传</span></label>
+                            <input id="temperature" type="number" step="0.1" min="0" max="2" placeholder="例如 0.7" />
+                        </div>
+                        <div class="field">
+                            <label>max_tokens <span class="hint">0 = 不限制</span></label>
+                            <input id="max_tokens" type="number" min="0" />
+                        </div>
+                        <div class="field">
+                            <label>reasoning_effort</label>
+                            <input id="reasoning_effort" placeholder="可选" />
+                        </div>
+                    </div>
+                </section>
+                <section class="card">
+                    <h3><i class="fas fa-shield-halved"></i> 沙箱</h3>
+                    <div class="grid">
+                        <div class="field">
+                            <label>bash_mode</label>
+                            <select id="bash_mode">
+                                <option value="read-only">read-only</option>
+                                <option value="workspace-write">workspace-write</option>
+                                <option value="danger-full-access">danger-full-access</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>python_mode</label>
+                            <select id="python_mode">
+                                <option value="read-only">read-only</option>
+                                <option value="workspace-write">workspace-write</option>
+                                <option value="danger-full-access">danger-full-access</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>fs_mode</label>
+                            <select id="fs_mode">
+                                <option value="read-only">read-only</option>
+                                <option value="workspace-write">workspace-write</option>
+                                <option value="danger-full-access">danger-full-access</option>
+                            </select>
+                        </div>
+                        <label class="check"><input id="bash_network" type="checkbox" /> bash 允许联网</label>
+                        <label class="check"><input id="auto_approve_escalation" type="checkbox" /> 自动批准提权</label>
+                    </div>
+                </section>
+                <section class="card">
+                    <h3><i class="fas fa-server"></i> 服务</h3>
+                    <div class="grid">
+                        <div class="field">
+                            <label>端口 <span class="hint">改后需重启</span></label>
+                            <input id="port" type="number" min="1" max="65535" />
+                        </div>
+                        <div class="field">
+                            <label>关闭超时</label>
+                            <input id="shutdown_timeout" placeholder="60s" />
+                        </div>
+                        <div class="field span-2">
+                            <label>数据目录 data_dir <span class="hint">空 = 临时目录；改后需重启</span></label>
+                            <input id="data_dir" />
+                        </div>
+                    </div>
+                </section>
+                <section class="card">
+                    <h3><i class="fas fa-clock"></i> 超时与工具</h3>
+                    <div class="grid">
+                        <div class="field"><label>流式空闲超时</label><input id="stream_idle_timeout" placeholder="10m" /></div>
+                        <div class="field"><label>TCP 建连超时</label><input id="connect_timeout" placeholder="30s" /></div>
+                        <div class="field"><label>TLS 握手超时</label><input id="tls_handshake_timeout" placeholder="10s" /></div>
+                        <div class="field"><label>bash 超时</label><input id="bash_timeout" placeholder="120s" /></div>
+                        <div class="field"><label>Python 运行超时</label><input id="run_timeout" placeholder="300s" /></div>
+                        <div class="field"><label>Python 安装超时</label><input id="install_timeout" placeholder="5m" /></div>
+                        <div class="field"><label>最大上传字节</label><input id="max_upload_bytes" type="number" min="0" /></div>
+                        <div class="field"><label>并行工具数</label><input id="max_parallel_tool_calls" type="number" min="1" /></div>
+                    </div>
+                </section>
+                <section class="card">
+                    <h3><i class="fas fa-terminal"></i> Python</h3>
+                    <div class="grid">
+                        <div class="field"><label>解释器 bin</label><input id="python_bin" placeholder="python3" /></div>
+                        <div class="field"><label>缓存目录 cache_dir <span class="hint">改后需重启</span></label><input id="python_cache_dir" /></div>
+                        <div class="field span-2">
+                            <label>预装包 packages <span class="hint">每行一个；空 = 内置文档处理包</span></label>
+                            <textarea id="packages" placeholder="openpyxl&#10;pandas"></textarea>
+                        </div>
+                    </div>
+                </section>
+                <section class="card">
+                    <h3><i class="fas fa-user-astronaut"></i> 助手</h3>
+                    <div class="grid">
+                        <label class="check"><input id="auto_approve_plan" type="checkbox" /> 自动批准计划模式</label>
+                        <div class="field span-2">
+                            <label>system_prompt <span class="hint">空 = 使用内置中文提示</span></label>
+                            <textarea id="system_prompt"></textarea>
+                        </div>
+                    </div>
+                    <details class="advanced">
+                        <summary>高级：重试策略</summary>
+                        <div class="grid" style="margin-top:12px;">
+                            <div class="field">
+                                <label>mode</label>
+                                <select id="retry_mode">
+                                    <option value="normal">normal</option>
+                                    <option value="always">always</option>
+                                </select>
+                            </div>
+                            <div class="field"><label>max_retries</label><input id="max_retries" type="number" min="0" /></div>
+                            <div class="field"><label>initial_delay</label><input id="initial_delay" placeholder="500ms" /></div>
+                            <div class="field"><label>max_delay</label><input id="max_delay" placeholder="10s" /></div>
+                            <div class="field"><label>jitter_ratio</label><input id="jitter_ratio" type="number" step="0.01" min="0" /></div>
+                            <div class="field span-2">
+                                <label>retryable_codes <span class="hint">逗号分隔</span></label>
+                                <input id="retryable_codes" />
+                            </div>
+                        </div>
+                    </details>
+                </section>
+                <div class="actions">
+                    <button type="button" class="btn btn-ghost" id="reloadBtn">重新加载</button>
+                    <button type="submit" class="btn btn-primary" id="saveBtn">保存到 config.yaml</button>
+                </div>
+            </form>
+        </main>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function () {
+    const toastEl = document.getElementById('toast');
+    let toastTimer = null;
+    function toast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
+    }
+    function showBanner(id, text, kind) {
+        const el = document.getElementById(id);
+        el.textContent = text;
+        el.className = 'banner ' + kind + (text ? ' show' : '');
+    }
+    function val(id) { return document.getElementById(id).value; }
+    function setVal(id, v) { document.getElementById(id).value = v == null ? '' : v; }
+    function checked(id) { return document.getElementById(id).checked; }
+    function setChecked(id, v) { document.getElementById(id).checked = !!v; }
+    function num(id) {
+        const n = Number(val(id));
+        return Number.isFinite(n) ? n : 0;
+    }
+    function tempValue() {
+        const raw = val('temperature').trim();
+        if (!raw) return null;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function fill(cfg) {
+        setVal('api_key', '');
+        document.getElementById('api_key').placeholder = cfg.llm.api_key_set
+            ? '已保存 ' + (cfg.llm.api_key || '••••') + '，留空则不修改'
+            : '粘贴 API Key';
+        document.getElementById('keyHint').textContent = cfg.llm.api_key_set ? '已配置' : '尚未配置';
+        setVal('model', cfg.llm.model);
+        setVal('base_url', cfg.llm.base_url);
+        setVal('thinking', cfg.llm.thinking || '');
+        setVal('temperature', cfg.llm.temperature == null ? '' : cfg.llm.temperature);
+        setVal('max_tokens', cfg.llm.max_tokens || 0);
+        setVal('reasoning_effort', cfg.llm.reasoning_effort);
+        setVal('bash_mode', cfg.sandbox.bash_mode || 'danger-full-access');
+        setVal('python_mode', cfg.sandbox.python_mode || 'danger-full-access');
+        setVal('fs_mode', cfg.sandbox.fs_mode || 'danger-full-access');
+        setChecked('bash_network', cfg.sandbox.bash_network);
+        setChecked('auto_approve_escalation', cfg.sandbox.auto_approve_escalation);
+        setVal('port', cfg.server.port || 8081);
+        setVal('shutdown_timeout', cfg.server.shutdown_timeout);
+        setVal('data_dir', cfg.server.data_dir);
+        setVal('stream_idle_timeout', cfg.llm.stream_idle_timeout);
+        setVal('connect_timeout', cfg.llm.connect_timeout);
+        setVal('tls_handshake_timeout', cfg.llm.tls_handshake_timeout);
+        setVal('bash_timeout', cfg.tools.bash_timeout);
+        setVal('run_timeout', cfg.python.run_timeout);
+        setVal('install_timeout', cfg.python.install_timeout);
+        setVal('max_upload_bytes', cfg.tools.max_upload_bytes || 0);
+        setVal('max_parallel_tool_calls', cfg.tools.max_parallel_tool_calls || 10);
+        setVal('python_bin', cfg.python.bin);
+        setVal('python_cache_dir', cfg.python.cache_dir);
+        setVal('packages', (cfg.python.packages || []).join('\n'));
+        setChecked('auto_approve_plan', cfg.agent.auto_approve_plan);
+        setVal('system_prompt', cfg.agent.system_prompt);
+        setVal('retry_mode', cfg.llm.retry.mode || 'normal');
+        setVal('max_retries', cfg.llm.retry.max_retries || 0);
+        setVal('initial_delay', cfg.llm.retry.initial_delay);
+        setVal('max_delay', cfg.llm.retry.max_delay);
+        setVal('jitter_ratio', cfg.llm.retry.jitter_ratio || 0);
+        setVal('retryable_codes', (cfg.llm.retry.retryable_codes || []).join(', '));
+    }
+
+    function collect() {
+        const codes = val('retryable_codes').split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+        const packages = val('packages').split('\n').map((s) => s.trim()).filter(Boolean);
+        return {
+            server: {
+                port: num('port'),
+                data_dir: val('data_dir').trim(),
+                shutdown_timeout: val('shutdown_timeout').trim(),
+            },
+            llm: {
+                api_key: val('api_key'),
+                base_url: val('base_url').trim(),
+                model: val('model').trim(),
+                stream_idle_timeout: val('stream_idle_timeout').trim(),
+                connect_timeout: val('connect_timeout').trim(),
+                tls_handshake_timeout: val('tls_handshake_timeout').trim(),
+                thinking: val('thinking'),
+                max_tokens: num('max_tokens'),
+                temperature: tempValue(),
+                reasoning_effort: val('reasoning_effort').trim(),
+                retry: {
+                    mode: val('retry_mode'),
+                    max_retries: num('max_retries'),
+                    initial_delay: val('initial_delay').trim(),
+                    max_delay: val('max_delay').trim(),
+                    jitter_ratio: Number(val('jitter_ratio')) || 0,
+                    retryable_codes: codes,
+                },
+            },
+            sandbox: {
+                bash_mode: val('bash_mode'),
+                bash_network: checked('bash_network'),
+                python_mode: val('python_mode'),
+                fs_mode: val('fs_mode'),
+                auto_approve_escalation: checked('auto_approve_escalation'),
+            },
+            python: {
+                cache_dir: val('python_cache_dir').trim(),
+                bin: val('python_bin').trim(),
+                install_timeout: val('install_timeout').trim(),
+                run_timeout: val('run_timeout').trim(),
+                packages,
+            },
+            tools: {
+                bash_timeout: val('bash_timeout').trim(),
+                max_upload_bytes: num('max_upload_bytes'),
+                max_parallel_tool_calls: num('max_parallel_tool_calls'),
+            },
+            agent: {
+                auto_approve_plan: checked('auto_approve_plan'),
+                system_prompt: val('system_prompt'),
+            },
+        };
+    }
+
+    async function load() {
+        const res = await fetch('/config');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        document.getElementById('configPath').replaceChildren();
+        const chip = document.getElementById('configPath');
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-file-code';
+        chip.appendChild(icon);
+        chip.appendChild(document.createTextNode(' ' + (data.path || '')));
+        if (data.envOverrides && data.envOverrides.length) {
+            showBanner('envBanner', data.envOverrides.join('；'), 'warn');
+        } else {
+            showBanner('envBanner', '', 'warn');
+        }
+        fill(data.config);
+        return data;
+    }
+
+    document.getElementById('brandBtn').addEventListener('click', () => { window.location.href = '/'; });
+    document.querySelectorAll('.quick-item[data-nav]').forEach((el) => {
+        el.addEventListener('click', () => { window.location.href = el.dataset.nav; });
+    });
+    document.getElementById('reloadBtn').addEventListener('click', () => {
+        load().then(() => toast('已重新加载')).catch((err) => toast('加载失败: ' + err.message));
+    });
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        try {
+            const res = await fetch('/config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(collect()),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || res.statusText);
+            fill(data.config);
+            if (data.restartNeeded) {
+                showBanner('saveBanner', data.restartHint || '已保存，部分项需重启后生效。', 'warn');
+            } else {
+                showBanner('saveBanner', '已写入 config.yaml，新对话会使用新设置。', 'ok');
+            }
+            toast('已保存');
+        } catch (err) {
+            showBanner('saveBanner', String(err.message || err), 'err');
+            toast('保存失败');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    load().catch((err) => {
+        showBanner('saveBanner', '无法读取配置: ' + err.message, 'err');
+    });
+})();
+</script>
+</body>
+</html>

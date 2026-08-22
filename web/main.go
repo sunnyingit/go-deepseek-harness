@@ -27,7 +27,7 @@ func main() {
 	configPath := flag.String("config", "", "path to config.yaml (default: ./config.yaml or $WEB_DEMO_CONFIG)")
 	flag.Parse()
 
-	cfg, err := loadConfig(*configPath)
+	cfg, path, err := loadConfig(*configPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -41,6 +41,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "startup:", err)
 		os.Exit(1)
 	}
+	server.configPath = path
 
 	httpServer := &http.Server{Addr: cfg.Addr, Handler: server.routes()}
 

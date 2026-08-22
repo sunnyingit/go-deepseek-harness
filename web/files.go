@@ -43,7 +43,7 @@ type fileEntryDTO struct {
 // the model having to announce each one in chat.
 func (s *Server) handleListFiles(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, ok := s.agents.Get(id); !ok {
+	if !s.sessionWorkspaceOK(id) {
 		writeError(w, http.StatusNotFound, fmt.Errorf("no such session %q", id))
 		return
 	}
@@ -56,13 +56,12 @@ func (s *Server) handleListFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleListAllFiles is the personal-space listing: every regular file in
-// every live session's workspace, tagged with sessionId so the UI can
-// preview/download/delete without a second round-trip to discover which
-// session owns the path.
+// every session workspace on disk (live agents plus leftover folders),
+// tagged with sessionId so the UI can preview/download/delete without a
+// second round-trip to discover which session owns the path.
 func (s *Server) handleListAllFiles(w http.ResponseWriter, r *http.Request) {
-	ids := s.agents.List()
 	out := []fileEntryDTO{}
-	for _, id := range ids {
+	for _, id := range s.allSessionIDs() {
 		entries, err := listWorkspaceFiles(s.workspaceRoot(id))
 		if err != nil {
 			continue
@@ -81,7 +80,7 @@ func (s *Server) handleListAllFiles(w http.ResponseWriter, r *http.Request) {
 // cannot be deleted through this path.
 func (s *Server) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, ok := s.agents.Get(id); !ok {
+	if !s.sessionWorkspaceOK(id) {
 		writeError(w, http.StatusNotFound, fmt.Errorf("no such session %q", id))
 		return
 	}
@@ -166,18 +165,18 @@ func listWorkspaceFiles(root string) ([]fileEntryDTO, error) {
 			}
 			return nil
 		}
-		if isHarnessMeta(d.Name()) {
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		relSlash := filepath.ToSlash(rel)
+		if skipWorkspaceRel(relSlash) {
 			return nil
 		}
 		info, err := d.Info()
 		if err != nil {
 			return nil // an entry that vanished between WalkDir and Info is skipped, not fatal
 		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		relSlash := filepath.ToSlash(rel)
 		source := fileSourceGenerated
 		if _, ok := uploads[relSlash]; ok {
 			source = fileSourceUpload
@@ -214,7 +213,7 @@ func listWorkspaceFiles(root string) ([]fileEntryDTO, error) {
 // unauthenticated HTTP request.
 func (s *Server) handleGetFile(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if _, ok := s.agents.Get(id); !ok {
+	if !s.sessionWorkspaceOK(id) {
 		writeError(w, http.StatusNotFound, fmt.Errorf("no such session %q", id))
 		return
 	}
@@ -311,17 +310,94 @@ func isHarnessMeta(name string) bool {
 	return strings.HasPrefix(name, ".harness-")
 }
 
+// sessionWorkspaceOK is true when the UI can list/preview files for id:
+// either the agent is still in memory, or the on-disk workspace survived
+// (reopening a chat after restart used to 404 the file API and look empty).
+func (s *Server) sessionWorkspaceOK(id string) bool {
+	if id == "" {
+		return false
+	}
+	if _, ok := s.agents.Get(id); ok {
+		return true
+	}
+	info, err := os.Stat(s.workspaceRoot(id))
+	return err == nil && info.IsDir()
+}
+
+func (s *Server) allSessionIDs() []string {
+	seen := map[string]struct{}{}
+	var ids []string
+	add := func(id string) {
+		if id == "" {
+			return
+		}
+		if _, ok := seen[id]; ok {
+			return
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	for _, id := range s.agents.List() {
+		add(id)
+	}
+	ents, err := os.ReadDir(filepath.Join(s.cfg.DataDir, "sessions"))
+	if err != nil {
+		return ids
+	}
+	for _, e := range ents {
+		if e.IsDir() {
+			add(e.Name())
+		}
+	}
+	return ids
+}
+
 // skipWorkspaceDir hides install/build trees from the session file list
 // and from the chat's automatic HTML preview cards. An artifacts project
 // often lands node_modules next to bundle.html; listing those files would
-// drown the one page the UI should iframe.
+// drown the one page the UI should iframe. dist/ is kept — that's where
+// the built page usually lives.
 func skipWorkspaceDir(name string) bool {
 	switch name {
-	case "node_modules", "dist", ".git", ".parcel-cache", ".vite", "coverage":
+	case "node_modules", ".git", ".parcel-cache", ".vite", "coverage", "__pycache__", ".venv", "venv":
 		return true
 	default:
 		return false
 	}
+}
+
+func skipWorkspaceFile(name string) bool {
+	if isHarnessMeta(name) || strings.HasPrefix(name, ".") {
+		return true
+	}
+	switch strings.ToLower(name) {
+	case "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
+		"pnpm-workspace.yaml", "components.json",
+		"postcss.config.js", "postcss.config.cjs", "postcss.config.mjs",
+		"vite.config.ts", "vite.config.js",
+		"tsconfig.json", "tsconfig.app.json", "tsconfig.node.json":
+		return true
+	}
+	lower := strings.ToLower(name)
+	return strings.HasSuffix(lower, ".map") || strings.HasSuffix(lower, ".tsbuildinfo")
+}
+
+func skipWorkspaceRel(rel string) bool {
+	base := rel
+	if i := strings.LastIndex(rel, "/"); i >= 0 {
+		base = rel[i+1:]
+	}
+	if skipWorkspaceFile(base) {
+		return true
+	}
+	lower := strings.ToLower(rel)
+	if strings.Contains(lower, "/assets/") {
+		switch strings.ToLower(filepath.Ext(base)) {
+		case ".js", ".css", ".map":
+			return true
+		}
+	}
+	return false
 }
 
 func loadUploadSet(root string) map[string]struct{} {

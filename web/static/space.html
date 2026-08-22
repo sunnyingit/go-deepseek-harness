@@ -813,7 +813,7 @@
         });
         settingsBtn.addEventListener('click', function(e) {
             e.stopPropagation();
-            menu.classList.toggle('show');
+            window.location.href = '/settings.html';
         });
         menu.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -825,7 +825,7 @@
             }
             if (action === 'settings') {
                 menu.classList.remove('show');
-                showToast('设置即将推出', 'fa-cog');
+                window.location.href = '/settings.html';
             }
         });
         document.addEventListener('click', function() { menu.classList.remove('show'); });
