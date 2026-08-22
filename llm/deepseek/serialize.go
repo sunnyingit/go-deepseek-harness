@@ -125,36 +125,76 @@ func serializeAssistant(m agentloop.Message) wireMessage {
 }
 
 // serializeMessages serializes the conversation. tool-result blocks become
-// standalone {role: "tool"} messages; the harness puts each tool result in
-// its own user-role message, so a mixed user message contributes its text
-// first and its tool results as separate wire messages after.
+// standalone {role: "tool"} messages. DeepSeek (and the OpenAI tool-call
+// contract) require those to follow the assistant tool_calls immediately —
+// a later user retry must not land between them. Results are therefore
+// flushed right after the assistant turn that issued the call, even if the
+// harness log has a user message in between; leftover results (no matching
+// assistant call) still emit in place.
 func serializeMessages(messages []agentloop.Message) ([]wireMessage, error) {
+	resultsByID := collectToolResults(messages)
+	emitted := map[string]bool{}
 	var wire []wireMessage
 	for _, m := range messages {
 		switch m.Role {
 		case agentloop.RoleAssistant:
 			wire = append(wire, serializeAssistant(m))
-		case agentloop.RoleUser:
-			var toolResults []agentloop.ContentBlock
 			for _, b := range m.Content {
-				if b.Kind == agentloop.BlockToolResult {
-					toolResults = append(toolResults, b)
+				if b.Kind != agentloop.BlockToolCall || b.CallID == "" {
+					continue
+				}
+				content, ok := resultsByID[b.CallID]
+				if !ok {
+					content = fmt.Sprintf("Interrupted before this tool call's outcome was recorded (call: %s).", b.ToolName)
+				}
+				if content == "" {
+					content = "(no output)"
+				}
+				wire = append(wire, wireMessage{Role: "tool", ToolCallID: b.CallID, Content: content})
+				emitted[b.CallID] = true
+			}
+		case agentloop.RoleUser:
+			var leftover []agentloop.ContentBlock
+			hasToolResult := false
+			for _, b := range m.Content {
+				if b.Kind != agentloop.BlockToolResult {
+					continue
+				}
+				hasToolResult = true
+				if !emitted[b.CallID] {
+					leftover = append(leftover, b)
 				}
 			}
 			text := flattenText(m.Content)
-			if text != "" || len(toolResults) == 0 {
+			if text != "" || !hasToolResult {
 				wire = append(wire, wireMessage{Role: "user", Content: text})
 			}
-			for _, r := range toolResults {
+			for _, r := range leftover {
 				content := r.Text
 				if content == "" {
 					content = "(no output)" // empty tool output still needs SOME content on the wire
 				}
 				wire = append(wire, wireMessage{Role: "tool", ToolCallID: r.CallID, Content: content})
+				emitted[r.CallID] = true
 			}
 		default:
 			return nil, fmt.Errorf("deepseek: unsupported message role %q", m.Role)
 		}
 	}
 	return wire, nil
+}
+
+func collectToolResults(messages []agentloop.Message) map[string]string {
+	out := map[string]string{}
+	for _, m := range messages {
+		if m.Role != agentloop.RoleUser {
+			continue
+		}
+		for _, b := range m.Content {
+			if b.Kind == agentloop.BlockToolResult && b.CallID != "" {
+				out[b.CallID] = b.Text
+			}
+		}
+	}
+	return out
 }

@@ -56,6 +56,13 @@ type sessionDTO struct {
 	// has on disk — the sidebar uses it so a reopened chat isn't a blank
 	// conversation list with no hint that an xlsx/html was generated.
 	FileCount int `json:"fileCount,omitempty"`
+	// QuestionCount is user-authored turns on the surface (tool observations
+	// do not count). Personal space sums this across sessions.
+	QuestionCount int `json:"questionCount,omitempty"`
+	// TotalTokens is a heuristic of this session's current conversation
+	// surface — same 4-chars-per-token estimate as GET /sessions/{id}/tokens,
+	// not a billed API meter.
+	TotalTokens int `json:"totalTokens,omitempty"`
 	// CreatedAt is Unix epoch milliseconds — the sidebar sorts on this
 	// rather than the session id string, whose lexicographic order breaks
 	// once ids pass "session-9" -> "session-10".

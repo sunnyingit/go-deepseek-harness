@@ -155,7 +155,7 @@ const defaultUploadBytes int64 = 64 << 20
 
 func defaultConfig() config {
 	return config{
-		Model:               "deepseek-chat",
+		Model:               "deepseek-v4-pro",
 		Port:                8081,
 		ShutdownTimeout:     5 * time.Second,
 		StreamIdleTimeout:   deepseek.DefaultStreamIdleTimeout,

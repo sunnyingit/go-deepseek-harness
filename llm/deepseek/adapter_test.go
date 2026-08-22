@@ -186,6 +186,54 @@ func TestSerializeToolResultBecomesToolMessage(t *testing.T) {
 	}
 }
 
+func TestSerializeFlushesToolResultsBeforeLaterUser(t *testing.T) {
+	messages := []agentloop.Message{
+		{Role: agentloop.RoleAssistant, Content: []agentloop.ContentBlock{
+			{Kind: agentloop.BlockToolCall, CallID: "c1", ToolName: "write", Args: map[string]any{"file_path": "a.html"}},
+		}},
+		{Role: agentloop.RoleUser, Content: []agentloop.ContentBlock{
+			{Kind: agentloop.BlockText, Text: "retry this"},
+		}},
+		{Role: agentloop.RoleUser, Content: []agentloop.ContentBlock{
+			{Kind: agentloop.BlockToolResult, CallID: "c1", Text: "wrote ok"},
+		}},
+	}
+	wire, err := serializeMessages(messages)
+	if err != nil {
+		t.Fatalf("serializeMessages: %v", err)
+	}
+	if len(wire) < 3 {
+		t.Fatalf("wire = %+v, want assistant, tool, user", wire)
+	}
+	if wire[0].Role != "assistant" || len(wire[0].ToolCalls) != 1 {
+		t.Fatalf("wire[0] = %+v, want assistant with tool_calls", wire[0])
+	}
+	if wire[1].Role != "tool" || wire[1].ToolCallID != "c1" || wire[1].Content != "wrote ok" {
+		t.Fatalf("wire[1] = %+v, want the tool result immediately after the assistant", wire[1])
+	}
+	if wire[2].Role != "user" || wire[2].Content != "retry this" {
+		t.Fatalf("wire[2] = %+v, want the retry user text after the tool result", wire[2])
+	}
+}
+
+func TestSerializePadsMissingToolResult(t *testing.T) {
+	messages := []agentloop.Message{
+		{Role: agentloop.RoleAssistant, Content: []agentloop.ContentBlock{
+			{Kind: agentloop.BlockToolCall, CallID: "c1", ToolName: "write"},
+		}},
+		{Role: agentloop.RoleUser, Content: []agentloop.ContentBlock{
+			{Kind: agentloop.BlockText, Text: "retry"},
+		}},
+	}
+	wire, err := serializeMessages(messages)
+	if err != nil {
+		t.Fatalf("serializeMessages: %v", err)
+	}
+	if len(wire) != 3 || wire[1].Role != "tool" || wire[1].ToolCallID != "c1" {
+		t.Fatalf("wire = %+v, want a synthetic tool message before the retry", wire)
+	}
+}
+
 func TestSerializeEmptyToolResultUsesPlaceholder(t *testing.T) {
 	messages := []agentloop.Message{
 		{Role: agentloop.RoleUser, Content: []agentloop.ContentBlock{{Kind: agentloop.BlockToolResult, CallID: "c1", Text: ""}}},

@@ -496,6 +496,12 @@ func (a *Agent) turn(ctx context.Context) (cont bool, err error) {
 		stepNum := a.phase.step + 1
 		a.mu.Unlock()
 
+		// Close dangling tool_calls before this step's user text lands.
+		// Retry/Followup would otherwise insert a user message between an
+		// assistant tool_calls turn and its (missing) tool results — every
+		// chat-completion API rejects that shape.
+		session.CloseUnansweredToolCalls(a.session)
+
 		claimed := a.inbox.claim(target)
 		if a.hooks.PreStep != nil {
 			enter, rewritten := a.hooks.PreStep(ctx, a, turnNum, stepNum, claimed)
@@ -627,12 +633,16 @@ func (a *Agent) step(ctx context.Context, turn, stepNum int) (StepEndReason, err
 		a.session.Append("assistant/message", map[string]any{"turn": turn, "step": stepNum, "message": msg},
 			session.WithSurfaceOp(session.AppendOp()))
 
-		if maxTokens {
-			return StepMaxTokens, nil
-		}
-
+		// A length finish must not skip Action: the model often completes a
+		// write/bash tool call and only then hits the output cap. Returning
+		// here leaves unanswered tool_calls on the surface and poisons every
+		// later request. Execute first; only treat max-tokens as terminal
+		// when there was nothing to run.
 		calls := toolCallsIn(blocks)
 		if len(calls) == 0 {
+			if maxTokens {
+				return StepMaxTokens, nil
+			}
 			return StepCompleted, nil // no Action -> model gave a final answer
 		}
 

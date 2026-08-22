@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"go-harness/core/session"
 )
 
 // ---- test doubles ---------------------------------------------------------
@@ -351,6 +353,74 @@ func TestToolCallLoopsAcrossStepsWithinOneTurn(t *testing.T) {
 	}
 	if !foundObservation {
 		t.Fatalf("derived messages never carried the tool/result observation: %+v", session.DeriveMessages())
+	}
+}
+
+func TestMaxTokensWithToolCallStillExecutes(t *testing.T) {
+	sess := NewMemorySession()
+	call := ContentBlock{Kind: BlockToolCall, CallID: "c-write", ToolName: "write"}
+	llm := &scriptedLLM{responses: [][]StreamChunk{
+		{{Delta: ContentBlock{Kind: BlockText, Text: "writing"}}, {Delta: call, MaxTokens: true}},
+		{{Delta: ContentBlock{Kind: BlockText, Text: "done"}}},
+	}}
+	agent := NewAgent(sess, llm, echoTool{}, "sys", Hooks{})
+
+	agent.Followup(userMsg("write a page"))
+	agent.WhenIdle()
+
+	if llm.calls != 2 {
+		t.Fatalf("llm called %d times, want 2 (max-tokens tool call must still execute and continue)", llm.calls)
+	}
+	assertHasType(t, sess, "tool/call")
+	assertHasType(t, sess, "tool/result")
+	found := false
+	for _, m := range sess.DeriveMessages() {
+		for _, b := range m.Content {
+			if b.Kind == BlockToolResult && b.CallID == "c-write" && b.Text == "ok:write" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("tool result missing after a max-tokens tool-call step: %+v", sess.DeriveMessages())
+	}
+	if reason := turnEndReason(t, sess, 1); reason != "completed" {
+		t.Fatalf("turn/end reason = %q, want completed (tools ran, next step finished)", reason)
+	}
+}
+
+func TestFollowupClosesUnansweredToolCallsBeforeUserText(t *testing.T) {
+	sess := NewMemorySession()
+	sess.Append("assistant/message", map[string]any{
+		"turn": 1, "step": 1,
+		"message": Message{Role: RoleAssistant, Content: []ContentBlock{
+			{Kind: BlockToolCall, CallID: "dangling", ToolName: "write"},
+		}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+
+	llm := &scriptedLLM{responses: [][]StreamChunk{
+		{{Delta: ContentBlock{Kind: BlockText, Text: "ok from a repaired history"}}},
+	}}
+	agent := NewAgent(sess, llm, echoTool{}, "sys", Hooks{})
+	agent.Followup(userMsg("retry"))
+	agent.WhenIdle()
+
+	if llm.calls != 1 {
+		t.Fatalf("llm called %d times, want 1", llm.calls)
+	}
+	var sawResult, sawRetry bool
+	for _, m := range sess.DeriveMessages() {
+		for _, b := range m.Content {
+			if b.Kind == BlockToolResult && b.CallID == "dangling" {
+				sawResult = true
+			}
+			if b.Kind == BlockText && b.Text == "retry" {
+				sawRetry = true
+			}
+		}
+	}
+	if !sawResult || !sawRetry {
+		t.Fatalf("repaired history missing result or retry: result=%v retry=%v messages=%+v", sawResult, sawRetry, sess.DeriveMessages())
 	}
 }
 

@@ -23,7 +23,7 @@ func TestParseConfigYAMLUsesCheckedInDefaults(t *testing.T) {
 	if cfg.Port != 8081 || cfg.Addr != ":8081" {
 		t.Fatalf("port/addr = %d %q", cfg.Port, cfg.Addr)
 	}
-	if cfg.Model != "deepseek-chat" {
+	if cfg.Model != "deepseek-v4-pro" {
 		t.Fatalf("model = %q", cfg.Model)
 	}
 	if cfg.BashMode != sandbox.DangerFullAccess || !cfg.BashNetwork {

@@ -215,11 +215,50 @@ func lastTurnOutcome(events []session.Event) (reason, errMsg string) {
 		if !ok {
 			return "", ""
 		}
-		reason, _ = data["reason"].(string)
+		reason = turnReasonString(data["reason"])
 		errMsg, _ = data["error"].(string)
 		return reason, errMsg
 	}
 	return "", ""
+}
+
+// turnReasonString accepts both a plain string ("error"/"aborted") and
+// agentloop.StepEndReason ("max-tokens"/"completed"): turn() stores the
+// latter as a typed string, so a bare `.(string)` assertion misses it and
+// a length-capped turn would look like a clean completion.
+func turnReasonString(v any) string {
+	switch r := v.(type) {
+	case string:
+		return r
+	case agentloop.StepEndReason:
+		return string(r)
+	default:
+		return ""
+	}
+}
+
+// attachTurnOutcome copies the last turn/end reason onto the SSE done
+// payload. "error" and "max-tokens" both mark the turn failed: a length
+// finish looks like a completed turn to Agent.Status() ("idle") but the
+// last assistant message may still carry unanswered tool_calls, which
+// poisons every later request in this session.
+func attachTurnOutcome(doneData map[string]any, events []session.Event) {
+	reason, errMsg := lastTurnOutcome(events)
+	if reason == "" {
+		return
+	}
+	doneData["reason"] = reason
+	switch reason {
+	case "error":
+		if errMsg == "" {
+			errMsg = "the model request failed"
+		}
+		doneData["failed"] = true
+		doneData["errorMessage"] = errMsg
+	case "max-tokens":
+		doneData["failed"] = true
+		doneData["errorMessage"] = "本轮输出达到单次生成上限，内容被截断"
+	}
 }
 
 // handleStreamSession is the streaming counterpart to handlePostMessage: an
@@ -349,18 +388,12 @@ func (s *Server) handleStreamSession(w http.ResponseWriter, r *http.Request) {
 				emitFileEvents(w, workspaceRoot, filesBefore)
 				doneData := map[string]any{}
 				// Reaching idle isn't the same as succeeding: a model request
-				// that ran out of retries or a tool call that errored also
-				// ends the turn and reaches idle. Fold the real outcome into
-				// this same "done" payload (not a separate event type) so the
-				// client's one cleanup path always runs, but can render a
-				// failure instead of quietly reporting success.
-				if reason, errMsg := lastTurnOutcome(sess.Events()); reason == "error" {
-					if errMsg == "" {
-						errMsg = "the model request failed"
-					}
-					doneData["failed"] = true
-					doneData["errorMessage"] = errMsg
-				}
+				// that ran out of retries, a tool call that errored, or a
+				// max-tokens cut-off also ends the turn and reaches idle.
+				// Fold the real outcome into this same "done" payload so the
+				// client's one cleanup path can render a failure instead of
+				// quietly reporting success.
+				attachTurnOutcome(doneData, sess.Events())
 				if usage, ok := turnTokenUsage(sess, tokenHeader, tokensBefore); ok {
 					doneData["usage"] = usage
 				}
@@ -421,14 +454,24 @@ type displayPending struct {
 // one — except for display tools, which re-label the call as the frontend
 // MessageType (table/chart/…) instead of a generic tool-call, because the
 // whole point of those tools is the structured payload, not the fact a
-// tool ran. Event types not handled here (turn/start, turn/end, step/*,
+// tool ran. Most other event types (turn/start, turn/end, step/end,
 // user/message, assistant/message) carry no information the client needs
 // beyond what it already sees via the chunk/tool-call/tool-result stream —
 // assistant/message in particular is just the fully-assembled text the
-// chunks it already received sum to.
+// chunks it already received sum to. step/start is the one exception: it
+// carries no content either, but its (turn, step) is the exact boundary a
+// reconnecting client needs to tell "a step it already started painting is
+// being replayed from scratch" apart from "a new step is starting" — see
+// handleStreamSession's reconnect comment: a reconnect always resumes
+// exactly at the currently-open step's own step/start, re-sending
+// everything that step already produced.
 func writeStreamEvent(w http.ResponseWriter, ev session.Event, pending map[string]displayPending) {
 	data, _ := ev.Data.(map[string]any)
 	switch ev.Type {
+	case "step/start":
+		turn, _ := data["turn"].(int)
+		step, _ := data["step"].(int)
+		writeSSE(w, "step", map[string]any{"turn": turn, "step": step})
 	case "assistant/chunk":
 		block, ok := data["chunk"].(session.ContentBlock)
 		if !ok || block.Text == "" {
@@ -682,14 +725,19 @@ func (s *Server) sessionDTOFromHandle(id string, ag coreagent.Agent) sessionDTO 
 	if concrete, ok := ag.(*agentloop.Agent); ok {
 		active, _ = s.planController.Get(concrete)
 	}
+	sess := ag.Session()
 	dto := sessionDTO{
 		ID: id, CWD: header.CWD, ParentSession: string(header.ParentSession),
 		PlanModeActive: active, Status: ag.Status(),
-		Title:     sessionTitle(ag.Session()),
-		CreatedAt: header.CreatedAt,
+		Title:         sessionTitle(sess),
+		QuestionCount: sessionQuestionCount(sess),
+		CreatedAt:     header.CreatedAt,
 	}
 	if entries, err := listWorkspaceFiles(s.workspaceRoot(id)); err == nil {
 		dto.FileCount = len(entries)
+	}
+	if m, err := tokenmeter.New().Measure(sess, nil); err == nil {
+		dto.TotalTokens = m.TotalTokens
 	}
 	return dto
 }

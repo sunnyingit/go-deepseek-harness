@@ -69,7 +69,7 @@
         }
         .brand i {
             font-size: 15px;
-            color: #b85c32;
+            color: #f97316;
             background: none;
             padding: 0;
             border-radius: 0;
@@ -124,12 +124,12 @@
             border-radius: 50%;
             transition: 0.15s;
         }
-        .nav-right i:hover { background: #f0f2f6; color: #b85c32; }
+        .nav-right i:hover { background: #f0f2f6; color: #f97316; }
 
         .avatar {
             width: 38px;
             height: 38px;
-            background: linear-gradient(135deg, #b85c32, #c97a52);
+            background: linear-gradient(135deg, #f97316, #fb923c);
             border-radius: 40px;
             display: flex;
             align-items: center;
@@ -141,12 +141,12 @@
             transition: 0.2s;
             user-select: none;
         }
-        .avatar:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(184, 92, 50, 0.3); }
+        .avatar:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3); }
 
         /* ===== 主布局 ===== */
         .main-grid {
             display: grid;
-            grid-template-columns: 200px 1fr 0px;
+            grid-template-columns: 220px 1fr 0px;
             gap: 24px;
             flex: 1;
             min-height: 0;
@@ -156,7 +156,7 @@
         }
 
         .main-grid.panel-open {
-            grid-template-columns: 30% minmax(0, 1fr) 420px;
+            grid-template-columns: 220px minmax(0, 1fr) minmax(0, 1fr);
         }
 
         /* ===== 左侧边栏 ===== */
@@ -165,7 +165,9 @@
             flex-direction: column;
             gap: 20px;
             min-height: 0;
+            width: 220px;
             overflow: hidden;
+            flex-shrink: 0;
         }
 
         .user-card {
@@ -180,7 +182,7 @@
             cursor: pointer;
             border-radius: 12px;
         }
-        .user-card:hover { background: rgba(184, 92, 50, 0.04); }
+        .user-card:hover { background: rgba(249, 115, 22, 0.04); }
         .user-card .avatar {
             width: 32px;
             height: 32px;
@@ -219,7 +221,7 @@
             align-items: center;
             justify-content: center;
         }
-        .user-settings:hover { background: #eef1f6; color: #b85c32; }
+        .user-settings:hover { background: #eef1f6; color: #f97316; }
         .user-menu {
             position: absolute;
             left: 0;
@@ -248,7 +250,7 @@
             cursor: pointer;
             text-align: left;
         }
-        .user-menu button:hover { background: #f3eee8; color: #b85c32; }
+        .user-menu button:hover { background: #fff7ed; color: #f97316; }
         .user-menu button i { width: 14px; font-size: 12px; color: inherit; }
 
         .side-nav {
@@ -279,9 +281,9 @@
             transition: 0.15s;
             user-select: none;
         }
-        .quick-item:hover { background: rgba(184,92,50,0.06); }
+        .quick-item:hover { background: rgba(249,115,22,0.06); }
         .quick-item.active { background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-        .quick-item.active i { color: #b85c32; }
+        .quick-item.active i { color: #f97316; }
         .quick-item i { width: 20px; color: #4f5b6b; font-size: 16px; }
 
         .history-panel {
@@ -324,8 +326,8 @@
             transition: 0.1s;
         }
         .history-item:hover { background: #eef1f6; }
-        .history-item.active { background: #f3eee8; color: #b85c32; font-weight: 500; }
-        .history-item i { width: 16px; font-size: 13px; color: #b85c32; }
+        .history-item.active { background: #fff7ed; color: #f97316; font-weight: 500; }
+        .history-item i { width: 16px; font-size: 13px; color: #f97316; }
         .history-item .label {
             overflow: hidden;
             text-overflow: ellipsis;
@@ -378,7 +380,7 @@
             font-weight: 600;
             color: #0b1a33;
         }
-        .chat-header .chat-title i { color: #b85c32; }
+        .chat-header .chat-title i { color: #f97316; }
         .chat-header .chat-usage {
             font-size: 12px;
             font-weight: 500;
@@ -410,7 +412,7 @@
             cursor: pointer;
             transition: 0.15s;
         }
-        .chat-header .chat-actions button:hover { background: #eef1f6; color: #b85c32; }
+        .chat-header .chat-actions button:hover { background: #eef1f6; color: #f97316; }
 
         /* 消息容器 */
         .messages-container {
@@ -439,7 +441,7 @@
 
         .message.user { flex-direction: row-reverse; }
         .message.user .msg-avatar { background: #8d5a3c; }
-        .message.assistant .msg-avatar { background: #b85c32; }
+        .message.assistant .msg-avatar { background: #f97316; }
         .message.system .msg-avatar { background: #8a95a8; }
 
         .msg-avatar {
@@ -493,10 +495,10 @@
         .message.user .msg-bubble .msg-text { color: #2f2a26; }
 
         .msg-bubble .msg-text .highlight {
-            background: #f3eee8;
+            background: #fff7ed;
             padding: 1px 6px;
             border-radius: 4px;
-            color: #b85c32;
+            color: #f97316;
             font-weight: 500;
         }
         .message.user .msg-bubble .msg-text .highlight {
@@ -531,8 +533,8 @@
         }
         .msg-action-btn i { font-size: 11px; }
         .msg-action-btn:hover {
-            background: #f3eee8;
-            color: #b85c32;
+            background: #fff7ed;
+            color: #f97316;
         }
         .msg-action-btn:active {
             transform: scale(0.97);
@@ -642,17 +644,17 @@
             background: #f8f9fc;
             border-radius: 8px;
             margin: 6px 0;
-            border-left: 3px solid #b85c32;
+            border-left: 3px solid #f97316;
         }
         .msg-text .thinking-process summary {
             padding: 8px 14px;
             cursor: pointer;
             font-weight: 500;
-            color: #b85c32;
+            color: #f97316;
             user-select: none;
         }
         .msg-text .thinking-process summary:hover {
-            background: rgba(184,92,50,0.05);
+            background: rgba(249,115,22,0.05);
         }
         .msg-text .thinking-process .thinking-steps {
             padding: 4px 14px 12px;
@@ -669,7 +671,7 @@
             font-size: 14px;
         }
         .msg-text .thinking-process .step .step-icon.done { color: #20c997; }
-        .msg-text .thinking-process .step .step-icon.active { color: #b85c32; animation: spin 1s linear infinite; }
+        .msg-text .thinking-process .step .step-icon.active { color: #f97316; animation: spin 1s linear infinite; }
         .msg-text .thinking-process .step .step-icon.pending { color: #d0d5dd; }
         .msg-text .thinking-process .step .step-icon.error { color: #e8684a; }
 
@@ -683,10 +685,10 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            color: #b85c32;
+            color: #f97316;
             cursor: pointer;
             padding: 4px 10px;
-            background: #f3eee8;
+            background: #fff7ed;
             border-radius: 8px;
             font-weight: 500;
             font-size: 13px;
@@ -749,7 +751,7 @@
         }
         .msg-text .progress-bar .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #b85c32, #c97a52);
+            background: linear-gradient(90deg, #f97316, #fb923c);
             border-radius: 8px;
             transition: width 0.3s ease;
         }
@@ -800,21 +802,21 @@
         .msg-text .md-stream h3 { font-size: 1.05em; }
         .msg-text .md-stream ul, .msg-text .md-stream ol { margin: 0.35em 0 0.35em 1.2em; padding: 0; }
         .msg-text .md-stream li { margin: 0.15em 0; }
-        .msg-text .md-stream a { color: #b85c32; }
+        .msg-text .md-stream a { color: #f97316; }
         .msg-text .md-stream .md-table-wrap { margin: 0.7em 0; }
         .msg-text .md-stream .md-inline {
-            background: #f3eee8;
+            background: #fff7ed;
             padding: 1px 6px;
             border-radius: 4px;
             font-family: 'Courier New', monospace;
             font-size: 0.92em;
-            color: #b85c32;
+            color: #f97316;
         }
         .stream-caret {
             display: inline-block;
             width: 7px;
             height: 1.05em;
-            background: #b85c32;
+            background: #f97316;
             margin-left: 2px;
             border-radius: 1px;
             vertical-align: text-bottom;
@@ -844,7 +846,7 @@
             user-select: none;
         }
         .msg-text .tool-block summary::-webkit-details-marker { display: none; }
-        .msg-text .tool-block summary:hover { background: rgba(184,92,50,0.04); }
+        .msg-text .tool-block summary:hover { background: rgba(249,115,22,0.04); }
         .msg-text .tool-block .tool-chevron {
             color: #8a95a8;
             font-size: 11px;
@@ -871,9 +873,9 @@
             gap: 6px;
         }
         .msg-text .tool-block.is-running {
-            border-color: rgba(184, 92, 50, 0.28);
+            border-color: rgba(249, 115, 22, 0.28);
         }
-        .msg-text .tool-block .tool-badge.running { color: #b85c32; }
+        .msg-text .tool-block .tool-badge.running { color: #f97316; }
         .msg-text .tool-block .tool-badge.running .tool-spin {
             animation: spin 0.9s linear infinite;
             font-size: 12px;
@@ -895,7 +897,7 @@
             height: 100%;
             width: 36%;
             border-radius: 2px;
-            background: linear-gradient(90deg, #b85c32, #c97a52);
+            background: linear-gradient(90deg, #f97316, #fb923c);
             animation: toolSweep 1.25s ease-in-out infinite;
         }
         @keyframes toolPulse {
@@ -964,10 +966,10 @@
             border-radius: 16px;
             padding: 3px 10px;
             font-size: 12px;
-            color: #b85c32;
+            color: #f97316;
             cursor: pointer;
         }
-        .msg-text .html-preview .html-preview-bar button:hover { background: #f3eee8; }
+        .msg-text .html-preview .html-preview-bar button:hover { background: #fff7ed; }
         .msg-text .html-preview iframe {
             width: 100%;
             height: 520px;
@@ -1038,7 +1040,7 @@
             flex-shrink: 0;
             transition: 0.15s;
         }
-        .input-area:focus-within { border-color: #b85c32; box-shadow: 0 0 0 3px rgba(184,92,50,0.06); }
+        .input-area:focus-within { border-color: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.06); }
 
         .input-area input {
             flex: 1;
@@ -1092,7 +1094,7 @@
             align-items: center;
             gap: 8px;
             max-width: 100%;
-            background: #f3eee8;
+            background: #fff7ed;
             border: 1px solid #e6d9cc;
             border-radius: 14px;
             padding: 6px 8px 6px 10px;
@@ -1101,7 +1103,7 @@
             line-height: 1.3;
             cursor: pointer;
         }
-        .attach-chip i.kind { color: #b85c32; font-size: 14px; }
+        .attach-chip i.kind { color: #f97316; font-size: 14px; }
         .attach-chip .meta { min-width: 0; display: flex; flex-direction: column; }
         .attach-chip .name {
             font-weight: 600;
@@ -1128,8 +1130,8 @@
         }
         .attach-remove:hover { background: #e4eaf3; color: #0b1a33; }
         .input-area.drag-over {
-            border-color: #b85c32;
-            box-shadow: 0 0 0 3px rgba(184,92,50,0.12);
+            border-color: #f97316;
+            box-shadow: 0 0 0 3px rgba(249,115,22,0.12);
         }
 
         .input-actions {
@@ -1154,14 +1156,14 @@
         .input-actions button:hover { background: #f0f2f6; }
         .input-actions button i { font-size: 14px; color: #5f6c80; }
         .input-actions .primary-btn {
-            background: #b85c32;
+            background: #f97316;
             color: white;
             padding: 8px 18px;
             border-radius: 40px;
             font-weight: 500;
-            box-shadow: 0 2px 8px rgba(184,92,50,0.15);
+            box-shadow: 0 2px 8px rgba(249,115,22,0.15);
         }
-        .input-actions .primary-btn:hover { background: #8f4624; transform: scale(1.02); }
+        .input-actions .primary-btn:hover { background: #ea580c; transform: scale(1.02); }
         .input-actions .primary-btn i { color: white; }
         .input-actions .stop-btn {
             background: #e8684a;
@@ -1266,7 +1268,7 @@
             color: #0b1a33;
         }
         .preview-card .preview-header .preview-title i {
-            color: #b85c32;
+            color: #f97316;
             font-size: 18px;
         }
         .preview-card .preview-close {
@@ -1319,8 +1321,8 @@
             text-align: left;
         }
         .preview-card .preview-body .csv-table th {
-            background: #f3eee8;
-            color: #b85c32;
+            background: #fff7ed;
+            color: #f97316;
             font-weight: 600;
             position: sticky;
             top: 0;
@@ -1346,10 +1348,10 @@
             gap: 6px;
         }
         .preview-card .preview-actions .btn-primary {
-            background: #b85c32;
+            background: #f97316;
             color: white;
         }
-        .preview-card .preview-actions .btn-primary:hover { background: #8f4624; transform: scale(1.02); }
+        .preview-card .preview-actions .btn-primary:hover { background: #ea580c; transform: scale(1.02); }
         .preview-card .preview-actions .btn-secondary {
             background: #f0f2f6;
             color: #3c4a5e;
@@ -1381,18 +1383,6 @@
         .toast i { font-size: 16px; }
 
         /* ===== 响应式 ===== */
-        @media (max-width: 1200px) {
-            .main-grid.panel-open {
-                grid-template-columns: 30% minmax(0, 1fr) 340px;
-            }
-        }
-
-        @media (max-width: 1000px) {
-            .main-grid.panel-open {
-                grid-template-columns: 30% minmax(0, 1fr) 300px;
-            }
-        }
-
         @media (max-width: 900px) {
             .main-grid { grid-template-columns: 1fr; gap: 20px; }
             .main-grid.panel-open { grid-template-columns: 1fr; }
@@ -1825,7 +1815,7 @@
             const ns = 'http://www.w3.org/2000/svg';
             const labels = Array.isArray(data.labels) ? data.labels.map(String) : [];
             const series = Array.isArray(data.series) ? data.series : [];
-            const palette = ['#b85c32', '#8f4624', '#20c997', '#e8684a', '#f5a623', '#4f5b6b'];
+            const palette = ['#f97316', '#ea580c', '#20c997', '#e8684a', '#f5a623', '#4f5b6b'];
             const svg = document.createElementNS(ns, 'svg');
             svg.setAttribute('viewBox', '0 0 420 220');
             svg.setAttribute('role', 'img');
@@ -2149,8 +2139,11 @@
                     this.ensureMdStream();
                     this.streamEl._raw = (this.streamEl._raw || '') + this.textQueue;
                     this.textQueue = '';
-                    this.paintMarkdown(false);
                 }
+                // Always drop the caret here: a tool-call/result flush often
+                // has an empty queue, and the previous paintMarkdown(true)
+                // would otherwise leave a blinking mark after the tool ends.
+                if (this.streamEl) this.paintMarkdown(false);
             }
 
             paintMarkdown(showCaret) {
@@ -2614,7 +2607,7 @@
                         // stillRunning：8 秒内没等到服务端真正确认停止，独占型工具
                         // 调用中途是不会被打断的（见 shell/toolbash），所以老实说明
                         // 可能还在后台继续，而不是显示一个可能是假的"已停止"——回到
-                        // 这个会话时 resumeIfRunning 会自动把结果接上。failed：turn
+                        // 这个会话时会自动把结果接上。failed：turn
                         // 真的以出错收尾（模型请求重试耗尽、工具调用出错等），不是
                         // 连接层面的问题——连接层面的断线由 startRealStream 自己的
                         // 重连逻辑处理，不会走到这里。
@@ -2627,19 +2620,7 @@
                     if (data.failed) {
                         const textEl = msgEl.querySelector('.msg-text');
                         if (textEl) {
-                            const wrap = document.createElement('div');
-                            wrap.style.cssText = 'background:#fef0ee;border-radius:8px;padding:10px 14px;border-left:3px solid #e8684a;margin:4px 0;';
-                            const title = document.createElement('div');
-                            title.style.cssText = 'font-weight:600;color:#e8684a;';
-                            title.textContent = '❌ 本轮生成失败';
-                            wrap.appendChild(title);
-                            if (data.errorMessage) {
-                                const details = document.createElement('div');
-                                details.style.cssText = 'font-size:13px;color:#6b7a8f;margin-top:4px;word-break:break-word;';
-                                details.textContent = data.errorMessage;
-                                wrap.appendChild(details);
-                            }
-                            textEl.appendChild(wrap);
+                            textEl.appendChild(buildTurnFailureCard(data));
                         }
                     }
                     paintMessageUsage(msgEl, data.usage, durationMs);
@@ -2657,11 +2638,16 @@
                     }
                     const bubble = msgEl.querySelector('.msg-bubble');
                     const textEl = bubble ? bubble.querySelector('.msg-text') : null;
-                    addMessageActions(bubble, {
+                    const actions = {
                         getCopyText: () => textEl ? textEl.textContent : '',
-                        getRetryText: () => precedingUserText(msgEl),
-                        retryLabel: '重新生成',
-                    });
+                    };
+                    // 输出被截断、或历史里已经有未回复的 tool_calls 时，重试只会
+                    // 再发同一段非法前缀，不会修好。引导开新会话，不要再给重试。
+                    if (!needsNewSession(data)) {
+                        actions.getRetryText = () => precedingUserText(msgEl);
+                        actions.retryLabel = '重新生成';
+                    }
+                    addMessageActions(bubble, actions);
                 }
                 this.currentMessageEl = null;
                 this.streamEl = null;
@@ -2691,7 +2677,7 @@
                 }
                 if (data.suggestion) {
                     const hint = document.createElement('div');
-                    hint.style.cssText = 'font-size:13px;color:#b85c32;margin-top:4px;';
+                    hint.style.cssText = 'font-size:13px;color:#f97316;margin-top:4px;';
                     hint.textContent = '💡 ' + data.suggestion;
                     wrap.appendChild(hint);
                 }
@@ -3010,6 +2996,55 @@
         //一轮，没有"就地重新生成、替换上一条"的概念，所以老老实实建一条新消息
         // 更诚实，不假装能做到原地替换）。
         // ============================================================
+        // max-tokens 是「这一次模型回复」的输出上限，不是整段对话的上下文。
+        // 截断时若已写出 tool_calls 却没执行，后续请求会被 DeepSeek 直接拒掉；
+        // 那种错误文案里带 tool_call_id / insufficient tool messages。
+        function needsNewSession(data) {
+            data = data || {};
+            const msg = String(data.errorMessage || data.message || data.details || '');
+            return /insufficient tool messages|tool_call_id|must be followed by tool/i.test(msg);
+        }
+
+        function startNewSessionFromChat() {
+            window.location.href = '/';
+        }
+
+        function buildTurnFailureCard(data) {
+            data = data || {};
+            const stuck = needsNewSession(data);
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'background:#fef0ee;border-radius:8px;padding:10px 14px;border-left:3px solid #e8684a;margin:4px 0;';
+            const title = document.createElement('div');
+            title.style.cssText = 'font-weight:600;color:#e8684a;';
+            title.textContent = data.reason === 'max-tokens'
+                ? '❌ 本轮输出被截断'
+                : '❌ 本轮生成失败';
+            wrap.appendChild(title);
+            const details = document.createElement('div');
+            details.style.cssText = 'font-size:13px;color:#6b7a8f;margin-top:4px;word-break:break-word;';
+            if (data.reason === 'max-tokens') {
+                details.textContent = '单次模型回复写到输出上限就停了（不是整段对话爆了）。可以继续说，或把页面写短一点再试。';
+            } else if (stuck) {
+                details.textContent = '上一次回复留下了未完成的工具调用，当前会话无法继续。重试不会成功。';
+            } else if (data.errorMessage) {
+                details.textContent = data.errorMessage;
+            }
+            if (details.textContent) wrap.appendChild(details);
+            if (stuck) {
+                const hint = document.createElement('div');
+                hint.style.cssText = 'font-size:13px;color:#f97316;margin-top:8px;';
+                hint.textContent = '请开启一个新会话再试。';
+                wrap.appendChild(hint);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = '开启新会话';
+                btn.style.cssText = 'margin-top:10px;padding:6px 12px;border:0;border-radius:8px;background:#e8684a;color:#fff;font-size:13px;cursor:pointer;';
+                btn.addEventListener('click', startNewSessionFromChat);
+                wrap.appendChild(btn);
+            }
+            return wrap;
+        }
+
         function retryFromText(text) {
             if (!currentSessionId) {
                 showToast('❌ 缺少会话信息', 'fa-exclamation-circle');
@@ -3140,6 +3175,15 @@
         // startRealStream，函数内部的局部变量活不过这一次调用。
         let streamReconnectAttempts = 0;
         const MAX_STREAM_RECONNECT_ATTEMPTS = 3;
+        // 一个 (turn, step) 第一次开始时，气泡（.msg-text）里已经有几个子节点——
+        // 断线重连时服务端会把还没跑完的那个 step 从它自己的 step/start 完整
+        // 重放一遍（这次连接断线前已经画出来的那部分也在内），所以需要一个
+        // 水位线：同一个 (turn, step) 第二次出现（=重放，不是真的推进到下一个
+        // step）就把气泡截回这条线，不然重放的内容会跟断线前画好的叠在一起。
+        // 记在函数外面、按 turn/step 为 key 而不是每次 startRealStream 都清空，
+        // 是因为同一个还没跑完的 step 可能要经历好几轮断线重连。只在真正开始
+        // 新一轮（text 非空）时清掉，避免无限增长。
+        let stepCheckpoints = new Map();
         // 静默失联判定阈值——留出比服务端 8s 心跳周期更长的余量（能容忍漏掉
         // 一拍），太短容易在网络抖一下的时候就误判。
         const STREAM_STALL_TIMEOUT_MS = 20000;
@@ -3266,13 +3310,22 @@
                 });
             });
             protocolHandler.reset();
+        }
 
-            // 历史消息走的是 dispatch()，不经过 finishStream()（那个只在真实
-            // 流式的一轮结束时跑），所以助手气泡的复制/重试按钮要在这里单独补
-            // 上一遍。用户消息不放这两个按钮。
-            container.querySelectorAll('.message.assistant .msg-bubble').forEach(bubble => {
-                const msgEl = bubble.closest('.message');
-                const textEl = bubble.querySelector('.msg-text');
+        function stripMessageActions(msgEl) {
+            const actions = msgEl && msgEl.querySelector('.msg-actions');
+            if (actions) actions.remove();
+        }
+
+        // 只给已经结束的助手气泡补复制/重试。进行中的最后一条不要挂，
+        // 等 finishStream 整轮收尾再加。
+        function attachAssistantMessageActions(opts) {
+            const skipLast = opts && opts.skipLast;
+            const items = [...container.querySelectorAll('.message.assistant')];
+            items.forEach((msgEl, i) => {
+                if (skipLast && i === items.length - 1) return;
+                const bubble = msgEl.querySelector('.msg-bubble');
+                const textEl = bubble && bubble.querySelector('.msg-text');
                 addMessageActions(bubble, {
                     getCopyText: () => textEl ? textEl.textContent : '',
                     getRetryText: () => precedingUserText(msgEl),
@@ -3345,9 +3398,22 @@
             streamClosing = false;
             streamCancelled = false;
             streamStartedAt = Date.now();
+            // 真正的新一轮（不是重连）——上一轮留下的水位线不再有意义。
+            if (text) stepCheckpoints = new Map();
             protocolHandler.reset();
             protocolHandler.isStreaming = true;
             protocolHandler.stickToBottom = true;
+            // 空 text = 只看不发（切走再回来 / 断线重连）。接到最后一条助手
+            // 气泡上继续画，不要新开一条，也不要在进行中露出复制/重试。
+            if (!text) {
+                const lastMsg = container.lastElementChild;
+                if (lastMsg && lastMsg.classList.contains('message') && lastMsg.classList.contains('assistant')) {
+                    stripMessageActions(lastMsg);
+                    protocolHandler.currentMessageEl = lastMsg;
+                    const meta = lastMsg.querySelector('.msg-meta');
+                    if (meta) meta.textContent = 'WorkBuddy AI · 生成中...';
+                }
+            }
             protocolHandler.showWaiting();
             setComposerMode('streaming');
             const es = new EventSource(`/sessions/${encodeURIComponent(sessionId)}/stream?text=${encodeURIComponent(text)}`);
@@ -3496,7 +3562,7 @@
                 // 中途是不会被打断的（见 shell/toolbash 的说明），服务端这时候
                 // 可能还没真正停下来。问一下真实状态，而不是想当然地告诉用户
                 // "已经停了"：真跑完了就正常收尾，还在跑就老实说明，不显示一个
-                // 可能是假的"已停止"（回到这个会话时 resumeIfRunning 会自动接上）。
+                // 可能是假的"已停止"（回到这个会话时会自动接上）。
                 let stillRunning = false;
                 try {
                     const res = await fetch(`/sessions/${encodeURIComponent(currentSessionId)}`);
@@ -3887,6 +3953,7 @@
             if (text) {
                 const titleEl = document.getElementById('chatTitleText');
                 if (titleEl) titleEl.textContent = text;
+                attachAssistantMessageActions();
                 addUserMessage(text, incomingFiles);
                 startRealStream(sessionId, wrapSkillForAgent(text, selectedSkill));
             } else {
@@ -3902,24 +3969,25 @@
                 // handleStreamSession) to pick the rest of it up live rather
                 // than leaving the user staring at a stale transcript with
                 // no sign anything is still happening.
-                await resumeIfRunning(sessionId);
+                const running = await sessionIsRunning(sessionId);
+                attachAssistantMessageActions({ skipLast: running });
+                if (running) {
+                    showToast('🔄 该会话仍在生成中，正在接上进度…', 'fa-spinner');
+                    startRealStream(sessionId, '');
+                }
             }
 
             document.getElementById('chatInput').focus();
         }
 
-        async function resumeIfRunning(sessionId) {
+        async function sessionIsRunning(sessionId) {
             try {
                 const res = await fetch(`/sessions/${encodeURIComponent(sessionId)}`);
-                if (!res.ok) return;
+                if (!res.ok) return false;
                 const info = await res.json();
-                if (info.status === 'running') {
-                    showToast('🔄 该会话仍在生成中，正在接上进度…', 'fa-spinner');
-                    startRealStream(sessionId, '');
-                }
+                return info.status === 'running';
             } catch (e) {
-                // Resume-check failures shouldn't block normal page display —
-                // the static history already rendered above is still valid.
+                return false;
             }
         }
         init();

@@ -443,6 +443,8 @@
                         </div>
                     </div>
                     <div class="space-stats">
+                        <div class="stat-pill" title="你在各会话里发出的提问次数"><span>提问</span><strong id="statQuestions">0</strong></div>
+                        <div class="stat-pill" title="当前对话内容的估算用量（约 4 字/Token，非账单）"><span>Token</span><strong id="statTokens">0</strong></div>
                         <div class="stat-pill"><span>上传</span><strong id="statUpload">0</strong></div>
                         <div class="stat-pill"><span>生成</span><strong id="statGen">0</strong></div>
                         <div class="stat-pill"><span>占用</span><strong id="statSize">0</strong></div>
@@ -550,6 +552,23 @@
         if (bytes < 1024) return `${bytes} B`;
         if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
         return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    }
+    function formatTokens(n) {
+        const v = Number(n);
+        if (!Number.isFinite(v) || v <= 0) return '0';
+        return Math.round(v).toLocaleString('zh-CN');
+    }
+
+    let spaceUsage = { questions: null, tokens: null, files: null };
+    function paintSpaceSummary() {
+        const parts = ['felicex@gmail.com'];
+        if (spaceUsage.questions != null) parts.push(`${spaceUsage.questions} 个问题`);
+        if (spaceUsage.tokens != null) parts.push(`${formatTokens(spaceUsage.tokens)} Token`);
+        if (spaceUsage.files != null) parts.push(`${spaceUsage.files} 个文件`);
+        document.getElementById('spaceSummary').textContent =
+            spaceUsage.questions == null && spaceUsage.files == null
+                ? 'felicex@gmail.com · 加载中…'
+                : parts.join(' · ');
     }
     function timeAgo(iso) {
         const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -661,8 +680,8 @@
         document.getElementById('statUpload').textContent = String(uploads.length);
         document.getElementById('statGen').textContent = String(generated.length);
         document.getElementById('statSize').textContent = formatSize(totalBytes);
-        document.getElementById('spaceSummary').textContent =
-            `felicex@gmail.com · ${allFiles.length} 个文件`;
+        spaceUsage.files = allFiles.length;
+        paintSpaceSummary();
         renderLists();
         if (currentFile && !allFiles.some(f => fileKey(f) === fileKey(currentFile))) {
             closePreview();
@@ -831,9 +850,20 @@
         document.addEventListener('click', function() { menu.classList.remove('show'); });
     })();
 
+    function paintUsage(sessions) {
+        const questions = (sessions || []).reduce((sum, s) => sum + (Number(s.questionCount) || 0), 0);
+        const tokens = (sessions || []).reduce((sum, s) => sum + (Number(s.totalTokens) || 0), 0);
+        document.getElementById('statQuestions').textContent = String(questions);
+        document.getElementById('statTokens').textContent = formatTokens(tokens);
+        spaceUsage.questions = questions;
+        spaceUsage.tokens = tokens;
+        paintSpaceSummary();
+    }
+
     async function refreshHistory() {
         const list = document.getElementById('historyList');
         const sessions = await api('/sessions');
+        paintUsage(sessions);
         list.innerHTML = '';
         if (!sessions.length) {
             list.innerHTML = '<div class="history-empty">暂无对话</div>';

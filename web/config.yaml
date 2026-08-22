@@ -13,14 +13,14 @@ llm:
   api_key: "sk-fe1f2cbbba6740e58de3f7be1f5f6f9a"
   # 空则用 https://api.deepseek.com，或 DEEPSEEK_BASE_URL
   base_url: ""
-  model: deepseek-chat
+  model: deepseek-v4-pro
   stream_idle_timeout: 10m
   # TCP 建连；0 或不写 = 30s（与 Go 默认 Transport 一致）
   connect_timeout: 100s
   # TLS 握手；0 或不写 = 10s
   tls_handshake_timeout: 100s
-  # 空 = 走 DeepSeek 默认 thinking；设为 disabled 可关掉
-  thinking: ""
+  # 空 = 走 DeepSeek 默认 thinking；disabled = 关闭思考模式
+  thinking: disabled
   max_tokens: 0
   # 省略或 null = 不传 temperature
   temperature: null

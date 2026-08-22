@@ -48,6 +48,36 @@ func sessionTitle(sess *session.Session) string {
 	return ""
 }
 
+// sessionQuestionCount is how many user-authored turns are on the surface.
+// Tool-result-only user messages (observations) do not count — those are
+// not questions the user asked.
+func sessionQuestionCount(sess *session.Session) int {
+	if sess == nil {
+		return 0
+	}
+	n := 0
+	for _, m := range sess.DeriveMessages() {
+		if m.Role != session.RoleUser {
+			continue
+		}
+		hasText := false
+		onlyToolResults := true
+		for _, b := range m.Content {
+			if b.Kind == session.BlockToolResult {
+				continue
+			}
+			onlyToolResults = false
+			if b.Kind == session.BlockText && strings.TrimSpace(b.Text) != "" {
+				hasText = true
+			}
+		}
+		if !onlyToolResults && hasText {
+			n++
+		}
+	}
+	return n
+}
+
 func stripSkillWrap(text string) string {
 	return strings.TrimSpace(skillWrapRe.ReplaceAllString(text, ""))
 }

@@ -199,6 +199,82 @@
             color: #f97316;
         }
 
+        /* 梵高画下面：小巫女骑扫帚慢慢飞来飞去。 */
+        .witch-sky {
+            position: relative;
+            width: min(460px, 100%);
+            height: 72px;
+            margin-top: 18px;
+            overflow: visible;
+        }
+        .witch-fly {
+            position: absolute;
+            top: 4px;
+            left: 0;
+            width: 124px;
+            height: 64px;
+            padding: 0;
+            border: none;
+            background: none;
+            cursor: pointer;
+            overflow: visible;
+            -webkit-tap-highlight-color: transparent;
+            animation: witch-cruise 22s ease-in-out infinite;
+        }
+        .witch-fly:focus-visible { outline: none; }
+        .witch-fly-stage {
+            width: 124px;
+            height: 64px;
+            transform-origin: 50% 60%;
+            animation: witch-bob 2.8s ease-in-out infinite;
+            filter: drop-shadow(0 6px 6px rgba(88, 28, 135, 0.16));
+        }
+        .witch-fly:hover,
+        .witch-fly:focus-visible {
+            animation-play-state: paused;
+        }
+        .witch-fly:hover .witch-fly-stage,
+        .witch-fly:focus-visible .witch-fly-stage {
+            animation-play-state: paused;
+            transform: translateY(-4px) scale(1.08);
+        }
+        .witch-fly.is-summon {
+            animation: witch-summon 0.5s ease-in forwards;
+        }
+        .witch-fly .witch-blink {
+            transform-origin: 86px 28px;
+            animation: witch-blink 5.2s ease-in-out infinite;
+        }
+        .witch-fly .witch-star {
+            animation: witch-twinkle 2.4s ease-in-out infinite;
+        }
+        .witch-fly .witch-spark {
+            animation: witch-twinkle 1.8s ease-in-out infinite 0.4s;
+        }
+        @keyframes witch-cruise {
+            0% { left: 0; transform: translateX(0) scaleX(1); }
+            46% { left: 100%; transform: translateX(-100%) scaleX(1); }
+            50% { left: 100%; transform: translateX(-100%) scaleX(-1); }
+            96% { left: 0; transform: translateX(0) scaleX(-1); }
+            100% { left: 0; transform: translateX(0) scaleX(1); }
+        }
+        @keyframes witch-bob {
+            0%, 100% { transform: translateY(5px) rotate(-7deg); }
+            50% { transform: translateY(-6px) rotate(-2deg); }
+        }
+        @keyframes witch-blink {
+            0%, 86%, 94%, 100% { transform: scaleY(1); }
+            90% { transform: scaleY(0.12); }
+        }
+        @keyframes witch-twinkle {
+            0%, 100% { opacity: 0.25; }
+            50% { opacity: 1; }
+        }
+        @keyframes witch-summon {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-28px) scale(0.7); }
+        }
+
         .avatar {
             width: 38px;
             height: 38px;
@@ -661,6 +737,55 @@
 
         .skill-badge i {
             font-size: 14px;
+        }
+        .skill-badge .mode-caret {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-left: 2px;
+        }
+
+        .mode-picker {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .mode-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 220px;
+            background: #fff;
+            border: 1px solid #eef1f6;
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(15, 30, 50, 0.12);
+            padding: 6px;
+            display: none;
+            z-index: 20;
+        }
+        .mode-menu.show { display: block; }
+        .mode-menu button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #1c2a44;
+            cursor: pointer;
+            text-align: left;
+        }
+        .mode-menu button:hover { background: #fff7ed; color: #f97316; }
+        .mode-menu button.active { background: #fff7ed; color: #f97316; font-weight: 500; }
+        .mode-menu button.soon { color: #8f9cae; cursor: default; }
+        .mode-menu button.soon:hover { background: #f6f8fb; color: #8f9cae; }
+        .mode-menu button i { width: 14px; font-size: 12px; color: inherit; }
+        .mode-menu .soon-tag {
+            margin-left: auto;
+            font-size: 11px;
+            color: #b0bac8;
+            font-weight: 400;
         }
 
         .tool-grid {
@@ -1425,15 +1550,25 @@
                     <h2>今天帮你做些什么？</h2>
                     <p id="hintText">纯正的 Claude 开源大师技能，快来选一个为你服务</p>
                 </div>
-                <div class="skill-badge" id="fastBadge">
-                    <i class="fas fa-bolt"></i> Fast
+                <div class="mode-picker" id="modePicker">
+                    <div class="skill-badge" id="fastBadge" role="button" aria-haspopup="listbox" aria-expanded="false">
+                        <i class="fas fa-bolt" id="modeBadgeIcon"></i>
+                        <span id="modeBadgeLabel">Fast</span>
+                        <i class="fas fa-chevron-down mode-caret"></i>
+                    </div>
+                    <div class="mode-menu" id="modeMenu" role="listbox">
+                        <button type="button" data-mode="fast" class="active"><i class="fas fa-bolt"></i> Fast</button>
+                        <button type="button" data-mode="plan" class="soon"><i class="fas fa-list-check"></i> Plan 模式<span class="soon-tag">开发中</span></button>
+                        <button type="button" data-mode="subagent" class="soon"><i class="fas fa-users"></i> SubAgent 模式<span class="soon-tag">开发中</span></button>
+                        <button type="button" data-mode="workflow" class="soon"><i class="fas fa-diagram-project"></i> WorkFlow 模式<span class="soon-tag">开发中</span></button>
+                    </div>
                 </div>
             </div>
 
             <div class="tool-grid" id="skillBar">
                 <div class="tool-item" data-skill="report-writer" title="日报 / 周报 / 会议纪要"><span class="emoji">🗓️</span><span class="label">日报/周报/会议纪要</span></div>
                 <div class="tool-item" data-skill="xlsx"><span class="emoji">📋</span><span class="label">表格表姐</span></div>
-                <div class="tool-item" data-skill="web-artifacts-builder"><span class="emoji">🌐</span><span class="label">精美HTML</span></div>
+                <div class="tool-item" data-skill="web-artifacts-builder"><span class="emoji">🏛️</span><span class="label">视觉HTML</span></div>
                 <div class="tool-item" data-skill="d3js-visualization"><span class="emoji">📊</span><span class="label">数据可视化设计师</span></div>
                 <div class="tool-item" data-skill="frontend-design"><span class="emoji">✨</span><span class="label">UI 设计师</span></div>
                 <div class="tool-item" data-skill="brand-guidelines"><span class="emoji">📛</span><span class="label">品牌管家</span></div>
@@ -1471,6 +1606,43 @@
             <div class="art-gallery" id="artGallery">
                 <div class="art-gallery-label">今晚看点什么</div>
                 <div class="art-gallery-row" id="artGalleryRow"></div>
+                <div class="witch-sky">
+                    <button type="button" class="witch-fly" id="witchPeek" title="点我算一卦" aria-label="小巫女算命">
+                        <svg class="witch-fly-stage" viewBox="0 0 140 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <g class="witch-spark" opacity="0.8">
+                                <circle cx="18" cy="28" r="1.4" fill="#fbbf24" />
+                                <circle cx="28" cy="44" r="1.1" fill="#fb923c" />
+                                <circle cx="12" cy="50" r="1" fill="#fde68a" />
+                            </g>
+                            <g>
+                                <ellipse cx="22" cy="42" rx="16" ry="9" fill="#c4a574" transform="rotate(-12 22 42)" />
+                                <ellipse cx="16" cy="40" rx="6" ry="10" fill="#a8844f" transform="rotate(-28 16 40)" />
+                                <ellipse cx="26" cy="46" rx="7" ry="9" fill="#8b6914" transform="rotate(18 26 46)" />
+                                <path d="M30 40 L118 32" stroke="#7c4a1e" stroke-width="3.2" stroke-linecap="round" />
+                                <path d="M30 42 L116 34" stroke="#d2a36a" stroke-width="1.1" stroke-linecap="round" opacity="0.7" />
+                            </g>
+                            <path d="M68 36 Q74 52 88 50 Q96 40 90 32 Z" fill="#2e1065" />
+                            <path d="M72 34 Q76 46 86 46 Q90 38 86 32 Z" fill="#4c1d95" />
+                            <path d="M88 6 L72 30 H104 Z" fill="#6d28d9" />
+                            <path d="M88 6 L80 22 H97 Z" fill="#7c3aed" />
+                            <rect x="74" y="28" width="28" height="5" rx="2.5" fill="#1e1b4b" />
+                            <rect x="82" y="28" width="12" height="5" rx="2.5" fill="#f97316" />
+                            <circle cx="88" cy="32" r="10.5" fill="#ffe4c4" />
+                            <ellipse cx="82" cy="35" rx="2.2" ry="1.2" fill="#fb7185" opacity="0.55" />
+                            <g class="witch-blink">
+                                <ellipse cx="85" cy="31" rx="1.7" ry="2" fill="#1e1b4b" />
+                                <ellipse cx="92" cy="30.5" rx="1.7" ry="2" fill="#1e1b4b" />
+                                <circle cx="85.6" cy="30.4" r="0.55" fill="#fff" />
+                                <circle cx="92.6" cy="29.9" r="0.55" fill="#fff" />
+                            </g>
+                            <path d="M86 37 Q89 39.4 93 36.6" fill="none" stroke="#be185d" stroke-width="1.1" stroke-linecap="round" />
+                            <ellipse cx="78" cy="30" rx="4.5" ry="5.5" fill="#3b0764" />
+                            <path d="M96 48 Q102 46 108 40" fill="none" stroke="#2e1065" stroke-width="2.2" stroke-linecap="round" />
+                            <circle class="witch-star" cx="122" cy="22" r="2.2" fill="#fbbf24" />
+                            <path d="M122 17.6 L122.5 20.6 L125.6 21.1 L123.3 23 L124 26 L122 24.4 L120 26 L120.7 23 L118.4 21.1 L121.5 20.6 Z" fill="#fde68a" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <div class="footer-note">
@@ -1518,26 +1690,33 @@
         const chatHistory = document.getElementById('chatHistory');
         const historyList = document.getElementById('historyList');
         let selectedSkill = null;
+        let selectedExamplePrompt = '';
 
         const SKILL_ROSTER = [
             { id: 'brand-guidelines', name: '品牌管家', emoji: '📛', blurb: '配色字体 Logo 语调，一处都不能走形', cat: '设计与视觉',
               use: '告诉她品牌叫什么、给谁看、想传达什么感觉。她会帮你定配色、字体、Logo 用法和说话的语气。',
-              examples: ['给我的个人工作室起名，并定配色和说话口气', '山寨了一张竞品海报，改成我自己的品牌味', '给「只做辣」的方便面品牌写下不能碰的红线'] },
+              examples: ['给产品&平台生成宣传稿', '制作公司规则制度宣传页', '山寨了一张竞品海报，改成我自己的品牌味'] },
             { id: 'canvas-design', name: '海报设计师', emoji: '🎨', blurb: '一句想法，变成能挂墙上的海报', cat: '设计与视觉',
               use: '说海报主题、氛围和用途（活动、邀请、主视觉）。她会出图或 PDF，少用字、多用画面。',
               examples: ['做一张「周五下班就去看海」的招聘海报', '给妈妈 60 岁生日做一张能打印的请柬', '设计一张地铁上会回头看的脱口秀主视觉'] },
             { id: 'frontend-design', name: 'UI 设计师', emoji: '✨', blurb: '界面不撞衫，审美有自己的主张', cat: '设计与视觉',
               use: '说清产品是什么、给谁用、这一页要完成什么。她会按独特视觉方向出界面，而不是套模板。',
               examples: ['给只卖深夜加餐的小馆做官网首页', '做一款假装很贵的香水品牌落地页', '把后台登录页做成书店前台，不要科技蓝'] },
-            { id: 'web-artifacts-builder', name: '精美HTML', emoji: '🌐', blurb: '一页就能点开的精美 HTML，单页不走脚手架', cat: '设计与视觉',
-              use: '介绍页、生平、时间线、关系图：直接写一个能打开的 HTML。不要为单页去初始化 React / 打包。',
+            { id: 'web-artifacts-builder', name: '视觉HTML', emoji: '🏛️', blurb: '一页成稿：生平、产品宣传、工作汇报，点开就能讲', cat: '设计与视觉',
+              use: '生平、时间线、产品宣传页、工作汇报：直接写一页能点开、能投影的 HTML。不要为单页去初始化 React / 打包。',
               examples: [
                 {
-                  label: '介绍毛主席的生平事迹，生成精美 HTML',
+                  label: '介绍毛主席的生平事迹，做成一页叙事',
                   prompt: '介绍毛主席的生平事迹，直接生成一页精美、酷炫、可点开的自包含 HTML。不要初始化 React/Vite，不要 Parcel 打包，一个文件写完：CSS/JS 全部内联，用系统宋体/楷体，favicon 用内联 SVG 红五星。视觉要有纪念碑和档案感——朱红、墨色、宣纸底、竖排大字、可点击的时间线与章节，进场动效克制但有仪式感；不要居中紫渐变、不要模板风。'
                 },
-                '做一页能点的《红楼梦》人物关系图',
-                '做个能点的太阳系，点行星出介绍'
+                {
+                  label: '做一页 Agent 平台产品宣传页',
+                  prompt: '做一页 Agent 平台产品宣传页，自包含 HTML，不要 React/Vite/打包，CSS/JS 全内联。用下面模拟产品信息，点模块展开介绍，能投给客户看。不要教我怎么写，不要做成关系图或太阳系。\n产品：云栈 Agent 工作台。一句话：把企业内部的日报、表格、页面和技能，交给可编排的 Agent 做完。\n给谁：运营、HR、财务、销售运营，不是给研究员玩模型。\n能力：技能市场（日报/周报、视觉HTML、表格、品牌）；会话可回放，历史文件不丢；灰度发布，一键回滚；Token 用量在个人空间可看。\n本季：已灰度 5%，编排协议 10 月封口，评测集补齐后扩到 20%。\n点「给谁用 / 三件能力 / 本季节奏 / 客户怎么开始」看详情。视觉要产品发布会主视觉：大气、克制、能投影；深色或纸质皆可，不要紫渐变模板、不要仪表盘堆砌。'
+                },
+                {
+                  label: '做一页能点的季度工作汇报',
+                  prompt: '做一页能点的季度工作汇报，自包含 HTML，不要 React/Vite/打包，CSS/JS 全内联。用下面模拟数据，点模块展开详情，结论先行，能投影给老板看。不要写成 Word 长文，不要教我怎么写。\n汇报人：Agent 平台组 李航。周期：2026 Q3。一句话：灰度 5% 已上，编排协议未封口，评测集是最大风险。\n完成：max-tokens 后会话 400 已修，回归 12/12；历史会话打开 1.8s→0.6s；客户演示环境当场跑通 3 场。\n进行中：编排协议 v0 完成约 70%，预计 10 月第二周封口。\n风险：评测集 52/80，缺口可能拖灰度扩大。需要测试阿宁补失败样本。\n下季：评测补齐、灰度到 20%、内部文档给新人能用。点「完成 / 进行中 / 风险 / 下季」四个板块看数字和负责人。视觉要大气、深色或纸质汇报风，克制动效，不要仪表盘堆砌、不要紫渐变模板。'
+                }
               ] },
             { id: 'theme-factory', name: '主题设计师', emoji: '🎭', blurb: '配色字体成套换上，成品立刻有风格', cat: '设计与视觉',
               use: '先有 PPT、文档或页面，再让她套一套配色和字体。也可以先让她把可选主题亮出来。',
@@ -1559,7 +1738,20 @@
               examples: ['把合同里所有金额和日期抠成对照表', '给这份 PDF 每页打上「外传自负」水印', '把简历、作品集、推荐信合成一封能发的 PDF'] },
             { id: 'report-writer', name: '日报/周报/会议纪要', emoji: '🗓️', blurb: '流水账整理成能扫一眼的日报、周报和纪要', cat: '文档与办公',
               use: '把今天做了什么、会议记录或一堆要点发给她。她会整理成能扫一眼的日报、周报或会议纪要。',
-              examples: ['我是 Agent 工程师，拿前 10% 绩效，日报怎么编', '开了一小时会，写成老板 30 秒能看完的纪要', '这周被临时插队三次，周报怎么写才不像在抱怨'] },
+              examples: [
+                {
+                  label: '我是 Agent 工程师，拿前 10% 绩效，写一份日报',
+                  prompt: '直接写成今天的日报成品，不要教我怎么写。下面是模拟素材，照这个整理，缺的标「待补充」，不要另编数字。\n角色：Agent 平台组工程师李航，绩效前 10%。日期：2026-08-21。\n今日完成：修完 max-tokens 后 tool_call 悬挂导致会话永久 400 的问题，回归用例 12/12 过；合入 session replay，打开历史会话延迟 1.8s→0.6s；评审并通过 2 个 PR（编排协议字段、权限清单）。\n进行中：多 Agent 编排协议草案，预计周五出 v0。\n卡点：评测集还缺 30 条真实失败样本，需要测试阿宁周一前补。\n明日：补评测样本接入、和产品对编排协议 3 个未决字段。'
+                },
+                {
+                  label: '开了一小时会，写成老板 30 秒能看完的纪要',
+                  prompt: '直接写成会议纪要成品，老板 30 秒能看完：结论和行动项放最前。不要教我怎么写。下面是模拟素材，缺负责人/截止日期标「待确认」。\n主题：Agent 上线评审。时间：2026-08-21 14:00–15:00。参会：张总、产品小陈、研发李航、测试阿宁。\n讨论：1）本周五是否灰度 5% 流量——张总同意，前提是有一键回滚；2）Token 计费按对话估算还是按 API 实扣——产品坚持估算口径，研发建议实扣，未达成一致；3）客服话术还没有，小陈说自己来写。\n口头决定：周五 16:00 灰度 5%；回滚开关由李航周四前做好；Token 口径改到下周一再定。小陈承诺周三下班前出客服话术一页纸。'
+                },
+                {
+                  label: '这周被临时插队三次，写一份不像在抱怨的周报',
+                  prompt: '直接写成周报成品，不要教我怎么写，也不要写成诉苦。把插队写成对计划的影响和结果。下面是模拟素材。\n角色：Agent 平台组李航。周期：2026-08-18 至 08-22。\n原计划：编排协议 v0、评测集 80 条、内部使用文档。\n本周结果：编排草案完成约 70%；评测集 52/80；文档只写了目录。\n三次插队：周一线上「重开会话文件消失」救火 2h，根因已合入 replay；周三销售要客户演示，搭演示环境半天，客户当场跑通；周四安全抽查，补工具权限清单 3h，清单已交。\n风险：评测集缺口可能把灰度准备拖到下周。\n下周：补齐评测、配合周五灰度、文档补到能给新人用。'
+                }
+              ] },
             { id: 'pptx', name: 'PPT 设计师', emoji: '🖥️', blurb: '模板图表批量生成，不用再对齐方框', cat: '文档与办公',
               use: '说主题、大概页数和听众是谁；也可以上传已有 PPT 让她改版或补图表。',
               examples: ['做 8 页「为什么这个项目不该砍」的汇报', '向投资人要 500 万，做一版不尴尬的路演', '把今晚培训做成能照着讲的课件，不要字墙'] },
@@ -1572,6 +1764,18 @@
             { id: 'explain-jargon', name: '黑话翻译官', emoji: '💬', blurb: '再难懂的技术黑话，一句话讲明白', cat: '表达与沟通',
               use: '丢一个术语或一段充满黑话的文字。她只用一句人话讲明白，不再堆新术语。',
               examples: ['RAG 到底在干什么，用买菜解释', '把这段发布说明翻译成我妈能听懂的', '「幂等」用取快递说一遍'] },
+            { id: 'iching-daily-fortune', name: '小巫女算命', emoji: '🧙‍♀️', blurb: '周易起卦，每次再算都更吉一点', cat: '趣味彩蛋',
+              use: '说想问事业、财运还是今日运势。点首页底部骑扫帚飞的小巫女，也会直接唤起她。',
+              examples: [
+                {
+                  label: '给我算一卦今日运势',
+                  prompt: '用周易今日运势技能给我算一卦，跑 divine.py，做成一页能打开的 HTML。语气轻松好玩，结果往吉的方向写，不要吓人的词。'
+                },
+                {
+                  label: '再算一次，要比上次更好',
+                  prompt: '再算一卦，cheer 比上次高一档，解读必须比上一卦更吉、更鼓励。跑 divine.py --cheer，做成一页 HTML。'
+                }
+              ] },
         ];
         const FEATURED_SKILLS = ['report-writer', 'xlsx', 'web-artifacts-builder', 'd3js-visualization', 'frontend-design', 'brand-guidelines'];
         const skillById = Object.fromEntries(SKILL_ROSTER.map(s => [s.id, s]));
@@ -1819,7 +2023,7 @@
         });
 
         function buildSendMessage() {
-            const instruction = chatInput.value.trim();
+            const instruction = chatInput.value.trim() || selectedExamplePrompt.trim();
             const snippets = pastedSnippets.map(s => s.text.trim()).filter(Boolean);
             if (!snippets.length) return instruction;
             const body = snippets.map((t, i) => (
@@ -1882,6 +2086,37 @@
 
         // 彩蛋：点一下右上角那个小灵光，直接开一个新会话问它"介绍一下平安银行"，
         // 不复用 state.sessionId——不该打断用户手上正在写的任务。
+        (function bindWitchPeek() {
+            const witch = document.getElementById('witchPeek');
+            if (!witch) return;
+            const key = 'pabuddy-witch-cheer';
+            function nextCheer() {
+                let n = 0;
+                try { n = parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch (e) { n = 0; }
+                n = Math.min(6, n + 1);
+                try { localStorage.setItem(key, String(n)); } catch (e) { /* ignore */ }
+                return n;
+            }
+            witch.addEventListener('click', async function() {
+                if (witch.classList.contains('is-summon')) return;
+                const cheer = nextCheer();
+                witch.classList.add('is-summon');
+                const prompt = [
+                    `小巫女骑着扫帚飞过来帮我算一卦。这是第 ${cheer} 次求签，cheer=${cheer}，salt=witch-${cheer}。`,
+                    `只准跑这一条，不要手抄 data.js，不要给日期加引号：python3 <skill-base>/scripts/build_fortune.py --cheer ${cheer} --salt "witch-${cheer}" -o 今日运势.html`,
+                    '页面必须展示脚本算出的这一卦（PRESET），带 blessing；不要吓人的词，仅供娱乐。'
+                ].join('');
+                try {
+                    const s = await api('/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+                    const url = `dialog.html?session=${encodeURIComponent(s.id)}&skill=${encodeURIComponent('iching-daily-fortune')}&text=${encodeURIComponent(prompt)}`;
+                    setTimeout(() => { window.location.href = url; }, 380);
+                } catch (err) {
+                    witch.classList.remove('is-summon');
+                    showToast('小巫女溜走了: ' + err.message, 'fa-exclamation-circle');
+                }
+            });
+        })();
+
         (function bindAiSparkEasterEgg() {
             const spark = document.getElementById('aiSpark');
             if (!spark) return;
@@ -1958,10 +2193,35 @@
             document.addEventListener('click', function() { menu.classList.remove('show'); });
         })();
 
-        // ===== Fast 徽章 =====
-        document.getElementById('fastBadge').addEventListener('click', function() {
-            showToast('⚡ Fast 模式已启用 · 快速响应', 'fa-bolt');
-        });
+        // ===== 运行模式：Fast 可用，其余开发中 =====
+        (function bindModePicker() {
+            const badge = document.getElementById('fastBadge');
+            const menu = document.getElementById('modeMenu');
+            const picker = document.getElementById('modePicker');
+            if (!badge || !menu || !picker) return;
+            badge.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const open = menu.classList.toggle('show');
+                badge.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+            menu.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const btn = e.target.closest('button[data-mode]');
+                if (!btn) return;
+                if (btn.classList.contains('soon')) {
+                    showToast('🚧 该模式开发中，敬请期待', 'fa-wrench');
+                    return;
+                }
+                menu.querySelectorAll('button[data-mode]').forEach((el) => el.classList.toggle('active', el === btn));
+                menu.classList.remove('show');
+                badge.setAttribute('aria-expanded', 'false');
+                showToast('⚡ Fast 模式已启用 · 快速响应', 'fa-bolt');
+            });
+            document.addEventListener('click', function() {
+                menu.classList.remove('show');
+                badge.setAttribute('aria-expanded', 'false');
+            });
+        })();
 
         function setSelectedSkill(id) {
             selectedSkill = id || null;
@@ -1975,28 +2235,31 @@
             const pickedUse = document.getElementById('skillPickedUse');
             const pickedExamples = document.getElementById('skillPickedExamples');
             chatInput.value = '';
+            selectedExamplePrompt = '';
             if (selectedSkill && skillById[selectedSkill]) {
                 const skill = skillById[selectedSkill];
                 picked.classList.add('show');
                 pickedName.textContent = `${skill.emoji} ${skill.name}`;
                 pickedUse.textContent = skill.use || skill.blurb || '';
                 pickedExamples.innerHTML = '';
-                (skill.examples || []).forEach((item) => {
+                (skill.examples || []).forEach((item, index) => {
                     const label = (item && typeof item === 'object') ? (item.label || item.prompt) : item;
                     const prompt = (item && typeof item === 'object') ? (item.prompt || item.label) : item;
                     const btn = document.createElement('button');
                     btn.type = 'button';
-                    btn.className = 'skill-example';
+                    btn.className = 'skill-example' + (index === 0 ? ' active' : '');
                     btn.textContent = label;
                     btn.addEventListener('click', () => {
                         pickedExamples.querySelectorAll('.skill-example').forEach(el => el.classList.remove('active'));
                         btn.classList.add('active');
-                        chatInput.value = prompt;
+                        selectedExamplePrompt = prompt;
+                        chatInput.value = '';
                         chatInput.focus();
                     });
                     pickedExamples.appendChild(btn);
+                    if (index === 0) selectedExamplePrompt = prompt;
                 });
-                chatInput.placeholder = `用「${skill.name}」来说你要做什么，或点下面的场景试试`;
+                chatInput.placeholder = skill.use || `用「${skill.name}」来说你要做什么`;
             } else {
                 picked.classList.remove('show');
                 pickedName.textContent = '';
@@ -2162,8 +2425,6 @@
         }
         setNav('task');
         setSelectedSkill('web-artifacts-builder');
-        const firstExample = document.querySelector('#skillPickedExamples .skill-example');
-        if (firstExample) firstExample.click();
         refreshRecentSessions().catch(err => showToast('加载历史对话失败: ' + err.message, 'fa-exclamation-circle'));
         console.log('WorkBuddy AI 已加载，所有交互事件已绑定');
     })();

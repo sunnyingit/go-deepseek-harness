@@ -93,7 +93,7 @@ func classifyStatus(status int, detail string) Code {
 	switch {
 	case status == 401 || status == 403:
 		return CodeAuth
-	case strings.Contains(detail, "quota") || strings.Contains(detail, "balance") || strings.Contains(detail, "credit") || strings.Contains(detail, "insufficient"):
+	case strings.Contains(detail, "quota") || strings.Contains(detail, "balance") || strings.Contains(detail, "credit"):
 		return CodeQuotaExceeded
 	case status == 429:
 		return CodeRateLimit

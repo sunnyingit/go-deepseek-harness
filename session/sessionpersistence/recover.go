@@ -36,67 +36,10 @@ func recoverPrefix(id session.SessionId, header session.Header, events []session
 	panic("unreachable")
 }
 
-// closeUnansweredToolCalls appends a synthetic tool/result for every
-// tool/call in s's recovered log that has no matching result — the one
-// piece of crash-recovery repair this port treats as load-bearing: an
-// assistant message with unanswered tool-call blocks would otherwise
-// replay to a real LLM provider as a malformed request (most chat-
-// completion APIs require a tool response to immediately follow a
-// tool-calling assistant turn). The synthesized result's text is
-// deliberately cautious — matching the TS original's own TOOL_OUTCOME_UNKNOWN
-// guidance — since the tool may or may not have completed before the
-// crash.
+// closeUnansweredToolCalls is the load-time wrapper around the session
+// repair: unanswered tool-call blocks (a crash mid-dispatch, or a
+// max-tokens cut-off that persisted tool_calls without execute) would
+// otherwise replay to a real LLM as a malformed request.
 func closeUnansweredToolCalls(s *session.Session) {
-	events := s.Events()
-
-	answered := map[string]bool{}
-	for _, ev := range events {
-		if ev.Type != "tool/result" {
-			continue
-		}
-		wrapped, ok := ev.Data.(map[string]any)
-		if !ok {
-			continue
-		}
-		msg, ok := wrapped["message"].(session.Message)
-		if !ok {
-			continue
-		}
-		for _, block := range msg.Content {
-			if block.Kind == session.BlockToolResult && block.CallID != "" {
-				answered[block.CallID] = true
-			}
-		}
-	}
-
-	for _, ev := range events {
-		if ev.Type != "tool/call" {
-			continue
-		}
-		wrapped, ok := ev.Data.(map[string]any)
-		if !ok {
-			continue
-		}
-		call, ok := wrapped["call"].(session.ContentBlock)
-		if !ok || call.CallID == "" || answered[call.CallID] {
-			continue
-		}
-		turn, _ := wrapped["turn"].(int)
-		step, _ := wrapped["step"].(int)
-
-		s.Append("tool/result", map[string]any{
-			"turn": turn, "step": step,
-			"message": session.Message{Role: session.RoleUser, Content: []session.ContentBlock{{
-				Kind:   session.BlockToolResult,
-				CallID: call.CallID,
-				Text: fmt.Sprintf(
-					"Interrupted before this tool call's outcome was recorded (call: %s). "+
-						"Its side effects, if any, are unverified — check before retrying, "+
-						"and only retry work that is read-only or safely idempotent.",
-					call.ToolName),
-			}}},
-			"recovered": true,
-		}, session.WithSurfaceOp(session.AppendOp()))
-		answered[call.CallID] = true
-	}
+	session.CloseUnansweredToolCalls(s)
 }

@@ -286,6 +286,44 @@ func TestLoadClosesUnansweredToolCall(t *testing.T) {
 	}
 }
 
+func TestLoadClosesUnansweredToolCallFromAssistantMessage(t *testing.T) {
+	root := t.TempDir()
+	store, _ := Open(root)
+
+	s := session.New("s2", session.Header{})
+	s.Append("turn/start", 1)
+	s.Append("assistant/message", map[string]any{
+		"turn": 1, "step": 3,
+		"message": session.Message{Role: session.RoleAssistant, Content: []session.ContentBlock{
+			{Kind: session.BlockToolCall, CallID: "c-write", ToolName: "write"},
+		}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	if err := store.Append(s.Header(), s.Events()); err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := store.Load("s2", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, ev := range loaded.Events() {
+		if ev.Type != "tool/result" {
+			continue
+		}
+		wrapped := ev.Data.(map[string]any)
+		msg := wrapped["message"].(session.Message)
+		for _, block := range msg.Content {
+			if block.CallID == "c-write" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected a synthesized tool/result for the assistant-message tool-call, events: %+v", loaded.Events())
+	}
+}
+
 func TestLoadUnknownSession(t *testing.T) {
 	root := t.TempDir()
 	store, _ := Open(root)

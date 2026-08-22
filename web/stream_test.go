@@ -259,3 +259,70 @@ func TestStreamDoneReportsFailedTurn(t *testing.T) {
 		t.Fatalf("errorMessage = %q, want it to contain the underlying failure", payload.ErrorMessage)
 	}
 }
+
+// maxTokensLLM finishes a stream with the length marker — the same signal
+// DeepSeek sends when a single completion hits its output cap. The turn
+// then ends as reason "max-tokens" without being an "error".
+type maxTokensLLM struct{}
+
+func (maxTokensLLM) Stream(context.Context, agentloop.GenerateRequest) (<-chan agentloop.StreamChunk, error) {
+	ch := make(chan agentloop.StreamChunk, 1)
+	ch <- agentloop.StreamChunk{
+		Delta:     agentloop.ContentBlock{Kind: agentloop.BlockText, Text: "cut off"},
+		MaxTokens: true,
+	}
+	close(ch)
+	return ch, nil
+}
+
+func TestStreamDoneReportsMaxTokensTurn(t *testing.T) {
+	s, _ := newTestServer(t)
+
+	sess := session.New("", session.Header{})
+	agent := agentloop.NewAgent(sess, maxTokensLLM{}, fakeTools{}, "sys", agentloop.Hooks{})
+	const sessionID = "max-tokens-sess"
+	if _, err := s.agents.Register(sessionID, agent, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(s.routes())
+	defer srv.Close()
+
+	res, err := http.Get(srv.URL + "/sessions/" + sessionID + "/stream?text=hello")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	lines := startSSELines(res.Body)
+
+	var doneData string
+	deadline := time.After(5 * time.Second)
+	for doneData == "" {
+		select {
+		case line, ok := <-lines:
+			if !ok {
+				t.Fatal("stream closed before a done event arrived")
+			}
+			if strings.HasPrefix(line, "data: ") && strings.Contains(line, "max-tokens") {
+				doneData = strings.TrimPrefix(line, "data: ")
+			}
+		case <-deadline:
+			t.Fatal("timed out waiting for a max-tokens done event")
+		}
+	}
+
+	var payload struct {
+		Failed       bool   `json:"failed"`
+		Reason       string `json:"reason"`
+		ErrorMessage string `json:"errorMessage"`
+	}
+	if err := json.Unmarshal([]byte(doneData), &payload); err != nil {
+		t.Fatalf("decoding done payload %q: %v", doneData, err)
+	}
+	if !payload.Failed || payload.Reason != "max-tokens" {
+		t.Fatalf("done payload = %q, want failed:true reason=max-tokens", doneData)
+	}
+	if payload.ErrorMessage == "" {
+		t.Fatalf("done payload = %q, want a non-empty errorMessage", doneData)
+	}
+}

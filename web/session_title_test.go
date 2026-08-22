@@ -54,6 +54,25 @@ func TestSessionTitleSkipsToolResultOnlyUserTurns(t *testing.T) {
 	}
 }
 
+func TestSessionQuestionCountSkipsToolResults(t *testing.T) {
+	s := session.New("s1", session.Header{})
+	s.Append("user/message", session.Message{
+		Role:    session.RoleUser,
+		Content: []session.ContentBlock{{Kind: session.BlockText, Text: "第一问"}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	s.Append("tool/result", map[string]any{"message": session.Message{
+		Role:    session.RoleUser,
+		Content: []session.ContentBlock{{Kind: session.BlockToolResult, CallID: "c1", Text: "ok"}},
+	}}, session.WithSurfaceOp(session.AppendOp()))
+	s.Append("user/message", session.Message{
+		Role:    session.RoleUser,
+		Content: []session.ContentBlock{{Kind: session.BlockText, Text: "第二问"}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	if got := sessionQuestionCount(s); got != 2 {
+		t.Fatalf("questionCount = %d, want 2", got)
+	}
+}
+
 func TestSessionTitleEmptySession(t *testing.T) {
 	if got := sessionTitle(session.New("s1", session.Header{})); got != "" {
 		t.Fatalf("empty session title = %q", got)

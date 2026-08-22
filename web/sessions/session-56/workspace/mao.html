@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>毛澤東 · 生平紀念</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon fill='%23DE2910' points='16,2 20.12,12.47 31.51,12.47 22.2,18.94 25.64,29.53 16,22.9 6.36,29.53 9.8,18.94 0.49,12.47 11.88,12.47'/%3E%3C/svg%3E" />
+<style>
+:root{
+  --ink:#1a1309;
+  --ink-soft:#4a3b28;
+  --paper:#f4ecdb;
+  --paper-deep:#eadfc7;
+  --accent:#9b1b1b;
+  --accent-dark:#74100f;
+  --gold:#b4883a;
+  --line:rgba(27,20,12,.28);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Songti SC","STSong","SimSun","Kaiti SC","STKaiti","KaiTi",Georgia,serif;
+  line-height:1.9;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none;}
+/* ---------- 宣纸纸纹 ---------- */
+body::before{
+  content:"";
+  position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(155,27,27,.05), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(180,136,58,.07), transparent 60%),
+    repeating-linear-gradient(45deg, rgba(180,136,58,.02) 0 2px, transparent 2px 6px);
+}
+/* ---------- 顶栏 ---------- */
+header.masthead{
+  position:fixed;top:0;left:0;right:0;z-index:50;
+  display:flex;align-items:center;gap:16px;
+  padding:10px 22px;
+  background:rgba(244,236,219,.90);
+  border-bottom:1px solid var(--line);
+  backdrop-filter:blur(4px);
+}
+header.masthead .star{flex:none;}
+header.masthead h1{font-size:15px;font-weight:600;letter-spacing:.4em;margin:0;white-space:nowrap;}
+header.masthead nav{margin-left:auto;display:flex;gap:0;flex-wrap:wrap;}
+header.masthead nav a{
+  font-size:13px;letter-spacing:.12em;padding:6px 12px;color:var(--ink-soft);
+  border-left:1px solid var(--line);transition:color .3s,background .3s;
+}
+header.masthead nav a:hover{color:var(--accent);background:rgba(155,27,27,.06);}
+
+/* ---------- 分节 ---------- */
+section{max-width:980px;margin:0 auto;padding:80px 40px;}
+.section-title{
+  font-size:15px;letter-spacing:.55em;color:var(--accent);font-weight:600;
+  margin:0 0 6px;display:flex;align-items:center;gap:18px;
+}
+.section-title::after{content:"";flex:1;height:1px;background:linear-gradient(to right,var(--accent),transparent);}
+.section-head{font-size:30px;letter-spacing:.2em;margin:10px 0 8px;font-weight:600;}
+.section-sub{color:var(--ink-soft);letter-spacing:.15em;font-size:14px;}
+
+/* --------- 封面 --------- */
+.cover{
+  min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  text-align:center;padding:120px 24px 80px;position:relative;overflow:hidden;
+}
+.cover .frame{border:1px solid var(--gold);padding:38px 54px;position:relative;background:rgba(244,236,219,.6);}
+.cover .frame::before,.cover .frame::after{
+  content:"";position:absolute;width:26px;height:26px;border:2px solid var(--accent);
+}
+.cover .frame::before{top:-2px;left:-2px;border-right:none;border-bottom:none;}
+.cover .frame::after{bottom:-2px;right:-2px;border-left:none;border-top:none;}
+.cover .star{margin-bottom:26px;filter:drop-shadow(0 3px 6px rgba(155,27,27,.35));}
+.cover h2{
+  font-size:clamp(44px,9vw,86px);font-weight:700;margin:0;letter-spacing:.18em;
+  color:var(--ink);text-shadow:0 1px 0 rgba(255,255,255,.5);
+}
+.cover h3{font-size:clamp(16px,3vw,24px);font-weight:400;letter-spacing:.7em;color:var(--accent);margin:18px 0 0;}
+.cover .dates{font-size:13px;letter-spacing:.4em;color:var(--ink-soft);margin-top:14px;}
+.cover .seal{
+  position:absolute;bottom:60px;right:50px;width:84px;height:84px;
+  border:2px solid var(--accent);color:var(--accent);font-size:15px;letter-spacing:.35em;
+  display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;
+  transform:rotate(0deg);background:rgba(155,27,27,.05);
+}
+.cover .scroll3{position:absolute;bottom:44px;left:50%;transform:translateX(-50%);color:var(--accent);}
+.cover .scroll3 span{display:block;width:1px;height:46px;background:var(--accent);margin:8px auto 0;animation:drop 2s infinite;}
+@keyframes drop{0%{opacity:0;transform:scaleY(0);transform-origin:top;}40%{opacity:1;}100%{opacity:0;transform:scaleY(1);}}
+
+/* --------- 蒙版进场 --------- */
+.mask{
+  position:fixed;inset:0;z-index:100;background:var(--ink);display:flex;align-items:center;justify-content:center;
+  animation:grain 1.6s cubic-bezier(.77,0,.18,1) forwards;
+}
+@keyframes grain{0%{opacity:1;}70%{opacity:1;}100%{opacity:0;visibility:hidden;}}
+.mask .m-word{color:var(--paper);font-size:22px;letter-spacing:1.5em;padding-left:1.5em;}
+
+/* --------- 竖排引语 --------- */
+.quote{
+  display:flex;align-items:stretch;gap:40px;justify-content:center;
+  background:var(--paper-deep);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.quote .col{writing-mode:vertical-rl;font-size:20px;letter-spacing:.3em;line-height:1.8;color:var(--ink-soft);padding:46px 0;}
+
+/* --------- 时间线 --------- */
+.timeline{position:relative;}
+.tline{position:relative;padding-left:46px;border-left:2px solid var(--accent);}
+.tline .item{position:relative;margin:0 0 46px;}
+.tline .item::before{
+  content:"";position:absolute;left:-50px;top:8px;width:10px;height:10px;border-radius:50%;
+  background:var(--accent);border:3px solid var(--paper);
+}
+.tline .item .yr{font-size:26px;font-weight:700;color:var(--accent);letter-spacing:.08em;cursor:pointer;display:inline-block;}
+.tline .item .yr:hover{color:var(--accent-dark);}
+.tline .item .tt{font-size:20px;font-weight:600;margin:2px 0 8px;letter-spacing:.1em;}
+.tline .item .body{color:var(--ink-soft);max-width:640px;}
+.tline .item .more{display:none;color:var(--ink);background:rgba(180,136,58,.08);border-left:3px solid var(--gold);padding:10px 16px;margin-top:10px;font-size:15px;}
+.tline .item.open .more{display:block;}
+
+/* --------- 著作 —— 书册式 --------- */
+#books{margin-top:30px;display:grid;grid-template-columns:1fr;gap:14px;}
+.book{
+  display:flex;align-items:center;gap:22px;padding:18px 22px;
+  background:linear-gradient(90deg,var(--paper-deep),var(--paper));
+  border:1px solid var(--line);position:relative;overflow:hidden;
+  transition:transform .4s,box-shadow .4s,border-color .4s;
+}
+.book::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent);}
+.book:hover{transform:translateX(8px);border-color:var(--gold);box-shadow:6px 8px 20px rgba(27,20,12,.10);}
+.book .book-yr{font-size:34px;font-weight:700;color:var(--gold);letter-spacing:.05em;min-width:110px;line-height:1;}
+.book .book-t{flex:1;}
+.book .book-tt{font-size:22px;font-weight:600;letter-spacing:.08em;color:var(--ink);}
+.book .book-d{color:var(--ink-soft);font-size:14px;margin-top:4px;}
+
+/* --------- 纪念 —— 页签/卡片 --------- */
+#cards{margin-top:30px;display:grid;grid-template-columns:repeat(2,1fr);gap:22px;}
+.card{
+  padding:26px 26px 22px;border:1px solid var(--line);background:rgba(244,236,219,.6);
+  position:relative;border-top:3px solid var(--accent);
+  transition:transform .4s,background .4s;
+}
+.card.r{transform:translateY(26px);border-top-color:var(--gold);}
+.card:hover{background:var(--paper-deep);transform:translateY(18px);}
+.card.r:hover{transform:translateY(40px);}
+.card .card-q{font-size:17px;line-height:2.1;letter-spacing:.05em;}
+.card .card-src{text-align:right;color:var(--ink-soft);font-size:13px;margin-top:14px;letter-spacing:.1em;}
+
+@media(max-width:720px){
+  #cards{grid-template-columns:1fr;}
+  .card.r{transform:none;}.card.r:hover{transform:none;}
+  .cover .frame{padding:28px 26px;}
+  header.masthead h1{display:none;}
+  .quote .col{font-size:16px;}
+}
+</style>
+</head>
+<body>
+
+<div class="mask" id="mask"><span class="m-word">紀念</span></div>
+
+<header class="masthead">
+  <svg class="star" width="30" height="30" viewBox="0 0 32 32"><polygon fill="#DE2910" points="16,2 20.12,12.47 31.51,12.47 22.2,18.94 25.64,29.53 16,22.9 6.36,29.53 9.8,18.94 0.49,12.47 11.88,12.47"/></svg>
+  <h1>毛澤東</h1>
+  <nav>
+    <a href="#bio">生平</a>
+    <a href="#timeline">年表</a>
+    <a href="#classics">著作</a>
+    <a href="#memorial">纪念</a>
+  </nav>
+</header>
+
+<!-- 封面 -->
+<section class="cover" id="top">
+  <div class="frame">
+    <svg class="star" width="72" height="72" viewBox="0 0 32 32"><polygon fill="#DE2910" points="16,2 20.12,12.47 31.51,12.47 22.2,18.94 25.64,29.53 16,22.9 6.36,29.53 9.8,18.94 0.49,12.47 11.88,12.47"/></svg>
+    <h2>毛澤東</h2>
+    <h3>一 八 九 三 —— 一 九 七 六</h3>
+    <div class="dates">中國人民偉大領袖 · 中華人民共和國主要締造者</div>
+  </div>
+  <div class="seal">眞知灼見<br/>啟示後人</div>
+  <div class="scroll3"><span></span>向下卷動</div>
+</section>
+
+<!-- 竖排引语 -->
+<section class="quote">
+  <div class="col">世間一切事物中，人是第一個可寶貴的。只要有人的力量什麼奇蹟也可以造出來。</div>
+</section>
+
+<!-- 生平 -->
+<section id="bio">
+  <div class="section-title">第一章</div>
+  <h2 class="section-head">生平總覽</h2>
+  <div class="section-sub">ONE MAN · ONE CENTURY · ONE CHINA</div>
+  <p>毛澤東（1893—1976），字潤之，湖南湘潭韶山沖人。中國共產黨、中國人民解放軍和中華人民共和國的主要締造者和卓越領導人，偉大的馬克思主義者，無產階級革命家、戰略家和理論家。</p>
+  <p>他的一生，跨越了中國從積貧積弱、飽經憂患，到奮起抗爭、走向獨立自由的壯闊歷程。青年時代，他出身農家、磨礪於書齋與田疇之間，立志「改造中國與世界」；投身革命後，歷經建黨、建軍、開國與建設的漫長征程，走出了一條把馬克思主義基本原理同中國具體實際相結合的道路。</p>
+  <p>他以畢生心血，參與締造了一個政黨、一支軍隊和一個新生的國家。1927年領導秋收起義，開創井岡山革命根據地，提出「農村包圍城市、武裝奪取政權」的獨創道路；遵義會議後奠定其在黨和紅軍中的領導地位；抗日戰爭中撰寫《論持久戰》，指導全民族抗戰走向勝利；此後歷經解放戰爭，並於1949年10月1日在天安門城樓莊嚴宣告中華人民共和國成立。</p>
+  <p>新中國成立後，他長期擔任國家和黨的領導人，領導了社會主義革命與建設的一系列探索。他的思想與著作，凝聚為毛澤東思想，被確立為中國共產黨的指導思想，深刻影響了新中國的政治、經濟、文化與精神氣象。</p>
+  <p>時至今日，他「為人民服務」的宗旨、獨立自主的品格與深厚的人民情懷，仍然是一個值得反覆回望與深思的精神坐標。</p>
+</section>
+
+<!-- 竖排引语 -->
+<section class="quote">
+  <div class="col">江山如此多嬌，引無數英雄競折腰。數風流人物，還看今朝。</div>
+</section>
+
+<!-- 年表 -->
+<section id="timeline">
+  <div class="section-title">第二章</div>
+  <h2 class="section-head">人生年表</h2>
+  <div class="section-sub">點擊年份 · 翻閱人生的章節</div>
+  <div class="tline">
+    <div class="item">
+      <span class="yr">1893</span>
+      <div class="tt">誕生 · 湘潭韶山沖</div>
+      <div class="body">農曆十一月十九，毛澤東出生於湖南省湘潭縣韶山沖一個農民家庭。自幼隨父務農、於私塾讀書，勤奮好學，胸懷濟世之志。</div>
+      <div class="more">少年時敏而好讀，《水滸》《西遊》《三國》皆爛熟於胸。十六歲到湘鄉求學，初讀「新民叢報」等維新書刊，眼界始開。後入湖南第一師範，師從楊昌濟，結識蔡和森等摯友。</div>
+    </div>
+    <div class="item">
+      <span class="yr">1921</span>
+      <div class="tt">中共一大 · 中國共產黨成立</div>
+      <div class="body">中共一大在上海召開，毛澤東作為湖南代表出席，成為中國共產黨創始人之一。此後積極領導湖南工人運動，創辦《湘江評論》，宣傳革命思想。</div>
+      <div class="more">1923年出席中共三大，主張國共合作。1925年在廣州主辦農民講習所，把革命重心投向廣大農村，提出「誰是我們的敵人、誰是我們的朋友」之問。</div>
+    </div>
+    <div class="item">
+      <span class="yr">1927</span>
+      <div class="tt">秋收起義 · 上井岡山</div>
+      <div class="body">大革命失敗後，毛澤東在湘贛邊界領導秋收起義，率部走上井岡山，開闢中國第一個農村革命根據地。</div>
+      <div class="more">在這一時期提出「農村包圍城市、武裝奪取政權」的革命道路，撰寫《星星之火，可以燎原》。1931年當選為中華蘇維埃共和國臨時中央政府主席。</div>
+    </div>
+    <div class="item">
+      <span class="yr">1935</span>
+      <div class="tt">遵義會議 · 長征轉折</div>
+      <div class="body">紅軍長征途中召開遵義會議，確立了毛澤東在黨中央和紅軍中的實際領導地位，是中國革命生死攸關的轉折點。</div>
+      <div class="more">他指揮四渡赤水、巧渡金沙江，闖雪山草地，率紅軍勝利到達陝北。期間以「紅軍不怕遠征難」抒壯闊胸懷，長征由此載入史冊。</div>
+    </div>
+    <div class="item">
+      <span class="yr">1937</span>
+      <div class="tt">《論持久戰》 · 抗日救亡</div>
+      <div class="body">抗日戰爭全面爆發後，毛澤東撰寫《論持久戰》，科學預見抗戰必經戰略防禦、相持與反攻三個階段，指導全民族抗戰。</div>
+      <div class="more">他強調「兵民是勝利之本」，提出獨立自主的游擊戰方針，團結起最廣泛的抗日民族統一戰線，為抗戰勝利奠定思想與戰略基礎。</div>
+    </div>
+    <div class="item">
+      <span class="yr">1949</span>
+      <div class="tt">開國大典 · 中華人民共和國成立</div>
+      <div class="body">1949年10月1日，毛澤東在北京天安門城樓莊嚴宣告：「中華人民共和國中央人民政府今天成立了！」中國人民從此站起來了。</div>
+      <div class="more">此前歷經三大戰役與渡江戰役，解放戰爭取得決定性勝利。毛澤東率中國人民推翻「三座大山」，實現民族獨立與人民解放，開啟了中華民族歷史新紀元。</div>
+    </div>
+    <div class="item">
+      <span class="yr">1950</span>
+      <div class="tt">抗美援朝 · 保家衛國</div>
+      <div class="body">新中國百廢待興之際，面對侵略威脅，作出「抗美援朝、保家衛國」的歷史性決策，組織中國人民志願軍跨過鴨綠江。</div>
+      <div class="more">經過三年浴血奮戰，1953年簽訂停戰協定。此役打出了國威與軍威，維護了新生共和國的安全與和平，也為此後和平建設贏得了寶貴的戰略空間。</div>
+    </div>
+    <div class="item">
+      <span class="yr">1954</span>
+      <div class="tt">制憲立國 · 社會主義建設</div>
+      <div class="body">主持制定《中華人民共和國憲法》，當選中華人民共和國主席。此後領導三大改造，建立起社會主義基本制度，進入全面建設時期。</div>
+      <div class="more">他提出把中國建設成現代化社會主義強國的宏偉目標，大力發展工業、農業、國防和科學技術（「四個現代化」）。期間啟動兩彈一星的初步探索，為今日奠定了物質與精神根基。</div>
+    </div>
+    <div class="item">
+      <span class="yr">1957</span>
+      <div class="tt">《關於正確處理人民內部矛盾》</div>
+      <div class="body">發表《關於正確處理人民內部矛盾的問題》，在社會主義時期國家治理。執政黨建設與人民民主問題上作出深刻闡述。</div>
+      <div class="more">同年提出「百花齊放、百家爭鳴」「長期共存、互相監督」方針。一再倡導自力更生、艱苦奮鬥、全心全意為人民服務。</div>
+    </div>
+    <div class="item">
+      <span class="yr">1976</span>
+      <div class="tt">逝世 · 永恆懷念</div>
+      <div class="body">1976年9月9日，毛澤東在北京逝世，享年83歲。噩耗傳遍神州，舉國同悲。其功績與思想，長存於中國人民心中。</div>
+      <div class="more">他一生簡樸，睡衣補丁疊補丁，艱苦樸素、心系人民。逝世後遺體安放於紀念堂，供後人景仰。他所畢生追求的民族獨立、人民解放與國家富強之夢，至今仍在延續。</div>
+    </div>
+  </div>
+</section>
+
+<!-- 著作 -->
+<section id="classics">
+  <div class="section-title">第三章</div>
+  <h2 class="section-head">傳世著作</h2>
+  <div class="section-sub">筆下有雷霆 · 字字皆風霜</div>
+  <p style="color:var(--ink-soft);max-width:680px;">毛澤東一生著述宏富，以馬克思主義為體、以中國社會為用，將深邃理論與生動實踐熔為一爐。下列數篇，是其思想的代表與時代的迴響。</p>
+  <div id="books"></div>
+</section>
+
+<!-- 纪念 -->
+<section id="memorial">
+  <div class="section-title">第四章</div>
+  <h2 class="section-head">字裏行間 · 永恆懷念</h2>
+  <div class="section-sub">為人民服務 · 全心全意</div>
+  <div id="cards"></div>
+  <div style="text-align:center;margin-top:40px;color:var(--ink-soft);font-size:13px;letter-spacing:.2em;">
+    —— 一位將畢生獻給國家與人民的人 ——
+  </div>
+</section>
+
+<footer style="text-align:center;padding:50px 24px;border-top:1px solid var(--line);color:var(--ink-soft);font-size:13px;letter-spacing:.25em;">
+  1893 · 2026 · 光榮屬於偉大的中國人民
+</footer>
+
+<script>
+(function(){
+  // —— 开场蒙版 ——
+  var mask=document.getElementById('mask');
+  if(mask){
+    setTimeout(function(){mask.remove();},1700);
+  }
+
+  // —— 时间线开合 ——
+  document.querySelectorAll('.tline .item').forEach(function(it){
+    var yr=it.querySelector('.yr');
+    yr.addEventListener('click',function(){
+      it.classList.toggle('open');
+    });
+  });
+
+  // —— 著作 ——
+  var books=[
+    {t:'論持久戰',   y:'1938', d:'抗日戰爭的戰略綱領，系統闡明「持久戰」總方針，奠定民族抗戰勝利的理論基礎。'},
+    {t:'新民主主義論',y:'1940',d:'闡明新民主主義革命總路線，指明中國革命分兩步走的道路。'},
+    {t:'在延安文藝座談會上的講話',y:'1942',d:'確立「文藝為人民服務」的方向，深刻影響了新中國的文藝與精神世界。'},
+    {t:'為人民服務',  y:'1944', d:'「人固有一死，或重於泰山，或輕於鴻毛。」奠定全心全意為人民服務的價值根基。'},
+    {t:'論十大關係',  y:'1956', d:'總結社會主義建設的重要經驗，探索適合中國國情的建設道路。'},
+    {t:'毛澤東選集',  y:'1951—', d:'彙聚其一生最重要的著作，是毛澤東思想的集中體現與寶貴思想財富。'}
+  ];
+  var bh=document.getElementById('books');
+  books.forEach(function(b){
+    var el=document.createElement('div');
+    el.className='book';
+    el.innerHTML='<div class="book-yr">'+b.y+'</div><div class="book-t"><span class="book-tt">'+b.t+'</span><div class="book-d">'+b.d+'</div></div>';
+    bh.appendChild(el);
+  });
+
+  // —— 纪念卡片 ——
+  var cards=[
+    {q:'「雄關漫道真如鐵，而今邁步從頭越。」', src:'《憶秦娥·婁山關》'},
+    {q:'「誰是我們的敵人？誰是我們的朋友？這個問題是革命的首要問題。」', src:'《中國社會各階級的分析》'},
+    {q:'「星星之火，可以燎原。」', src:'《星星之火，可以燎原》'},
+    {q:'「一切反動派都是紙老虎。」', src:'《和美國記者安娜·路易斯·斯特朗的談話》'}
+  ];
+  var ch=document.getElementById('cards');
+  cards.forEach(function(c,i){
+    var el=document.createElement('div');
+    el.className='card';
+    el.innerHTML='<div class="card-q">'+c.q+'</div><div class="card-src">'+c.src+'</div>';
+    if(i%2===1) el.classList.add('r');
+    ch.appendChild(el);
+  });
+})();
+</script>
+
+</body>
+</html>
