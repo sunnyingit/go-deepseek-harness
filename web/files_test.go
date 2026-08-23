@@ -39,7 +39,7 @@ var _ coreagent.Agent = stubAgent{}
 func newTestServer(t *testing.T) (*Server, string) {
 	t.Helper()
 	dataDir := t.TempDir()
-	s := &Server{agents: coreagent.NewRegistry(), cfg: config{DataDir: dataDir}}
+	s := &Server{agents: coreagent.NewRegistry(), cfg: config{DataDir: dataDir}, answers: newAnswerRegistry()}
 	const sessionID = "sess-1"
 	if _, err := s.agents.Register(sessionID, stubAgent{}, ""); err != nil {
 		t.Fatalf("registering stub agent: %v", err)
@@ -362,6 +362,113 @@ func TestFileRoutesEndToEnd(t *testing.T) {
 			t.Fatalf("status = %d", res.StatusCode)
 		}
 	})
+}
+
+func TestListWorkspaceFilesHidesScaffoldSources(t *testing.T) {
+	root := t.TempDir()
+	mustWrite := func(rel, body string) {
+		t.Helper()
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustWrite("page.html", "<h1>ok</h1>")
+	mustWrite("src/App.tsx", "export default function App() {}")
+	mustWrite("src/index.css", "body{}")
+	mustWrite("favicon.svg", "<svg></svg>")
+	mustWrite("chart.svg", "<svg id='chart'></svg>")
+	mustWrite("hero.png", "png")
+	mustWrite("generate.js", "require('pptxgenjs')")
+	mustWrite("theme.css", "/* uploaded */")
+	if err := os.WriteFile(filepath.Join(root, uploadsManifestName), []byte("theme.css\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	entries, err := listWorkspaceFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byPath := map[string]fileEntryDTO{}
+	for _, e := range entries {
+		byPath[e.Path] = e
+	}
+	if _, ok := byPath["page.html"]; !ok {
+		t.Fatalf("page.html should stay visible: %+v", entries)
+	}
+	if _, ok := byPath["theme.css"]; !ok || byPath["theme.css"].Source != fileSourceUpload {
+		t.Fatalf("uploaded css should stay visible: %+v", entries)
+	}
+	for _, hidden := range []string{"src/App.tsx", "src/index.css", "favicon.svg", "chart.svg", "hero.png", "generate.js"} {
+		if _, ok := byPath[hidden]; ok {
+			t.Fatalf("%s should be hidden from task outputs: %+v", hidden, entries)
+		}
+	}
+}
+
+func TestListWorkspaceFilesHidesPPTXSidecars(t *testing.T) {
+	root := t.TempDir()
+	mustWrite := func(rel, body string) {
+		t.Helper()
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustWrite("新能源汽车.pptx", "PK")
+	mustWrite("generate.js", "require('pptxgenjs')")
+	mustWrite("wifi.png", "png")
+	mustWrite("bolt.png", "png")
+	mustWrite("car.png", "png")
+	mustWrite("leaf.svg", "<svg></svg>")
+	mustWrite("新能源汽车.pdf", "%PDF")
+	mustWrite(".pptx-icons/leaf.png", "png")
+	if err := os.WriteFile(filepath.Join(root, uploadsManifestName), []byte("新能源汽车.pdf\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	entries, err := listWorkspaceFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byPath := map[string]fileEntryDTO{}
+	for _, e := range entries {
+		byPath[e.Path] = e
+	}
+	if _, ok := byPath["新能源汽车.pptx"]; !ok {
+		t.Fatalf("pptx should stay visible: %+v", entries)
+	}
+	if e, ok := byPath["新能源汽车.pdf"]; !ok || e.Source != fileSourceUpload {
+		t.Fatalf("uploaded pdf should stay visible: %+v", entries)
+	}
+	for _, hidden := range []string{"generate.js", "wifi.png", "bolt.png", "car.png", "leaf.svg", ".pptx-icons/leaf.png"} {
+		if _, ok := byPath[hidden]; ok {
+			t.Fatalf("%s is a pptx sidecar and should be hidden: %+v", hidden, entries)
+		}
+	}
+	if len(entries) != 2 {
+		t.Fatalf("listing = %+v, want only pptx + uploaded pdf", entries)
+	}
+}
+
+func TestListWorkspaceFilesKeepsStandaloneImages(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "poster.png"), []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := listWorkspaceFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Path != "poster.png" {
+		t.Fatalf("standalone image should stay visible when there is no pptx: %+v", entries)
+	}
 }
 
 func TestListWorkspaceFilesSkipsHarnessMeta(t *testing.T) {

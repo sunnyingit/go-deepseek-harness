@@ -40,6 +40,7 @@ func serialize(req agentloop.GenerateRequest, cfg Config) (*wireRequest, error) 
 		StreamOptions: streamOptions{IncludeUsage: true},
 		Tools:         tools,
 		Temperature:   req.Temperature,
+		TopP:          req.TopP,
 		MaxTokens:     req.MaxTokens,
 		Stop:          req.Stop,
 	}

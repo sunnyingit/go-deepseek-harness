@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WorkBuddy AI · 个人空间</title>
+    <title>PABuddy AI · 个人空间</title>
     <link rel="stylesheet" href="/static/vendor/fonts/inter.css" />
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css" />
     <style>
@@ -139,10 +139,10 @@
         .space-header {
             flex-shrink: 0;
             display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
+            flex-direction: column;
+            align-items: stretch;
             gap: 16px;
-            margin-bottom: 14px;
+            margin-bottom: 22px;
         }
         .space-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
         .space-avatar {
@@ -154,14 +154,14 @@
             box-shadow: 0 8px 18px rgba(249, 115, 22, 0.22);
         }
         .space-header h2 { font-size: 22px; color: #0b1a33; letter-spacing: -0.3px; }
-        .space-header p { font-size: 13px; color: #8a95a8; margin-top: 3px; }
-        .space-stats { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+        .space-header p { font-size: 13px; color: #8a95a8; margin-top: 4px; }
+        .space-stats { display: flex; gap: 10px; flex-wrap: wrap; }
         .stat-pill {
             background: #fff;
             border: 1px solid #eef1f6;
             border-radius: 14px;
-            padding: 8px 12px;
-            min-width: 76px;
+            padding: 10px 14px;
+            min-width: 84px;
         }
         .stat-pill span { display: block; font-size: 11px; color: #8a95a8; }
         .stat-pill strong { font-size: 16px; color: #0b1a33; font-weight: 650; }
@@ -171,7 +171,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
         .space-tabs {
             display: flex;
@@ -179,6 +179,7 @@
             background: #f0f2f6;
             padding: 4px;
             border-radius: 40px;
+            flex-shrink: 0;
         }
         .space-tab {
             border: none;
@@ -189,7 +190,11 @@
             padding: 7px 14px;
             border-radius: 30px;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
+        .space-tab i { font-size: 12px; }
         .space-tab:hover { background: rgba(255,255,255,0.55); }
         .space-tab.active {
             background: #fff;
@@ -218,27 +223,111 @@
         }
         .space-search input::placeholder { color: #9aa8bb; }
 
-        .files-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
-        .file-section { margin-bottom: 18px; }
-        .file-section[hidden] { display: none; }
-        .file-section h3 {
-            font-size: 12px; font-weight: 600; color: #8a95a8;
-            letter-spacing: 0.3px; margin-bottom: 10px;
+        .type-filter, .fav-check {
             display: flex; align-items: center; gap: 8px;
+            height: 38px; padding: 0 14px;
+            background: #fff; border: 1px solid #eef1f6; border-radius: 40px;
+            font-size: 13px; color: #3c4a5e; flex-shrink: 0;
         }
-        .file-section h3 .count {
-            background: #eef1f6; color: #5f6c80;
-            font-size: 11px; padding: 1px 8px; border-radius: 20px; font-weight: 600;
+        .type-filter i { color: #8a95a8; font-size: 12px; }
+        .type-filter select {
+            border: none; outline: none; background: transparent;
+            font-size: 13px; color: #1c2a44; cursor: pointer;
         }
+        .fav-check { cursor: pointer; user-select: none; }
+        .fav-check input { accent-color: #f97316; }
 
+        .files-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+
+        .file-table {
+            background: #fff;
+            overflow: hidden;
+        }
+        .file-cols {
+            display: grid;
+            grid-template-columns: minmax(260px, 2fr) 88px 140px 110px 72px;
+            align-items: center;
+            gap: 12px;
+            padding: 0 8px;
+        }
+        .file-thead {
+            min-height: 36px;
+            border-bottom: 1px solid #eceff3;
+            font-size: 13px; font-weight: 500; color: #8a95a8;
+        }
+        .file-thead .sort {
+            display: inline-flex; align-items: center; gap: 4px;
+            border: none; background: none; padding: 0; cursor: pointer;
+            font: inherit; color: inherit;
+        }
+        .file-thead .sort .carets {
+            display: inline-flex; flex-direction: column; line-height: 0.6; font-size: 8px; color: #c5ced9;
+        }
+        .file-thead .sort.active .carets { color: #1c2a44; }
+        .file-group-row, .file-task-row, .file-item-row { min-height: 40px; }
+        .file-group-row {
+            cursor: pointer; font-weight: 650; color: #1c2a44; font-size: 14px;
+        }
+        .file-group-row:hover, .file-task-row:hover, .file-item-row:hover { background: #f7f8fa; }
+        .file-item-row.selected { background: #f3f4f6; }
+        .tree-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .tree-name .label {
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+            font-size: 14px; color: #1c2a44;
+        }
+        .chevron {
+            width: 16px; color: #8a95a8; font-size: 11px; flex-shrink: 0;
+            transition: transform .15s;
+        }
+        .file-group.collapsed .chevron { transform: rotate(-90deg); }
+        .file-group.collapsed .file-group-body { display: none; }
+        .count-pill {
+            font-size: 12px; font-weight: 500; color: #6b778c;
+            background: #eef1f6; border-radius: 999px; padding: 1px 8px; flex-shrink: 0;
+        }
+        .row-check {
+            width: 16px; height: 16px; flex-shrink: 0;
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            font-size: 9px; color: transparent;
+        }
+        .file-item-row.selected .row-check {
+            background: #1c2a44; color: #fff;
+        }
+        .task-ico, .file-ico {
+            width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 11px;
+        }
+        .task-ico { background: #f3f4f6; color: #6b7280; }
+        .task-ico svg { width: 14px; height: 14px; display: block; }
+        .file-ico.kind-excel { background: #e8f6ee; color: #1d7a46; }
+        .file-ico.kind-pdf { background: #fdeeee; color: #c0392b; }
+        .file-ico.kind-word { background: #eef3fb; color: #2b579a; }
+        .file-ico.kind-ppt { background: #fdeee8; color: #c43e1c; }
+        .file-ico.kind-image { background: #f3efff; color: #c2410c; }
+        .file-ico.kind-html { background: #e8f1ff; color: #2563eb; }
+        .file-ico.kind-code { background: #e6f7f4; color: #0f766e; }
+        .file-ico.kind-archive { background: #fef6e8; color: #b45309; }
+        .file-ico.kind-file { background: #eef3fb; color: #3b82f6; }
+        .indent-task { padding-left: 22px; }
+        .indent-file { padding-left: 46px; }
+        .col-meta { font-size: 13px; color: #8a95a8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-item-row .col-name { font-size: 14px; color: #1c2a44; }
+        .file-star {
+            border: none; background: none; color: #c5ced9; cursor: pointer; padding: 0;
+            width: 16px; flex-shrink: 0; font-size: 12px;
+        }
+        .file-star.on { color: #f59e0b; }
+        .file-item-row .file-actions { margin-left: auto; opacity: 0; display: flex; gap: 4px; }
+        .file-item-row:hover .file-actions { opacity: 1; }
+        .file-actions button {
+            border: none; background: #f4f6fa; color: #6b7a8f;
+            width: 26px; height: 26px; border-radius: 8px; cursor: pointer;
+        }
+        .file-actions button:hover { background: #fff7ed; color: #f97316; }
+        .file-actions button.danger:hover { background: #fdecec; color: #d14c4c; }
         .file-empty {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; gap: 6px;
-            padding: 28px 16px;
-            background: #fafbfd;
-            border: 1px dashed #e4e9f2;
-            border-radius: 18px;
-            color: #9aa7b9;
+            text-align: center; gap: 6px; padding: 48px 16px; color: #9aa7b9;
         }
         .file-empty .empty-icon {
             width: 44px; height: 44px; border-radius: 14px;
@@ -248,64 +337,10 @@
         }
         .file-empty p { font-size: 14px; color: #3c4a5e; font-weight: 600; }
         .file-empty span { font-size: 12px; }
-
-        .file-row {
-            display: flex; align-items: center; gap: 12px;
-            padding: 12px 14px;
-            border-radius: 16px;
-            background: #fff;
-            border: 1px solid #eef1f6;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: 0.15s;
+        @media (max-width: 900px) {
+            .file-cols { grid-template-columns: minmax(160px, 1fr) 72px 88px; }
+            .col-by, .col-size { display: none; }
         }
-        .file-row:hover {
-            border-color: #ffedd5;
-            box-shadow: 0 6px 16px rgba(249, 115, 22, 0.06);
-        }
-        .file-row.selected {
-            background: #f5f9ff;
-            border-color: #f97316;
-            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.08);
-        }
-        .file-row .file-icon {
-            width: 40px; height: 40px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0; font-size: 16px;
-        }
-        .file-icon.kind-excel { background: #e8f6ee; color: #1d7a46; }
-        .file-icon.kind-pdf { background: #fdeeee; color: #c0392b; }
-        .file-icon.kind-word { background: #eef3fb; color: #2b579a; }
-        .file-icon.kind-ppt { background: #fdeee8; color: #c43e1c; }
-        .file-icon.kind-image { background: #f3efff; color: #c2410c; }
-        .file-icon.kind-html { background: #fff7ed; color: #f97316; }
-        .file-icon.kind-code { background: #e6f7f4; color: #0f766e; }
-        .file-icon.kind-archive { background: #fef6e8; color: #b45309; }
-        .file-icon.kind-file { background: #fff7ed; color: #f97316; }
-
-        .file-meta { min-width: 0; flex: 1; }
-        .file-meta .name {
-            font-size: 14px; font-weight: 600; color: #1c2a44;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-        .file-meta .sub {
-            font-size: 12px; color: #8a95a8; margin-top: 3px;
-            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-        }
-        .source-tag {
-            font-size: 10px; font-weight: 600;
-            padding: 1px 7px; border-radius: 20px;
-        }
-        .source-tag.upload { background: #fff7ed; color: #f97316; }
-        .source-tag.generated { background: #eef8f0; color: #22633a; }
-        .file-actions { display: flex; gap: 4px; flex-shrink: 0; opacity: 0; transition: 0.12s; }
-        .file-row:hover .file-actions { opacity: 1; }
-        .file-actions button {
-            border: none; background: #f4f6fa; color: #6b7a8f;
-            width: 30px; height: 30px; border-radius: 9px; cursor: pointer;
-        }
-        .file-actions button:hover { background: #fff7ed; color: #f97316; }
-        .file-actions button.danger:hover { background: #fdecec; color: #d14c4c; }
 
         .preview-modal {
             display: none;
@@ -378,8 +413,7 @@
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
         @media (max-width: 1100px) {
-            .space-header { flex-direction: column; }
-            .space-stats { justify-content: flex-start; }
+            .space-header { margin-bottom: 18px; gap: 14px; }
         }
         @media (max-width: 900px) {
             .main-grid { grid-template-columns: 1fr; gap: 20px; }
@@ -429,6 +463,7 @@
                     <button type="button" data-action="space"><i class="fas fa-folder-open"></i> 个人空间</button>
                     <button type="button" data-action="notify"><i class="fas fa-bell"></i> 通知</button>
                     <button type="button" data-action="settings"><i class="fas fa-sliders-h"></i> 设置</button>
+                    <button type="button" data-action="logs"><i class="fas fa-file-alt"></i> 运行日志</button>
                 </div>
             </div>
         </aside>
@@ -439,7 +474,7 @@
                         <div class="space-avatar">F</div>
                         <div>
                             <h2>个人空间</h2>
-                            <p id="spaceSummary">felicex@gmail.com · 加载文件中…</p>
+                            <p id="spaceSummary">felicex@gmail.com</p>
                         </div>
                     </div>
                     <div class="space-stats">
@@ -452,25 +487,31 @@
                 </div>
                 <div class="space-toolbar">
                     <div class="space-tabs">
-                        <button type="button" class="space-tab active" data-filter="all">全部</button>
-                        <button type="button" class="space-tab" data-filter="upload">上传</button>
-                        <button type="button" class="space-tab" data-filter="generated">生成</button>
+                        <button type="button" class="space-tab active" data-source="all"><i class="fas fa-layer-group"></i> 全部</button>
+                        <button type="button" class="space-tab" data-source="upload"><i class="fas fa-cloud-upload-alt"></i> 上传</button>
+                        <button type="button" class="space-tab" data-source="generated"><i class="fas fa-magic"></i> 生成</button>
                     </div>
+                    <label class="type-filter">
+                        <i class="fas fa-filter"></i>
+                        <select id="typeFilter">
+                            <option value="all">所有类型</option>
+                            <option value="doc">文档</option>
+                            <option value="web">网页</option>
+                            <option value="sheet">表格</option>
+                            <option value="image">图片</option>
+                            <option value="ppt">演示</option>
+                            <option value="code">代码</option>
+                            <option value="archive">压缩包</option>
+                            <option value="file">其他</option>
+                        </select>
+                    </label>
                     <label class="space-search">
                         <i class="fas fa-search"></i>
-                        <input id="fileSearch" type="search" placeholder="搜索文件名…" autocomplete="off" />
+                        <input id="fileSearch" type="search" placeholder="搜索文件、任务…" autocomplete="off" />
                     </label>
+                    <label class="fav-check"><input id="favOnly" type="checkbox" /> 收藏</label>
                 </div>
-                <div class="files-scroll">
-                    <section class="file-section" id="uploadSection">
-                        <h3>上传的文件 <span class="count" id="uploadCount">0</span></h3>
-                        <div id="uploadList"></div>
-                    </section>
-                    <section class="file-section" id="generatedSection">
-                        <h3>生成的文件 <span class="count" id="generatedCount">0</span></h3>
-                        <div id="generatedList"></div>
-                    </section>
-                </div>
+                <div class="files-scroll" id="filesScroll"></div>
             </div>
         </main>
     </div>
@@ -532,6 +573,7 @@
         pdf: 'pdf', doc: 'word', docx: 'word',
         ppt: 'ppt', pptx: 'ppt',
         png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', svg: 'image', webp: 'image',
+        md: 'file', txt: 'file',
         html: 'html', htm: 'html',
         py: 'code', js: 'code', ts: 'code', json: 'code', css: 'code', sh: 'code', yaml: 'code', yml: 'code', xml: 'code',
         zip: 'archive', tar: 'archive', gz: 'archive'
@@ -563,7 +605,6 @@
     function paintSpaceSummary() {
         const parts = ['felicex@gmail.com'];
         if (spaceUsage.questions != null) parts.push(`${spaceUsage.questions} 个问题`);
-        if (spaceUsage.tokens != null) parts.push(`${formatTokens(spaceUsage.tokens)} Token`);
         if (spaceUsage.files != null) parts.push(`${spaceUsage.files} 个文件`);
         document.getElementById('spaceSummary').textContent =
             spaceUsage.questions == null && spaceUsage.files == null
@@ -571,12 +612,17 @@
                 : parts.join(' · ');
     }
     function timeAgo(iso) {
-        const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+        const t = new Date(iso).getTime();
+        if (!Number.isFinite(t)) return '';
+        const mins = Math.max(0, Math.floor((Date.now() - t) / 60000));
         if (mins < 1) return '刚刚';
-        if (mins < 60) return `${mins}min`;
+        if (mins < 60) return `${mins}分钟前`;
         const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return `${hrs}h`;
-        return `${Math.floor(hrs / 24)}d`;
+        if (hrs < 24) return `${hrs}小时前`;
+        const days = Math.floor(hrs / 24);
+        if (days === 1) return '昨天';
+        if (days < 7) return `${days}天前`;
+        return new Date(t).toLocaleDateString('zh-CN');
     }
     function sessionLabel(s) {
         const title = (s.title || '').trim();
@@ -585,50 +631,120 @@
         const short = id.length > 10 ? id.slice(0, 8) : id;
         return s.parentSession ? `${short} (fork)` : short;
     }
+    function formatSessionAge(createdAt) {
+        const t = Number(createdAt);
+        if (!Number.isFinite(t) || t <= 0) return '';
+        const mins = Math.max(0, Math.floor((Date.now() - t) / 60000));
+        if (mins < 1) return '刚刚';
+        if (mins < 60) return `${mins}分钟前`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}小时前`;
+        const days = Math.floor(hrs / 24);
+        if (days < 7) return `${days}天前`;
+        const d = new Date(t);
+        const pad = (n) => String(n).padStart(2, '0');
+        const stamp = `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return d.getFullYear() === new Date().getFullYear() ? stamp : `${d.getFullYear()}-${stamp}`;
+    }
     function fileUrl(file, download) {
         const encoded = file.path.split('/').map(encodeURIComponent).join('/');
         const base = `/sessions/${encodeURIComponent(file.sessionId)}/files/${encoded}`;
         return download ? `${base}?download=1` : base;
     }
 
-    const uploadList = document.getElementById('uploadList');
-    const generatedList = document.getElementById('generatedList');
-    const uploadSection = document.getElementById('uploadSection');
-    const generatedSection = document.getElementById('generatedSection');
+    const filesScroll = document.getElementById('filesScroll');
     const previewModal = document.getElementById('previewModal');
     const previewBody = document.getElementById('previewBody');
+    const FAV_KEY = 'pabuddy-space-favs';
     let currentFile = null;
     let allFiles = [];
-    let activeFilter = 'all';
+    let allSessions = [];
     let searchQuery = '';
+    let typeFilter = 'all';
+    let sourceFilter = 'all';
+    let favOnly = false;
+    let sortNewest = true;
+    let collapsedGroups = new Set();
+    function loadFavs() {
+        try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')); }
+        catch { return new Set(); }
+    }
+    function saveFavs(set) { localStorage.setItem(FAV_KEY, JSON.stringify([...set])); }
+    let favs = loadFavs();
 
     function emptyState(icon, title, hint) {
-        return `<div class="file-empty"><div class="empty-icon"><i class="fas ${icon}"></i></div><p>${title}</p><span>${hint}</span></div>`;
+        const wrap = document.createElement('div');
+        wrap.className = 'file-empty';
+        wrap.innerHTML = `<div class="empty-icon"><i class="fas ${icon}"></i></div><p></p><span></span>`;
+        wrap.querySelector('p').textContent = title;
+        wrap.querySelector('span').textContent = hint;
+        return wrap;
+    }
+
+    function typeInfo(name) {
+        const ext = extOf(name);
+        if (['html', 'htm'].includes(ext)) return { key: 'web', label: '网页' };
+        if (['md', 'txt', 'doc', 'docx', 'pdf', 'rtf'].includes(ext)) return { key: 'doc', label: '文档' };
+        if (['xlsx', 'xls', 'xlsm', 'csv'].includes(ext)) return { key: 'sheet', label: '表格' };
+        if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext)) return { key: 'image', label: '图片' };
+        if (['ppt', 'pptx', 'pptm'].includes(ext)) return { key: 'ppt', label: '演示' };
+        if (['py', 'js', 'ts', 'json', 'css', 'sh', 'yaml', 'yml', 'xml'].includes(ext)) return { key: 'code', label: '代码' };
+        if (['zip', 'tar', 'gz'].includes(ext)) return { key: 'archive', label: '压缩包' };
+        return { key: 'file', label: '文件' };
+    }
+    function updatedBy(file) {
+        return file.source === 'upload' ? 'felicex@gmail.com' : '助手';
+    }
+    function sessionFor(id) {
+        return allSessions.find((s) => s.id === id) || { id };
+    }
+
+    function matchesFile(file, session) {
+        if (favOnly && !favs.has(fileKey(file))) return false;
+        if (sourceFilter === 'upload' && file.source !== 'upload') return false;
+        if (sourceFilter === 'generated' && file.source === 'upload') return false;
+        if (typeFilter !== 'all' && typeInfo(file.name).key !== typeFilter) return false;
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return true;
+        const title = sessionLabel(session).toLowerCase();
+        return `${file.name} ${file.path} ${title} ${file.sessionId}`.toLowerCase().includes(q);
     }
 
     function renderFileRow(file) {
         const row = document.createElement('div');
-        row.className = 'file-row' + (currentFile && fileKey(currentFile) === fileKey(file) ? ' selected' : '');
+        row.className = 'file-cols file-item-row' + (currentFile && fileKey(currentFile) === fileKey(file) ? ' selected' : '');
         row.dataset.key = fileKey(file);
-        const isUpload = file.source === 'upload';
+        const info = typeInfo(file.name);
+        const starOn = favs.has(fileKey(file));
         row.innerHTML = `
-            <div class="file-icon kind-${fileKind(file.name)}"><i class="fas ${fileIcon(file.name)}"></i></div>
-            <div class="file-meta">
-                <div class="name"></div>
-                <div class="sub">
-                    <span class="source-tag ${isUpload ? 'upload' : 'generated'}">${isUpload ? '上传' : '生成'}</span>
-                    <span class="size"></span>
-                    <span class="when"></span>
-                </div>
+            <div class="tree-name indent-file col-name">
+                <button type="button" class="file-star ${starOn ? 'on' : ''}" title="收藏"><i class="fas fa-star"></i></button>
+                <span class="row-check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                <span class="file-ico kind-${fileKind(file.name)}"><i class="fas ${fileIcon(file.name)}"></i></span>
+                <span class="label"></span>
+                <span class="file-actions">
+                    <button type="button" title="预览" data-act="preview"><i class="fas fa-eye"></i></button>
+                    <button type="button" title="下载" data-act="download"><i class="fas fa-download"></i></button>
+                    <button type="button" class="danger" title="删除" data-act="delete"><i class="fas fa-trash-alt"></i></button>
+                </span>
             </div>
-            <div class="file-actions">
-                <button type="button" title="预览" data-act="preview"><i class="fas fa-eye"></i></button>
-                <button type="button" title="下载" data-act="download"><i class="fas fa-download"></i></button>
-                <button type="button" class="danger" title="删除" data-act="delete"><i class="fas fa-trash-alt"></i></button>
-            </div>`;
-        row.querySelector('.name').textContent = file.name;
-        row.querySelector('.size').textContent = formatSize(file.size);
-        row.querySelector('.when').textContent = timeAgo(file.modTime);
+            <div class="col-meta col-type"></div>
+            <div class="col-meta col-by"></div>
+            <div class="col-meta col-when"></div>
+            <div class="col-meta col-size"></div>`;
+        row.querySelector('.label').textContent = file.name;
+        row.querySelector('.col-type').textContent = info.label;
+        row.querySelector('.col-by').textContent = updatedBy(file);
+        row.querySelector('.col-when').textContent = timeAgo(file.modTime);
+        row.querySelector('.col-when').title = file.modTime ? new Date(file.modTime).toLocaleString('zh-CN') : '';
+        row.querySelector('.col-size').textContent = formatSize(file.size);
+        row.querySelector('.file-star').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const key = fileKey(file);
+            if (favs.has(key)) favs.delete(key); else favs.add(key);
+            saveFavs(favs);
+            renderLists();
+        });
         row.querySelector('[data-act="preview"]').addEventListener('click', (e) => { e.stopPropagation(); openPreview(file); });
         row.querySelector('[data-act="download"]').addEventListener('click', (e) => { e.stopPropagation(); downloadFile(file); });
         row.querySelector('[data-act="delete"]').addEventListener('click', (e) => { e.stopPropagation(); deleteFile(file); });
@@ -636,38 +752,117 @@
         return row;
     }
 
-    function fillList(el, files, empty) {
-        el.innerHTML = '';
-        if (!files.length) {
-            el.innerHTML = empty;
+    function renderLists() {
+        filesScroll.replaceChildren();
+        const bySession = new Map();
+        allFiles.forEach((f) => {
+            const id = f.sessionId || '';
+            if (!bySession.has(id)) bySession.set(id, []);
+            bySession.get(id).push(f);
+        });
+        const tasks = [...bySession.entries()].map(([id, files]) => {
+            const session = sessionFor(id);
+            const visible = files.filter((f) => matchesFile(f, session));
+            const q = searchQuery.trim().toLowerCase();
+            const titleHit = q && sessionLabel(session).toLowerCase().includes(q);
+            const shown = titleHit && !favOnly && typeFilter === 'all' && sourceFilter === 'all' ? files.slice() : visible;
+            shown.sort((a, b) => {
+                const da = new Date(a.modTime).getTime() || 0;
+                const db = new Date(b.modTime).getTime() || 0;
+                return sortNewest ? db - da : da - db;
+            });
+            const newest = shown.reduce((m, f) => Math.max(m, new Date(f.modTime).getTime() || 0), 0);
+            return { session, files: shown, newest };
+        }).filter((t) => t.files.length);
+        tasks.sort((a, b) => sortNewest ? b.newest - a.newest : a.newest - b.newest);
+
+        if (!tasks.length) {
+            const filtered = searchQuery || favOnly || typeFilter !== 'all' || sourceFilter !== 'all';
+            const emptyHint = {
+                all: '在对话里上传或生成文件后，会按任务汇总到这里',
+                upload: '在对话里上传的文件会出现在这里',
+                generated: '让助手产出网页、文档或表格后，会汇总到这里',
+            };
+            filesScroll.appendChild(emptyState(
+                sourceFilter === 'upload' ? 'fa-cloud-upload-alt' : (favOnly ? 'fa-star' : 'fa-folder-open'),
+                filtered ? '没有符合条件的文件' : (sourceFilter === 'upload' ? '还没有上传文件' : (sourceFilter === 'generated' ? '还没有生成文件' : '还没有任务输出')),
+                emptyHint[sourceFilter] || emptyHint.all
+            ));
             return;
         }
-        files.forEach(f => el.appendChild(renderFileRow(f)));
-    }
 
-    function matchesQuery(file) {
-        const q = searchQuery.trim().toLowerCase();
-        if (!q) return true;
-        return `${file.name} ${file.path}`.toLowerCase().includes(q);
-    }
+        const table = document.createElement('div');
+        table.className = 'file-table';
+        const head = document.createElement('div');
+        head.className = 'file-cols file-thead';
+        head.innerHTML = `
+            <div>名称</div>
+            <div>类型</div>
+            <div class="col-by">更新者</div>
+            <button type="button" class="sort ${sortNewest ? 'active' : ''}" id="sortUpdated">更新 <span class="carets"><i class="fas fa-caret-up"></i><i class="fas fa-caret-down"></i></span></button>
+            <div class="col-size">大小</div>`;
+        table.appendChild(head);
 
-    function renderLists() {
-        const uploads = allFiles.filter(f => f.source === 'upload' && matchesQuery(f));
-        const generated = allFiles.filter(f => f.source !== 'upload' && matchesQuery(f));
-        const showUpload = activeFilter !== 'generated';
-        const showGenerated = activeFilter !== 'upload';
-        uploadSection.hidden = !showUpload;
-        generatedSection.hidden = !showGenerated;
-        document.getElementById('uploadCount').textContent = String(uploads.length);
-        document.getElementById('generatedCount').textContent = String(generated.length);
-        const noMatch = '没有符合条件的文件';
-        fillList(uploadList, uploads, emptyState('fa-cloud-upload-alt', searchQuery ? noMatch : '还没有上传文件', '在首页对话里上传，就会出现在这里'));
-        fillList(generatedList, generated, emptyState('fa-magic', searchQuery ? noMatch : '还没有生成文件', '让助手产出表格、网页或海报后，会汇总到这里'));
+        const group = document.createElement('div');
+        group.className = 'file-group' + (collapsedGroups.has('ungrouped') ? ' collapsed' : '');
+        const groupRow = document.createElement('div');
+        groupRow.className = 'file-cols file-group-row';
+        groupRow.innerHTML = `
+            <div class="tree-name">
+                <i class="fas fa-chevron-down chevron"></i>
+                <span class="label">未分组</span>
+                <span class="count-pill"></span>
+            </div>
+            <div></div><div></div><div></div><div></div>`;
+        groupRow.querySelector('.count-pill').textContent = `${tasks.length} 个任务`;
+        groupRow.addEventListener('click', () => {
+            if (collapsedGroups.has('ungrouped')) collapsedGroups.delete('ungrouped');
+            else collapsedGroups.add('ungrouped');
+            renderLists();
+        });
+        const body = document.createElement('div');
+        body.className = 'file-group-body';
+        tasks.forEach((task) => {
+            const taskRow = document.createElement('div');
+            taskRow.className = 'file-cols file-task-row';
+            taskRow.innerHTML = `
+                <div class="tree-name indent-task">
+                    <span class="task-ico" title="对话">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="currentColor" opacity=".4" d="M14.2 3.2h5.1c1.4 0 2.5 1.1 2.5 2.5v5.2c0 1.4-1.1 2.5-2.5 2.5h-1.2l-1 1.7c-.22.38-.82.24-.9-.22l-.35-1.48H14.2c-1.4 0-2.5-1.1-2.5-2.5V5.7c0-1.4 1.1-2.5 2.5-2.5z"/>
+                            <path fill="currentColor" d="M2.6 6.6c0-1.6 1.3-2.9 2.9-2.9h7.4c1.6 0 2.9 1.3 2.9 2.9v5.1c0 1.6-1.3 2.9-2.9 2.9H8.2l-2.3 2.5c-.4.42-1.12.13-1.12-.48v-2.02H5.5c-1.6 0-2.9-1.3-2.9-2.9V6.6z"/>
+                        </svg>
+                    </span>
+                    <span class="label"></span>
+                </div>
+                <div></div><div></div><div></div><div></div>`;
+            taskRow.querySelector('.label').textContent = sessionLabel(task.session);
+            taskRow.title = '打开对话';
+            taskRow.style.cursor = 'pointer';
+            taskRow.addEventListener('click', () => {
+                window.location.href = `dialog.html?session=${encodeURIComponent(task.session.id)}`;
+            });
+            body.appendChild(taskRow);
+            task.files.forEach((f) => body.appendChild(renderFileRow(f)));
+        });
+        group.appendChild(groupRow);
+        group.appendChild(body);
+        table.appendChild(group);
+        filesScroll.appendChild(table);
+        const sortBtn = document.getElementById('sortUpdated');
+        if (sortBtn) {
+            sortBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                sortNewest = !sortNewest;
+                renderLists();
+            });
+        }
+        markSelected();
     }
 
     function markSelected() {
         const key = currentFile ? fileKey(currentFile) : '';
-        document.querySelectorAll('.file-row').forEach(el => {
+        document.querySelectorAll('.file-item-row').forEach((el) => {
             el.classList.toggle('selected', el.dataset.key === key);
         });
     }
@@ -794,15 +989,23 @@
         if (e.key === 'Escape' && previewModal.classList.contains('show')) closePreview();
     });
 
-    document.querySelectorAll('.space-tab').forEach(tab => {
+    document.querySelectorAll('.space-tab').forEach((tab) => {
         tab.addEventListener('click', function() {
-            activeFilter = this.dataset.filter;
-            document.querySelectorAll('.space-tab').forEach(t => t.classList.toggle('active', t === this));
+            sourceFilter = this.dataset.source || 'all';
+            document.querySelectorAll('.space-tab').forEach((t) => t.classList.toggle('active', t === this));
             renderLists();
         });
     });
     document.getElementById('fileSearch').addEventListener('input', function() {
         searchQuery = this.value;
+        renderLists();
+    });
+    document.getElementById('typeFilter').addEventListener('change', function() {
+        typeFilter = this.value;
+        renderLists();
+    });
+    document.getElementById('favOnly').addEventListener('change', function() {
+        favOnly = this.checked;
         renderLists();
     });
 
@@ -846,6 +1049,10 @@
                 menu.classList.remove('show');
                 window.location.href = '/settings.html';
             }
+            if (action === 'logs') {
+                menu.classList.remove('show');
+                window.location.href = '/settings.html#logs';
+            }
         });
         document.addEventListener('click', function() { menu.classList.remove('show'); });
     })();
@@ -863,23 +1070,30 @@
     async function refreshHistory() {
         const list = document.getElementById('historyList');
         const sessions = await api('/sessions');
-        paintUsage(sessions);
-        list.innerHTML = '';
-        if (!sessions.length) {
-            list.innerHTML = '<div class="history-empty">暂无对话</div>';
+        allSessions = sessions || [];
+        paintUsage(allSessions);
+        list.replaceChildren();
+        if (!allSessions.length) {
+            const empty = document.createElement('div');
+            empty.className = 'history-empty';
+            empty.textContent = '暂无对话';
+            list.appendChild(empty);
+            renderLists();
             return;
         }
-        sessions.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).forEach(s => {
+        allSessions.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).forEach(s => {
             const item = document.createElement('div');
             item.className = 'history-item';
             const label = sessionLabel(s);
-            item.title = label;
+            const age = formatSessionAge(s.createdAt);
+            item.title = age ? `${label} · ${new Date(s.createdAt).toLocaleString('zh-CN')}` : label;
             item.innerHTML = `<i class="fas fa-comment-dots"></i><span class="label"></span><span class="time"></span>`;
             item.querySelector('.label').textContent = label;
-            item.querySelector('.time').textContent = s.status || '';
+            item.querySelector('.time').textContent = age;
             item.addEventListener('click', () => { window.location.href = `dialog.html?session=${encodeURIComponent(s.id)}`; });
             list.appendChild(item);
         });
+        renderLists();
     }
 
     refreshFiles().catch(err => showToast('加载文件失败: ' + err.message, 'fa-exclamation-circle'));

@@ -71,50 +71,60 @@ func renderPptxFile(fullPath, filename string) ([]byte, error) {
 	b.WriteString(html.EscapeString(filename))
 	b.WriteString(`</h1><span>`)
 	b.WriteString(strconv.Itoa(len(order)))
-	b.WriteString(` 页</span></header>`)
+	b.WriteString(` 页 · 按版式还原，图表请下载后用 PowerPoint 打开</span></header>`)
+
+	theme := parseThemeColors(files)
+	slideW, slideH := pptxSlideSize(files)
 
 	for i, slidePath := range order {
 		slide, err := readZipFile(files[slidePath])
 		if err != nil {
 			continue
 		}
-		paras, imageIDs := extractSlideParts(slide)
 		rels := pptxRels(files, relsPathFor(slidePath))
-		b.WriteString(`<article class="slide"><div class="slide-num">第 `)
+		view := parseSlideView(slide, slideW, slideH, theme)
+		b.WriteString(`<article class="frame"><div class="slide-num">第 `)
 		b.WriteString(strconv.Itoa(i + 1))
 		b.WriteString(` / `)
 		b.WriteString(strconv.Itoa(len(order)))
 		b.WriteString(` 页</div>`)
-		if len(paras) > 0 {
-			b.WriteString(`<h2>`)
-			b.WriteString(html.EscapeString(paras[0]))
-			b.WriteString(`</h2>`)
-			if len(paras) > 1 {
-				b.WriteString(`<ul>`)
-				for _, p := range paras[1:] {
-					b.WriteString(`<li>`)
-					b.WriteString(html.EscapeString(p))
-					b.WriteString(`</li>`)
+		if view.HasLayout {
+			writeVisualSlide(&b, view, rels, files, slidePath)
+		} else {
+			paras, imageIDs := extractSlideParts(slide)
+			b.WriteString(`<div class="slide">`)
+			if len(paras) > 0 {
+				b.WriteString(`<h2>`)
+				b.WriteString(html.EscapeString(paras[0]))
+				b.WriteString(`</h2>`)
+				if len(paras) > 1 {
+					b.WriteString(`<ul>`)
+					for _, p := range paras[1:] {
+						b.WriteString(`<li>`)
+						b.WriteString(html.EscapeString(p))
+						b.WriteString(`</li>`)
+					}
+					b.WriteString(`</ul>`)
 				}
-				b.WriteString(`</ul>`)
 			}
-		}
-		for _, id := range imageIDs {
-			target, ok := rels[id]
-			if !ok {
-				continue
+			for _, id := range imageIDs {
+				target, ok := rels[id]
+				if !ok {
+					continue
+				}
+				imgPath := resolveZipPath(path.Dir(slidePath), target)
+				dataURI := pptxImageDataURI(files[imgPath])
+				if dataURI == "" {
+					continue
+				}
+				b.WriteString(`<img src="`)
+				b.WriteString(dataURI)
+				b.WriteString(`" alt="">`)
 			}
-			imgPath := resolveZipPath(path.Dir(slidePath), target)
-			dataURI := pptxImageDataURI(files[imgPath])
-			if dataURI == "" {
-				continue
+			if len(paras) == 0 && len(imageIDs) == 0 {
+				b.WriteString(`<p class="empty">（此页无可提取的文字或图片）</p>`)
 			}
-			b.WriteString(`<img src="`)
-			b.WriteString(dataURI)
-			b.WriteString(`" alt="">`)
-		}
-		if len(paras) == 0 && len(imageIDs) == 0 {
-			b.WriteString(`<p class="empty">（此页无可提取的文字或图片）</p>`)
+			b.WriteString(`</div>`)
 		}
 		b.WriteString(`</article>`)
 	}
@@ -336,18 +346,25 @@ func readZipFile(f *zip.File) ([]byte, error) {
 func pptxFallbackPage(filename, msg string) string {
 	return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>` +
 		html.EscapeString(filename) + `</title><style>` + pptxPreviewCSS +
-		`</style></head><body><article class="slide"><h2>` +
+		`</style></head><body><article class="frame"><div class="slide"><h2>` +
 		html.EscapeString(filename) + `</h2><p class="empty">` +
-		html.EscapeString(msg) + `</p></article></body></html>`
+		html.EscapeString(msg) + `</p></div></article></body></html>`
 }
 
 const pptxPreviewCSS = `
-html,body{margin:0;padding:0;background:#eef1f6;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0b1a33}
-.deck-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 20px 8px;max-width:920px;margin:0 auto}
+html,body{margin:0;padding:0;background:#eef1f6;font-family:"PingFang SC","Microsoft YaHei",Inter,-apple-system,sans-serif;color:#0b1a33}
+.deck-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 20px 8px;max-width:960px;margin:0 auto}
 .deck-head h1{font-size:14px;font-weight:650;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .deck-head span{font-size:12px;color:#8a95a8;flex-shrink:0}
-.slide{background:#fff;border:1px solid #e8edf4;border-radius:18px;box-shadow:0 10px 28px rgba(15,23,42,.06);max-width:920px;margin:12px auto 20px;padding:28px 32px 32px;min-height:220px}
-.slide-num{font-size:11px;color:#8a95a8;font-weight:600;margin-bottom:10px;letter-spacing:.3px}
+.frame{max-width:960px;margin:12px auto 24px;padding:0 16px}
+.slide-num{font-size:11px;color:#8a95a8;font-weight:600;margin-bottom:8px;letter-spacing:.3px}
+.stage{container-type:inline-size;position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:10px;box-shadow:0 12px 32px rgba(15,23,42,.12);background:#fff}
+.el{position:absolute;overflow:hidden;box-sizing:border-box}
+.el img{width:100%;height:100%;object-fit:contain;display:block}
+.el .tx{line-height:1.25;padding:0 2px}
+.el .tx span{white-space:pre-wrap}
+.chart-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.08),rgba(255,255,255,.08) 8px,rgba(0,0,0,.08) 8px,rgba(0,0,0,.08) 16px);color:rgba(255,255,255,.85);font-size:13px;font-weight:600;letter-spacing:.4px}
+.slide{background:#fff;border:1px solid #e8edf4;border-radius:18px;box-shadow:0 10px 28px rgba(15,23,42,.06);padding:28px 32px 32px;min-height:220px}
 .slide h2{font-size:22px;line-height:1.35;margin:0 0 14px;color:#0b1a33}
 .slide ul{margin:0;padding-left:20px}
 .slide li{font-size:15px;line-height:1.65;color:#3c4a5e;margin:4px 0}

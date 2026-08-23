@@ -96,7 +96,8 @@ func EnsureEnv(ctx context.Context, opts EnvOptions) (*Env, error) {
 		}
 	}
 
-	if cached, ok := readMarker(opts.CacheDir); ok && slices.Equal(cached, sorted) {
+	cached, _ := readMarker(opts.CacheDir)
+	if slices.Equal(cached, sorted) {
 		return &Env{Root: opts.CacheDir, PythonPath: venvPython(opts.CacheDir), Packages: packages}, nil
 	}
 
@@ -109,9 +110,15 @@ func EnsureEnv(ctx context.Context, opts EnvOptions) (*Env, error) {
 		}
 	}
 
-	pipArgs := append([]string{"install", "--upgrade"}, packages...)
-	if err := runVisible(ctx, venvPip(opts.CacheDir), pipArgs...); err != nil {
-		return nil, fmt.Errorf("python: pip install into %s: %w", opts.CacheDir, err)
+	// Only install names the marker doesn't already record. Never --upgrade:
+	// that hits PyPI for every listed package on each list change, even when
+	// the wheel is already in the venv (and dies if a proxy is broken).
+	toInstall := missingPackages(cached, sorted)
+	if len(toInstall) > 0 {
+		pipArgs := append([]string{"install", "--disable-pip-version-check", "--prefer-binary"}, toInstall...)
+		if err := runVisible(ctx, venvPip(opts.CacheDir), pipArgs...); err != nil {
+			return nil, fmt.Errorf("python: pip install into %s: %w", opts.CacheDir, err)
+		}
 	}
 
 	if err := writeMarker(opts.CacheDir, sorted); err != nil {
@@ -155,6 +162,20 @@ func runVisible(ctx context.Context, name string, args ...string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+func missingPackages(cached, wanted []string) []string {
+	have := make(map[string]struct{}, len(cached))
+	for _, p := range cached {
+		have[p] = struct{}{}
+	}
+	var missing []string
+	for _, p := range wanted {
+		if _, ok := have[p]; !ok {
+			missing = append(missing, p)
+		}
+	}
+	return missing
 }
 
 func readMarker(root string) ([]string, bool) {

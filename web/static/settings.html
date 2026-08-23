@@ -41,7 +41,22 @@
         .avatar { width: 32px; height: 32px; border-radius: 50%; background: #f97316; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
         .user-meta .name { font-size: 13px; font-weight: 600; color: #0b1a33; }
         .user-meta .email { font-size: 11px; color: #8a95a8; }
-        .content { min-height: 0; overflow: auto; padding-bottom: 28px; }
+        .content { min-height: 0; overflow: auto; padding-bottom: 28px; display: flex; flex-direction: column; }
+        .content.logs-mode { overflow: hidden; padding-bottom: 8px; }
+        .view { display: none; }
+        .view.active { display: block; }
+        .view-logs.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+        .log-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .log-toolbar .path-chip { margin-top: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .log-meta { font-size: 12px; color: #8a95a8; margin-left: auto; }
+        .log-pre {
+            flex: 1; min-height: 280px; margin: 0; overflow: auto;
+            background: #0f172a; color: #e2e8f0; border-radius: 14px;
+            padding: 14px 16px; font-size: 12px; line-height: 1.55;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .log-pre.empty { color: #94a3b8; }
         .page-head { margin-bottom: 18px; }
         .page-head h2 { font-size: 22px; color: #0b1a33; }
         .page-head p { font-size: 13px; color: #6b778c; margin-top: 6px; }
@@ -49,6 +64,8 @@
             display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
             font-size: 12px; color: #8a95a8; background: #f4f6fa; border-radius: 999px; padding: 4px 10px;
         }
+        .page-head a { color: #f97316; font-weight: 600; text-decoration: none; }
+        .page-head a:hover { text-decoration: underline; }
         .banner {
             display: none; margin-bottom: 14px; padding: 10px 12px; border-radius: 12px;
             font-size: 13px; line-height: 1.45;
@@ -116,7 +133,8 @@
             <nav>
                 <div class="quick-item" data-nav="/"><i class="fas fa-plus"></i> 新建任务</div>
                 <div class="quick-item" data-nav="/space.html"><i class="fas fa-user"></i> 个人空间</div>
-                <div class="quick-item active"><i class="fas fa-sliders-h"></i> 设置</div>
+                <div class="quick-item" data-view="settings" id="navSettings"><i class="fas fa-sliders-h"></i> 设置</div>
+                <div class="quick-item" data-view="logs" id="navLogs"><i class="fas fa-file-alt"></i> 运行日志</div>
             </nav>
             <div class="user-card">
                 <div class="avatar">F</div>
@@ -126,10 +144,11 @@
                 </div>
             </div>
         </aside>
-        <main class="content">
+        <main class="content" id="content">
+            <div class="view view-settings active" id="viewSettings">
             <div class="page-head">
                 <h2>设置</h2>
-                <p>修改会写入 config.yaml。模型、超时和沙箱对之后的新对话立即生效；端口和数据目录需要重启服务。</p>
+                <p>修改会写入 config.yaml。模型、超时和沙箱对之后的新对话立即生效；端口和数据目录需要重启服务。排查问题时可看 <a href="#logs">运行日志</a>。</p>
                 <div class="path-chip" id="configPath"><i class="fas fa-file-code"></i> 加载中…</div>
             </div>
             <div class="banner warn" id="envBanner"></div>
@@ -158,48 +177,17 @@
                             </select>
                         </div>
                         <div class="field">
-                            <label>温度 temperature <span class="hint">空 = 不传</span></label>
+                            <label>温度 temperature <span class="hint">0–2，空 = 不传</span></label>
                             <input id="temperature" type="number" step="0.1" min="0" max="2" placeholder="例如 0.7" />
+                        </div>
+                        <div class="field">
+                            <label>核采样 top_p <span class="hint">0–1，空 = 不传；一般别和温度一起改</span></label>
+                            <input id="top_p" type="number" step="0.05" min="0" max="1" placeholder="例如 0.95" />
                         </div>
                         <div class="field">
                             <label>max_tokens <span class="hint">0 = 不限制</span></label>
                             <input id="max_tokens" type="number" min="0" />
                         </div>
-                        <div class="field">
-                            <label>reasoning_effort</label>
-                            <input id="reasoning_effort" placeholder="可选" />
-                        </div>
-                    </div>
-                </section>
-                <section class="card">
-                    <h3><i class="fas fa-shield-halved"></i> 沙箱</h3>
-                    <div class="grid">
-                        <div class="field">
-                            <label>bash_mode</label>
-                            <select id="bash_mode">
-                                <option value="read-only">read-only</option>
-                                <option value="workspace-write">workspace-write</option>
-                                <option value="danger-full-access">danger-full-access</option>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>python_mode</label>
-                            <select id="python_mode">
-                                <option value="read-only">read-only</option>
-                                <option value="workspace-write">workspace-write</option>
-                                <option value="danger-full-access">danger-full-access</option>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>fs_mode</label>
-                            <select id="fs_mode">
-                                <option value="read-only">read-only</option>
-                                <option value="workspace-write">workspace-write</option>
-                                <option value="danger-full-access">danger-full-access</option>
-                            </select>
-                        </div>
-                        <label class="check"><input id="bash_network" type="checkbox" /> bash 允许联网</label>
-                        <label class="check"><input id="auto_approve_escalation" type="checkbox" /> 自动批准提权</label>
                     </div>
                 </section>
                 <section class="card">
@@ -222,25 +210,12 @@
                 <section class="card">
                     <h3><i class="fas fa-clock"></i> 超时与工具</h3>
                     <div class="grid">
-                        <div class="field"><label>流式空闲超时</label><input id="stream_idle_timeout" placeholder="10m" /></div>
-                        <div class="field"><label>TCP 建连超时</label><input id="connect_timeout" placeholder="30s" /></div>
+                        <div class="field"><label>流式空闲超时 <span class="hint">如 10m</span></label><input id="stream_idle_timeout" placeholder="10m" /></div>
+                        <div class="field"><label>TCP 建连超时 <span class="hint">如 30s、100s</span></label><input id="connect_timeout" placeholder="30s" /></div>
                         <div class="field"><label>TLS 握手超时</label><input id="tls_handshake_timeout" placeholder="10s" /></div>
-                        <div class="field"><label>bash 超时</label><input id="bash_timeout" placeholder="120s" /></div>
-                        <div class="field"><label>Python 运行超时</label><input id="run_timeout" placeholder="300s" /></div>
-                        <div class="field"><label>Python 安装超时</label><input id="install_timeout" placeholder="5m" /></div>
-                        <div class="field"><label>最大上传字节</label><input id="max_upload_bytes" type="number" min="0" /></div>
+                        <div class="field"><label>bash 超时</label><input id="bash_timeout" placeholder="2m" /></div>
+                        <div class="field"><label>最大上传 <span class="hint">单位 MB</span></label><input id="max_upload_mb" type="number" min="0" /></div>
                         <div class="field"><label>并行工具数</label><input id="max_parallel_tool_calls" type="number" min="1" /></div>
-                    </div>
-                </section>
-                <section class="card">
-                    <h3><i class="fas fa-terminal"></i> Python</h3>
-                    <div class="grid">
-                        <div class="field"><label>解释器 bin</label><input id="python_bin" placeholder="python3" /></div>
-                        <div class="field"><label>缓存目录 cache_dir <span class="hint">改后需重启</span></label><input id="python_cache_dir" /></div>
-                        <div class="field span-2">
-                            <label>预装包 packages <span class="hint">每行一个；空 = 内置文档处理包</span></label>
-                            <textarea id="packages" placeholder="openpyxl&#10;pandas"></textarea>
-                        </div>
                     </div>
                 </section>
                 <section class="card">
@@ -278,6 +253,20 @@
                     <button type="submit" class="btn btn-primary" id="saveBtn">保存到 config.yaml</button>
                 </div>
             </form>
+            </div>
+            <div class="view view-logs" id="viewLogs">
+                <div class="page-head">
+                    <h2>运行日志</h2>
+                    <p>桌面客户端把内置服务的标准输出写到本机 web.log。这里显示末尾约 256KB。<a href="#settings">返回设置</a></p>
+                </div>
+                <div class="log-toolbar">
+                    <div class="path-chip" id="logPath"><i class="fas fa-file-alt"></i> 加载中…</div>
+                    <button type="button" class="btn btn-ghost" id="refreshLogsBtn">刷新</button>
+                    <button type="button" class="btn btn-ghost" id="copyLogsBtn">复制</button>
+                    <span class="log-meta" id="logMeta"></span>
+                </div>
+                <pre class="log-pre empty" id="logText">加载中…</pre>
+            </div>
         </main>
     </div>
 </div>
@@ -306,7 +295,10 @@
         return Number.isFinite(n) ? n : 0;
     }
     function tempValue() {
-        const raw = val('temperature').trim();
+        return optNum('temperature');
+    }
+    function optNum(id) {
+        const raw = val(id).trim();
         if (!raw) return null;
         const n = Number(raw);
         return Number.isFinite(n) ? n : null;
@@ -322,13 +314,8 @@
         setVal('base_url', cfg.llm.base_url);
         setVal('thinking', cfg.llm.thinking || '');
         setVal('temperature', cfg.llm.temperature == null ? '' : cfg.llm.temperature);
+        setVal('top_p', cfg.llm.top_p == null ? '' : cfg.llm.top_p);
         setVal('max_tokens', cfg.llm.max_tokens || 0);
-        setVal('reasoning_effort', cfg.llm.reasoning_effort);
-        setVal('bash_mode', cfg.sandbox.bash_mode || 'danger-full-access');
-        setVal('python_mode', cfg.sandbox.python_mode || 'danger-full-access');
-        setVal('fs_mode', cfg.sandbox.fs_mode || 'danger-full-access');
-        setChecked('bash_network', cfg.sandbox.bash_network);
-        setChecked('auto_approve_escalation', cfg.sandbox.auto_approve_escalation);
         setVal('port', cfg.server.port || 8081);
         setVal('shutdown_timeout', cfg.server.shutdown_timeout);
         setVal('data_dir', cfg.server.data_dir);
@@ -336,13 +323,9 @@
         setVal('connect_timeout', cfg.llm.connect_timeout);
         setVal('tls_handshake_timeout', cfg.llm.tls_handshake_timeout);
         setVal('bash_timeout', cfg.tools.bash_timeout);
-        setVal('run_timeout', cfg.python.run_timeout);
-        setVal('install_timeout', cfg.python.install_timeout);
-        setVal('max_upload_bytes', cfg.tools.max_upload_bytes || 0);
+        const uploadBytes = cfg.tools.max_upload_bytes || 0;
+        setVal('max_upload_mb', uploadBytes ? Math.round(uploadBytes / (1024 * 1024)) : 64);
         setVal('max_parallel_tool_calls', cfg.tools.max_parallel_tool_calls || 10);
-        setVal('python_bin', cfg.python.bin);
-        setVal('python_cache_dir', cfg.python.cache_dir);
-        setVal('packages', (cfg.python.packages || []).join('\n'));
         setChecked('auto_approve_plan', cfg.agent.auto_approve_plan);
         setVal('system_prompt', cfg.agent.system_prompt);
         setVal('retry_mode', cfg.llm.retry.mode || 'normal');
@@ -355,7 +338,6 @@
 
     function collect() {
         const codes = val('retryable_codes').split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
-        const packages = val('packages').split('\n').map((s) => s.trim()).filter(Boolean);
         return {
             server: {
                 port: num('port'),
@@ -372,7 +354,7 @@
                 thinking: val('thinking'),
                 max_tokens: num('max_tokens'),
                 temperature: tempValue(),
-                reasoning_effort: val('reasoning_effort').trim(),
+                top_p: optNum('top_p'),
                 retry: {
                     mode: val('retry_mode'),
                     max_retries: num('max_retries'),
@@ -382,23 +364,9 @@
                     retryable_codes: codes,
                 },
             },
-            sandbox: {
-                bash_mode: val('bash_mode'),
-                bash_network: checked('bash_network'),
-                python_mode: val('python_mode'),
-                fs_mode: val('fs_mode'),
-                auto_approve_escalation: checked('auto_approve_escalation'),
-            },
-            python: {
-                cache_dir: val('python_cache_dir').trim(),
-                bin: val('python_bin').trim(),
-                install_timeout: val('install_timeout').trim(),
-                run_timeout: val('run_timeout').trim(),
-                packages,
-            },
             tools: {
                 bash_timeout: val('bash_timeout').trim(),
-                max_upload_bytes: num('max_upload_bytes'),
+                max_upload_bytes: Math.max(0, num('max_upload_mb')) * 1024 * 1024,
                 max_parallel_tool_calls: num('max_parallel_tool_calls'),
             },
             agent: {
@@ -431,6 +399,91 @@
     document.querySelectorAll('.quick-item[data-nav]').forEach((el) => {
         el.addEventListener('click', () => { window.location.href = el.dataset.nav; });
     });
+
+    let logsTimer = null;
+    let lastLogText = '';
+    function setLogPath(path) {
+        const chip = document.getElementById('logPath');
+        chip.replaceChildren();
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-file-alt';
+        chip.appendChild(icon);
+        chip.appendChild(document.createTextNode(' ' + (path || '未关联日志文件')));
+        chip.title = path || '';
+    }
+    function formatBytes(n) {
+        if (!n) return '0 B';
+        if (n < 1024) return n + ' B';
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+        return (n / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    async function loadLogs() {
+        const pre = document.getElementById('logText');
+        const meta = document.getElementById('logMeta');
+        try {
+            const res = await fetch('/logs');
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || res.statusText);
+            setLogPath(data.path || '');
+            lastLogText = data.text || '';
+            if (data.available && lastLogText) {
+                pre.textContent = lastLogText;
+                pre.classList.remove('empty');
+                const bits = [formatBytes(data.size || 0)];
+                if (data.truncated) bits.push('仅显示末尾');
+                if (data.mtime) {
+                    const d = new Date(data.mtime);
+                    if (!Number.isNaN(d.getTime())) bits.push(d.toLocaleString());
+                }
+                meta.textContent = bits.join(' · ');
+                pre.scrollTop = pre.scrollHeight;
+            } else {
+                pre.textContent = data.hint || '暂无日志';
+                pre.classList.add('empty');
+                meta.textContent = '';
+                lastLogText = '';
+            }
+        } catch (err) {
+            pre.textContent = '无法读取日志: ' + (err.message || err);
+            pre.classList.add('empty');
+            meta.textContent = '';
+        }
+    }
+    function showView(name) {
+        const logs = name === 'logs';
+        document.getElementById('viewSettings').classList.toggle('active', !logs);
+        document.getElementById('viewLogs').classList.toggle('active', logs);
+        document.getElementById('navSettings').classList.toggle('active', !logs);
+        document.getElementById('navLogs').classList.toggle('active', logs);
+        document.getElementById('content').classList.toggle('logs-mode', logs);
+        const hash = logs ? '#logs' : '';
+        if (location.hash !== hash) history.replaceState(null, '', location.pathname + hash);
+        clearInterval(logsTimer);
+        logsTimer = null;
+        if (logs) {
+            loadLogs();
+            logsTimer = setInterval(loadLogs, 3000);
+        }
+    }
+    document.getElementById('navSettings').addEventListener('click', () => showView('settings'));
+    document.getElementById('navLogs').addEventListener('click', () => showView('logs'));
+    document.getElementById('refreshLogsBtn').addEventListener('click', () => {
+        loadLogs().then(() => toast('已刷新')).catch(() => {});
+    });
+    document.getElementById('copyLogsBtn').addEventListener('click', async () => {
+        const text = lastLogText || document.getElementById('logText').textContent || '';
+        if (!text) { toast('没有可复制的内容'); return; }
+        try {
+            await navigator.clipboard.writeText(text);
+            toast('已复制');
+        } catch {
+            toast('复制失败');
+        }
+    });
+    window.addEventListener('hashchange', () => {
+        showView(location.hash === '#logs' ? 'logs' : 'settings');
+    });
+
     document.getElementById('reloadBtn').addEventListener('click', () => {
         load().then(() => toast('已重新加载')).catch((err) => toast('加载失败: ' + err.message));
     });
@@ -464,6 +517,7 @@
     load().catch((err) => {
         showBanner('saveBanner', '无法读取配置: ' + err.message, 'err');
     });
+    showView(location.hash === '#logs' ? 'logs' : 'settings');
 })();
 </script>
 </body>

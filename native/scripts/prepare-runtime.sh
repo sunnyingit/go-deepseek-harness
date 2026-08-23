@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Download portable Python + Node, vendor pip wheels, copy skills, and
-# compile the web backend into native/runtime/ for electron-builder extraResources.
+# Download portable Python + Node, vendor pip wheels, install bundled Node
+# libraries (pptxgenjs / react-icons / sharp), copy skills, and compile the
+# web backend into native/runtime/ for electron-builder extraResources.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -50,7 +51,12 @@ PYTHON_RELEASE="${PYTHON_RELEASE:-20260814}"
 PYTHON_VER="${PYTHON_VER:-3.12.14}"
 MINGIT_VERSION="${MINGIT_VERSION:-2.51.0}"
 MINGIT_TAG="${MINGIT_TAG:-v2.51.0.windows.1}"
-PACKAGES=(python-docx python-pptx openpyxl pypdf reportlab pandas Pillow)
+# Keep this in lockstep with web/config.yaml's python.packages — that file
+# gets copied verbatim into $DEST/config.yaml below, and EnsureEnv compares
+# its own Packages against this bundled interpreter's .packages.json marker;
+# a mismatch between the two lists makes every launch think it needs to
+# reinstall (see tools/python/env.go's EnsureEnv).
+PACKAGES=(python-docx python-pptx openpyxl pypdf reportlab pandas Pillow PyMuPDF matplotlib numpy beautifulsoup4 lxml pyyaml requests httpx)
 
 mkdir -p "$DEST/bin" "$DEST/wheels"
 cd "$DEST"
@@ -119,6 +125,63 @@ if [[ ! -x node/bin/node && ! -f node/node.exe ]]; then
   prune_archives "${NODE_DIST}.tar.gz" "${NODE_DIST}.zip"
 fi
 echo "node: $(ls node/bin/node node/node.exe 2>/dev/null | head -1)"
+
+# --- Node libraries (pptxgenjs / react-icons / sharp) ---
+# Installed into runtime/node-packages so Electron can set NODE_PATH and
+# session scripts can require() them without npm install. sharp's native
+# addon is selected with --os/--cpu for the *target* (needed when this
+# script cross-builds win-x64 on a Mac).
+NODE_RUNTIME_PKG="$ROOT/native/node-runtime/package.json"
+NPM_CLI=""
+if [[ -f "$DEST/node/lib/node_modules/npm/bin/npm-cli.js" ]]; then
+  NPM_CLI="$DEST/node/lib/node_modules/npm/bin/npm-cli.js"
+elif [[ -f "$DEST/node/node_modules/npm/bin/npm-cli.js" ]]; then
+  NPM_CLI="$DEST/node/node_modules/npm/bin/npm-cli.js"
+fi
+NODE_FOR_NPM=""
+if [[ -x "$DEST/node/bin/node" ]]; then
+  NODE_FOR_NPM="$DEST/node/bin/node"
+elif command -v node >/dev/null 2>&1; then
+  # Cross-build: win node.exe can't run here; drive npm-cli.js with host node.
+  NODE_FOR_NPM="$(command -v node)"
+fi
+case "$TARGET" in
+  darwin-arm64) NPM_OS=darwin; NPM_CPU=arm64 ;;
+  darwin-x64)   NPM_OS=darwin; NPM_CPU=x64 ;;
+  win-x64)      NPM_OS=win32;  NPM_CPU=x64 ;;
+esac
+
+install_node_packages() {
+  if [[ -z "$NODE_FOR_NPM" || -z "$NPM_CLI" ]]; then
+    echo "cannot install node packages: need node + npm-cli.js (found node=${NODE_FOR_NPM:-none} cli=${NPM_CLI:-none})" >&2
+    exit 1
+  fi
+  mkdir -p "$DEST/node-packages"
+  local need=1
+  if [[ -f "$DEST/node-packages/package.json" ]] &&
+     cmp -s "$NODE_RUNTIME_PKG" "$DEST/node-packages/package.json" &&
+     [[ -d "$DEST/node-packages/node_modules/pptxgenjs" ]] &&
+     [[ -d "$DEST/node-packages/node_modules/react-dom" ]] &&
+     [[ -d "$DEST/node-packages/node_modules/react-icons" ]] &&
+     [[ -d "$DEST/node-packages/node_modules/sharp" ]]; then
+    need=0
+  fi
+  if [[ "$need" == 0 ]]; then
+    echo "node packages already installed"
+    return
+  fi
+  echo "npm install node runtime packages (os=$NPM_OS cpu=$NPM_CPU) with $NODE_FOR_NPM"
+  rm -rf "$DEST/node-packages/node_modules"
+  cp "$NODE_RUNTIME_PKG" "$DEST/node-packages/package.json"
+  (
+    cd "$DEST/node-packages"
+    "$NODE_FOR_NPM" "$NPM_CLI" install --omit=dev --include=optional \
+      --os="$NPM_OS" --cpu="$NPM_CPU"
+  )
+  echo "node packages: pptxgenjs react-dom react-icons sharp"
+}
+
+install_node_packages
 
 # --- Python ---
 if [[ ! -x python/bin/python3 && ! -f python/python.exe ]]; then
@@ -227,4 +290,7 @@ echo "runtime ready at $DEST ($TARGET)"
 test -e "$DEST/bin/$WEB_NAME"
 test -d "$DEST/python"
 test -d "$DEST/node"
+test -d "$DEST/node-packages/node_modules/pptxgenjs"
+test -d "$DEST/node-packages/node_modules/react-icons"
+test -d "$DEST/node-packages/node_modules/sharp"
 test -d "$DEST/skills"

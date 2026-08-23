@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -18,6 +19,7 @@ func sessionTitle(sess *session.Session) string {
 	if sess == nil {
 		return ""
 	}
+	var uploaded []string
 	for _, m := range sess.DeriveMessages() {
 		if m.Role != session.RoleUser {
 			continue
@@ -29,11 +31,20 @@ func sessionTitle(sess *session.Session) string {
 				continue
 			}
 			onlyToolResults = false
-			if b.Kind == session.BlockText {
-				if t := strings.TrimSpace(b.Text); t != "" {
-					parts = append(parts, t)
-				}
+			if b.Kind != session.BlockText {
+				continue
 			}
+			t := strings.TrimSpace(b.Text)
+			if t == "" {
+				continue
+			}
+			if isUploadNotice(t) {
+				if name := uploadNoticeFilename(t); name != "" {
+					uploaded = append(uploaded, name)
+				}
+				continue
+			}
+			parts = append(parts, t)
 		}
 		if onlyToolResults || len(parts) == 0 {
 			continue
@@ -45,12 +56,15 @@ func sessionTitle(sess *session.Session) string {
 		}
 		return truncateRunes(text, sessionTitleMaxRunes)
 	}
-	return ""
+	if len(uploaded) == 0 {
+		return ""
+	}
+	return truncateRunes(strings.Join(uploaded, "、"), sessionTitleMaxRunes)
 }
 
 // sessionQuestionCount is how many user-authored turns are on the surface.
 // Tool-result-only user messages (observations) do not count — those are
-// not questions the user asked.
+// not questions the user asked. Upload-notice injections also do not count.
 func sessionQuestionCount(sess *session.Session) int {
 	if sess == nil {
 		return 0
@@ -67,8 +81,11 @@ func sessionQuestionCount(sess *session.Session) int {
 				continue
 			}
 			onlyToolResults = false
-			if b.Kind == session.BlockText && strings.TrimSpace(b.Text) != "" {
-				hasText = true
+			if b.Kind == session.BlockText {
+				t := strings.TrimSpace(b.Text)
+				if t != "" && !isUploadNotice(t) {
+					hasText = true
+				}
 			}
 		}
 		if !onlyToolResults && hasText {
@@ -76,6 +93,18 @@ func sessionQuestionCount(sess *session.Session) int {
 		}
 	}
 	return n
+}
+
+func isUploadNotice(text string) bool {
+	return strings.HasPrefix(strings.TrimSpace(text), "[Uploaded file]")
+}
+
+func uploadNoticeFilename(text string) string {
+	t := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(text), "[Uploaded file]"))
+	if i := strings.Index(t, " ("); i > 0 {
+		t = strings.TrimSpace(t[:i])
+	}
+	return filepath.Base(t)
 }
 
 func stripSkillWrap(text string) string {

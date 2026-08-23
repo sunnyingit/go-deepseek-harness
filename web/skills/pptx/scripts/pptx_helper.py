@@ -1,4 +1,4 @@
-"""Opinionated 16:9 deck builder. Always blank layout — never Office defaults."""
+"""Legacy python-pptx helper. New decks must use scripts/deck.js (pptxgenjs)."""
 
 from __future__ import annotations
 

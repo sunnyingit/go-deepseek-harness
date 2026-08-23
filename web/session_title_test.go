@@ -78,3 +78,38 @@ func TestSessionTitleEmptySession(t *testing.T) {
 		t.Fatalf("empty session title = %q", got)
 	}
 }
+
+func TestSessionTitleSkipsUploadedFileNotice(t *testing.T) {
+	s := session.New("s1", session.Header{})
+	s.Append("user/message", session.Message{
+		Role: session.RoleUser,
+		Content: []session.ContentBlock{{
+			Kind: session.BlockText,
+			Text: `[Uploaded file] 周报.xlsx (1200 bytes). This is the file just uploaded — use exactly this path for "the file I uploaded"; don't process other files in the workspace unless asked.`,
+		}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	s.Append("user/message", session.Message{
+		Role:    session.RoleUser,
+		Content: []session.ContentBlock{{Kind: session.BlockText, Text: "根据这个表写周报"}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	if got := sessionTitle(s); got != "根据这个表写周报" {
+		t.Fatalf("title = %q, want the real question", got)
+	}
+	if got := sessionQuestionCount(s); got != 1 {
+		t.Fatalf("questionCount = %d, want 1 (upload notice is not a question)", got)
+	}
+}
+
+func TestSessionTitleFallsBackToUploadedFilename(t *testing.T) {
+	s := session.New("s1", session.Header{})
+	s.Append("user/message", session.Message{
+		Role: session.RoleUser,
+		Content: []session.ContentBlock{{
+			Kind: session.BlockText,
+			Text: `[Uploaded file] reports/周报.xlsx (1200 bytes). This is the file just uploaded — use exactly this path for "the file I uploaded"; don't process other files in the workspace unless asked.`,
+		}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	if got := sessionTitle(s); got != "周报.xlsx" {
+		t.Fatalf("title = %q, want the filename without the upload boilerplate", got)
+	}
+}

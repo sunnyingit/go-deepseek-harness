@@ -13,6 +13,7 @@ type wireRequest struct {
 	ReasoningEffort string        `json:"reasoning_effort,omitempty"`
 	Tools           []wireTool    `json:"tools,omitempty"`
 	Temperature     *float64      `json:"temperature,omitempty"`
+	TopP            *float64      `json:"top_p,omitempty"`
 	MaxTokens       int           `json:"max_tokens,omitempty"`
 	Stop            []string      `json:"stop,omitempty"`
 }

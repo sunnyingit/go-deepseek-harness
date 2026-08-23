@@ -37,6 +37,7 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /settings.html", s.handleSettings)
 	mux.HandleFunc("GET /config", s.handleGetConfig)
 	mux.HandleFunc("PUT /config", s.handlePutConfig)
+	mux.HandleFunc("GET /logs", s.handleGetLogs)
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /skills", s.handleListSkills)
 	mux.HandleFunc("POST /sessions", s.handleCreateSession)
@@ -45,6 +46,7 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /sessions/{id}/messages", s.handleGetMessages)
 	mux.HandleFunc("POST /sessions/{id}/messages", s.handlePostMessage)
 	mux.HandleFunc("GET /sessions/{id}/stream", s.handleStreamSession)
+	mux.HandleFunc("POST /sessions/{id}/answer", s.handleAnswerQuestion)
 	mux.HandleFunc("POST /sessions/{id}/fork", s.handleFork)
 	mux.HandleFunc("POST /sessions/{id}/plan-mode", s.handlePlanMode)
 	mux.HandleFunc("GET /files", s.handleListAllFiles)
@@ -483,6 +485,19 @@ func writeStreamEvent(w http.ResponseWriter, ev session.Event, pending map[strin
 		if !ok {
 			return
 		}
+		if call.ToolName == askUserQuestionTool {
+			// Unlike a display tool, this one's Execute genuinely blocks —
+			// there's no synthetic ack coming a moment later to defer the
+			// payload to (see display.go's own doc comment on that
+			// pattern) — so the card has to go out now, at tool/call time,
+			// not at tool/result time. pending still gets an entry, but
+			// only as a marker to swallow the eventual tool/result below
+			// (a generic "tool-result" bubble would be redundant: the
+			// browser already knows the answer it just POSTed).
+			writeSSE(w, "elicit", map[string]any{"callId": call.CallID, "question": call.Args["question"], "options": call.Args["options"]})
+			pending[call.CallID] = displayPending{}
+			return
+		}
 		if eventType, payload, ok := displayEvent(call); ok {
 			pending[call.CallID] = displayPending{eventType: eventType, payload: payload}
 			return
@@ -501,8 +516,10 @@ func writeStreamEvent(w http.ResponseWriter, ev session.Event, pending map[strin
 			// result — forwarding those args would render a broken table
 			// the model is about to be told to redo. The Error text is for
 			// the model (it lives in DeriveMessages); the user never sees
-			// the button-press or the fake receipt.
-			if msg.Content[0].Text == displayedAck {
+			// the button-press or the fake receipt. An ask_user_question
+			// entry has no eventType at all (see above) — its result never
+			// paints anything, matching displayedAck's own false branch.
+			if p.eventType != "" && msg.Content[0].Text == displayedAck {
 				writeSSE(w, p.eventType, p.payload)
 			}
 			return

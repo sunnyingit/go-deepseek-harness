@@ -8,7 +8,7 @@ Electron 客户端，窗口里加载 go-harness 的三页 UI：
 | 对话 | `/dialog.html` |
 | 个人空间 | `/space.html` |
 
-正式安装包会**自带** web 服务、便携 Python（已预装文档库）、官方 Node，Windows 另外带 MinGit 的 `bash`。对方电脑不需要先装 Go / Python / Node。
+正式安装包会**自带** web 服务、便携 Python（已预装文档库）、官方 Node，以及 PPT 用的 Node 库（`pptxgenjs`、`react` / `react-dom` / `react-icons`、`sharp`）。Windows 另外带 MinGit 的 `bash`。对方电脑不需要先装 Go / Python / Node。
 
 ## 运行（开发）
 
@@ -35,7 +35,7 @@ make win          # 下载 win-x64 运行时并交叉编译 web，打出 .zip
 
 1. 若没有 API Key，会弹出填写框，保存在系统应用数据目录（不会写进安装包）
 2. 启动内置 `pabuddy-web`。macOS 上 Python 包已打进便携解释器，启动即可用；Windows 首次会用包内 wheels 建 venv（可能要几分钟）
-3. `PATH` 指向安装包里的 `python`、`node`（以及 Windows 的 Git Bash）。`npm install -g` 写到用户数据目录，不会改只读的 `.app`
+3. `PATH` 指向安装包里的 `python`、`node`（以及 Windows 的 Git Bash）。`NODE_PATH` 指向包内 `runtime/node-packages`，会话脚本可以直接 `require('pptxgenjs')` 等，不必再 `npm install`。`npm install -g` 写到用户数据目录，不会改只读的 `.app`
 
 日志：`~/Library/Application Support/PABuddy/web.log`（macOS）。
 

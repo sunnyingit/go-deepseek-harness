@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WorkBuddy AI · 智能对话</title>
+    <title>PABuddy AI · 智能对话</title>
     <link rel="stylesheet" href="/static/vendor/fonts/inter.css" />
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css" />
     <style>
@@ -762,6 +762,86 @@
             justify-content: space-between;
         }
 
+        /* ===== 澄清提问（ask_user_question）===== */
+        .msg-text .elicit-card {
+            margin: 6px 0;
+            background: #fff;
+            border: 1px solid #eef1f6;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(20,30,50,0.05);
+            overflow: hidden;
+            max-width: 480px;
+        }
+        .elicit-card .elicit-question {
+            padding: 12px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1c2a44;
+            border-bottom: 1px solid #f1f3f7;
+        }
+        .elicit-card .elicit-options { display: flex; flex-direction: column; }
+        .elicit-card .elicit-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-bottom: 1px solid #f6f7fa;
+            cursor: pointer;
+            transition: background 0.12s;
+        }
+        .elicit-card .elicit-option:hover:not(.elicit-disabled) { background: #fff7ed; }
+        .elicit-card .elicit-option-num {
+            flex: none;
+            width: 20px; height: 20px;
+            border-radius: 6px;
+            background: #f0f2f6;
+            color: #6b7a8f;
+            font-size: 12px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .elicit-card .elicit-option:hover:not(.elicit-disabled) .elicit-option-num { background: #f97316; color: #fff; }
+        .elicit-card .elicit-option-text { flex: 1; min-width: 0; }
+        .elicit-card .elicit-option-label { font-size: 13px; color: #1c2a44; }
+        .elicit-card .elicit-option-desc { font-size: 12px; color: #8a95a8; margin-top: 2px; }
+        .elicit-card .elicit-option.elicit-picked { background: #fff7ed; }
+        .elicit-card .elicit-option.elicit-picked .elicit-option-num { background: #f97316; color: #fff; }
+        .elicit-card .elicit-other {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px;
+            border-bottom: 1px solid #f6f7fa;
+        }
+        .elicit-card .elicit-other input {
+            flex: 1; min-width: 0;
+            border: none; outline: none;
+            font-size: 13px; font-family: inherit;
+            color: #1c2a44;
+            background: transparent;
+        }
+        .elicit-card .elicit-other input::placeholder { color: #b7c0cf; }
+        .elicit-card .elicit-other-send {
+            flex: none; border: none; background: none; cursor: pointer;
+            color: #b7c0cf; font-size: 13px; padding: 2px 4px;
+        }
+        .elicit-card .elicit-other-send:hover { color: #f97316; }
+        .elicit-card .elicit-footer {
+            display: flex; justify-content: flex-end;
+            padding: 8px 14px;
+        }
+        .elicit-card .elicit-skip {
+            border: none; background: none; cursor: pointer;
+            font-size: 12px; color: #8a95a8;
+        }
+        .elicit-card .elicit-skip:hover { color: #4f5b6b; text-decoration: underline; }
+        .elicit-card.elicit-resolved .elicit-options,
+        .elicit-card.elicit-resolved .elicit-footer { display: none; }
+        .elicit-card .elicit-resolved-summary {
+            display: none;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #6b7a8f;
+        }
+        .elicit-card.elicit-resolved .elicit-resolved-summary { display: block; }
+
         /* ===== 图表 / 图片 ===== */
         .msg-text .data-chart {
             margin: 8px 0;
@@ -1424,7 +1504,7 @@
     <!-- 导航 -->
     <header class="navbar">
         <div class="nav-left">
-            <div class="brand" id="brandBtn"><i class="fas fa-robot"></i> WorkBuddy AI</div>
+            <div class="brand" id="brandBtn"><i class="fas fa-robot"></i> PABuddy AI</div>
             <button class="back-btn" id="backBtn"><i class="fas fa-arrow-left"></i> 返回</button>
         </div>
         <div class="nav-right">
@@ -1470,6 +1550,7 @@
                     <button type="button" data-action="space"><i class="fas fa-folder-open"></i> 个人空间</button>
                     <button type="button" data-action="notify"><i class="fas fa-bell"></i> 通知</button>
                     <button type="button" data-action="settings"><i class="fas fa-sliders-h"></i> 设置</button>
+                    <button type="button" data-action="logs"><i class="fas fa-file-alt"></i> 运行日志</button>
                 </div>
             </div>
         </aside>
@@ -1553,7 +1634,9 @@
                 METADATA: 'metadata',
                 // 对应真实后端 GET /sessions/{id}/stream 的 event: tool-call / tool-result
                 TOOL_CALL: 'tool-call',
-                TOOL_RESULT: 'tool-result'
+                TOOL_RESULT: 'tool-result',
+                // ask_user_question：模型拿不准时提的澄清问题，见 web/elicit.go。
+                ELICIT: 'elicit'
             }
         };
 
@@ -2005,6 +2088,9 @@
                 this.on(Protocol.MessageType.PROGRESS, (data) => {
                     this.renderProgress(data);
                 });
+                this.on(Protocol.MessageType.ELICIT, (data) => {
+                    this.renderElicit(data);
+                });
                 this.on(Protocol.MessageType.METADATA, (data) => {
                     this.updateMetadata(data);
                 });
@@ -2055,7 +2141,7 @@
                     this.currentMessageEl.innerHTML = `
                         <div class="msg-avatar">AI</div>
                         <div class="msg-bubble">
-                            <div class="msg-meta">WorkBuddy AI · 生成中...</div>
+                            <div class="msg-meta">PABuddy AI · 生成中...</div>
                             <div class="msg-text"></div>
                         </div>
                     `;
@@ -2576,13 +2662,113 @@
                 container.scrollTop = container.scrollHeight;
             }
 
+            // ask_user_question：模型拿不准时的澄清卡片——编号选项 + 自由输入 +
+            // 跳过，选完/输完/跳过都通过 resolveElicitCard 统一 POST 到
+            // /sessions/{id}/answer 去唤醒后端那个还卡在 Execute 里的调用。
+            // 简化版：不处理断线重连——这条卡片只在当前这条 SSE 连接的
+            // 生命周期里有效，见 web/elicit.go 顶部的说明。
+            renderElicit(data) {
+                this.flushStream(true);
+                this.hideWaiting();
+                const msgEl = this.getOrCreateMessage();
+                const textEl = msgEl.querySelector('.msg-text');
+                const callId = data.callId || '';
+                const options = Array.isArray(data.options) ? data.options : [];
+
+                const card = document.createElement('div');
+                card.className = 'elicit-card';
+
+                const question = document.createElement('div');
+                question.className = 'elicit-question';
+                question.textContent = data.question || '';
+                card.appendChild(question);
+
+                const optionsWrap = document.createElement('div');
+                optionsWrap.className = 'elicit-options';
+
+                options.forEach((opt, i) => {
+                    const row = document.createElement('div');
+                    row.className = 'elicit-option';
+                    row.dataset.index = String(i + 1);
+
+                    const num = document.createElement('span');
+                    num.className = 'elicit-option-num';
+                    num.textContent = String(i + 1);
+
+                    const text = document.createElement('div');
+                    text.className = 'elicit-option-text';
+                    const label = document.createElement('div');
+                    label.className = 'elicit-option-label';
+                    label.textContent = opt && opt.label || '';
+                    text.appendChild(label);
+                    if (opt && opt.description) {
+                        const desc = document.createElement('div');
+                        desc.className = 'elicit-option-desc';
+                        desc.textContent = opt.description;
+                        text.appendChild(desc);
+                    }
+
+                    row.appendChild(num);
+                    row.appendChild(text);
+                    row.addEventListener('click', () => {
+                        resolveElicitCard(card, callId, (opt && opt.label) || '', row, false);
+                    });
+                    optionsWrap.appendChild(row);
+                });
+
+                const other = document.createElement('div');
+                other.className = 'elicit-other';
+                const otherIcon = document.createElement('i');
+                otherIcon.className = 'fas fa-pen';
+                otherIcon.style.cssText = 'color:#b7c0cf;font-size:11px;';
+                const otherInput = document.createElement('input');
+                otherInput.type = 'text';
+                otherInput.placeholder = '其他回答…';
+                const otherSend = document.createElement('button');
+                otherSend.type = 'button';
+                otherSend.className = 'elicit-other-send';
+                otherSend.innerHTML = '<i class="fas fa-arrow-up"></i>';
+                const submitOther = () => {
+                    const text = otherInput.value.trim();
+                    if (!text) return;
+                    resolveElicitCard(card, callId, text, null, false);
+                };
+                otherInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); submitOther(); }
+                });
+                otherSend.addEventListener('click', submitOther);
+                other.appendChild(otherIcon);
+                other.appendChild(otherInput);
+                other.appendChild(otherSend);
+                optionsWrap.appendChild(other);
+                card.appendChild(optionsWrap);
+
+                const footer = document.createElement('div');
+                footer.className = 'elicit-footer';
+                const skipBtn = document.createElement('button');
+                skipBtn.type = 'button';
+                skipBtn.className = 'elicit-skip';
+                skipBtn.textContent = '跳过';
+                skipBtn.addEventListener('click', () => resolveElicitCard(card, callId, '', null, true));
+                footer.appendChild(skipBtn);
+                card.appendChild(footer);
+
+                const summary = document.createElement('div');
+                summary.className = 'elicit-resolved-summary';
+                card.appendChild(summary);
+
+                textEl.appendChild(card);
+                if (callId) activeElicitCards.set(callId, { card, options });
+                this.maybeScroll();
+            }
+
             updateMetadata(data) {
                 const msgEl = this.currentMessageEl;
                 if (msgEl) {
                     const metaEl = msgEl.querySelector('.msg-meta');
                     if (metaEl) {
                         const model = data.model ? ` · ${data.model}` : '';
-                        metaEl.textContent = `WorkBuddy AI${model} · 生成中...`;
+                        metaEl.textContent = `PABuddy AI${model} · 生成中...`;
                     }
                 }
             }
@@ -2612,10 +2798,10 @@
                         // 连接层面的问题——连接层面的断线由 startRealStream 自己的
                         // 重连逻辑处理，不会走到这里。
                         metaEl.textContent = data.failed
-                            ? 'WorkBuddy AI · 生成失败'
+                            ? 'PABuddy AI · 生成失败'
                             : (data.stopped
-                                ? (data.stillRunning ? 'WorkBuddy AI · 已停止观察，可能仍在后台继续' : 'WorkBuddy AI · 已停止生成')
-                                : 'WorkBuddy AI · 已完成');
+                                ? (data.stillRunning ? 'PABuddy AI · 已停止观察，可能仍在后台继续' : 'PABuddy AI · 已停止生成')
+                                : 'PABuddy AI · 已完成');
                     }
                     if (data.failed) {
                         const textEl = msgEl.querySelector('.msg-text');
@@ -3187,6 +3373,55 @@
         // 静默失联判定阈值——留出比服务端 8s 心跳周期更长的余量（能容忍漏掉
         // 一拍），太短容易在网络抖一下的时候就误判。
         const STREAM_STALL_TIMEOUT_MS = 20000;
+        // callId -> {card, options}，只给数字键盘快捷键用——正常情况下同一
+        // 时间最多一张卡片是"还没回答"的（ask_user_question 会卡住整轮对话，
+        // 模型问不出第二个），resolveElicitCard 一回答就把自己从这里摘掉。
+        let activeElicitCards = new Map();
+
+        // 澄清卡片选完/输完/跳过的统一出口：本地先把卡片画成"已回答"（乐观
+        // 更新，不等服务端确认），再 POST 到 /sessions/{id}/answer 把答案送
+        // 回那个还卡在 Execute 里的工具调用。card 已经是 resolved 状态时直接
+        // 忽略——防止双击 / 回车又点了一次选项这类重复提交。
+        function resolveElicitCard(card, callId, text, rowEl, skipped) {
+            if (!card || card.classList.contains('elicit-resolved')) return;
+            card.classList.add('elicit-resolved');
+            if (callId) activeElicitCards.delete(callId);
+
+            const summary = card.querySelector('.elicit-resolved-summary');
+            if (summary) summary.textContent = skipped ? '⏭ 已跳过' : `✓ ${text}`;
+            if (rowEl) {
+                card.querySelectorAll('.elicit-option').forEach((el) => el.classList.add('elicit-disabled'));
+                rowEl.classList.add('elicit-picked');
+            }
+
+            if (!currentSessionId || !callId) return;
+            const payload = skipped ? { callId, skipped: true } : { callId, text };
+            fetch(`/sessions/${encodeURIComponent(currentSessionId)}/answer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            }).catch(() => {
+                showToast('❌ 回答发送失败，请重试', 'fa-exclamation-circle');
+            });
+        }
+
+        // 数字键 1-9 直接选对应编号的选项——只在聊天输入框/卡片自己的输入框
+        // 之外的地方按数字键才生效，避免打字打出数字时被当成选了哪个选项。
+        document.addEventListener('keydown', (e) => {
+            if (activeElicitCards.size === 0) return;
+            const active = document.activeElement;
+            if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+            const digit = Number(e.key);
+            if (!Number.isInteger(digit) || digit < 1 || digit > 9) return;
+            const last = [...activeElicitCards.entries()].pop();
+            if (!last) return;
+            const [callId, entry] = last;
+            const opt = entry.options[digit - 1];
+            if (!opt) return;
+            e.preventDefault();
+            const row = entry.card.querySelector(`.elicit-option[data-index="${digit}"]`);
+            resolveElicitCard(entry.card, callId, opt.label || '', row, false);
+        });
 
         function formatDuration(ms) {
             ms = Number(ms);
@@ -3399,7 +3634,7 @@
             streamCancelled = false;
             streamStartedAt = Date.now();
             // 真正的新一轮（不是重连）——上一轮留下的水位线不再有意义。
-            if (text) stepCheckpoints = new Map();
+            if (text) { stepCheckpoints = new Map(); activeElicitCards = new Map(); }
             protocolHandler.reset();
             protocolHandler.isStreaming = true;
             protocolHandler.stickToBottom = true;
@@ -3411,7 +3646,7 @@
                     stripMessageActions(lastMsg);
                     protocolHandler.currentMessageEl = lastMsg;
                     const meta = lastMsg.querySelector('.msg-meta');
-                    if (meta) meta.textContent = 'WorkBuddy AI · 生成中...';
+                    if (meta) meta.textContent = 'PABuddy AI · 生成中...';
                 }
             }
             protocolHandler.showWaiting();
@@ -3447,6 +3682,30 @@
                 });
             }
 
+            // 服务端在每个 step 一开始就发一条（payload 是 {turn, step}），见
+            // handlers.go 的 writeStreamEvent。第一次见到某个 (turn, step) 只
+            // 是记一下当前气泡里已经有几个子节点；第二次见到同一个 (turn,
+            // step)——只可能是断线重连把这个还没跑完的 step 从头重放了一遍——
+            // 就把气泡截回那条水位线，再往后收到的 chunk/tool-call 才不会跟
+            // 断线前已经画好的部分叠在一起（ensureMdStream 只会去接"最后一个
+            // 子节点"，判断不出那是不是本该被这次重放覆盖的旧内容）。
+            onSSE('step', (e) => {
+                const data = JSON.parse(e.data);
+                const key = `${data.turn}:${data.step}`;
+                const textEl = protocolHandler.currentMessageEl && protocolHandler.currentMessageEl.querySelector('.msg-text');
+                if (stepCheckpoints.has(key)) {
+                    const checkpoint = stepCheckpoints.get(key);
+                    if (textEl) {
+                        while (textEl.children.length > checkpoint) {
+                            textEl.removeChild(textEl.lastElementChild);
+                        }
+                    }
+                    protocolHandler.streamEl = null; // may have just been removed above
+                } else {
+                    stepCheckpoints.set(key, textEl ? textEl.children.length : 0);
+                }
+            });
+
             onSSE('chunk', (e) => {
                 const data = JSON.parse(e.data);
                 if (data.kind === 'reasoning') {
@@ -3460,6 +3719,12 @@
             });
             onSSE('tool-result', (e) => {
                 protocolHandler.dispatch({ type: 'tool-result', content: JSON.parse(e.data) });
+            });
+            // ask_user_question：模型拿不准时的澄清问题，跟 tool-call 不一样，
+            // 这个事件在工具调用一发出就到（不是等结果），因为结果本来就是
+            // 在等这张卡片被回答（见 web/handlers.go 的 writeStreamEvent）。
+            onSSE('elicit', (e) => {
+                protocolHandler.dispatch({ type: 'elicit', content: JSON.parse(e.data) });
             });
             ['table', 'chart', 'code', 'suggestion', 'image', 'error', 'progress'].forEach((type) => {
                 onSSE(type, (e) => {
@@ -3757,7 +4022,7 @@
                     div.innerHTML = `
                         <div class="msg-avatar">AI</div>
                         <div class="msg-bubble">
-                            <div class="msg-meta">WorkBuddy AI · 刚刚</div>
+                            <div class="msg-meta">PABuddy AI · 刚刚</div>
                             <div class="msg-text">对话已清空。有什么我可以帮你的吗？</div>
                         </div>
                     `;
@@ -3772,7 +4037,7 @@
 
         document.getElementById('exportChatBtn').addEventListener('click', function() {
             const msgs = container.querySelectorAll('.message');
-            let text = 'WorkBuddy AI 对话导出\n' + '='.repeat(50) + '\n';
+            let text = 'PABuddy AI 对话导出\n' + '='.repeat(50) + '\n';
             msgs.forEach(m => {
                 const role = m.className.includes('user') ? '用户' : m.className.includes('assistant') ? 'AI' : '系统';
                 const textEl = m.querySelector('.msg-text');
@@ -3818,6 +4083,10 @@
                     menu.classList.remove('show');
                     window.location.href = '/settings.html';
                 }
+                if (action === 'logs') {
+                    menu.classList.remove('show');
+                    window.location.href = '/settings.html#logs';
+                }
             });
             document.addEventListener('click', function() { menu.classList.remove('show'); });
         })();
@@ -3850,6 +4119,22 @@
             return s.parentSession ? `${short} (fork)` : short;
         }
 
+        function formatSessionAge(createdAt) {
+            const t = Number(createdAt);
+            if (!Number.isFinite(t) || t <= 0) return '';
+            const mins = Math.max(0, Math.floor((Date.now() - t) / 60000));
+            if (mins < 1) return '刚刚';
+            if (mins < 60) return `${mins}分钟前`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return `${hrs}小时前`;
+            const days = Math.floor(hrs / 24);
+            if (days < 7) return `${days}天前`;
+            const d = new Date(t);
+            const pad = (n) => String(n).padStart(2, '0');
+            const stamp = `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            return d.getFullYear() === new Date().getFullYear() ? stamp : `${d.getFullYear()}-${stamp}`;
+        }
+
         async function refreshHistoryList() {
             const list = document.getElementById('historyList');
             if (!list) return;
@@ -3869,7 +4154,8 @@
                         const item = document.createElement('div');
                         item.className = 'history-item' + (s.id === currentSessionId ? ' active' : '');
                         const label = sessionLabel(s);
-                        item.title = label;
+                        const age = formatSessionAge(s.createdAt);
+                        item.title = age ? `${label} · ${new Date(s.createdAt).toLocaleString('zh-CN')}` : label;
                         item.innerHTML = `<i class="fas fa-comment-dots"></i><span class="label"></span>`;
                         item.querySelector('.label').textContent = label;
                         if (s.fileCount) {
@@ -3881,7 +4167,7 @@
                         }
                         const time = document.createElement('span');
                         time.className = 'time';
-                        time.textContent = s.status || '';
+                        time.textContent = age;
                         item.appendChild(time);
                         if (s.id === currentSessionId && label && label !== s.id) {
                             const titleEl = document.getElementById('chatTitleText');
@@ -3992,7 +4278,7 @@
         }
         init();
 
-        console.log('🚀 WorkBuddy AI · 协议驱动对话已加载');
+        console.log('🚀 PABuddy AI · 协议驱动对话已加载');
         console.log('📋 支持的消息类型:', Object.values(Protocol.MessageType).join(', '));
     })();
 </script>

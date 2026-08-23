@@ -88,6 +88,10 @@ func (s *Server) buildSystemPrompt(cwd string) (string, error) {
 			Name: "tool:plan_mode", Order: systemprompt.OrderToolGuidanceMin + 6,
 			Text: "- exit_plan_mode：仅在计划模式开启时使用。先给出完整计划供确认，再动手执行。",
 		})
+		b.Section(systemprompt.Section{
+			Name: "tool:elicit", Order: systemprompt.OrderToolGuidanceMin + 7,
+			Text: "- ask_user_question：请求在真正拿不准、瞎猜会导致返工时才用——给 2-4 个具体选项，用户会选一个、自己打字回答，或者跳过。常规确认或有合理默认值时不要用，优先直接推进；这个调用会卡住整轮对话直到用户回应，同一时间只问一个问题。",
+		})
 	}
 	b.Variable("model", s.cfg.Model)
 	b.Variable("cwd", cwd)
@@ -113,6 +117,11 @@ type Server struct {
 	cfg            config
 	configPath     string
 	cfgMu          sync.Mutex
+	// answers backs ask_user_question (see elicit.go) — process-lifetime and
+	// shared across sessions like sandboxProv/pythonEnv above, since it's
+	// just a lookup table keyed by (sessionID, callID), not itself
+	// session-scoped state.
+	answers *answerRegistry
 	// persistence is nil-able by construction (Open can't fail short of a
 	// filesystem error, so it's always set in practice) — kept as a plain
 	// field rather than assumed non-nil so a future caller could construct
@@ -153,7 +162,8 @@ func newServer(ctx context.Context, cfg config) (*Server, error) {
 		return nil, fmt.Errorf("opening session persistence: %w", err)
 	}
 
-	fmt.Println("provisioning the Python environment (first run downloads packages, later runs reuse the cache)...")
+	fmt.Println("checking the Python environment...")
+	exposeBundledNodeModules()
 	env, err := python.EnsureEnv(ctx, cfg.pythonEnvOptions())
 	if err != nil {
 		return nil, fmt.Errorf("provisioning python: %w", err)
@@ -170,6 +180,7 @@ func newServer(ctx context.Context, cfg config) (*Server, error) {
 		llm:            llm,
 		cfg:            cfg,
 		persistence:    persistence,
+		answers:        newAnswerRegistry(),
 	}
 
 	restored, err := server.restorePersistedSessions()
@@ -285,16 +296,17 @@ func (s *Server) buildAgent(sess *session.Session) (*agentloop.Agent, error) {
 		return nil, err
 	}
 
-	pythonTool, err := python.NewRunTool(python.RunToolOptions{
-		Env: s.pythonEnv, Provider: s.sandboxProv, WorkspaceRoot: workspaceRoot,
-		Mode: s.cfg.PythonMode, Timeout: s.cfg.PythonRunTimeout,
-	})
-	if err != nil {
-		return nil, err
-	}
 	var approver sandbox.EscalationApprover
 	if s.cfg.AutoApproveEscalation {
 		approver = autoApproveEscalation
+	}
+	pythonTool, err := python.NewRunTool(python.RunToolOptions{
+		Env: s.pythonEnv, Provider: s.sandboxProv, WorkspaceRoot: workspaceRoot,
+		Mode: s.cfg.PythonMode, Timeout: s.cfg.PythonRunTimeout,
+		DefaultNetwork: s.cfg.PythonNetwork, Approver: approver,
+	})
+	if err != nil {
+		return nil, err
 	}
 	bashTool, bashJobResultTool, err := toolbash.NewTools(toolbash.ToolOptions{
 		Executor:       bashsandbox.New(s.sandboxProv),
@@ -344,6 +356,9 @@ func (s *Server) buildAgent(sess *session.Session) (*agentloop.Agent, error) {
 			return nil, err
 		}
 	}
+	if _, err := toolRegistry.Register(newAskUserQuestionTool(s.answers, string(sess.ID()))); err != nil {
+		return nil, err
+	}
 
 	exitTool := &planmode.ExitTool{Controller: s.planController, Review: s.reviewPlan}
 	multiTool := planmode.NewMultiTool().Add(coretools.Bridge{Registry: toolRegistry}).Add(exitTool)
@@ -379,6 +394,9 @@ func (s *Server) buildAgent(sess *session.Session) (*agentloop.Agent, error) {
 	}
 	if s.cfg.Temperature != nil {
 		ag = ag.WithTemperature(*s.cfg.Temperature)
+	}
+	if s.cfg.TopP != nil {
+		ag = ag.WithTopP(*s.cfg.TopP)
 	}
 	if s.cfg.ReasoningEffort != "" {
 		ag = ag.WithReasoningEffort(s.cfg.ReasoningEffort)

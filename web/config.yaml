@@ -22,8 +22,9 @@ llm:
   # 空 = 走 DeepSeek 默认 thinking；disabled = 关闭思考模式
   thinking: disabled
   max_tokens: 0
-  # 省略或 null = 不传 temperature
+  # 省略或 null = 不传；与 top_p 一般只改一个
   temperature: null
+  top_p: null
   reasoning_effort: ""
   retry:
     # normal = 只重试 retryable_codes，最多 max_retries 次
@@ -45,6 +46,10 @@ sandbox:
   bash_mode: danger-full-access
   bash_network: true
   python_mode: danger-full-access
+  # 只在 python_mode 不是 danger-full-access 时才有意义：true = run_python 默认
+  # 就能联网；false = 默认不能联网，模型要联网得带 network:true + justification
+  # 现场申请，由 auto_approve_escalation（或人工审批）决定放不放行。
+  python_network: false
   fs_mode: danger-full-access
   auto_approve_escalation: true
 
@@ -54,8 +59,25 @@ python:
   bin: python3
   install_timeout: 5m
   run_timeout: 300s
-  # 空 = 使用 DefaultDocumentPackages
-  packages: []
+  # 空 = 使用 DefaultDocumentPackages。这里是整体替换，不是追加——改的时候把
+  # 原来那 7 个也一起写上。跟 native/scripts/prepare-runtime.sh 里的 PACKAGES
+  # 数组保持同一份列表，那边是打包桌面端时预装/预下载 wheel 用的。
+  packages:
+    - python-docx
+    - python-pptx
+    - openpyxl
+    - pypdf
+    - reportlab
+    - pandas
+    - Pillow
+    - PyMuPDF
+    - matplotlib
+    - numpy
+    - beautifulsoup4
+    - lxml
+    - pyyaml
+    - requests
+    - httpx
 
 tools:
   bash_timeout: 120s

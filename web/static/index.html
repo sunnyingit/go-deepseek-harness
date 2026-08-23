@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WorkBuddy AI · 工作台</title>
+    <title>PABuddy AI · 工作台</title>
     <link rel="stylesheet" href="/static/vendor/fonts/inter.css" />
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css" />
     <style>
@@ -1538,6 +1538,7 @@
                     <button type="button" data-action="space"><i class="fas fa-folder-open"></i> 个人空间</button>
                     <button type="button" data-action="notify"><i class="fas fa-bell"></i> 通知</button>
                     <button type="button" data-action="settings"><i class="fas fa-sliders-h"></i> 设置</button>
+                    <button type="button" data-action="logs"><i class="fas fa-file-alt"></i> 运行日志</button>
                 </div>
             </div>
         </aside>
@@ -1646,7 +1647,7 @@
             </div>
 
             <div class="footer-note">
-                <span id="footerPrivacy"><i class="fas fa-robot"></i> PA-WorkBuddy · 隐私保护</span>
+                <span id="footerPrivacy"><i class="fas fa-robot"></i> PABuddy · 隐私保护</span>
             </div>
 
         </main>
@@ -1740,16 +1741,16 @@
               use: '把今天做了什么、会议记录或一堆要点发给她。她会整理成能扫一眼的日报、周报或会议纪要。',
               examples: [
                 {
-                  label: '我是 Agent 工程师，拿前 10% 绩效，写一份日报',
-                  prompt: '直接写成今天的日报成品，不要教我怎么写。下面是模拟素材，照这个整理，缺的标「待补充」，不要另编数字。\n角色：Agent 平台组工程师李航，绩效前 10%。日期：2026-08-21。\n今日完成：修完 max-tokens 后 tool_call 悬挂导致会话永久 400 的问题，回归用例 12/12 过；合入 session replay，打开历史会话延迟 1.8s→0.6s；评审并通过 2 个 PR（编排协议字段、权限清单）。\n进行中：多 Agent 编排协议草案，预计周五出 v0。\n卡点：评测集还缺 30 条真实失败样本，需要测试阿宁周一前补。\n明日：补评测样本接入、和产品对编排协议 3 个未决字段。'
+                  label: '绩效前 10%，写一份老板会转发的日报',
+                  prompt: '直接写成今天的日报成品，不要教我怎么写，不要写成待办清单。读者是老板和隔壁组：30 秒扫完就知道今天推动了什么、卡在谁身上。语气像绩效前 10% 的人——先讲结果和影响，再讲动作；短、准、有锋芒，不邀功也不卑微。下面是模拟素材，照这个整理，缺的标「待补充」，不要另编数字。\n角色：Agent 平台组工程师李航。日期：2026-08-21。\n今日结果：修完 max-tokens 后 tool_call 悬挂导致会话永久 400 的问题，回归 12/12；合入 session replay，打开历史会话 1.8s→0.6s；评审通过 2 个 PR（编排协议字段、权限清单）。\n进行中：多 Agent 编排协议草案，预计周五出 v0。\n卡点：评测集还缺 30 条真实失败样本，需要测试阿宁周一前补。\n明日：把补来的样本接上、和产品对编排协议 3 个未决字段。'
                 },
                 {
                   label: '开了一小时会，写成老板 30 秒能看完的纪要',
                   prompt: '直接写成会议纪要成品，老板 30 秒能看完：结论和行动项放最前。不要教我怎么写。下面是模拟素材，缺负责人/截止日期标「待确认」。\n主题：Agent 上线评审。时间：2026-08-21 14:00–15:00。参会：张总、产品小陈、研发李航、测试阿宁。\n讨论：1）本周五是否灰度 5% 流量——张总同意，前提是有一键回滚；2）Token 计费按对话估算还是按 API 实扣——产品坚持估算口径，研发建议实扣，未达成一致；3）客服话术还没有，小陈说自己来写。\n口头决定：周五 16:00 灰度 5%；回滚开关由李航周四前做好；Token 口径改到下周一再定。小陈承诺周三下班前出客服话术一页纸。'
                 },
                 {
-                  label: '这周被临时插队三次，写一份不像在抱怨的周报',
-                  prompt: '直接写成周报成品，不要教我怎么写，也不要写成诉苦。把插队写成对计划的影响和结果。下面是模拟素材。\n角色：Agent 平台组李航。周期：2026-08-18 至 08-22。\n原计划：编排协议 v0、评测集 80 条、内部使用文档。\n本周结果：编排草案完成约 70%；评测集 52/80；文档只写了目录。\n三次插队：周一线上「重开会话文件消失」救火 2h，根因已合入 replay；周三销售要客户演示，搭演示环境半天，客户当场跑通；周四安全抽查，补工具权限清单 3h，清单已交。\n风险：评测集缺口可能把灰度准备拖到下周。\n下周：补齐评测、配合周五灰度、文档补到能给新人用。'
+                  label: '这周被插队三次，写一份给老板看的周报',
+                  prompt: '直接写成周报成品，不要教我怎么写。读者是老板：一分钟看完就知道本周交付了什么、计划差在哪、下周要他拍什么板。把三次插队写成对计划的影响和结果，不诉苦、不甩锅、不写情绪。语气像向上同步——结论先行，数字清楚，风险带选项。下面是模拟素材，照这个整理，缺的标「待补充」，不要另编数字。\n角色：Agent 平台组李航。周期：2026-08-18 至 08-22。\n原计划：编排协议 v0、评测集 80 条、内部使用文档。\n本周结果：编排草案完成约 70%；评测集 52/80；文档只写了目录。\n三次插队：周一线上「重开会话文件消失」救火 2h，根因已合入 replay；周三销售要客户演示，搭演示环境半天，客户当场跑通；周四安全抽查，补工具权限清单 3h，清单已交。\n风险：评测集缺口可能把灰度准备拖到下周。\n下周：补齐评测、配合周五灰度、文档补到能给新人用。'
                 }
               ] },
             { id: 'pptx', name: 'PPT 设计师', emoji: '🖥️', blurb: '模板图表批量生成，不用再对齐方框', cat: '文档与办公',
@@ -1810,6 +1811,22 @@
             return s.parentSession ? `${short} (fork)` : short;
         }
 
+        function formatSessionAge(createdAt) {
+            const t = Number(createdAt);
+            if (!Number.isFinite(t) || t <= 0) return '';
+            const mins = Math.max(0, Math.floor((Date.now() - t) / 60000));
+            if (mins < 1) return '刚刚';
+            if (mins < 60) return `${mins}分钟前`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return `${hrs}小时前`;
+            const days = Math.floor(hrs / 24);
+            if (days < 7) return `${days}天前`;
+            const d = new Date(t);
+            const pad = (n) => String(n).padStart(2, '0');
+            const stamp = `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            return d.getFullYear() === new Date().getFullYear() ? stamp : `${d.getFullYear()}-${stamp}`;
+        }
+
         async function refreshRecentSessions() {
             if (!historyList) return;
             const sessions = await api('/sessions');
@@ -1825,7 +1842,8 @@
                     const item = document.createElement('div');
                     item.className = 'history-item' + (s.id === state.sessionId ? ' active' : '');
                     const label = sessionLabel(s);
-                    item.title = label;
+                    const age = formatSessionAge(s.createdAt);
+                    item.title = age ? `${label} · ${new Date(s.createdAt).toLocaleString('zh-CN')}` : label;
                     item.innerHTML = `<i class="fas fa-comment-dots"></i><span class="label"></span>`;
                     item.querySelector('.label').textContent = label;
                     if (s.fileCount) {
@@ -1837,7 +1855,7 @@
                     }
                     const time = document.createElement('span');
                     time.className = 'time';
-                    time.textContent = s.status || '';
+                    time.textContent = age;
                     item.appendChild(time);
                     item.addEventListener('click', () => openSession(s.id));
                     historyList.appendChild(item);
@@ -2189,6 +2207,10 @@
                     menu.classList.remove('show');
                     window.location.href = '/settings.html';
                 }
+                if (action === 'logs') {
+                    menu.classList.remove('show');
+                    window.location.href = '/settings.html#logs';
+                }
             });
             document.addEventListener('click', function() { menu.classList.remove('show'); });
         })();
@@ -2223,7 +2245,8 @@
             });
         })();
 
-        function setSelectedSkill(id) {
+        function setSelectedSkill(id, opts) {
+            const selectFirstExample = !!(opts && opts.selectFirstExample);
             selectedSkill = id || null;
             document.querySelectorAll('#skillBar .tool-item[data-skill]').forEach(el => {
                 el.classList.toggle('active', el.dataset.skill === selectedSkill);
@@ -2247,7 +2270,7 @@
                     const prompt = (item && typeof item === 'object') ? (item.prompt || item.label) : item;
                     const btn = document.createElement('button');
                     btn.type = 'button';
-                    btn.className = 'skill-example' + (index === 0 ? ' active' : '');
+                    btn.className = 'skill-example' + (selectFirstExample && index === 0 ? ' active' : '');
                     btn.textContent = label;
                     btn.addEventListener('click', () => {
                         pickedExamples.querySelectorAll('.skill-example').forEach(el => el.classList.remove('active'));
@@ -2257,7 +2280,7 @@
                         chatInput.focus();
                     });
                     pickedExamples.appendChild(btn);
-                    if (index === 0) selectedExamplePrompt = prompt;
+                    if (selectFirstExample && index === 0) selectedExamplePrompt = prompt;
                 });
                 chatInput.placeholder = skill.use || `用「${skill.name}」来说你要做什么`;
             } else {
@@ -2424,9 +2447,9 @@
             return;
         }
         setNav('task');
-        setSelectedSkill('web-artifacts-builder');
+        setSelectedSkill('web-artifacts-builder', { selectFirstExample: true });
         refreshRecentSessions().catch(err => showToast('加载历史对话失败: ' + err.message, 'fa-exclamation-circle'));
-        console.log('WorkBuddy AI 已加载，所有交互事件已绑定');
+        console.log('PABuddy AI 已加载，所有交互事件已绑定');
     })();
 </script>
 

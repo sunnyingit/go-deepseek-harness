@@ -8,6 +8,7 @@ runtime/python/
 runtime/node/
 runtime/git/
 runtime/wheels/
+runtime/node-packages/
 runtime/skills/
 runtime/config.yaml
 runtime/*.tar.gz

@@ -125,20 +125,111 @@ sandbox:
 		}
 	})
 
-	t.Run("settings page is served", func(t *testing.T) {
+	t.Run("settings page hides sandbox python and reasoning_effort", func(t *testing.T) {
 		res, err := http.Get(srv.URL + "/settings.html")
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer res.Body.Close()
-		if res.StatusCode != http.StatusOK {
-			t.Fatalf("status = %d", res.StatusCode)
-		}
 		body, _ := io.ReadAll(res.Body)
 		if !bytes.Contains(body, []byte("保存到 config.yaml")) {
 			t.Fatalf("page missing save button")
 		}
+		for _, wantGone := range []string{"reasoning_effort", "bash_mode", "python_mode", "预装包"} {
+			if bytes.Contains(body, []byte(wantGone)) {
+				t.Fatalf("settings page still exposes %q", wantGone)
+			}
+		}
+		if !bytes.Contains(body, []byte("max_upload_mb")) {
+			t.Fatal("upload field should be in MB")
+		}
+		if !bytes.Contains(body, []byte("id=\"top_p\"")) {
+			t.Fatal("settings page missing top_p")
+		}
 	})
+}
+
+func TestGetConfigCompactDurationsAndPutKeepsSandbox(t *testing.T) {
+	s, _ := newTestServer(t)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte(`
+server:
+  port: 8083
+  shutdown_timeout: 60s
+llm:
+  api_key: "sk-secret-abcdefgh"
+  model: deepseek-chat
+  stream_idle_timeout: 10m
+  connect_timeout: 100s
+  tls_handshake_timeout: 100s
+sandbox:
+  bash_mode: danger-full-access
+python:
+  bin: python3
+  run_timeout: 300s
+tools:
+  bash_timeout: 120s
+  max_upload_bytes: 67108864
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.configPath = path
+	srv := httptest.NewServer(s.routes())
+	t.Cleanup(srv.Close)
+
+	res, err := http.Get(srv.URL + "/config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var env settingsEnvelope
+	if err := json.NewDecoder(res.Body).Decode(&env); err != nil {
+		t.Fatal(err)
+	}
+	if env.Config.LLM.StreamIdleTimeout != "10m" {
+		t.Fatalf("idle = %q", env.Config.LLM.StreamIdleTimeout)
+	}
+	if env.Config.LLM.ConnectTimeout != "100s" {
+		t.Fatalf("connect = %q", env.Config.LLM.ConnectTimeout)
+	}
+	if env.Config.Tools.BashTimeout != "2m" {
+		t.Fatalf("bash = %q", env.Config.Tools.BashTimeout)
+	}
+
+	body := `{
+	  "server": {"port": 8083, "data_dir": "", "shutdown_timeout": "60s"},
+	  "llm": {"api_key": "", "model": "deepseek-chat", "stream_idle_timeout": "10m", "connect_timeout": "100s", "tls_handshake_timeout": "100s", "retry": {"mode": "normal", "max_retries": 5, "initial_delay": "500ms", "max_delay": "10s"}},
+	  "tools": {"bash_timeout": "2m", "max_upload_bytes": 67108864, "max_parallel_tool_calls": 10},
+	  "agent": {"auto_approve_plan": true, "system_prompt": ""}
+	}`
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/config", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	putRes, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer putRes.Body.Close()
+	raw, _ := io.ReadAll(putRes.Body)
+	if putRes.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d body = %s", putRes.StatusCode, raw)
+	}
+	written, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(written, []byte("danger-full-access")) {
+		t.Fatalf("sandbox dropped:\n%s", written)
+	}
+	if !bytes.Contains(written, []byte("python3")) {
+		t.Fatalf("python dropped:\n%s", written)
+	}
+	if bytes.Contains(written, []byte("10m0s")) || bytes.Contains(written, []byte("1m40s")) {
+		t.Fatalf("durations not compact:\n%s", written)
+	}
 }
 
 func TestGetConfigWithoutPath(t *testing.T) {

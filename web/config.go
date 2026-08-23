@@ -37,13 +37,39 @@ func (d *duration) UnmarshalYAML(value *yaml.Node) error {
 }
 
 func (d duration) MarshalYAML() (interface{}, error) {
-	if time.Duration(d) == 0 {
-		return "", nil
-	}
-	return time.Duration(d).String(), nil
+	return formatDuration(time.Duration(d)), nil
 }
 
 func (d duration) Duration() time.Duration { return time.Duration(d) }
+
+// formatDuration is a compact Go duration (10m, 100s, 500ms) instead of
+// time.Duration.String()'s 10m0s / 1m40s.
+func formatDuration(d time.Duration) string {
+	if d == 0 {
+		return ""
+	}
+	sign := ""
+	if d < 0 {
+		sign = "-"
+		d = -d
+	}
+	var body string
+	switch {
+	case d%time.Hour == 0:
+		body = fmt.Sprintf("%dh", d/time.Hour)
+	case d >= time.Hour && d%time.Minute == 0:
+		body = fmt.Sprintf("%dh%dm", d/time.Hour, (d%time.Hour)/time.Minute)
+	case d%time.Minute == 0:
+		body = fmt.Sprintf("%dm", d/time.Minute)
+	case d%time.Second == 0:
+		body = fmt.Sprintf("%ds", d/time.Second)
+	case d%time.Millisecond == 0:
+		body = fmt.Sprintf("%dms", d/time.Millisecond)
+	default:
+		body = d.String()
+	}
+	return sign + body
+}
 
 // fileConfig is the on-disk YAML shape. loadConfigFile converts it into the
 // runtime config the rest of the process actually reads.
@@ -72,6 +98,7 @@ type fileLLM struct {
 	Thinking            string    `yaml:"thinking"`
 	MaxTokens           int       `yaml:"max_tokens"`
 	Temperature         *float64  `yaml:"temperature"`
+	TopP                *float64  `yaml:"top_p"`
 	ReasoningEffort     string    `yaml:"reasoning_effort"`
 	Retry               fileRetry `yaml:"retry"`
 }
@@ -89,6 +116,7 @@ type fileSandbox struct {
 	BashMode              string `yaml:"bash_mode"`
 	BashNetwork           *bool  `yaml:"bash_network"`
 	PythonMode            string `yaml:"python_mode"`
+	PythonNetwork         *bool  `yaml:"python_network"`
 	FSMode                string `yaml:"fs_mode"`
 	AutoApproveEscalation *bool  `yaml:"auto_approve_escalation"`
 }
@@ -129,12 +157,14 @@ type config struct {
 	Thinking            string
 	MaxTokens           int
 	Temperature         *float64
+	TopP                *float64
 	ReasoningEffort     string
 	Retry               llmretry.Policy
 
 	BashMode              sandbox.Mode
 	BashNetwork           bool
 	PythonMode            sandbox.Mode
+	PythonNetwork         bool
 	FSMode                sandbox.Mode
 	AutoApproveEscalation bool
 
@@ -166,6 +196,7 @@ func defaultConfig() config {
 		BashMode:              sandbox.DangerFullAccess,
 		BashNetwork:           true,
 		PythonMode:            sandbox.DangerFullAccess,
+		PythonNetwork:         false,
 		FSMode:                sandbox.DangerFullAccess,
 		AutoApproveEscalation: true,
 
@@ -295,6 +326,9 @@ func applyFile(cfg *config, file fileConfig) error {
 	if file.LLM.Temperature != nil {
 		cfg.Temperature = file.LLM.Temperature
 	}
+	if file.LLM.TopP != nil {
+		cfg.TopP = file.LLM.TopP
+	}
 	cfg.ReasoningEffort = file.LLM.ReasoningEffort
 	if err := applyRetry(cfg, file.LLM.Retry); err != nil {
 		return err
@@ -317,6 +351,9 @@ func applyFile(cfg *config, file fileConfig) error {
 	cfg.FSMode = mode
 	if file.Sandbox.BashNetwork != nil {
 		cfg.BashNetwork = *file.Sandbox.BashNetwork
+	}
+	if file.Sandbox.PythonNetwork != nil {
+		cfg.PythonNetwork = *file.Sandbox.PythonNetwork
 	}
 	if file.Sandbox.AutoApproveEscalation != nil {
 		cfg.AutoApproveEscalation = *file.Sandbox.AutoApproveEscalation

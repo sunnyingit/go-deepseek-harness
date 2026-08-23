@@ -11,6 +11,8 @@ const PAGES = {
   index: `${BASE}/`,
   dialog: `${BASE}/dialog.html`,
   space: `${BASE}/space.html`,
+  settings: `${BASE}/settings.html`,
+  logs: `${BASE}/settings.html#logs`,
 };
 
 let win = null;
@@ -62,8 +64,21 @@ function npmBinDir() {
   return path.join(npmPrefix(), 'bin');
 }
 
+function bundledNodeModules() {
+  return path.join(runtimeRoot(), 'node-packages', 'node_modules');
+}
+
+function userNodeModules() {
+  if (process.platform === 'win32') return path.join(npmPrefix(), 'node_modules');
+  return path.join(npmPrefix(), 'lib', 'node_modules');
+}
+
 function userConfigPath() {
   return path.join(app.getPath('userData'), 'config.yaml');
+}
+
+function webLogPath() {
+  return path.join(app.getPath('userData'), 'web.log');
 }
 
 function parseYamlApiKey(text) {
@@ -135,6 +150,7 @@ function backendEnv(apiKey) {
   const bundledConfig = path.join(runtimeRoot(), 'config.yaml');
   if (fs.existsSync(bundledConfig)) env.WEB_DEMO_CONFIG = bundledConfig;
   env.WEB_DEMO_DATA_DIR = path.join(app.getPath('userData'), 'data');
+  env.WEB_DEMO_LOG_FILE = webLogPath();
   env.WEB_DEMO_PYTHON_CACHE_DIR = path.join(app.getPath('userData'), 'python-venv');
   const py = pythonBin();
   if (fs.existsSync(py)) env.HARNESS_PYTHON_BIN = py;
@@ -146,6 +162,11 @@ function backendEnv(apiKey) {
   env.NPM_CONFIG_PREFIX = npmPrefix();
   env.npm_config_cache = path.join(app.getPath('userData'), 'npm-cache');
   env.COREPACK_HOME = path.join(app.getPath('userData'), 'corepack');
+  const nodePath = [bundledNodeModules(), userNodeModules()].filter((d) => fs.existsSync(d));
+  if (nodePath.length) {
+    const existing = (env.NODE_PATH || '').split(sep).filter(Boolean);
+    env.NODE_PATH = [...nodePath, ...existing].join(sep);
+  }
   return env;
 }
 
@@ -182,7 +203,7 @@ function freeListenPort(port) {
 function startBackend(apiKey) {
   const bundled = webBinary();
   const env = backendEnv(apiKey);
-  const logPath = path.join(app.getPath('userData'), 'web.log');
+  const logPath = webLogPath();
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
   const log = fs.createWriteStream(logPath, { flags: 'a' });
 
@@ -252,7 +273,10 @@ function buildMenu() {
     { label: '工作台', accelerator: 'CmdOrCtrl+1', click: () => loadPage(PAGES.index) },
     { label: '对话', accelerator: 'CmdOrCtrl+2', click: () => loadPage(PAGES.dialog) },
     { label: '个人空间', accelerator: 'CmdOrCtrl+3', click: () => loadPage(PAGES.space) },
+    { label: '设置', accelerator: 'CmdOrCtrl+,', click: () => loadPage(PAGES.settings) },
+    { label: '运行日志', accelerator: 'CmdOrCtrl+Shift+L', click: () => loadPage(PAGES.logs) },
   ];
+  const revealLogsLabel = process.platform === 'darwin' ? '在访达中显示日志' : '在文件夹中显示日志';
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     {
       label: app.name,
@@ -266,6 +290,21 @@ function buildMenu() {
     { role: 'editMenu' },
     { role: 'viewMenu' },
     { role: 'windowMenu' },
+    {
+      role: 'help',
+      submenu: [
+        { label: '运行日志', click: () => loadPage(PAGES.logs) },
+        {
+          label: revealLogsLabel,
+          click: () => {
+            const p = webLogPath();
+            fs.mkdirSync(path.dirname(p), { recursive: true });
+            if (!fs.existsSync(p)) fs.writeFileSync(p, '');
+            shell.showItemInFolder(p);
+          },
+        },
+      ],
+    },
   ]));
 }
 
@@ -334,7 +373,7 @@ async function boot() {
       closeSplash();
       dialog.showErrorBox(
         'PABuddy AI',
-        '无法启动内置服务。请查看日志：\n' + path.join(app.getPath('userData'), 'web.log'),
+        '无法启动内置服务。请查看日志：\n' + webLogPath(),
       );
       app.quit();
       return;

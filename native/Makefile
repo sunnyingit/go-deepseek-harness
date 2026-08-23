@@ -39,12 +39,18 @@ runtime-mac:
 	test -x runtime/bin/pabuddy-web
 	test -x runtime/python/bin/python3
 	test -x runtime/node/bin/node
+	test -d runtime/node-packages/node_modules/pptxgenjs
+	test -d runtime/node-packages/node_modules/react-icons
+	test -d runtime/node-packages/node_modules/react-dom
+	test -d runtime/node-packages/node_modules/sharp
 
 runtime-win:
 	PRUNE_ARCHIVES=$(PRUNE_ARCHIVES) $(PREPARE) win-x64
 	test -f runtime/bin/pabuddy-web.exe
 	test -f runtime/python/python.exe
 	test -f runtime/node/node.exe
+	test -d runtime/node-packages/node_modules/pptxgenjs
+	test -d runtime/node-packages/node_modules/sharp
 
 start: deps
 	@if [ ! -x runtime/bin/pabuddy-web ]; then $(MAKE) runtime-mac; fi
@@ -58,7 +64,7 @@ win: deps runtime-win
 
 clean:
 	rm -rf dist node_modules
-	rm -rf runtime/bin runtime/python runtime/node runtime/git runtime/wheels runtime/skills runtime/config.yaml
+	rm -rf runtime/bin runtime/python runtime/node runtime/git runtime/wheels runtime/node-packages runtime/skills runtime/config.yaml
 	rm -f runtime/*.tar.gz runtime/*.zip runtime/cpython-*
 
 ifneq ($(OS),)

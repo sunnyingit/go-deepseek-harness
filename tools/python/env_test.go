@@ -78,6 +78,16 @@ func TestEnsureEnvRebuildsOnPackageSetChange(t *testing.T) {
 	}
 }
 
+func TestMissingPackagesOnlyReturnsUnsetNames(t *testing.T) {
+	got := missingPackages([]string{"Pillow", "pandas"}, []string{"pandas", "Pillow", "httpx", "lxml"})
+	if len(got) != 2 || got[0] != "httpx" || got[1] != "lxml" {
+		t.Fatalf("missing = %v, want [httpx lxml]", got)
+	}
+	if miss := missingPackages([]string{"a", "b"}, []string{"a", "b"}); len(miss) != 0 {
+		t.Fatalf("identical sets should be empty, got %v", miss)
+	}
+}
+
 func TestEnsureEnvRequiresCacheDir(t *testing.T) {
 	if _, err := EnsureEnv(context.Background(), EnvOptions{}); err == nil {
 		t.Fatal("want an error when CacheDir is empty")

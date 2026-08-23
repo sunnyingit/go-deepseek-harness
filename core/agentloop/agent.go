@@ -115,6 +115,7 @@ type GenerateRequest struct {
 	Tools           []ToolSchema
 	MaxTokens       int
 	Temperature     *float64
+	TopP            *float64
 	Stop            []string
 	ReasoningEffort string
 }
@@ -257,6 +258,7 @@ type Agent struct {
 	model           string
 	maxTokens       int
 	temperature     *float64
+	topP            *float64
 	reasoningEffort string
 
 	maxParallelToolCalls int
@@ -304,6 +306,12 @@ func (a *Agent) WithMaxTokens(n int) *Agent {
 // WithTemperature sets GenerateRequest.Temperature on every request.
 func (a *Agent) WithTemperature(t float64) *Agent {
 	a.temperature = &t
+	return a
+}
+
+// WithTopP sets GenerateRequest.TopP on every request.
+func (a *Agent) WithTopP(p float64) *Agent {
+	a.topP = &p
 	return a
 }
 
@@ -592,6 +600,7 @@ func (a *Agent) step(ctx context.Context, turn, stepNum int) (StepEndReason, err
 			Tools:           a.tools.Schemas(),
 			MaxTokens:       a.maxTokens,
 			Temperature:     a.temperature,
+			TopP:            a.topP,
 			ReasoningEffort: a.reasoningEffort,
 		}
 		stream, err := a.llm.Stream(ctx, req)

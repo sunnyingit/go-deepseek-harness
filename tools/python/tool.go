@@ -38,6 +38,16 @@ type RunToolOptions struct {
 	// Timeout bounds one script run, enforced by ToolDefinition.TimeoutMs
 	// (see core/tools/registry.go's dispatch). Defaults to 30s.
 	Timeout time.Duration
+	// DefaultNetwork grants every run outbound network access
+	// unconditionally, bypassing the per-call network/justification
+	// request below — mirrors shell/toolbash's own DefaultNetwork. Ignored
+	// under Mode == DangerFullAccess, where network is already unconfined.
+	DefaultNetwork bool
+	// Approver decides a per-call `network: true` request when
+	// DefaultNetwork is false — the same human-in-the-loop boundary
+	// shell/toolbash's own network escalation uses. A nil Approver makes
+	// every such request fail closed (see resolveNetwork).
+	Approver sandbox.EscalationApprover
 }
 
 // NewRunTool builds the run_python tool: it stages the model-supplied code
@@ -68,13 +78,15 @@ func NewRunTool(opts RunToolOptions) (tools.ToolDefinition, error) {
 	desc := fmt.Sprintf(
 		"Run a Python script in a sandboxed interpreter pre-installed with: %s. "+
 			"Use it to read or produce Word/PowerPoint/Excel/PDF documents and other files under the workspace. "+
+			"Runs network-less by default; a denied network call may be retried once with network:true plus "+
+			"justification (e.g. requests/httpx calls, pip installs inside the script). "+
 			"Print anything you want returned to yourself — stdout and stderr are both captured.",
 		strings.Join(opts.Env.Packages, ", "),
 	)
 	if mode == sandbox.DangerFullAccess {
 		desc = fmt.Sprintf(
 			"Run a Python script in an interpreter pre-installed with: %s. "+
-				"The sandbox is fully open: every directory is readable and writable. "+
+				"The sandbox is fully open: every directory is readable and writable, and outbound network is allowed. "+
 				"Use it to read or produce Word/PowerPoint/Excel/PDF documents. "+
 				"Print anything you want returned to yourself — stdout and stderr are both captured.",
 			strings.Join(opts.Env.Packages, ", "),
@@ -86,6 +98,9 @@ func NewRunTool(opts RunToolOptions) (tools.ToolDefinition, error) {
 		Description: desc,
 		Parameters: tools.ParameterSchema{
 			"code": {ValueSchema: tools.ValueSchema{Kind: tools.KindString, Description: "the complete Python script to run"}, Required: true},
+			"network": {ValueSchema: tools.ValueSchema{Kind: tools.KindBoolean,
+				Description: "request outbound network access for this run (e.g. requests/httpx calls, pip installs inside the script) — independent of file-write confinement"}},
+			"justification": {ValueSchema: tools.ValueSchema{Kind: tools.KindString, Description: "required alongside network"}},
 		},
 		Output: tools.Output{
 			Schema: tools.ValueSchema{Kind: tools.KindString},
@@ -96,12 +111,46 @@ func NewRunTool(opts RunToolOptions) (tools.ToolDefinition, error) {
 		TimeoutMs: int(timeout.Milliseconds()),
 		Execute: func(ctx context.Context, args map[string]any, _ *tools.RunContext) (any, error) {
 			code, _ := args["code"].(string)
-			return runScript(ctx, opts, mode, code)
+			network, err := resolveNetwork(ctx, opts, args)
+			if err != nil {
+				return "", err
+			}
+			return runScript(ctx, opts, mode, code, network)
 		},
 	}, nil
 }
 
-func runScript(ctx context.Context, opts RunToolOptions, mode sandbox.Mode, code string) (string, error) {
+// resolveNetwork decides whether this run gets outbound network access.
+// opts.DefaultNetwork grants it unconditionally (an operator-level default,
+// mirroring shell/toolbash's own DefaultNetwork); otherwise a model-supplied
+// network:true request goes through the same human-in-the-loop approver
+// bash's per-call network escalation uses — asking for network the run
+// wasn't already granted needs a real justification and a real approval,
+// not just asking nicely. Irrelevant under Mode == DangerFullAccess: runScript
+// never builds a Policy there, so whatever this returns is never consulted.
+func resolveNetwork(ctx context.Context, opts RunToolOptions, args map[string]any) (bool, error) {
+	if opts.DefaultNetwork {
+		return true, nil
+	}
+	requested, _ := args["network"].(bool)
+	if !requested {
+		return false, nil
+	}
+	justification, _ := args["justification"].(string)
+	if justification == "" {
+		return false, fmt.Errorf("network requires a non-empty justification")
+	}
+	if opts.Approver == nil {
+		return false, fmt.Errorf("escalation not granted: %w", &sandbox.EscalationDeniedError{Outcome: sandbox.Unavailable})
+	}
+	outcome := opts.Approver(ctx, "run_python", "", justification)
+	if outcome != sandbox.AllowedOnce {
+		return false, fmt.Errorf("escalation not granted: %w", &sandbox.EscalationDeniedError{Outcome: outcome})
+	}
+	return true, nil
+}
+
+func runScript(ctx context.Context, opts RunToolOptions, mode sandbox.Mode, code string, network bool) (string, error) {
 	scriptFile, err := os.CreateTemp(opts.WorkspaceRoot, "run-*.py")
 	if err != nil {
 		return "", fmt.Errorf("staging script: %w", err)
@@ -121,6 +170,7 @@ func runScript(ctx context.Context, opts RunToolOptions, mode sandbox.Mode, code
 		if err != nil {
 			return "", err
 		}
+		policy.Network = network
 		confined, err := opts.Provider.Confine(argv, policy)
 		if err != nil {
 			return "", err

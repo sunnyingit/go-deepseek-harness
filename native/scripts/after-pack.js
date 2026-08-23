@@ -31,6 +31,12 @@ exports.default = async function afterPack(context) {
   if (!fs.existsSync(web)) {
     throw new Error(`web binary missing at ${web}`);
   }
+  const nodePkgs = path.join(runtime, 'node-packages', 'node_modules');
+  for (const pkg of ['pptxgenjs', 'react', 'react-dom', 'react-icons', 'sharp']) {
+    if (!fs.existsSync(path.join(nodePkgs, pkg))) {
+      throw new Error(`bundled node package missing: ${pkg} under ${nodePkgs}`);
+    }
+  }
 
   const executables = new Set([
     webName, 'python3', 'python', 'pip', 'pip3', 'node', 'npm', 'npx',

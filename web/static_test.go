@@ -18,9 +18,10 @@ func TestUIPages(t *testing.T) {
 		want string
 	}{
 		{"/", "今天帮你做些什么"},
-		{"/dialog.html", "WorkBuddy AI"},
-		{"/dailog.html", "WorkBuddy AI"},
+		{"/dialog.html", "PABuddy AI"},
+		{"/dailog.html", "PABuddy AI"},
 		{"/space.html", "个人空间"},
+		{"/settings.html", "运行日志"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {

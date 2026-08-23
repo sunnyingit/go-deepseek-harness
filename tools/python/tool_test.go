@@ -3,6 +3,8 @@ package python
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,12 +52,16 @@ func skipUnlessSandboxAvailable(t *testing.T) {
 // enforcement — the mistake that first hid TestRunToolTimeout's hang below).
 func runViaRegistry(t *testing.T, def tools.ToolDefinition, code string) (tools.ExecutionResult, error) {
 	t.Helper()
+	return runViaRegistryArgs(t, def, map[string]any{"code": code}), nil
+}
+
+func runViaRegistryArgs(t *testing.T, def tools.ToolDefinition, args map[string]any) tools.ExecutionResult {
+	t.Helper()
 	r := tools.NewRegistry()
 	if _, err := r.Register(def); err != nil {
-		return tools.ExecutionResult{}, err
+		t.Fatalf("register: %v", err)
 	}
-	result := r.Execute(context.Background(), tools.ExecutionInput{CallID: "c1", Name: def.Name, Arguments: map[string]any{"code": code}})
-	return result, nil
+	return r.Execute(context.Background(), tools.ExecutionInput{CallID: "c1", Name: def.Name, Arguments: args})
 }
 
 func TestNewRunToolValidatesRequiredFields(t *testing.T) {
@@ -233,5 +239,116 @@ func TestRunToolCapsOutputSize(t *testing.T) {
 	}
 	if !strings.Contains(out, "truncated") {
 		t.Fatalf("output = %q, want a truncation marker", out[:min(200, len(out))])
+	}
+}
+
+// urlopenScript builds a script that tries to reach url and prints "reached"
+// or "blocked" depending on whether the request got through — used to probe
+// whether policy.Network actually made it to the confined process, the same
+// way shell/toolbash's own network tests probe with curl.
+func urlopenScript(url string) string {
+	return fmt.Sprintf(`
+import urllib.request
+try:
+    urllib.request.urlopen(%q, timeout=3)
+    print("reached")
+except Exception:
+    print("blocked")
+`, url)
+}
+
+func TestRunToolWithoutNetworkRequestDeniesOutboundAccess(t *testing.T) {
+	skipUnlessSandboxAvailable(t)
+	env := systemPythonEnv(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }))
+	defer srv.Close()
+
+	def, err := NewRunTool(RunToolOptions{Env: env, Provider: local.New(), WorkspaceRoot: t.TempDir(), Mode: sandbox.WorkspaceWrite})
+	if err != nil {
+		t.Fatalf("NewRunTool: %v", err)
+	}
+
+	result, err := runViaRegistry(t, def, urlopenScript(srv.URL))
+	if err != nil || result.IsError {
+		t.Fatalf("result = %+v, err = %v", result, err)
+	}
+	if !strings.Contains(result.Value.(string), "blocked") {
+		t.Fatalf("output = %q, want the request denied by default", result.Value)
+	}
+}
+
+func TestRunToolNetworkRequestWithoutApproverIsDenied(t *testing.T) {
+	skipUnlessSandboxAvailable(t)
+	env := systemPythonEnv(t)
+
+	def, err := NewRunTool(RunToolOptions{Env: env, Provider: local.New(), WorkspaceRoot: t.TempDir(), Mode: sandbox.WorkspaceWrite}) // no Approver
+	if err != nil {
+		t.Fatalf("NewRunTool: %v", err)
+	}
+
+	result := runViaRegistryArgs(t, def, map[string]any{"code": "print('hi')", "network": true, "justification": "need it"})
+	if !result.IsError {
+		t.Fatal("want an error — no approver means a network request is always denied")
+	}
+}
+
+func TestRunToolNetworkRequestWithoutJustificationIsDenied(t *testing.T) {
+	skipUnlessSandboxAvailable(t)
+	env := systemPythonEnv(t)
+	approver := sandbox.EscalationApprover(func(context.Context, string, string, string) sandbox.EscalationOutcome {
+		return sandbox.AllowedOnce
+	})
+
+	def, err := NewRunTool(RunToolOptions{Env: env, Provider: local.New(), WorkspaceRoot: t.TempDir(), Mode: sandbox.WorkspaceWrite, Approver: approver})
+	if err != nil {
+		t.Fatalf("NewRunTool: %v", err)
+	}
+
+	result := runViaRegistryArgs(t, def, map[string]any{"code": "print('hi')", "network": true})
+	if !result.IsError {
+		t.Fatal("want an error — network requires a justification even with an approver set")
+	}
+}
+
+func TestRunToolNetworkApprovedAllowsOutboundAccess(t *testing.T) {
+	skipUnlessSandboxAvailable(t)
+	env := systemPythonEnv(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }))
+	defer srv.Close()
+	approver := sandbox.EscalationApprover(func(context.Context, string, string, string) sandbox.EscalationOutcome {
+		return sandbox.AllowedOnce
+	})
+
+	def, err := NewRunTool(RunToolOptions{Env: env, Provider: local.New(), WorkspaceRoot: t.TempDir(), Mode: sandbox.WorkspaceWrite, Approver: approver})
+	if err != nil {
+		t.Fatalf("NewRunTool: %v", err)
+	}
+
+	result := runViaRegistryArgs(t, def, map[string]any{"code": urlopenScript(srv.URL), "network": true, "justification": "need it"})
+	if result.IsError {
+		t.Fatalf("result = %+v", result)
+	}
+	if !strings.Contains(result.Value.(string), "reached") {
+		t.Fatalf("output = %q, want the network-approved request to succeed", result.Value)
+	}
+}
+
+func TestRunToolDefaultNetworkGrantsAccessWithoutRequest(t *testing.T) {
+	skipUnlessSandboxAvailable(t)
+	env := systemPythonEnv(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }))
+	defer srv.Close()
+
+	def, err := NewRunTool(RunToolOptions{Env: env, Provider: local.New(), WorkspaceRoot: t.TempDir(), Mode: sandbox.WorkspaceWrite, DefaultNetwork: true})
+	if err != nil {
+		t.Fatalf("NewRunTool: %v", err)
+	}
+
+	result, err := runViaRegistry(t, def, urlopenScript(srv.URL))
+	if err != nil || result.IsError {
+		t.Fatalf("result = %+v, err = %v", result, err)
+	}
+	if !strings.Contains(result.Value.(string), "reached") {
+		t.Fatalf("output = %q, want DefaultNetwork to grant access with no per-call request", result.Value)
 	}
 }

@@ -170,6 +170,81 @@ func TestStreamSurvivesClientDisconnectAndReconnects(t *testing.T) {
 	}
 }
 
+// TestStreamReconnectReplaysSameStepBoundary is the regression test for the
+// reconnect-duplication bug: the frontend keeps painting into the same chat
+// bubble across a disconnect/reconnect (see handleStreamSession's own doc
+// comment on why), so without a boundary marker it has no way to tell "the
+// server is replaying a step already partially rendered" apart from "a new
+// step just started" — it would just append the replay on top of what it
+// already drew. The fix forwards step/start as a lightweight "step" SSE
+// event carrying (turn, step); the client uses a repeated (turn, step) as
+// the signal to roll its rendering back before repainting. This test only
+// asserts the wire contract that fix depends on: the same (turn, step)
+// value must appear again, verbatim, when a stream reconnects mid-step.
+func TestStreamReconnectReplaysSameStepBoundary(t *testing.T) {
+	s, _ := newTestServer(t)
+
+	sess := session.New("", session.Header{})
+	release := make(chan struct{})
+	llm := &blockingChunkLLM{release: release}
+	agent := agentloop.NewAgent(sess, llm, fakeTools{}, "sys", agentloop.Hooks{})
+
+	const sessionID = "step-boundary-sess"
+	if _, err := s.agents.Register(sessionID, agent, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := httptest.NewServer(s.routes())
+	defer srv.Close()
+
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	req1, err := http.NewRequestWithContext(ctx1, http.MethodGet, srv.URL+"/sessions/"+sessionID+"/stream?text=hello", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res1, err := http.DefaultClient.Do(req1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res1.Body.Close()
+	lines1 := startSSELines(res1.Body)
+	// json.Marshal on a map[string]any sorts keys alphabetically, so "step"
+	// (before "turn") is the actual wire order — see writeStreamEvent.
+	if !waitForLineContaining(t, lines1, `"step":1,"turn":1`, 5*time.Second) {
+		t.Fatal("first connection never saw the step boundary event")
+	}
+	if !waitForLineContaining(t, lines1, "partial-before-reconnect", 5*time.Second) {
+		t.Fatal("first connection never saw the first chunk")
+	}
+
+	cancel1()
+	res1.Body.Close()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for agent.Status() != "running" && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	res2, err := http.Get(srv.URL + "/sessions/" + sessionID + "/stream")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res2.Body.Close()
+	lines2 := startSSELines(res2.Body)
+
+	// The reconnect must replay the *same* (turn, step) the first connection
+	// already saw — that repetition is exactly what the client keys off of
+	// to know it must roll back before repainting.
+	if !waitForLineContaining(t, lines2, `"step":1,"turn":1`, 5*time.Second) {
+		t.Fatal("reconnected stream did not replay the same step boundary")
+	}
+
+	close(release)
+	if !waitForLineContaining(t, lines2, "event: done", 5*time.Second) {
+		t.Fatal("reconnected stream never reported done")
+	}
+}
+
 func TestStreamWatchOnlyOnAlreadyIdleSessionIsHarmless(t *testing.T) {
 	s, _ := newTestServer(t)
 

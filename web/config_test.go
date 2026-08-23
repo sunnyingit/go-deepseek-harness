@@ -3,12 +3,12 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
 	"go-harness/llm/llmretry"
 	"go-harness/sandbox/sandbox"
-	"go-harness/tools/python"
 )
 
 func TestParseConfigYAMLUsesCheckedInDefaults(t *testing.T) {
@@ -47,8 +47,12 @@ func TestParseConfigYAMLUsesCheckedInDefaults(t *testing.T) {
 	if cfg.MaxUploadBytes != 64<<20 {
 		t.Fatalf("upload = %d", cfg.MaxUploadBytes)
 	}
-	if len(cfg.PythonPackages) != len(python.DefaultDocumentPackages) {
-		t.Fatalf("packages = %v", cfg.PythonPackages)
+	wantPackages := []string{
+		"python-docx", "python-pptx", "openpyxl", "pypdf", "reportlab", "pandas", "Pillow",
+		"PyMuPDF", "matplotlib", "numpy", "beautifulsoup4", "lxml", "pyyaml", "requests", "httpx",
+	}
+	if !slices.Equal(cfg.PythonPackages, wantPackages) {
+		t.Fatalf("packages = %v, want %v", cfg.PythonPackages, wantPackages)
 	}
 	if cfg.SystemPrompt != "" {
 		t.Fatalf("empty yaml system_prompt should stay empty (assembled at runtime), got %q", cfg.SystemPrompt)
@@ -70,6 +74,7 @@ llm:
   tls_handshake_timeout: 2s
   max_tokens: 1024
   temperature: 0.2
+  top_p: 0.8
   retry:
     mode: always
     max_retries: 2
@@ -111,6 +116,9 @@ agent:
 	}
 	if cfg.Temperature == nil || *cfg.Temperature != 0.2 || cfg.MaxTokens != 1024 {
 		t.Fatalf("sampling temp=%v tokens=%d", cfg.Temperature, cfg.MaxTokens)
+	}
+	if cfg.TopP == nil || *cfg.TopP != 0.8 {
+		t.Fatalf("top_p = %v", cfg.TopP)
 	}
 	if cfg.StreamIdleTimeout != 90*time.Second || cfg.ConnectTimeout != 5*time.Second || cfg.TLSHandshakeTimeout != 2*time.Second {
 		t.Fatalf("llm timeouts idle=%s connect=%s tls=%s", cfg.StreamIdleTimeout, cfg.ConnectTimeout, cfg.TLSHandshakeTimeout)
@@ -202,5 +210,23 @@ func TestLoadConfigRequiresAPIKey(t *testing.T) {
 	t.Setenv("WEB_DEMO_CONFIG", path)
 	if _, _, err := loadConfig(path); err == nil {
 		t.Fatal("want missing api key to fail")
+	}
+}
+
+func TestFormatDuration(t *testing.T) {
+	cases := map[time.Duration]string{
+		0:                          "",
+		10 * time.Minute:           "10m",
+		100 * time.Second:          "100s",
+		120 * time.Second:          "2m",
+		300 * time.Second:          "5m",
+		500 * time.Millisecond:     "500ms",
+		time.Hour + 30*time.Minute: "1h30m",
+		2 * time.Hour:              "2h",
+	}
+	for d, want := range cases {
+		if got := formatDuration(d); got != want {
+			t.Errorf("formatDuration(%s) = %q, want %q", d, got, want)
+		}
 	}
 }

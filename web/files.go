@@ -171,7 +171,9 @@ func listWorkspaceFiles(root string) ([]fileEntryDTO, error) {
 		}
 		relSlash := filepath.ToSlash(rel)
 		if skipWorkspaceRel(relSlash) {
-			return nil
+			if _, uploaded := uploads[relSlash]; !uploaded {
+				return nil
+			}
 		}
 		info, err := d.Info()
 		if err != nil {
@@ -197,7 +199,7 @@ func listWorkspaceFiles(root string) ([]fileEntryDTO, error) {
 		return nil, err
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ModTime > out[j].ModTime })
-	return out, nil
+	return filterSidecarFiles(out), nil
 }
 
 // handleGetFile serves one file out of a session's workspace: inline by
@@ -359,7 +361,8 @@ func (s *Server) allSessionIDs() []string {
 // the built page usually lives.
 func skipWorkspaceDir(name string) bool {
 	switch name {
-	case "node_modules", ".git", ".parcel-cache", ".vite", "coverage", "__pycache__", ".venv", "venv":
+	case "node_modules", ".git", ".parcel-cache", ".vite", "coverage",
+		"__pycache__", ".venv", "venv", ".pptx-icons":
 		return true
 	default:
 		return false
@@ -382,12 +385,31 @@ func skipWorkspaceFile(name string) bool {
 	return strings.HasSuffix(lower, ".map") || strings.HasSuffix(lower, ".tsbuildinfo")
 }
 
+func skipScaffoldName(name string) bool {
+	switch strings.ToLower(name) {
+	case "favicon.svg", "favicon.ico", "vite.svg":
+		return true
+	default:
+		return false
+	}
+}
+
+func skipSourceExt(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".ts", ".tsx", ".mts", ".cts", ".jsx", ".vue",
+		".css", ".scss", ".sass", ".less":
+		return true
+	default:
+		return false
+	}
+}
+
 func skipWorkspaceRel(rel string) bool {
 	base := rel
 	if i := strings.LastIndex(rel, "/"); i >= 0 {
 		base = rel[i+1:]
 	}
-	if skipWorkspaceFile(base) {
+	if skipWorkspaceFile(base) || skipScaffoldName(base) || skipSourceExt(base) {
 		return true
 	}
 	lower := strings.ToLower(rel)
@@ -398,6 +420,45 @@ func skipWorkspaceRel(rel string) bool {
 		}
 	}
 	return false
+}
+
+// filterSidecarFiles drops generated extras that only exist to build a
+// deliverable. A pptx run writes icon PNGs/SVGs and generate.js next to the
+// deck; an HTML page does the same with assets. Uploads and the deliverable
+// itself stay visible.
+func filterSidecarFiles(entries []fileEntryDTO) []fileEntryDTO {
+	var hasPPTX, hasHTML bool
+	for _, e := range entries {
+		switch strings.ToLower(filepath.Ext(e.Path)) {
+		case ".pptx", ".pptm", ".ppt":
+			hasPPTX = true
+		case ".html", ".htm":
+			hasHTML = true
+		}
+	}
+	if !hasPPTX && !hasHTML {
+		return entries
+	}
+	out := make([]fileEntryDTO, 0, len(entries))
+	for _, e := range entries {
+		if e.Source == fileSourceUpload || !hideGeneratedSidecar(e.Path, hasPPTX, hasHTML) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func hideGeneratedSidecar(rel string, hasPPTX, hasHTML bool) bool {
+	if !hasPPTX && !hasHTML {
+		return false
+	}
+	switch strings.ToLower(filepath.Ext(rel)) {
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",
+		".js", ".mjs", ".cjs":
+		return true
+	default:
+		return false
+	}
 }
 
 func loadUploadSet(root string) map[string]struct{} {

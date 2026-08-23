@@ -130,6 +130,30 @@ func TestSerializeSystemAndUserMessage(t *testing.T) {
 	}
 }
 
+func TestSerializeSamplingParams(t *testing.T) {
+	temp, topP := 0.7, 0.95
+	req := agentloop.GenerateRequest{
+		Model:       "deepseek-v4-pro",
+		Temperature: &temp,
+		TopP:        &topP,
+		MaxTokens:   1024,
+		Messages:    []agentloop.Message{userMsg("hi")},
+	}
+	wr, err := serialize(req, Config{})
+	if err != nil {
+		t.Fatalf("serialize: %v", err)
+	}
+	if wr.Temperature == nil || *wr.Temperature != 0.7 {
+		t.Fatalf("temperature = %v", wr.Temperature)
+	}
+	if wr.TopP == nil || *wr.TopP != 0.95 {
+		t.Fatalf("top_p = %v", wr.TopP)
+	}
+	if wr.MaxTokens != 1024 {
+		t.Fatalf("max_tokens = %d", wr.MaxTokens)
+	}
+}
+
 func TestSerializeAssistantToolCallKeepsReasoningPassback(t *testing.T) {
 	msg := agentloop.Message{
 		Role: agentloop.RoleAssistant,

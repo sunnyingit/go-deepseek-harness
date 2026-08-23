@@ -26,12 +26,12 @@ type settingsEnvelope struct {
 }
 
 type settingsPayload struct {
-	Server  settingsServer  `json:"server"`
-	LLM     settingsLLM     `json:"llm"`
-	Sandbox settingsSandbox `json:"sandbox"`
-	Python  settingsPython  `json:"python"`
-	Tools   settingsTools   `json:"tools"`
-	Agent   settingsAgent   `json:"agent"`
+	Server  settingsServer   `json:"server"`
+	LLM     settingsLLM      `json:"llm"`
+	Sandbox *settingsSandbox `json:"sandbox,omitempty"`
+	Python  *settingsPython  `json:"python,omitempty"`
+	Tools   settingsTools    `json:"tools"`
+	Agent   settingsAgent    `json:"agent"`
 }
 
 type settingsServer struct {
@@ -51,6 +51,7 @@ type settingsLLM struct {
 	Thinking            string        `json:"thinking"`
 	MaxTokens           int           `json:"max_tokens"`
 	Temperature         *float64      `json:"temperature"`
+	TopP                *float64      `json:"top_p"`
 	ReasoningEffort     string        `json:"reasoning_effort"`
 	Retry               settingsRetry `json:"retry"`
 }
@@ -247,6 +248,7 @@ func fileToPayload(f fileConfig) settingsPayload {
 			Thinking:            f.LLM.Thinking,
 			MaxTokens:           f.LLM.MaxTokens,
 			Temperature:         f.LLM.Temperature,
+			TopP:                f.LLM.TopP,
 			ReasoningEffort:     f.LLM.ReasoningEffort,
 			Retry: settingsRetry{
 				Mode:           f.LLM.Retry.Mode,
@@ -257,14 +259,14 @@ func fileToPayload(f fileConfig) settingsPayload {
 				RetryableCodes: append([]string(nil), f.LLM.Retry.RetryableCodes...),
 			},
 		},
-		Sandbox: settingsSandbox{
+		Sandbox: &settingsSandbox{
 			BashMode:              f.Sandbox.BashMode,
 			BashNetwork:           bashNet,
 			PythonMode:            f.Sandbox.PythonMode,
 			FSMode:                f.Sandbox.FSMode,
 			AutoApproveEscalation: esc,
 		},
-		Python: settingsPython{
+		Python: &settingsPython{
 			CacheDir:       f.Python.CacheDir,
 			Bin:            f.Python.Bin,
 			InstallTimeout: durationString(f.Python.InstallTimeout),
@@ -308,22 +310,16 @@ func payloadToFile(p settingsPayload, prev fileConfig) (fileConfig, error) {
 	if err != nil {
 		return fileConfig{}, fmt.Errorf("llm.retry.max_delay: %w", err)
 	}
-	pyInst, err := parseDurationField(p.Python.InstallTimeout)
-	if err != nil {
-		return fileConfig{}, fmt.Errorf("python.install_timeout: %w", err)
-	}
-	pyRun, err := parseDurationField(p.Python.RunTimeout)
-	if err != nil {
-		return fileConfig{}, fmt.Errorf("python.run_timeout: %w", err)
-	}
 	bashTO, err := parseDurationField(p.Tools.BashTimeout)
 	if err != nil {
 		return fileConfig{}, fmt.Errorf("tools.bash_timeout: %w", err)
 	}
-	bashNet := p.Sandbox.BashNetwork
-	esc := p.Sandbox.AutoApproveEscalation
 	plan := p.Agent.AutoApprovePlan
-	return fileConfig{
+	effort := strings.TrimSpace(p.LLM.ReasoningEffort)
+	if effort == "" {
+		effort = prev.LLM.ReasoningEffort
+	}
+	out := fileConfig{
 		Server: fileServer{
 			Port:            p.Server.Port,
 			DataDir:         strings.TrimSpace(p.Server.DataDir),
@@ -339,7 +335,8 @@ func payloadToFile(p settingsPayload, prev fileConfig) (fileConfig, error) {
 			Thinking:            strings.TrimSpace(p.LLM.Thinking),
 			MaxTokens:           p.LLM.MaxTokens,
 			Temperature:         p.LLM.Temperature,
-			ReasoningEffort:     strings.TrimSpace(p.LLM.ReasoningEffort),
+			TopP:                p.LLM.TopP,
+			ReasoningEffort:     effort,
 			Retry: fileRetry{
 				Mode:           strings.TrimSpace(p.LLM.Retry.Mode),
 				MaxRetries:     p.LLM.Retry.MaxRetries,
@@ -349,20 +346,8 @@ func payloadToFile(p settingsPayload, prev fileConfig) (fileConfig, error) {
 				RetryableCodes: compactStrings(p.LLM.Retry.RetryableCodes),
 			},
 		},
-		Sandbox: fileSandbox{
-			BashMode:              strings.TrimSpace(p.Sandbox.BashMode),
-			BashNetwork:           &bashNet,
-			PythonMode:            strings.TrimSpace(p.Sandbox.PythonMode),
-			FSMode:                strings.TrimSpace(p.Sandbox.FSMode),
-			AutoApproveEscalation: &esc,
-		},
-		Python: filePython{
-			CacheDir:       strings.TrimSpace(p.Python.CacheDir),
-			Bin:            strings.TrimSpace(p.Python.Bin),
-			InstallTimeout: pyInst,
-			RunTimeout:     pyRun,
-			Packages:       compactStrings(p.Python.Packages),
-		},
+		Sandbox: prev.Sandbox,
+		Python:  prev.Python,
 		Tools: fileTools{
 			BashTimeout:          bashTO,
 			MaxUploadBytes:       p.Tools.MaxUploadBytes,
@@ -372,7 +357,36 @@ func payloadToFile(p settingsPayload, prev fileConfig) (fileConfig, error) {
 			AutoApprovePlan: &plan,
 			SystemPrompt:    p.Agent.SystemPrompt,
 		},
-	}, nil
+	}
+	if p.Sandbox != nil {
+		bashNet := p.Sandbox.BashNetwork
+		esc := p.Sandbox.AutoApproveEscalation
+		out.Sandbox = fileSandbox{
+			BashMode:              strings.TrimSpace(p.Sandbox.BashMode),
+			BashNetwork:           &bashNet,
+			PythonMode:            strings.TrimSpace(p.Sandbox.PythonMode),
+			FSMode:                strings.TrimSpace(p.Sandbox.FSMode),
+			AutoApproveEscalation: &esc,
+		}
+	}
+	if p.Python != nil {
+		pyInst, err := parseDurationField(p.Python.InstallTimeout)
+		if err != nil {
+			return fileConfig{}, fmt.Errorf("python.install_timeout: %w", err)
+		}
+		pyRun, err := parseDurationField(p.Python.RunTimeout)
+		if err != nil {
+			return fileConfig{}, fmt.Errorf("python.run_timeout: %w", err)
+		}
+		out.Python = filePython{
+			CacheDir:       strings.TrimSpace(p.Python.CacheDir),
+			Bin:            strings.TrimSpace(p.Python.Bin),
+			InstallTimeout: pyInst,
+			RunTimeout:     pyRun,
+			Packages:       compactStrings(p.Python.Packages),
+		}
+	}
+	return out, nil
 }
 
 func writeConfigYAML(path string, file fileConfig) error {
@@ -394,10 +408,7 @@ func writeConfigYAML(path string, file fileConfig) error {
 }
 
 func durationString(d duration) string {
-	if time.Duration(d) == 0 {
-		return ""
-	}
-	return time.Duration(d).String()
+	return formatDuration(time.Duration(d))
 }
 
 func parseDurationField(raw string) (duration, error) {
