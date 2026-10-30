@@ -912,11 +912,6 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 
   // ===== 资金流维度 =====
   // GET {stock-api-base}/api/v1/stocks/{ts_code}/dimensions/volume_flow/detail?window=20
-  const SIZE_LABEL = { super_large: '超大单', large: '大单', medium: '中单', small: '小单' };
-  const FLOW_PATTERN = {
-    big_buy_retail_sell: '大资金在买，小单在卖', big_sell_retail_buy: '大资金在卖，小单在接',
-    all_buy: '各类资金都在净流入', all_sell: '各类资金都在净流出',
-  };
   const FLOW_TREND = {
     accelerating_in: '流入在加快', slowing_in: '流入在放缓', turning_in: '刚转为流入',
     accelerating_out: '流出在加快', slowing_out: '流出在放缓', turning_out: '刚转为流出', steady_in: '流入保持平稳',
@@ -1163,11 +1158,9 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     // 一句话 + 来源
     const sum = rv && rv.summary;
     const sentence = sum && sum.text ? { text: sum.text, pill: rvStatus(sum.status, sum.status_text) } : v.ai_text ? { text: v.ai_text, pill: rvPill(v.ai_status === 'ready' ? 'AI 结论' : '规则摘要', 'background:#F4F5F7;color:#5B6372') } : null;
-    const stamp = rv ? [RV_SOURCE[rv.source], rv.generated_at ? '生成于 ' + rv.generated_at.slice(5) : '', rv.as_of ? '数据 ' + mmdd(rv.as_of) : ''].filter(Boolean).join(' · ') : '';
     const behind = rv && (st === 'refreshing' || (rv.as_of && meta.as_of && rv.as_of < meta.as_of));
     const note = !rv ? (st === 'computing' ? '资金面体检正在生成，完成后自动补充解读和提醒。' : st === 'unavailable' ? (d.review_error || '这只股票暂时没法做资金面体检。') : '') : '';
-    const sentHTML = sentence ? '<div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center;gap:8px">' + sentence.pill +
-      (stamp ? '<span style="font-size:11px;color:#8A919E">' + esc(stamp) + '</span>' : '') + '</div><p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(sentence.text) + '</p>' +
+    const sentHTML = sentence ? '<div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center;gap:8px">' + sentence.pill + '</div><p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(sentence.text) + '</p>' +
       (behind ? '<span style="font-size:12px;color:#7A4A00">' + (st === 'refreshing' ? '这是上一份体检，新的正在生成，完成后自动更新。' : '这份体检基于 ' + esc(mmdd(rv.as_of)) + ' 的数据。') + '</span>' : '') + '</div>' : '';
 
     const cautHTML = cautionsHTML(d);
@@ -1191,29 +1184,12 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const lvl = num(v.level);
     const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
 
-    out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') +
+    const rvm = d.review;
+    const rvStamp = rvm ? [RV_SOURCE[rvm.source], rvm.generated_at ? '生成于 ' + rvm.generated_at.slice(5) : ''].filter(Boolean).join(' · ') : '';
+    out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') + (rvStamp ? ' · ' + esc(rvStamp) : '') +
       (meta.state && meta.state !== 'ok' && meta.state !== 'expired' ? ' · <span style="color:#9A5B00">数据状态：' + esc(meta.state) + '</span>' : '') + '</span>');
 
     out.push(flowGlanceHTML(d));
-
-    // 资金：谁在买
-    const rows = fb.rows || [];
-    if (rows.length) {
-      const maxAbs = Math.max.apply(null, rows.map((r) => Math.abs(num(r.net) || 0)).concat([1]));
-      const bars = rows.map((r) => {
-        const has = num(r.net) != null;
-        const w = has ? (Math.abs(r.net) / maxAbs * 50).toFixed(1) : '0';
-        const side = has && r.net < 0 ? 'right:50%' : 'left:50%';
-        return '<span style="color:#5B6372">' + esc(SIZE_LABEL[r.size] || r.size) + '</span>' +
-          '<div style="position:relative;height:8px"><div style="position:absolute;top:0;height:8px;border-radius:2px;' + side + ';width:' + w + '%;background:' + (has && r.net < 0 ? DOWN : UP) + '"></div></div>' +
-          '<span style="' + MONO + ';text-align:right;white-space:nowrap;color:' + (has ? signColor(r.net) : '#A1A7B2') + '">' + fmtFlow(r.net) + '</span>';
-      }).join('');
-      const conc = num(fb.concentration);
-      const concText = conc != null && conc > 0 && conc <= 1 ? '超大单占大资金净流入 ' + (conc * 100).toFixed(0) + '%' : '';
-      out.push(colBox(8) + secTitle('资金：谁在买', esc((meta.window || 20) + ' 天累计 · 大单不等于机构')) +
-        '<div style="display:grid;grid-template-columns:44px minmax(0,1fr) 68px;align-items:center;gap:6px 10px">' + bars + '</div>' +
-        (FLOW_PATTERN[fb.pattern] || concText ? '<span style="font-size:12px;color:#5B6372">' + [FLOW_PATTERN[fb.pattern], concText].filter(Boolean).join(' · ') + '</span>' : '') + '</div>');
-    }
 
     // 量价：图 + 形态 + 规则摘要
     const chart = volChartHTML(d);
