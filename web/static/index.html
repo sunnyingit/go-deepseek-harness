@@ -1059,46 +1059,152 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       '<div class="chart-tip" role="tooltip" hidden></div></div>';
   }
 
-  function flowHTML(d) {
-    const v = d.verdict || {}, meta = d.meta || {}, pv = d.price_volume || {}, fb = d.flow_by_size || {}, fd = d.flow_daily || {};
-    const rs = d.relative_strength || {}, ph = d.position_hints || {}, win = d.windows || {};
+  // ---- 一眼看懂：大资金进出多少、和价格同不同向、能不能持续、要小心什么 ----
+  const TONE_DOT = { ok: '#2457D6', warn: '#B87400', neutral: '#A1A7B2' };
+  const TONE_BG = { ok: '#F7F8FA', warn: '#FFF9EE', neutral: '#F7F8FA' };
+
+  function flowParts(v) {
+    const a = Math.abs(v);
+    return a >= 1e8 ? { n: (a / 1e8).toFixed(2), unit: '亿' } : a >= 1e4 ? { n: (a / 1e4).toFixed(a >= 1e6 ? 0 : 1), unit: '万' } : { n: String(Math.round(a)), unit: '元' };
+  }
+
+  // 近 N 天每天的大资金净额：红柱在轴上方（流入），绿柱在下方（流出），最后一根最深。
+  function flowBarsHTML(days) {
+    const vals = days.map((x) => num(x.net));
+    if (!vals.some((v) => v != null)) return '';
+    const n = days.length, W = 300, mid = 28, half = 24;
+    const maxAbs = Math.max.apply(null, vals.map((v) => Math.abs(v || 0)).concat([1]));
+    const slot = W / n, bw = slot * 0.62;
+    let svg = '<line x1="0" y1="' + mid + '" x2="' + W + '" y2="' + mid + '" stroke="#C9CED6" stroke-width="1"></line>';
+    days.forEach((x, i) => {
+      const v = vals[i], bx = (slot * i + (slot - bw) / 2).toFixed(1);
+      const tip = x.date.slice(5) + (v == null ? ' 没有资金流数据' : ' 大资金净' + (v >= 0 ? '流入 ' : '流出 ') + fmtFlow(v, true));
+      if (v == null) { svg += '<rect x="' + bx + '" y="' + (mid - 1) + '" width="' + bw.toFixed(1) + '" height="2" fill="#E3E6EB"><title>' + esc(tip) + '</title></rect>'; return; }
+      const h = Math.max(1.5, Math.abs(v) / maxAbs * half);
+      svg += '<rect x="' + bx + '" y="' + (v >= 0 ? mid - h : mid).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="1.5" fill="' + (v >= 0 ? UP : DOWN) +
+        '" opacity="' + (i === n - 1 ? '1' : '0.55') + '"><title>' + esc(tip) + '</title></rect>';
+    });
+    const last = days[n - 1], lv = vals[n - 1];
+    return '<div style="display:flex;flex-direction:column;gap:4px"><svg viewBox="0 0 ' + W + ' 56" role="img" aria-label="近 ' + n + ' 天大资金每日净额" style="width:100%;height:auto;display:block">' + svg + '</svg>' +
+      '<div style="display:flex;justify-content:space-between;font-size:11px;color:#8A919E"><span>' + mdSlash(days[0].date) + '</span>' +
+      '<span>' + mdSlash(last.date) + (lv != null ? ' · 最近一天 <b style="' + MONO + ';font-weight:600;color:' + signColor(lv) + '">' + fmtFlow(lv) + '</b>' : '') + '</span></div></div>';
+  }
+
+  function flowSignals(d, c) {
+    const fd = d.flow_daily || {}, rs = d.relative_strength || {};
+    const out = [];
+    if (c.big != null && c.ret != null && Math.abs(c.ret) >= 0.001) {
+      const up = c.ret > 0, inn = c.big > 0;
+      out.push({ label: '资金和价格', value: up && inn ? '同步走强' : !up && !inn ? '同步走弱' : up ? '价涨资金在出' : '价跌资金在进',
+        tone: up && inn ? 'ok' : !up && !inn ? 'warn' : up ? 'warn' : 'neutral', detail: '股价 ' + pct(c.ret, 1) + '，大资金净' + (inn ? '流入' : '流出') });
+    }
+    const total = (num(fd.in_days) || 0) + (num(fd.out_days) || 0);
+    if (total) {
+      const t = fd.trend, ratio = fd.in_days / total;
+      const tone = t === 'turning_out' || t === 'accelerating_out' ? 'warn' : t === 'accelerating_in' || t === 'steady_in' ? 'ok' : t === 'slowing_in' ? 'neutral' : ratio >= 0.7 ? 'ok' : ratio <= 0.3 ? 'warn' : 'neutral';
+      out.push({ label: '能不能持续', value: fd.in_days + ' / ' + total + ' 天流入', tone: tone, detail: FLOW_TREND[t] || (ratio >= 0.7 ? '大多数天都在流入' : ratio <= 0.3 ? '大多数天都在流出' : '流入流出各半') });
+    }
+    if (c.elg != null && c.lg != null) {
+      const same = (c.elg > 0) === (c.lg > 0);
+      out.push({ label: '大资金内部', value: same ? (c.elg > 0 ? '方向一致' : '同步流出') : '超大单与大单反向', tone: same ? (c.elg > 0 ? 'ok' : 'warn') : 'warn',
+        detail: '超大单 ' + fmtFlow(c.elg) + ' · 大单 ' + fmtFlow(c.lg) });
+    }
+    if (rs.sector_flow) {
+      const gap = c.stock && c.sector ? c.stock.ret - c.sector.ret : null;
+      out.push({ label: '所在板块', value: '板块资金' + (rs.sector_flow === 'in' ? '流入' : '流出'), tone: rs.sector_flow === 'in' ? 'ok' : 'neutral',
+        detail: gap == null ? '' : (gap >= 0 ? '跑赢' : '跑输') + '板块 ' + (Math.abs(gap) * 100).toFixed(1) + ' 个百分点' });
+    }
+    return out;
+  }
+
+  function flowGlanceHTML(d) {
+    const v = d.verdict || {}, meta = d.meta || {}, fb = d.flow_by_size || {}, fd = d.flow_daily || {}, rs = d.relative_strength || {};
+    const wr = (d.windows || {}).rows || [];
+    const rows = fb.rows || [];
+    const pick = (k) => { const r = rows.find((x) => x.size === k); return r && num(r.net) != null ? r.net : null; };
+    const elg = pick('super_large'), lg = pick('large');
+    const big = elg == null && lg == null ? null : (elg || 0) + (lg || 0);
+    const win = meta.window || 20;
+    const w = wr.find((r) => r.days === win) || null;
+    const bars = rs.bars || [];
+    const stock = bars.find((b) => b.kind === 'stock') || null, sector = bars.find((b) => b.kind === 'sector') || null;
+    const c = { elg: elg, lg: lg, big: big, ret: w && num(w.ret) != null ? w.ret : stock ? num(stock.ret) : null, rate: w ? num(w.net_rate) : null, stock: stock, sector: sector };
     const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
+    const rv = d.review, st = d.review_state;
+    const days = fd.days || [];
+
+    // 头：大数字
+    let hero;
+    if (big == null) {
+      hero = '<span style="font-size:15px;color:#8A919E">这只股票暂时没有资金流数据</span>';
+    } else {
+      const pt = flowParts(big);
+      hero = '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-size:13px;color:#5B6372">大资金净' + (big >= 0 ? '流入' : '流出') + '</span>' +
+        '<span style="' + MONO + ';font-size:32px;font-weight:700;line-height:1.1;color:' + signColor(big) + '">' + (big > 0 ? '+' : big < 0 ? '−' : '') + pt.n + '<span style="font-size:15px;font-weight:600;margin-left:3px">' + pt.unit + '</span></span>' +
+        (c.rate != null ? '<span style="margin-left:auto;font-size:12px;color:#5B6372">占成交额 <b style="' + MONO + ';font-weight:600;color:' + signColor(c.rate) + '">' + pct(c.rate, 1) + '</b></span>' : '') + '</div>';
+    }
+
+    // 近几个窗口的净流入率：数字在变大说明在加速，变小说明在放缓
+    const rates = wr.filter((r) => num(r.net_rate) != null);
+    const strip = rates.length ? '<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;color:#8A919E">不同时间的大资金净流入率（占成交额）</span>' +
+      '<div style="display:grid;grid-template-columns:repeat(' + rates.length + ',minmax(0,1fr));gap:6px">' + rates.map((r) =>
+        '<div style="display:flex;flex-direction:column;align-items:center;padding:6px 0;border-radius:6px;background:#F7F8FA"><span style="font-size:11px;color:#8A919E">近 ' + r.days + ' 天</span>' +
+        '<span style="' + MONO + ';font-size:13px;font-weight:600;color:' + signColor(Number((r.net_rate * 100).toFixed(1))) + '">' + pct(r.net_rate, 1) + '</span></div>').join('') + '</div></div>' : '';
+
+    const sigs = flowSignals(d, c);
+    const sigHTML = sigs.length ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">' + sigs.map((x) =>
+      '<div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:8px;background:' + TONE_BG[x.tone] + '">' +
+      '<span style="font-size:11px;color:#8A919E">' + esc(x.label) + '</span>' +
+      '<span style="display:flex;align-items:center;gap:6px;font-weight:600"><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[x.tone] + '"></span>' + esc(x.value) + '</span>' +
+      '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + esc(x.detail) + '</span></div>').join('') + '</div>' : '';
+
+    // 一句话 + 来源
+    const sum = rv && rv.summary;
+    const sentence = sum && sum.text ? { text: sum.text, pill: rvStatus(sum.status, sum.status_text) } : v.ai_text ? { text: v.ai_text, pill: rvPill(v.ai_status === 'ready' ? 'AI 结论' : '规则摘要', 'background:#F4F5F7;color:#5B6372') } : null;
+    const stamp = rv ? [RV_SOURCE[rv.source], rv.generated_at ? '生成于 ' + rv.generated_at.slice(5) : '', rv.as_of ? '数据 ' + mmdd(rv.as_of) : ''].filter(Boolean).join(' · ') : '';
+    const behind = rv && (st === 'refreshing' || (rv.as_of && meta.as_of && rv.as_of < meta.as_of));
+    const note = !rv ? (st === 'computing' ? '资金面体检正在生成，完成后自动补充解读和提醒。' : st === 'unavailable' ? (d.review_error || '这只股票暂时没法做资金面体检。') : '') : '';
+    const sentHTML = sentence ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:8px;background:#F4F5F7"><div style="display:flex;align-items:center;gap:8px">' + sentence.pill +
+      (stamp ? '<span style="font-size:11px;color:#8A919E">' + esc(stamp) + '</span>' : '') + '</div><p style="margin:0;line-height:1.7">' + esc(sentence.text) + '</p>' +
+      (behind ? '<span style="font-size:12px;color:#7A4A00">' + (st === 'refreshing' ? '这是上一份体检，新的正在生成，完成后自动更新。' : '这份体检基于 ' + esc(mmdd(rv.as_of)) + ' 的数据。') + '</span>' : '') + '</div>' : '';
+
+    // 最该留意：体检里的异常，没有体检就用命中的位置提示
+    let cautions = [];
+    if (rv && (rv.anomalies || []).length) {
+      const an = rv.anomalies;
+      const main = an.filter((a) => !/^数据/.test(a.title));
+      const pool = main.length ? main : an;
+      cautions = pool.slice(0, 2).map((a) => ({ title: a.title, tag: a.severity_text || '留意', high: a.severity === 'high' }));
+      if (an.length > cautions.length) cautions.push({ more: an.length - cautions.length });
+    } else if (!rv) {
+      cautions = ((d.position_hints || {}).items || []).filter((h) => h.hit).slice(0, 2).map((h) => ({ title: h.text + ((h.detail_text || '').length <= 24 ? '：' + h.detail_text : ''), tag: '留意' }));
+    }
+    const cautHTML = cautions.length ? '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:#7A4A00">最该留意</span>' + cautions.map((x) =>
+      x.more ? '<span style="font-size:12px;color:#8A919E">另有 ' + x.more + ' 条，见下方详情</span>'
+        : '<div style="display:flex;align-items:flex-start;gap:8px;line-height:1.6"><span aria-hidden="true" style="flex:none;margin-top:3px;width:16px;height:16px;border-radius:50%;background:' + (x.high ? '#C8312B' : '#B87400') +
+          ';color:#FFFFFF;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">!</span><span style="font-size:13px;color:#3A4250">' + esc(x.title) + '</span></div>').join('') + '</div>'
+      : (rv ? '<span style="font-size:12px;color:#5B6372">体检没有发现需要特别留意的异常</span>' : '');
+
+    return '<div style="display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:10px;border:1px solid #E3E6EB">' +
+      '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:12px;color:#8A919E">近 ' + win + ' 天 · 大资金 = 超大单 + 大单</span>' +
+      '<span title="' + esc(v.tag_text || '') + '" style="margin-left:auto;font-size:12px;color:#5B6372">量价方向 <b style="font-weight:600;color:' + lean.color + '">' + lean.label + '</b></span></div>' +
+      hero + flowBarsHTML(days) + strip + sigHTML + sentHTML +
+      (note ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(note) + '</span>' : '') + cautHTML + '</div>';
+  }
+
+  function flowHTML(d) {
+    const v = d.verdict || {}, meta = d.meta || {}, pv = d.price_volume || {}, fb = d.flow_by_size || {};
+    const rs = d.relative_strength || {}, ph = d.position_hints || {}, win = d.windows || {};
     const out = [];
     const aiReady = v.ai_status === 'ready';
     const reasons = (v.certainty_reasons || []).filter(Boolean);
     const lvl = num(v.level);
+    const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
 
     out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') +
       (meta.state && meta.state !== 'ok' && meta.state !== 'expired' ? ' · <span style="color:#9A5B00">数据状态：' + esc(meta.state) + '</span>' : '') + '</span>');
 
-    out.push(colBox(10) +
-      '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:22px;font-weight:700;color:' + lean.color + '">' + lean.label + '</span>' +
-      (lvl != null && lvl > 0 ? '<span title="信号强度 ' + lvl + ' / 3" style="font-size:11px;letter-spacing:1px;color:' + lean.color + '">' + '●'.repeat(Math.min(lvl, 3)) + '<span style="color:#D5D9DF">' + '●'.repeat(3 - Math.min(lvl, 3)) + '</span></span>' : '') +
-      '<span style="font-size:14px;font-weight:600">' + esc(v.tag_text || '') + '</span>' +
-      '<span style="margin-left:auto;color:#8A919E">' + (CERTAINTY[v.certainty] || '') + '</span></div>' +
-      (reasons.length ? '<span style="font-size:12px;color:#7A4A00;line-height:1.7">' + (v.certainty ? '把握打了折扣：' : '') + esc(reasons.join('；')) + '</span>' : '') +
-      (v.ai_text ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:8px;background:' + (aiReady ? '#EAF0FD' : '#F4F5F7') + '"><span style="font-size:12px;font-weight:600;color:' + (aiReady ? '#1F3F8A' : '#5B6372') + '">' +
-        (aiReady ? 'AI 结论' : '规则摘要') + '</span><p style="margin:0;line-height:1.7">' + esc(v.ai_text) + '</p></div>' : '') +
-      (v.watch_next ? '<span style="font-size:12px;color:#5B6372;line-height:1.7">怎么转向：' + esc(v.watch_next) + '</span>' : '') + '</div>');
-
-    const rvHead = reviewHeadHTML(d);
-    if (rvHead) out.push(rvHead);
-
-    // 量价
-    const chart = volChartHTML(d);
-    if (chart) {
-      const pat = PV_PATTERN[pv.pattern] || { label: pv.pattern || '—', style: 'background:#F4F5F7;color:#5B6372' };
-      const ud = num(pv.up_down_vol_ratio), to = num(pv.turnover), tp = num(pv.turnover_pctile);
-      const desc = [
-        ud != null ? '上涨日成交量是下跌日的 ' + ud.toFixed(2) + ' 倍' : '',
-        to != null ? '换手率 ' + (to * 100).toFixed(2) + '%' + (tp != null ? '，高于近一年 ' + Math.round(tp * 100) + '% 的日子' : '') : '',
-      ].filter(Boolean).join(' · ');
-      out.push(colBox(8) + secTitle('量价：涨的时候有没有人跟',
-        '<span style="display:inline-flex;gap:10px"><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:' + UP + '"></span>上涨日</span>' +
-        '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:' + DOWN + '"></span>下跌日</span></span>') +
-        chart + '<span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill" style="' + pat.style + '">' + esc(pat.label) + '</span>' +
-        '<span style="font-size:12px;color:#5B6372;align-self:center">' + esc(desc) + '</span></span></div>');
-    }
+    out.push(flowGlanceHTML(d));
 
     // 资金：谁在买
     const rows = fb.rows || [];
@@ -1112,28 +1218,31 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
           '<div style="position:relative;height:8px"><div style="position:absolute;top:0;height:8px;border-radius:2px;' + side + ';width:' + w + '%;background:' + (has && r.net < 0 ? DOWN : UP) + '"></div></div>' +
           '<span style="' + MONO + ';text-align:right;white-space:nowrap;color:' + (has ? signColor(r.net) : '#A1A7B2') + '">' + fmtFlow(r.net) + '</span>';
       }).join('');
-      const days = fd.days || [];
       const conc = num(fb.concentration);
       const concText = conc != null && conc > 0 && conc <= 1 ? '超大单占大资金净流入 ' + (conc * 100).toFixed(0) + '%' : '';
-      const marked = {};
-      (fd.marked_dates || []).forEach((m) => { marked[m] = true; });
-      const cells = days.map((x) => {
-        const has = num(x.net) != null;
-        const op = (0.35 + 0.2 * Math.min(Math.max(x.intensity || 1, 1), 3)).toFixed(2);
-        const label = marked[x.date] ? '<span style="font-size:10px;color:' + signColor(x.net) + ';height:12px">' + mdSlash(x.date) + '</span>' : '<span style="height:12px"></span>';
-        const tip = x.date.slice(5) + (has ? ' 大资金净' + (x.net >= 0 ? '流入 ' : '流出 ') + fmtFlow(x.net, true) : ' 没有资金流数据');
-        return '<div title="' + esc(tip) + '" style="display:flex;flex-direction:column;align-items:center;gap:3px"><span style="width:100%;height:18px;border-radius:3px;background:' +
-          (has ? (x.net >= 0 ? UP : DOWN) : '#E3E6EB') + ';opacity:' + (has ? op : '1') + '"></span>' + label + '</div>';
-      }).join('');
       out.push(colBox(8) + secTitle('资金：谁在买', esc((meta.window || 20) + ' 天累计 · 大单不等于机构')) +
         '<div style="display:grid;grid-template-columns:44px minmax(0,1fr) 68px;align-items:center;gap:6px 10px">' + bars + '</div>' +
-        (FLOW_PATTERN[fb.pattern] || concText ? '<span style="font-size:12px;color:#5B6372">' + [FLOW_PATTERN[fb.pattern], concText].filter(Boolean).join(' · ') + '</span>' : '') +
-        (days.length ? colBox(6).replace('gap:6px', 'gap:6px;padding-top:4px') +
-          '<div style="display:flex;align-items:baseline"><span style="color:#3A4250">大资金每日方向 · 近 ' + days.length + ' 天</span>' +
-          '<span style="margin-left:auto;font-size:12px;color:#14171F">' + esc(fd.in_days) + ' 天流入，' + esc(fd.out_days) + ' 天流出' + (FLOW_TREND[fd.trend] ? ' · ' + FLOW_TREND[fd.trend] : '') + '</span></div>' +
-          '<div style="display:grid;grid-template-columns:repeat(' + days.length + ',minmax(0,1fr));gap:3px">' + cells + '</div>' +
-          '<span style="font-size:11px;color:#8A919E">颜色越深金额越大</span></div>' : '') + '</div>');
+        (FLOW_PATTERN[fb.pattern] || concText ? '<span style="font-size:12px;color:#5B6372">' + [FLOW_PATTERN[fb.pattern], concText].filter(Boolean).join(' · ') + '</span>' : '') + '</div>');
     }
+
+    // 量价：图 + 形态 + 规则摘要
+    const chart = volChartHTML(d);
+    const pat = PV_PATTERN[pv.pattern] || { label: pv.pattern || '—', style: 'background:#F4F5F7;color:#5B6372' };
+    const ud = num(pv.up_down_vol_ratio), to = num(pv.turnover), tp = num(pv.turnover_pctile);
+    const desc = [
+      ud != null ? '上涨日成交量是下跌日的 ' + ud.toFixed(2) + ' 倍' : '',
+      to != null ? '换手率 ' + (to * 100).toFixed(2) + '%' + (tp != null ? '，高于近一年 ' + Math.round(tp * 100) + '% 的日子' : '') : '',
+    ].filter(Boolean).join(' · ');
+    const legend = '<span style="display:inline-flex;gap:10px"><span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:' + UP + '"></span>上涨日</span>' +
+      '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:' + DOWN + '"></span>下跌日</span></span>';
+    out.push(colBox(8) + secTitle('量价：涨的时候有没有人跟', chart ? legend : '') + chart +
+      '<span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="pill" style="' + pat.style + '">' + esc(pat.label) + '</span>' +
+      (lvl != null && lvl > 0 ? '<span title="信号强度 ' + lvl + ' / 3" style="font-size:11px;letter-spacing:1px;color:' + lean.color + '">' + '●'.repeat(Math.min(lvl, 3)) + '<span style="color:#D5D9DF">' + '●'.repeat(3 - Math.min(lvl, 3)) + '</span></span>' : '') +
+      (CERTAINTY[v.certainty] ? '<span style="font-size:12px;color:#8A919E">' + CERTAINTY[v.certainty] + '</span>' : '') +
+      '<span style="font-size:12px;color:#5B6372">' + esc(desc) + '</span></span>' +
+      (reasons.length ? '<span style="font-size:12px;color:#7A4A00;line-height:1.7">' + (v.certainty ? '把握打了折扣：' : '') + esc(reasons.join('；')) + '</span>' : '') +
+      (v.ai_text ? '<span style="font-size:12px;color:#5B6372;line-height:1.7"><b style="font-weight:600;color:#3A4250">' + (aiReady ? 'AI 结论' : '规则摘要') + '：</b>' + esc(v.ai_text) + '</span>' : '') +
+      (v.watch_next ? '<span style="font-size:12px;color:#5B6372;line-height:1.7">怎么转向：' + esc(v.watch_next) + '</span>' : '') + '</div>');
 
     // 相对强弱
     const rbars = rs.bars || [];
@@ -1164,6 +1273,12 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         (hints.some(isIndicatorHint) ? indicatorGuideHTML() : '') + '</div>');
     }
 
+    const rvHead = reviewHeadHTML(d);
+    if (rvHead) out.push(rvHead);
+
+    const rvBody = reviewBodyHTML(d);
+    if (rvBody) out.push(rvBody);
+
     // 完整数据
     const wr = win.rows || [];
     if (wr.length) {
@@ -1175,9 +1290,6 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
           td(pct(r.ret, 1), 'color:' + signColor(Number((r.ret * 100).toFixed(1)))) + td(esc(num(r.rel_vol) != null ? r.rel_vol.toFixed(2) : '—')) + td(num(r.net_rate) != null ? pct(r.net_rate, 1) : '—', num(r.net_rate) != null ? 'color:' + signColor(Number((r.net_rate * 100).toFixed(1))) : '') + '</tr>').join('') +
         '</tbody></table>' + (win.formula_text ? '<span style="font-size:11px;color:#8A919E">' + esc(win.formula_text) + '</span>' : '') + '</div>');
     }
-
-    const rvBody = reviewBodyHTML(d);
-    if (rvBody) out.push(rvBody);
 
     const src = meta.sources || {};
     out.push('<span style="margin-top:auto;font-size:11px;color:#A1A7B2;line-height:1.6">' +
@@ -1206,25 +1318,12 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       rows.map((e) => '<span style="color:#5B6372;line-height:1.5">' + esc(e.label) + '</span><span style="' + MONO + ';text-align:right;color:#14171F;white-space:nowrap">' + esc(e.text) + '</span>').join('') + '</div>';
   }
 
-  // 放在结论下面：体检的一句话、要留意的异常、接下来盯什么；还没有体检时说明状态。
+  // 体检里的异常（带依据）和接下来盯什么；一句话总结和状态说明在顶部的卡片里。
   function reviewHeadHTML(d) {
-    const rv = d.review, st = d.review_state;
-    const meta = d.meta || {};
-    const note = (t, c) => '<span style="font-size:12px;color:' + (c || '#8A919E') + ';line-height:1.7">' + esc(t) + '</span>';
-    if (!rv) {
-      if (st === 'computing') return colBox(6) + secTitle('资金面体检', '') + note('正在生成：对照资金分档、持续性、板块和融资融券，完成后这里会自动更新。') + '</div>';
-      if (st === 'unavailable') return colBox(6) + secTitle('资金面体检', '') + note(d.review_error || '这只股票暂时没法做体检。') + '</div>';
-      return '';
-    }
-    const sum = rv.summary || {}, ov = rv.overall || {};
-    const stamp = [RV_SOURCE[rv.source], rv.generated_at ? '生成于 ' + rv.generated_at.slice(5) : '', rv.as_of ? '数据 ' + mmdd(rv.as_of) : ''].filter(Boolean).join(' · ');
-    const stale = st === 'refreshing' || (rv.as_of && meta.as_of && rv.as_of < meta.as_of);
+    const rv = d.review;
+    if (!rv) return '';
+    const ov = rv.overall || {};
     const out = [];
-    out.push('<div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:8px;border:1px solid #E3E6EB">' +
-      '<div style="display:flex;align-items:center;gap:8px;white-space:nowrap"><span style="font-weight:600">资金面体检</span>' + rvStatus(sum.status, sum.status_text) + '</div>' +
-      '<span style="font-size:11px;color:#8A919E;margin-top:-4px">' + esc(stamp) + '</span>' +
-      (sum.text ? '<p style="margin:0;line-height:1.7">' + esc(sum.text) + '</p>' : '') +
-      (stale ? '<span style="font-size:12px;color:#7A4A00">' + (st === 'refreshing' ? '这是上一份体检，新的正在生成，完成后自动更新。' : '这份体检基于 ' + esc(mmdd(rv.as_of)) + ' 的数据。') + '</span>' : '') + '</div>');
 
     const an = rv.anomalies || [];
     if (an.length) {
