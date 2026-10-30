@@ -82,6 +82,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 .mk:hover .dot,.mk:focus .dot{stroke:#14171F;stroke-width:2}
 .chart-tip{position:absolute;z-index:5;width:max-content;max-width:250px;pointer-events:none;background:#14171F;color:#FFFFFF;font-size:12px;line-height:1.55;border-radius:6px;padding:7px 10px;box-shadow:0 4px 12px rgba(20,23,31,.25)}
 .chart-tip[hidden]{display:none}
+.dw{flex:0 0 400px;width:400px}
+@media (min-width:1400px){.dw{flex-basis:440px;width:440px}}
 .tip{position:relative;display:inline-block;cursor:help;outline:none}
 .tip-pop{display:none;position:absolute;left:0;top:calc(100% + 8px);z-index:20;width:300px;max-width:84vw;padding:12px 14px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:12px;line-height:1.6;box-shadow:0 6px 18px rgba(20,23,31,.28)}
 .tip:hover .tip-pop,.tip:focus .tip-pop,.tip:focus-within .tip-pop{display:block}
@@ -138,7 +140,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 <div aria-label="问问" style="flex: none; padding: 8px 28px 12px; border-top: 1px solid #DDE1E7; background: #EEF0F3"><div style="max-width: 1120px"><div class="ask2"><div class="ask-pop" role="listbox" aria-label="推荐问题" hidden></div><div class="ask-card"><span class="pill ask-tag" id="askTag"></span><textarea class="ask-input" rows="1" placeholder="问问这只股票…" aria-label="问问这只股票"></textarea><span class="ask-kbd">↵ 发送</span><button type="button" class="ask-send" data-ask-send aria-label="发送" title="发送（Enter）"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"></path><path d="M6 11l6-6 6 6"></path></svg></button></div></div></div></div>
 </main>
 <sc-if data-if="notifOpen">
-<aside aria-label="通知" style="flex: 0 0 400px; width: 400px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; display: flex; flex-direction: column; font-size: 13px">
+<aside class="dw" aria-label="通知" style="align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; display: flex; flex-direction: column; font-size: 13px">
 <div style="display: flex; align-items: center; gap: 12px; padding: 14px 12px 0 20px"><span style="font-size: 16px; font-weight: 700">通知</span><span style="margin-left: auto; font-size: 12px; color: #2457D6">全部已读</span><button type="button" aria-label="关闭（Esc）" data-click="toggleNotif" style="width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: #5B6372; font: inherit; font-size: 18px; cursor: pointer">×</button></div>
 <div style="display: flex; padding: 0 10px; border-bottom: 1px solid #EEF0F3"><span style="padding: 0 10px; height: 36px; display: inline-flex; align-items: center; font-size: 13px; color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6">全部</span><span style="padding: 0 10px; height: 36px; display: inline-flex; align-items: center; font-size: 13px; color: #5B6372">提醒</span><span style="padding: 0 10px; height: 36px; display: inline-flex; align-items: center; font-size: 13px; color: #5B6372">判断变化</span><span style="padding: 0 10px; height: 36px; display: inline-flex; align-items: center; font-size: 13px; color: #5B6372">战绩</span></div>
 <span style="padding: 10px 16px 2px 32px; font-size: 11px; font-weight: 600; color: #8A919E">今天</span>
@@ -154,7 +156,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 </aside>
 </sc-if>
 <sc-if data-if="drawerOpen">
-<aside aria-label="6 个方面" style="flex: 0 0 400px; width: 400px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; display: flex; flex-direction: column; font-size: 13px">
+<aside class="dw" aria-label="6 个方面" style="align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; display: flex; flex-direction: column; font-size: 13px">
 <div style="position: sticky; top: 0; z-index: 2; background: #FFFFFF; border-bottom: 1px solid #E3E6EB; padding: 0 8px 0 12px; display: flex; align-items: center"><div role="tablist" id="drawerTabs" aria-label="6 个方面" style="display: flex; gap: 0; overflow-x: auto"></div><button type="button" aria-label="收起（⌘\）" title="收起（⌘\）" data-click="closeDrawer" style="margin-left: auto; flex: none; width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: #5B6372; font: inherit; font-size: 16px; cursor: pointer">⇥</button></div>
 <div style="padding: 20px 28px 28px; display: flex; flex-direction: column; gap: 24px; flex: 1">
 <sc-if data-if="flowOpen">
