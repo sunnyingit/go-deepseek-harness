@@ -1061,7 +1061,6 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 
   // ---- 一眼看懂：大资金进出多少、和价格同不同向、能不能持续、要小心什么 ----
   const TONE_DOT = { ok: '#2457D6', warn: '#B87400', neutral: '#A1A7B2' };
-  const TONE_BG = { ok: '#F7F8FA', warn: '#FFF9EE', neutral: '#F7F8FA' };
 
   function flowParts(v) {
     const a = Math.abs(v);
@@ -1148,14 +1147,14 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const rates = wr.filter((r) => num(r.net_rate) != null);
     const strip = rates.length ? '<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;color:#8A919E">不同时间的大资金净流入率（占成交额）</span>' +
       '<div style="display:grid;grid-template-columns:repeat(' + rates.length + ',minmax(0,1fr));gap:6px">' + rates.map((r) =>
-        '<div style="display:flex;flex-direction:column;align-items:center;padding:6px 0;border-radius:6px;background:#F7F8FA"><span style="font-size:11px;color:#8A919E">近 ' + r.days + ' 天</span>' +
+        '<div style="display:flex;flex-direction:column;align-items:center;padding:2px 0"><span style="font-size:11px;color:#8A919E">近 ' + r.days + ' 天</span>' +
         '<span style="' + MONO + ';font-size:13px;font-weight:600;color:' + signColor(Number((r.net_rate * 100).toFixed(1))) + '">' + pct(r.net_rate, 1) + '</span></div>').join('') + '</div></div>' : '';
 
     const sigs = flowSignals(d, c);
-    const sigHTML = sigs.length ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">' + sigs.map((x) =>
-      '<div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:8px;background:' + TONE_BG[x.tone] + '">' +
+    const sigHTML = sigs.length ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px">' + sigs.map((x) =>
+      '<div style="display:flex;flex-direction:column;gap:3px">' +
       '<span style="font-size:11px;color:#8A919E">' + esc(x.label) + '</span>' +
-      '<span style="display:flex;align-items:center;gap:6px;font-weight:600"><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[x.tone] + '"></span>' + esc(x.value) + '</span>' +
+      '<span style="display:flex;align-items:center;gap:6px;font-weight:600;color:' + (x.tone === 'warn' ? '#7A4A00' : '#14171F') + '"><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[x.tone] + '"></span>' + esc(x.value) + '</span>' +
       '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + esc(x.detail) + '</span></div>').join('') + '</div>' : '';
 
     // 一句话 + 来源
@@ -1164,8 +1163,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const stamp = rv ? [RV_SOURCE[rv.source], rv.generated_at ? '生成于 ' + rv.generated_at.slice(5) : '', rv.as_of ? '数据 ' + mmdd(rv.as_of) : ''].filter(Boolean).join(' · ') : '';
     const behind = rv && (st === 'refreshing' || (rv.as_of && meta.as_of && rv.as_of < meta.as_of));
     const note = !rv ? (st === 'computing' ? '资金面体检正在生成，完成后自动补充解读和提醒。' : st === 'unavailable' ? (d.review_error || '这只股票暂时没法做资金面体检。') : '') : '';
-    const sentHTML = sentence ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:8px;background:#F4F5F7"><div style="display:flex;align-items:center;gap:8px">' + sentence.pill +
-      (stamp ? '<span style="font-size:11px;color:#8A919E">' + esc(stamp) + '</span>' : '') + '</div><p style="margin:0;line-height:1.7">' + esc(sentence.text) + '</p>' +
+    const sentHTML = sentence ? '<div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center;gap:8px">' + sentence.pill +
+      (stamp ? '<span style="font-size:11px;color:#8A919E">' + esc(stamp) + '</span>' : '') + '</div><p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(sentence.text) + '</p>' +
       (behind ? '<span style="font-size:12px;color:#7A4A00">' + (st === 'refreshing' ? '这是上一份体检，新的正在生成，完成后自动更新。' : '这份体检基于 ' + esc(mmdd(rv.as_of)) + ' 的数据。') + '</span>' : '') + '</div>' : '';
 
     // 最该留意：体检里的异常，没有体检就用命中的位置提示
@@ -1185,11 +1184,14 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
           ';color:#FFFFFF;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">!</span><span style="font-size:13px;color:#3A4250">' + esc(x.title) + '</span></div>').join('') + '</div>'
       : (rv ? '<span style="font-size:12px;color:#5B6372">体检没有发现需要特别留意的异常</span>' : '');
 
-    return '<div style="display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:10px;border:1px solid #E3E6EB">' +
-      '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:12px;color:#8A919E">近 ' + win + ' 天 · 大资金 = 超大单 + 大单</span>' +
-      '<span title="' + esc(v.tag_text || '') + '" style="margin-left:auto;font-size:12px;color:#5B6372">量价方向 <b style="font-weight:600;color:' + lean.color + '">' + lean.label + '</b></span></div>' +
-      hero + flowBarsHTML(days) + strip + sigHTML + sentHTML +
-      (note ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(note) + '</span>' : '') + cautHTML + '</div>';
+    const head = '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#8A919E">近 ' + win + ' 天 · 大资金 = 超大单 + 大单</span>' +
+      '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:13px;color:#5B6372">量价方向</span>' +
+      '<span style="font-size:26px;font-weight:700;line-height:1.2;color:' + lean.color + '">' + lean.label + '</span>' +
+      (v.tag_text ? '<span style="font-size:14px;font-weight:600">' + esc(v.tag_text) + '</span>' : '') +
+      (CERTAINTY[v.certainty] ? '<span style="margin-left:auto;font-size:12px;color:#8A919E">' + CERTAINTY[v.certainty] + '</span>' : '') + '</div></div>';
+    return '<div style="display:flex;flex-direction:column;gap:18px">' + head + sentHTML +
+      (note ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(note) + '</span>' : '') +
+      hero + flowBarsHTML(days) + strip + sigHTML + cautHTML + '</div>';
   }
 
   function flowHTML(d) {
