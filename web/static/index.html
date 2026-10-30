@@ -1074,9 +1074,23 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     return a >= 1e8 ? { n: (a / 1e8).toFixed(2), unit: '亿' } : a >= 1e4 ? { n: (a / 1e4).toFixed(a >= 1e6 ? 0 : 1), unit: '万' } : { n: String(Math.round(a)), unit: '元' };
   }
 
+  // 页面顶部的结论：优先用 headline（AI 体检的一句话），取不到就用 verdict（规则）。两者字段相同。
+  const HEAD_TONE = { support: UP_TXT, warn: DOWN_TXT, neutral: '#5B6372' };
+  const HEAD_SOURCE = { model: 'AI 解读', rule: '规则摘要' };
+  const conclusionOf = (d) => {
+    const pick = [d.headline, d.verdict].find((x) => x && x.text);
+    return pick ? { text: pick.text, status: pick.status, label: pick.status_text || (RV_STATUS[pick.status] || {}).text || '不明', source: pick.source === 'model' ? 'model' : 'rule' } : null;
+  };
+  const FOLLOW_TONE = { strong: 'ok', yes: 'ok', mixed: 'neutral', weak: 'neutral', none: 'warn' };
+  const FOLLOW_ITEM = { agree: TONE_DOT.ok, disagree: TONE_DOT.warn, neutral: TONE_DOT.neutral };
+
   function flowSignals(d, c) {
-    const fd = d.flow_daily || {}, rs = d.relative_strength || {};
+    const fd = d.flow_daily || {}, rs = d.relative_strength || {}, fo = d.follow;
     const out = [];
+    if (fo && fo.label) {
+      out.push({ label: '有没有人跟', value: fo.label, tone: FOLLOW_TONE[fo.level] || 'neutral',
+        detail: (fo.items || []).filter((it) => it && it.text).map((it) => ({ text: it.text, color: FOLLOW_ITEM[it.status] || TONE_DOT.neutral })) });
+    }
     if (c.big != null && c.ret != null && Math.abs(c.ret) >= 0.001) {
       const up = c.ret > 0, inn = c.big > 0;
       out.push({ label: '资金和价格', value: up && inn ? '同步走强' : !up && !inn ? '同步走弱' : up ? '价涨资金在出' : '价跌资金在进',
@@ -1102,7 +1116,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   }
 
   function flowGlanceHTML(d) {
-    const v = d.verdict || {}, meta = d.meta || {}, fb = d.flow_by_size || {}, fd = d.flow_daily || {}, rs = d.relative_strength || {};
+    const meta = d.meta || {}, fb = d.flow_by_size || {}, fd = d.flow_daily || {}, rs = d.relative_strength || {};
     const wr = (d.windows || {}).rows || [];
     const rows = fb.rows || [];
     const pick = (k) => { const r = rows.find((x) => x.size === k); return r && num(r.net) != null ? r.net : null; };
@@ -1113,7 +1127,6 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const bars = rs.bars || [];
     const stock = bars.find((b) => b.kind === 'stock') || null, sector = bars.find((b) => b.kind === 'sector') || null;
     const c = { win: win, elg: elg, lg: lg, big: big, ret: w && num(w.ret) != null ? w.ret : stock ? num(stock.ret) : null, rate: w ? num(w.net_rate) : null, stock: stock, sector: sector };
-    const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
     const rv = d.review, st = d.review_state;
     const days = fd.days || [];
 
@@ -1152,37 +1165,34 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       '<span style="font-size:11px;color:#8A919E">近 ' + r.days + ' 天</span></div>').join('') + '</div>') : '';
     const sigRows = sigs.map((x) => kv(esc(x.label), '', '<div style="display:flex;flex-direction:column;gap:2px;min-width:0">' +
       '<span style="display:flex;align-items:center;gap:6px;font-weight:600;color:' + (x.tone === 'warn' ? '#7A4A00' : '#14171F') + '"><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[x.tone] + '"></span>' + esc(x.value) + '</span>' +
-      (x.detail ? '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + esc(x.detail) + '</span>' : '') + '</div>')).join('');
+      (typeof x.detail === 'string' ? (x.detail ? '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + esc(x.detail) + '</span>' : '') :
+        (x.detail || []).map((it) => '<span style="display:flex;gap:6px;font-size:12px;color:#5B6372;line-height:1.5"><span aria-hidden="true" style="flex:none;width:4px;height:4px;border-radius:50%;margin-top:7px;background:' + it.color + '"></span>' + esc(it.text) + '</span>').join('')) + '</div>')).join('');
     const table = rateRow || sigRows ? '<div style="display:flex;flex-direction:column;margin-top:-6px">' + rateRow + sigRows + '</div>' : '';
 
     // 一句话 + 来源
-    const sum = rv && rv.summary;
-    const sentence = sum && sum.text ? { text: sum.text, pill: rvStatus(sum.status, sum.status_text) } : v.ai_text ? { text: v.ai_text, pill: rvPill(v.ai_status === 'ready' ? 'AI 结论' : '规则摘要', 'background:#F4F5F7;color:#5B6372') } : null;
+    const cc = conclusionOf(d);
     const behind = rv && (st === 'refreshing' || (rv.as_of && meta.as_of && rv.as_of < meta.as_of));
     const note = !rv ? (st === 'computing' ? '资金面体检正在生成，完成后自动补充解读和提醒。' : st === 'unavailable' ? (d.review_error || '这只股票暂时没法做资金面体检。') : '') : '';
-    const sentHTML = sentence ? '<div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center;gap:8px">' + sentence.pill + '</div><p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(sentence.text) + '</p>' +
+    const sentHTML = cc ? '<div style="display:flex;flex-direction:column;gap:6px"><p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' +
       (behind ? '<span style="font-size:12px;color:#7A4A00">' + (st === 'refreshing' ? '这是上一份体检，新的正在生成，完成后自动更新。' : '这份体检基于 ' + esc(mmdd(rv.as_of)) + ' 的数据。') + '</span>' : '') + '</div>' : '';
 
     const cautHTML = cautionsHTML(d);
 
     const head = '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#8A919E">近 ' + win + ' 天 · 大资金 = 超大单 + 大单</span>' +
-      '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:13px;color:#5B6372">量价方向</span>' +
-      '<span style="font-size:26px;font-weight:700;line-height:1.2;color:' + lean.color + '">' + lean.label + '</span>' +
-      (v.tag_text ? '<span style="font-size:14px;font-weight:600">' + esc(v.tag_text) + '</span>' : '') +
-      (CERTAINTY[v.certainty] ? '<span style="margin-left:auto;font-size:12px;color:#8A919E">' + CERTAINTY[v.certainty] + '</span>' : '') + '</div></div>';
+      '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:13px;color:#5B6372">资金面</span>' +
+      '<span style="font-size:26px;font-weight:700;line-height:1.2;color:' + (cc ? HEAD_TONE[cc.status] || '#5B6372' : '#A1A7B2') + '">' + esc(cc ? cc.label : '暂无结论') + '</span>' +
+      (cc ? '<span style="margin-left:auto">' + rvPill(HEAD_SOURCE[cc.source], 'background:#F4F5F7;color:#5B6372') + '</span>' : '') + '</div></div>';
     return '<div style="display:flex;flex-direction:column;gap:18px">' + head + sentHTML +
       (note ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(note) + '</span>' : '') +
       hero + table + cautHTML + '</div>';
   }
 
   function flowHTML(d) {
-    const v = d.verdict || {}, meta = d.meta || {}, pv = d.price_volume || {}, fb = d.flow_by_size || {};
+    const meta = d.meta || {}, pv = d.price_volume || {}, fb = d.flow_by_size || {};
     const rs = d.relative_strength || {}, ph = d.position_hints || {}, win = d.windows || {};
     const out = [];
-    const aiReady = v.ai_status === 'ready';
-    const reasons = (v.certainty_reasons || []).filter(Boolean);
-    const lvl = num(v.level);
-    const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
+    const cc = conclusionOf(d);
+    const ruleText = d.verdict && d.verdict.text;
 
     const rvm = d.review;
     const rvStamp = rvm ? [RV_SOURCE[rvm.source], rvm.generated_at ? '生成于 ' + rvm.generated_at.slice(5) : ''].filter(Boolean).join(' · ') : '';
@@ -1203,12 +1213,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:' + DOWN + '"></span>下跌日</span></span>';
     out.push(colBox(8) + secTitle('量价：涨的时候有没有人跟', chart ? legend : '') + chart +
       '<span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="pill" style="' + pat.style + '">' + esc(pat.label) + '</span>' +
-      (lvl != null && lvl > 0 ? '<span title="信号强度 ' + lvl + ' / 3" style="font-size:11px;letter-spacing:1px;color:' + lean.color + '">' + '●'.repeat(Math.min(lvl, 3)) + '<span style="color:#D5D9DF">' + '●'.repeat(3 - Math.min(lvl, 3)) + '</span></span>' : '') +
-      (CERTAINTY[v.certainty] ? '<span style="font-size:12px;color:#8A919E">' + CERTAINTY[v.certainty] + '</span>' : '') +
       '<span style="font-size:12px;color:#5B6372">' + esc(desc) + '</span></span>' +
-      (reasons.length ? '<span style="font-size:12px;color:#7A4A00;line-height:1.7">' + (v.certainty ? '把握打了折扣：' : '') + esc(reasons.join('；')) + '</span>' : '') +
-      (v.ai_text ? '<span style="font-size:12px;color:#5B6372;line-height:1.7"><b style="font-weight:600;color:#3A4250">' + (aiReady ? 'AI 结论' : '规则摘要') + '：</b>' + esc(v.ai_text) + '</span>' : '') +
-      (v.watch_next ? '<span style="font-size:12px;color:#5B6372;line-height:1.7">怎么转向：' + esc(v.watch_next) + '</span>' : '') + '</div>');
+      (ruleText && cc && cc.source === 'model' ? '<span style="font-size:12px;color:#5B6372;line-height:1.7"><b style="font-weight:600;color:#3A4250">规则摘要：</b>' + esc(ruleText) + '</span>' : '') + '</div>');
 
     // 相对强弱
     const rbars = rs.bars || [];
@@ -1260,7 +1266,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const src = meta.sources || {};
     out.push('<span style="margin-top:auto;font-size:11px;color:#A1A7B2;line-height:1.6">' +
       (src.price_volume || src.flow ? '量价来自' + esc(src.price_volume || '—') + '；资金流来自' + esc(src.flow || '—') + '，为推算值，各软件口径不同。' : '') +
-      esc(noDisclaimer(v.disclaimer_text)) + '</span>');
+      esc(noDisclaimer(d.disclaimer_text)) + '</span>');
     return out.join('');
   }
 
@@ -1322,7 +1328,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const rv = d.review;
     if (!rv) return '';
     const out = [];
-    const sumText = (rv.summary || {}).text;
+    const sumText = ((d.headline || {}).text) || (rv.summary || {}).text;
     const items = (rv.items || []).filter((it) => !(it.key === 'q10' && it.answer === sumText));
     if (items.length) {
       out.push('<div style="display:flex;flex-direction:column;gap:2px">' + secTitle('逐项解读', items.length + ' 个问题 · 点开看回答') + '<div class="acc-list">' + items.map((it) => accRow(
