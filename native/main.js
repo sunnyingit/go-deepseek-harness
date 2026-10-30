@@ -220,7 +220,7 @@ function startBackend(apiKey) {
     });
   } else {
     const webDir = path.resolve(__dirname, '..', 'web');
-    backend = spawn('go', ['run', '.'], {
+    backend = spawn('go', ['run', '../cmd/web'], {
       cwd: webDir,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -272,7 +272,7 @@ function buildMenu() {
   const pageItems = [
     { label: '工作台', accelerator: 'CmdOrCtrl+1', click: () => loadPage(PAGES.index) },
     { label: '对话', accelerator: 'CmdOrCtrl+2', click: () => loadPage(PAGES.dialog) },
-    { label: '个人空间', accelerator: 'CmdOrCtrl+3', click: () => loadPage(PAGES.space) },
+    { label: '个人工作区', accelerator: 'CmdOrCtrl+3', click: () => loadPage(PAGES.space) },
     { label: '设置', accelerator: 'CmdOrCtrl+,', click: () => loadPage(PAGES.settings) },
     { label: '运行日志', accelerator: 'CmdOrCtrl+Shift+L', click: () => loadPage(PAGES.logs) },
   ];

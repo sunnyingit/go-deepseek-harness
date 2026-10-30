@@ -285,15 +285,33 @@
         .quick-item.active { background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
         .quick-item.active i { color: #f97316; }
         .quick-item i { width: 20px; color: #4f5b6b; font-size: 16px; }
+        .side-nav .soon-group {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #e6ebf2;
+        }
+        .quick-item.soon { color: #9aa7b9; cursor: default; }
+        .quick-item.soon:hover { background: #f6f8fb; }
+        .quick-item.soon i { color: #c5ced9; }
+        .quick-item.soon .soon-tag {
+            margin-left: auto;
+            font-size: 10px;
+            font-weight: 500;
+            color: #b0bac8;
+            border: 1px dashed #d5dce6;
+            border-radius: 999px;
+            padding: 1px 6px;
+        }
 
         .history-panel {
             flex: 1;
             min-height: 0;
             display: flex;
             flex-direction: column;
-            padding-top: 8px;
+            padding-top: 6px;
             border-top: 1px solid rgba(0,0,0,0.05);
         }
+        .history-panel .quick-item { margin-bottom: 2px; }
         .section-title {
             font-size: 11px;
             font-weight: 600;
@@ -1523,16 +1541,19 @@
                     <i class="fas fa-plus"></i> 新建任务
                 </div>
                 <div class="quick-item" data-nav="space" id="navSpace">
-                    <i class="fas fa-user"></i> 个人空间
+                    <i class="fas fa-user"></i> 个人工作区
                 </div>
-                <div class="quick-item" data-nav="schedule" id="navSchedule">
-                    <i class="fas fa-clock"></i> 定时任务
-                </div>
-                <div class="quick-item active" data-nav="history" id="navHistory">
-                    <i class="fas fa-comments"></i> 历史对话
+                <div class="soon-group">
+                    <div class="quick-item soon" data-nav="assistant"><i class="fas fa-robot"></i> 助理<span class="soon-tag">开发中</span></div>
+                    <div class="quick-item soon" data-nav="project"><i class="fas fa-diagram-project"></i> 项目<span class="soon-tag">开发中</span></div>
+                    <div class="quick-item soon" data-nav="automation"><i class="fas fa-gears"></i> 自动化<span class="soon-tag">开发中</span></div>
+                    <div class="quick-item soon" data-nav="more"><i class="fas fa-grip"></i> 更多<span class="soon-tag">开发中</span></div>
                 </div>
             </nav>
             <div class="history-panel">
+                <div class="quick-item active" data-nav="history" id="navHistory">
+                    <i class="fas fa-comments"></i> 历史对话
+                </div>
                 <div class="history-list" id="historyList">
                     <div class="history-empty">暂无对话</div>
                 </div>
@@ -1547,7 +1568,7 @@
                     <i class="fas fa-cog"></i>
                 </button>
                 <div class="user-menu" id="userMenu">
-                    <button type="button" data-action="space"><i class="fas fa-folder-open"></i> 个人空间</button>
+                    <button type="button" data-action="space"><i class="fas fa-folder-open"></i> 个人工作区</button>
                     <button type="button" data-action="notify"><i class="fas fa-bell"></i> 通知</button>
                     <button type="button" data-action="settings"><i class="fas fa-sliders-h"></i> 设置</button>
                     <button type="button" data-action="logs"><i class="fas fa-file-alt"></i> 运行日志</button>
@@ -3192,7 +3213,7 @@
         }
 
         function startNewSessionFromChat() {
-            window.location.href = '/';
+            window.location.href = '/?new=' + Date.now();
         }
 
         function buildTurnFailureCard(data) {
@@ -3351,6 +3372,8 @@
         // ============================================================
         let currentSessionId = null;
         let selectedSkill = null;
+        // 左侧边栏「历史对话」最多显示的会话数——见 refreshHistoryList。
+        const MAX_SIDEBAR_HISTORY = 30;
         let activeEventSource = null;
         let streamClosing = false;
         let streamCancelled = false;
@@ -4054,8 +4077,8 @@
         });
 
         // 导航
-        document.getElementById('backBtn').addEventListener('click', () => { window.location.href = '/'; });
-        document.getElementById('brandBtn').addEventListener('click', () => { window.location.href = '/'; });
+        document.getElementById('backBtn').addEventListener('click', () => { window.location.href = '/?new=' + Date.now(); });
+        document.getElementById('brandBtn').addEventListener('click', () => { window.location.href = '/?new=' + Date.now(); });
         document.getElementById('searchIcon').addEventListener('click', () => { document.getElementById('chatInput').focus(); showToast('🔍 输入关键词搜索', 'fa-search'); });
         document.getElementById('bellIcon').addEventListener('click', () => showToast('🔔 暂无新通知', 'fa-bell'));
 
@@ -4093,17 +4116,17 @@
 
         document.querySelectorAll('.quick-item').forEach(el => {
             el.addEventListener('click', function() {
+                if (this.classList.contains('soon')) {
+                    showToast('该功能正在开发中', 'fa-hourglass-half');
+                    return;
+                }
                 const nav = this.dataset.nav;
                 if (nav === 'task') {
-                    window.location.href = '/';
+                    window.location.href = '/?new=' + Date.now();
                     return;
                 }
                 if (nav === 'space') {
                     window.location.href = '/space.html';
-                    return;
-                }
-                if (nav === 'schedule') {
-                    showToast('🕒 定时任务正在开发中', 'fa-clock');
                     return;
                 }
                 document.querySelectorAll('.quick-item').forEach(i => i.classList.remove('active'));
@@ -4150,6 +4173,10 @@
                 sessions
                     .slice()
                     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+                    // 侧边栏只是快速导航，不是完整归档——最近 30 条足够覆盖日常
+                    // 切换场景，列表不会随会话数增长无限变长。完整历史在「个人
+                    // 工作区」页（space.html）看，那边不做这个裁剪。
+                    .slice(0, MAX_SIDEBAR_HISTORY)
                     .forEach(s => {
                         const item = document.createElement('div');
                         item.className = 'history-item' + (s.id === currentSessionId ? ' active' : '');
@@ -4211,9 +4238,13 @@
             const queryFiles = filesFromQuery(params);
             const listed = await fetchWorkspaceFiles();
             renderFileList(listed);
+            // 本轮从首页带过来的附件只看 URL 上的 files=。配置了 workspace_dir
+            // 之后 GET /sessions/{id}/files 列出的是整个个人工作区，里面混着
+            // 以前任务上传/生成的文件；再把 source=upload 的全拼进 incomingFiles，
+            // 新对话的第一条用户消息就会挂上旧附件。
             const incomingFiles = [];
             const seen = new Set();
-            queryFiles.concat(listed.filter((f) => f.source === 'upload')).forEach((f) => {
+            queryFiles.forEach((f) => {
                 const path = f.path || f.name;
                 if (!path || seen.has(path)) return;
                 seen.add(path);
@@ -4226,15 +4257,22 @@
                 });
             });
 
+            let history = [];
             try {
                 const res = await fetch(`/sessions/${encodeURIComponent(sessionId)}/messages`);
                 if (res.ok) {
-                    renderHistoryMessages(await res.json());
+                    history = await res.json();
+                    renderHistoryMessages(history);
                 }
             } catch (e) {
                 // 历史加载失败不阻塞本轮对话
             }
-            restoreFileCards(listed);
+            // 不要把 GET /sessions/{id}/files 的结果画进气泡。共享工作区下列表
+            // 曾是整个知识库；即使改成按 session 记账，重开对话也只应回放
+            // messages，文件卡片由这一轮 SSE 再产生。
+            if (!text && history.length && listed.length) {
+                restoreFileCards(listed);
+            }
 
             if (text) {
                 const titleEl = document.getElementById('chatTitleText');

@@ -273,7 +273,7 @@ cp "$ROOT/web/config.yaml" "$DEST/config.yaml"
 
 # --- web binary ---
 echo "go build GOOS=$GOOS GOARCH=$GOARCH -> bin/$WEB_NAME"
-( cd "$ROOT" && CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$DEST/bin/$WEB_NAME" ./web )
+( cd "$ROOT" && CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$DEST/bin/$WEB_NAME" ./cmd/web )
 chmod +x "$DEST/bin/$WEB_NAME" 2>/dev/null || true
 
 # Archives stay on disk by default so the next build can reuse them.

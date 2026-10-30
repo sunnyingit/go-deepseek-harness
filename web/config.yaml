@@ -1,34 +1,22 @@
-# go-harness web 运行时配置。
-# 启动时读取（默认 ./config.yaml，或 -config / WEB_DEMO_CONFIG）。
-# 空字段会填包内默认值。密钥等可用环境变量覆盖，不必写进文件。
-
+# 由设置页保存。端口、数据目录、Python 缓存需重启后完全生效。
 server:
   port: 8083
-  # 空 = $TMPDIR/go-harness-web-demo
   data_dir: ""
-  shutdown_timeout: 60s
-
+  workspace_dir: /Users/lisun/AI_Workspace
+  shutdown_timeout: 1m
 llm:
-  # 空则读 DEEPSEEK_API_KEY
-  api_key: "sk-fe1f2cbbba6740e58de3f7be1f5f6f9a"
-  # 空则用 https://api.deepseek.com，或 DEEPSEEK_BASE_URL
+  api_key: sk-fe1f2cbbba6740e58de3f7be1f5f6f9a
   base_url: ""
   model: deepseek-v4-pro
   stream_idle_timeout: 10m
-  # TCP 建连；0 或不写 = 30s（与 Go 默认 Transport 一致）
   connect_timeout: 100s
-  # TLS 握手；0 或不写 = 10s
   tls_handshake_timeout: 100s
-  # 空 = 走 DeepSeek 默认 thinking；disabled = 关闭思考模式
   thinking: disabled
   max_tokens: 0
-  # 省略或 null = 不传；与 top_p 一般只改一个
   temperature: null
   top_p: null
   reasoning_effort: ""
   retry:
-    # normal = 只重试 retryable_codes，最多 max_retries 次
-    # always = 失败就重试直到上下文取消
     mode: normal
     max_retries: 5
     initial_delay: 500ms
@@ -40,28 +28,18 @@ llm:
       - SERVER
       - TIMEOUT
       - TRANSPORT
-
 sandbox:
-  # read-only | workspace-write | danger-full-access
   bash_mode: danger-full-access
   bash_network: true
   python_mode: danger-full-access
-  # 只在 python_mode 不是 danger-full-access 时才有意义：true = run_python 默认
-  # 就能联网；false = 默认不能联网，模型要联网得带 network:true + justification
-  # 现场申请，由 auto_approve_escalation（或人工审批）决定放不放行。
   python_network: false
   fs_mode: danger-full-access
   auto_approve_escalation: true
-
 python:
-  # 空 = UserCacheDir/go-harness/python-venv
   cache_dir: ""
   bin: python3
   install_timeout: 5m
-  run_timeout: 300s
-  # 空 = 使用 DefaultDocumentPackages。这里是整体替换，不是追加——改的时候把
-  # 原来那 7 个也一起写上。跟 native/scripts/prepare-runtime.sh 里的 PACKAGES
-  # 数组保持同一份列表，那边是打包桌面端时预装/预下载 wheel 用的。
+  run_timeout: 5m
   packages:
     - python-docx
     - python-pptx
@@ -78,13 +56,10 @@ python:
     - pyyaml
     - requests
     - httpx
-
 tools:
-  bash_timeout: 120s
+  bash_timeout: 2m
   max_upload_bytes: 67108864
   max_parallel_tool_calls: 10
-
 agent:
   auto_approve_plan: true
-  # 空 = 使用代码里的默认 system prompt（对用户用简体中文）
   system_prompt: ""

@@ -131,8 +131,8 @@
     <div class="main-grid">
         <aside class="sidebar">
             <nav>
-                <div class="quick-item" data-nav="/"><i class="fas fa-plus"></i> 新建任务</div>
-                <div class="quick-item" data-nav="/space.html"><i class="fas fa-user"></i> 个人空间</div>
+                <div class="quick-item" data-nav="/?new=1"><i class="fas fa-plus"></i> 新建任务</div>
+                <div class="quick-item" data-nav="/space.html"><i class="fas fa-user"></i> 个人工作区</div>
                 <div class="quick-item" data-view="settings" id="navSettings"><i class="fas fa-sliders-h"></i> 设置</div>
                 <div class="quick-item" data-view="logs" id="navLogs"><i class="fas fa-file-alt"></i> 运行日志</div>
             </nav>
@@ -204,6 +204,10 @@
                         <div class="field span-2">
                             <label>数据目录 data_dir <span class="hint">空 = 临时目录；改后需重启</span></label>
                             <input id="data_dir" />
+                        </div>
+                        <div class="field span-2">
+                            <label>工作目录 workspace_dir <span class="hint">对话里生成和上传的文件都写进这里；空 = 各会话自己的沙箱。新对话生效</span></label>
+                            <input id="workspace_dir" placeholder="例如 /Users/you/Documents" />
                         </div>
                     </div>
                 </section>
@@ -319,6 +323,7 @@
         setVal('port', cfg.server.port || 8081);
         setVal('shutdown_timeout', cfg.server.shutdown_timeout);
         setVal('data_dir', cfg.server.data_dir);
+        setVal('workspace_dir', cfg.server.workspace_dir || '');
         setVal('stream_idle_timeout', cfg.llm.stream_idle_timeout);
         setVal('connect_timeout', cfg.llm.connect_timeout);
         setVal('tls_handshake_timeout', cfg.llm.tls_handshake_timeout);
@@ -342,6 +347,7 @@
             server: {
                 port: num('port'),
                 data_dir: val('data_dir').trim(),
+                workspace_dir: val('workspace_dir').trim(),
                 shutdown_timeout: val('shutdown_timeout').trim(),
             },
             llm: {
@@ -395,7 +401,7 @@
         return data;
     }
 
-    document.getElementById('brandBtn').addEventListener('click', () => { window.location.href = '/'; });
+    document.getElementById('brandBtn').addEventListener('click', () => { window.location.href = '/?new=' + Date.now(); });
     document.querySelectorAll('.quick-item[data-nav]').forEach((el) => {
         el.addEventListener('click', () => { window.location.href = el.dataset.nav; });
     });

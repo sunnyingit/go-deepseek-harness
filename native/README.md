@@ -6,7 +6,7 @@ Electron 客户端，窗口里加载 go-harness 的三页 UI：
 | --- | --- |
 | 工作台 | `/`（`index.html`） |
 | 对话 | `/dialog.html` |
-| 个人空间 | `/space.html` |
+| 个人工作区 | `/space.html` |
 
 正式安装包会**自带** web 服务、便携 Python（已预装文档库）、官方 Node，以及 PPT 用的 Node 库（`pptxgenjs`、`react` / `react-dom` / `react-icons`、`sharp`）。Windows 另外带 MinGit 的 `bash`。对方电脑不需要先装 Go / Python / Node。
 
@@ -42,4 +42,4 @@ make win          # 下载 win-x64 运行时并交叉编译 web，打出 .zip
 未签名包在 macOS 上需要在 Finder 里右键「打开」一次。
 
 - `PORT`（默认 `8081`）和 `HARNESS_URL`（默认 `http://127.0.0.1:$PORT`）可覆盖地址。
-- 快捷键：`Cmd/Ctrl+1` 工作台，`+2` 对话，`+3` 个人空间。
+- 快捷键：`Cmd/Ctrl+1` 工作台，`+2` 对话，`+3` 个人工作区。

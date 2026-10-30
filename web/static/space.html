@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PABuddy AI · 个人空间</title>
+    <title>PABuddy AI · 个人工作区</title>
     <link rel="stylesheet" href="/static/vendor/fonts/inter.css" />
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css" />
     <style>
@@ -57,14 +57,21 @@
         }
         .main-grid {
             display: grid;
-            grid-template-columns: 200px 1fr;
-            gap: 24px;
-            padding: 16px 24px 20px;
+            grid-template-columns: auto 1fr;
+            gap: 0;
+            padding: 0;
             flex: 1;
             min-height: 0;
             overflow: hidden;
         }
-        .sidebar { display: flex; flex-direction: column; gap: 20px; min-height: 0; overflow: hidden; }
+        .sidebar {
+            display: flex; flex-direction: column; gap: 20px;
+            min-height: 0; overflow: hidden;
+            width: 220px;
+            padding: 16px 16px 16px 24px;
+            border-right: 1px solid #e8ecf2;
+            flex-shrink: 0;
+        }
         .user-card {
             position: relative;
             display: flex; align-items: center; gap: 8px;
@@ -113,10 +120,28 @@
         .quick-item.active { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
         .quick-item.active i { color: #f97316; }
         .quick-item i { width: 20px; font-size: 16px; color: #4f5b6b; }
+        .side-nav .soon-group {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #e6ebf2;
+        }
+        .quick-item.soon { color: #9aa7b9; cursor: default; }
+        .quick-item.soon:hover { background: #f6f8fb; }
+        .quick-item.soon i { color: #c5ced9; }
+        .quick-item.soon .soon-tag {
+            margin-left: auto;
+            font-size: 10px;
+            font-weight: 500;
+            color: #b0bac8;
+            border: 1px dashed #d5dce6;
+            border-radius: 999px;
+            padding: 1px 6px;
+        }
         .history-panel {
             flex: 1; min-height: 0; display: flex; flex-direction: column;
-            padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.05);
+            padding-top: 6px; border-top: 1px solid rgba(0,0,0,0.05);
         }
+        .history-panel .quick-item { margin-bottom: 2px; }
         .history-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; }
         .history-empty { font-size: 12px; color: #9aa7b9; padding: 8px 12px; }
         .history-item {
@@ -128,219 +153,308 @@
         .history-item .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
         .history-item .time { margin-left: auto; font-size: 11px; color: #8f9cae; flex-shrink: 0; }
 
+        :root {
+            --ink: #0b1a33;
+            --ink-soft: #5f6c80;
+            --muted: #9aa8bb;
+            --surface-0: #f8f9fc;
+            --surface-1: #f4f6fa;
+            --surface-2: #ffffff;
+            --line: #eef1f6;
+            --hover: #fff7ed;
+            --selected: #fff7ed;
+            --accent: #f97316;
+            --accent-soft: #fff7ed;
+            --blue: #185fa5; --blue-bg: #e6f1fb;
+            --purple: #534ab7; --purple-bg: #eeedfe;
+            --green: #3b6d11; --green-bg: #eaf3de;
+            --amber: #854f0b; --amber-bg: #faeeda;
+            --radius: 14px;
+            --radius-sm: 10px;
+        }
         .content {
             display: flex;
             flex-direction: column;
             min-height: 0;
             overflow: hidden;
+            background: #ffffff;
+            color: var(--ink);
+            padding: 8px 24px 20px;
         }
-        .files-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-
-        .space-header {
+        .lib-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #ffffff; }
+        .hero-top {
+            padding: 28px 8px 8px;
+            background: transparent;
+            border: none;
             flex-shrink: 0;
+            text-align: center;
+        }
+        .hero-slogan {
+            font-size: 26px;
+            font-weight: 600;
+            color: #0b1a33;
+            margin: 0 auto 20px;
+            letter-spacing: -0.4px;
+            line-height: 1.3;
+            text-align: center;
+        }
+        .input-area {
+            background: #fffaf6;
+            border-radius: 28px;
+            padding: 12px 14px 8px 16px;
+            box-shadow: 0 4px 16px rgba(249, 115, 22, 0.06), 0 1px 0 rgba(249, 115, 22, 0.04);
+            border: 1px solid #fed7aa;
             display: flex;
             flex-direction: column;
             align-items: stretch;
-            gap: 16px;
-            margin-bottom: 22px;
+            gap: 8px;
+            max-width: 760px;
+            margin: 0 auto;
+            text-align: left;
+            cursor: text;
+            transition: 0.15s;
         }
-        .space-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
-        .space-avatar {
-            width: 48px; height: 48px; flex-shrink: 0;
-            background: linear-gradient(135deg, #f97316, #fb923c);
-            border-radius: 16px;
-            display: flex; align-items: center; justify-content: center;
-            color: #fff; font-weight: 700; font-size: 18px;
-            box-shadow: 0 8px 18px rgba(249, 115, 22, 0.22);
+        .input-area:focus-within {
+            background: #fff7ed;
+            border-color: #f97316;
+            box-shadow: 0 6px 22px rgba(249, 115, 22, 0.14), 0 0 0 4px rgba(249, 115, 22, 0.12);
         }
-        .space-header h2 { font-size: 22px; color: #0b1a33; letter-spacing: -0.3px; }
-        .space-header p { font-size: 13px; color: #8a95a8; margin-top: 4px; }
-        .space-stats { display: flex; gap: 10px; flex-wrap: wrap; }
-        .stat-pill {
-            background: #fff;
-            border: 1px solid #eef1f6;
-            border-radius: 14px;
-            padding: 10px 14px;
-            min-width: 84px;
-        }
-        .stat-pill span { display: block; font-size: 11px; color: #8a95a8; }
-        .stat-pill strong { font-size: 16px; color: #0b1a33; font-weight: 650; }
-
-        .space-toolbar {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        .space-tabs {
-            display: flex;
-            gap: 4px;
-            background: #f0f2f6;
-            padding: 4px;
-            border-radius: 40px;
-            flex-shrink: 0;
-        }
-        .space-tab {
-            border: none;
-            background: transparent;
-            color: #3c4a5e;
-            font-size: 13px;
-            font-weight: 500;
-            padding: 7px 14px;
-            border-radius: 30px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .space-tab i { font-size: 12px; }
-        .space-tab:hover { background: rgba(255,255,255,0.55); }
-        .space-tab.active {
-            background: #fff;
-            color: #0b1a33;
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-        .space-search {
-            margin-left: auto;
+        .composer-row {
             display: flex;
             align-items: center;
             gap: 8px;
-            background: #fff;
-            border: 1px solid #eef1f6;
-            border-radius: 40px;
-            padding: 0 14px;
-            height: 38px;
-            min-width: 180px;
-            max-width: 260px;
+            width: 100%;
+        }
+        .input-area input {
             flex: 1;
+            border: none;
+            outline: none;
+            font-size: 15px;
+            padding: 10px 4px 12px 6px;
+            min-width: 160px;
+            background: transparent;
+            color: #0b1a33;
+            font-family: inherit;
+            caret-color: #f97316;
         }
-        .space-search i { color: #9aa7b9; font-size: 13px; }
-        .space-search input {
-            border: none; outline: none; background: transparent;
-            font-size: 13px; color: #1c2a44; width: 100%;
-        }
-        .space-search input::placeholder { color: #9aa8bb; }
-
-        .type-filter, .fav-check {
-            display: flex; align-items: center; gap: 8px;
-            height: 38px; padding: 0 14px;
-            background: #fff; border: 1px solid #eef1f6; border-radius: 40px;
-            font-size: 13px; color: #3c4a5e; flex-shrink: 0;
-        }
-        .type-filter i { color: #8a95a8; font-size: 12px; }
-        .type-filter select {
-            border: none; outline: none; background: transparent;
-            font-size: 13px; color: #1c2a44; cursor: pointer;
-        }
-        .fav-check { cursor: pointer; user-select: none; }
-        .fav-check input { accent-color: #f97316; }
-
-        .files-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
-
-        .file-table {
-            background: #fff;
-            overflow: hidden;
-        }
-        .file-cols {
-            display: grid;
-            grid-template-columns: minmax(260px, 2fr) 88px 140px 110px 72px;
+        .input-area input::placeholder { color: #c4a484; font-weight: 400; }
+        .input-actions {
+            display: flex;
             align-items: center;
             gap: 12px;
-            padding: 0 8px;
+            flex-shrink: 0;
         }
-        .file-thead {
-            min-height: 36px;
-            border-bottom: 1px solid #eceff3;
-            font-size: 13px; font-weight: 500; color: #8a95a8;
+        .input-actions .primary-btn {
+            background: #f97316;
+            color: white;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 40px;
+            font-weight: 500;
+            font-size: 14px;
+            font-family: inherit;
+            margin-left: 4px;
+            box-shadow: 0 4px 10px rgba(249, 115, 22, 0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.15s;
         }
-        .file-thead .sort {
+        .input-actions .primary-btn:hover {
+            background: #ea580c;
+            transform: scale(1.02);
+            box-shadow: 0 6px 16px rgba(249, 115, 22, 0.25);
+        }
+        .input-actions .primary-btn i { color: white; }
+        .tabs-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 8px 0; border-bottom: none; flex-shrink: 0;
+            gap: 12px;
+        }
+        .tabs {
+            display: flex; gap: 0;
+            background: #f0f2f6;
+            padding: 4px;
+            border-radius: 40px;
+        }
+        .tab {
+            padding: 8px 18px; font-size: 14px; color: #3c4a5e; cursor: pointer;
+            border: none; font-weight: 500; margin-right: 0;
+            border-radius: 30px; user-select: none;
+        }
+        .tab:hover { background: rgba(255,255,255,0.5); }
+        .tab.active {
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            color: #0b1a33;
+            font-weight: 600;
+        }
+        .ai-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+        .ai-status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+        .ai-status.working .dot { background: var(--amber); animation: kb-pulse 1.2s ease-in-out infinite; }
+        .ai-status.done .dot { background: var(--green); }
+        @keyframes kb-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+        .view { display: none; flex: 1; min-height: 0; overflow-y: auto; }
+        .view.active { display: block; }
+
+        .briefing-scroll { padding: 20px 8px 40px; }
+        .brief-card {
+            display: flex; gap: 14px; align-items: flex-start;
+            background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+            padding: 16px 18px; margin-bottom: 12px;
+        }
+        .brief-card.processing, .brief-card.completed { background: var(--surface-0); }
+        .brief-card.completed .brief-icon { background: var(--green-bg) !important; }
+        .brief-icon {
+            width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 14px;
+        }
+        .brief-body { flex: 1; min-width: 0; }
+        .brief-title { font-size: 14px; font-weight: 600; margin-bottom: 3px; color: var(--ink); }
+        .brief-desc { font-size: 13px; color: var(--ink-soft); line-height: 1.6; margin-bottom: 10px; }
+        .brief-files { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+        .file-chip {
+            display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
+            border: 1px solid var(--line); border-radius: 20px; padding: 3px 10px; color: var(--ink-soft);
+        }
+        .brief-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .kb-btn {
+            font-size: 12px; padding: 5px 12px; border-radius: var(--radius-sm);
+            border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+            cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-family: inherit;
+        }
+        .kb-btn:hover { background: #fff7ed; border-color: #f97316; color: #f97316; }
+        .kb-btn.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+        .kb-btn.quiet:hover { background: var(--hover); color: var(--ink-soft); border-color: transparent; }
+        .kb-btn.add-action { border-style: dashed; color: var(--muted); background: transparent; }
+        .kb-btn.add-action:hover { color: #f97316; border-color: #f97316; background: #fff7ed; }
+        .kb-btn.custom-action { position: relative; padding-right: 22px; }
+        .kb-btn.custom-action::after {
+            content: '★'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+            font-size: 8px; color: var(--purple);
+        }
+        .done-badge, .processing-badge {
+            display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 500;
+            padding: 2px 8px; border-radius: 20px; margin-bottom: 6px;
+        }
+        .done-badge { color: var(--green); background: var(--green-bg); }
+        .processing-badge { color: var(--amber); background: var(--amber-bg); }
+        .spin { animation: kb-spin 0.9s linear infinite; }
+        @keyframes kb-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .correction-box { display: none; margin-top: 10px; }
+        .correction-box input {
+            width: 100%; font-size: 12.5px; padding: 7px 10px; border-radius: var(--radius-sm);
+            border: 1px solid var(--line); background: var(--surface-1); outline: none; font-family: inherit;
+        }
+        .correction-box input:focus { border-color: #f97316; }
+        .section-label { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0.04em; margin: 22px 0 10px; }
+        .brief-history-toggle {
+            font-size: 12.5px; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+        }
+        .brief-history-toggle:hover { color: var(--ink-soft); }
+        .brief-history { display: none; margin-top: 10px; }
+        .brief-history.open { display: block; }
+        .brief-history-item {
+            display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line);
+            font-size: 12.5px; color: var(--ink-soft);
+        }
+        .brief-history-item .h-time { color: var(--muted); flex-shrink: 0; width: 64px; }
+
+        .table-wrap { padding: 16px 8px 40px; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+        .filter-bar select {
+            font-size: 12.5px; padding: 6px 28px 6px 12px; border-radius: var(--radius-sm);
+            border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+            font-family: inherit; cursor: pointer;
+        }
+        .filter-bar select:hover { border-color: #f97316; }
+        .file-table { width: 100%; border-collapse: collapse; }
+        .file-table thead th {
+            text-align: left; font-size: 11px; font-weight: 500; color: var(--muted);
+            padding: 10px; border-bottom: 1px solid var(--line); position: sticky; top: 0;
+            background: var(--surface-2); z-index: 1;
+        }
+        .file-table .sort {
             display: inline-flex; align-items: center; gap: 4px;
             border: none; background: none; padding: 0; cursor: pointer;
             font: inherit; color: inherit;
         }
-        .file-thead .sort .carets {
-            display: inline-flex; flex-direction: column; line-height: 0.6; font-size: 8px; color: #c5ced9;
+        .file-table tbody tr.frow { border-bottom: 1px solid var(--line); cursor: pointer; }
+        .file-table tbody tr.frow:hover { background: var(--surface-0); }
+        .file-table tbody tr.frow.selected { background: var(--selected); }
+        .file-table tbody td { padding: 12px 10px; vertical-align: middle; }
+        .file-name { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 500; min-width: 0; }
+        .file-name .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-ico {
+            width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 12px;
         }
-        .file-thead .sort.active .carets { color: #1c2a44; }
-        .file-group-row, .file-task-row, .file-item-row { min-height: 40px; }
-        .file-group-row {
-            cursor: pointer; font-weight: 650; color: #1c2a44; font-size: 14px;
-        }
-        .file-group-row:hover, .file-task-row:hover, .file-item-row:hover { background: #f7f8fa; }
-        .file-item-row.selected { background: #f3f4f6; }
-        .tree-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
-        .tree-name .label {
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
-            font-size: 14px; color: #1c2a44;
-        }
-        .chevron {
-            width: 16px; color: #8a95a8; font-size: 11px; flex-shrink: 0;
-            transition: transform .15s;
-        }
-        .file-group.collapsed .chevron { transform: rotate(-90deg); }
-        .file-group.collapsed .file-group-body { display: none; }
-        .count-pill {
-            font-size: 12px; font-weight: 500; color: #6b778c;
-            background: #eef1f6; border-radius: 999px; padding: 1px 8px; flex-shrink: 0;
-        }
-        .row-check {
-            width: 16px; height: 16px; flex-shrink: 0;
-            border-radius: 4px; display: flex; align-items: center; justify-content: center;
-            font-size: 9px; color: transparent;
-        }
-        .file-item-row.selected .row-check {
-            background: #1c2a44; color: #fff;
-        }
-        .task-ico, .file-ico {
-            width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
-            display: flex; align-items: center; justify-content: center; font-size: 11px;
-        }
-        .task-ico { background: #f3f4f6; color: #6b7280; }
-        .task-ico svg { width: 14px; height: 14px; display: block; }
-        .file-ico.kind-excel { background: #e8f6ee; color: #1d7a46; }
+        .file-ico.kind-excel { background: var(--green-bg); color: var(--green); }
         .file-ico.kind-pdf { background: #fdeeee; color: #c0392b; }
-        .file-ico.kind-word { background: #eef3fb; color: #2b579a; }
-        .file-ico.kind-ppt { background: #fdeee8; color: #c43e1c; }
-        .file-ico.kind-image { background: #f3efff; color: #c2410c; }
-        .file-ico.kind-html { background: #e8f1ff; color: #2563eb; }
-        .file-ico.kind-code { background: #e6f7f4; color: #0f766e; }
-        .file-ico.kind-archive { background: #fef6e8; color: #b45309; }
-        .file-ico.kind-file { background: #eef3fb; color: #3b82f6; }
-        .indent-task { padding-left: 22px; }
-        .indent-file { padding-left: 46px; }
-        .col-meta { font-size: 13px; color: #8a95a8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .file-item-row .col-name { font-size: 14px; color: #1c2a44; }
+        .file-ico.kind-word, .file-ico.kind-file { background: var(--blue-bg); color: var(--blue); }
+        .file-ico.kind-ppt { background: var(--amber-bg); color: var(--amber); }
+        .file-ico.kind-image, .file-ico.kind-code { background: var(--purple-bg); color: var(--purple); }
+        .file-ico.kind-html { background: var(--blue-bg); color: var(--blue); }
+        .file-ico.kind-archive { background: var(--amber-bg); color: var(--amber); }
+        .source-badge {
+            display: inline-flex; align-items: center;
+            font-size: 10.5px; font-weight: 500; padding: 2px 8px; border-radius: 20px;
+            background: var(--surface-0); color: var(--ink-soft); border: 1px solid var(--line); white-space: nowrap;
+        }
+        .source-badge.generated { background: var(--blue-bg); color: var(--blue); border-color: transparent; }
+        .source-badge.local { background: var(--green-bg); color: var(--green); border-color: transparent; }
+        .col-secondary { color: var(--ink-soft); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .file-star {
             border: none; background: none; color: #c5ced9; cursor: pointer; padding: 0;
             width: 16px; flex-shrink: 0; font-size: 12px;
         }
         .file-star.on { color: #f59e0b; }
-        .file-item-row .file-actions { margin-left: auto; opacity: 0; display: flex; gap: 4px; }
-        .file-item-row:hover .file-actions { opacity: 1; }
-        .file-actions button {
-            border: none; background: #f4f6fa; color: #6b7a8f;
-            width: 26px; height: 26px; border-radius: 8px; cursor: pointer;
+        .actions-row { display: none; }
+        .actions-row.open { display: table-row; }
+        .actions-row td { padding: 4px 10px 16px; border-bottom: 1px solid var(--line); }
+        .action-btns { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
+        .action-form {
+            display: none; margin-top: 4px; background: var(--surface-1); border: 1px solid var(--line);
+            border-radius: var(--radius-sm); padding: 12px; max-width: 420px; width: 100%;
         }
-        .file-actions button:hover { background: #fff7ed; color: #f97316; }
-        .file-actions button.danger:hover { background: #fdecec; color: #d14c4c; }
-        .file-empty {
+        .action-form.open { display: block; }
+        .action-form label { display: block; font-size: 11.5px; color: var(--muted); margin: 8px 0 4px; }
+        .action-form label:first-child { margin-top: 0; }
+        .action-form input, .action-form textarea {
+            width: 100%; font-size: 12.5px; padding: 6px 9px; border-radius: var(--radius-sm);
+            border: 1px solid var(--line); background: var(--surface-2); outline: none; font-family: inherit; resize: none;
+        }
+        .action-form input:focus, .action-form textarea:focus { border-color: #f97316; }
+        .action-form .form-actions { display: flex; gap: 6px; margin-top: 10px; }
+        .action-form .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+        .empty-state {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; gap: 6px; padding: 48px 16px; color: #9aa7b9;
+            padding: 80px 40px; text-align: center; gap: 6px; color: var(--muted);
         }
-        .file-empty .empty-icon {
-            width: 44px; height: 44px; border-radius: 14px;
-            background: #fff7ed; color: #f97316;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; margin-bottom: 4px;
+        .empty-state .empty-icon {
+            width: 40px; height: 40px; color: var(--muted);
+            display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 8px;
         }
-        .file-empty p { font-size: 14px; color: #3c4a5e; font-weight: 600; }
-        .file-empty span { font-size: 12px; }
+        .empty-state .empty-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+        .empty-state .empty-desc { font-size: 13px; color: var(--muted); max-width: 280px; line-height: 1.6; }
+        .empty-state a { color: var(--accent); text-decoration: none; }
+        .empty-state a:hover { text-decoration: underline; }
         @media (max-width: 900px) {
-            .file-cols { grid-template-columns: minmax(160px, 1fr) 72px 88px; }
-            .col-by, .col-size { display: none; }
+            .hero-top, .tabs-row, .briefing-scroll, .table-wrap { padding-left: 8px; padding-right: 8px; }
+            .hero-slogan { font-size: 22px; }
+            .main-grid { grid-template-columns: 1fr; }
+            .sidebar { width: auto; border-right: none; max-height: 260px; padding: 12px 16px; }
+            .content { padding: 12px 16px 16px; }
+            .navbar { padding: 10px 16px; }
+            .preview-modal { padding: 12px; }
+            .preview-dialog { height: min(100vh - 24px, 100%); border-radius: 18px; }
         }
+        @media (max-width: 600px) {
+            .composer-row { flex-direction: column; align-items: stretch; }
+            .input-actions { justify-content: flex-end; }
+        }
+
 
         .preview-modal {
             display: none;
@@ -411,18 +525,6 @@
             pointer-events: none; z-index: 1000; display: flex; align-items: center; gap: 12px;
         }
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-        @media (max-width: 1100px) {
-            .space-header { margin-bottom: 18px; gap: 14px; }
-        }
-        @media (max-width: 900px) {
-            .main-grid { grid-template-columns: 1fr; gap: 20px; }
-            .sidebar { max-height: 260px; }
-            .navbar { padding: 10px 16px; }
-            .main-grid { padding: 12px 16px 16px; }
-            .preview-modal { padding: 12px; }
-            .preview-dialog { height: min(100vh - 24px, 100%); border-radius: 18px; }
-        }
     </style>
 </head>
 <body>
@@ -441,11 +543,16 @@
         <aside class="sidebar">
             <nav class="side-nav">
                 <div class="quick-item" data-nav="task"><i class="fas fa-plus"></i> 新建任务</div>
-                <div class="quick-item active" data-nav="space"><i class="fas fa-user"></i> 个人空间</div>
-                <div class="quick-item" data-nav="schedule"><i class="fas fa-clock"></i> 定时任务</div>
-                <div class="quick-item" data-nav="history"><i class="fas fa-comments"></i> 历史对话</div>
+                <div class="quick-item active" data-nav="space"><i class="fas fa-user"></i> 个人工作区</div>
+                <div class="soon-group">
+                    <div class="quick-item soon" data-nav="assistant"><i class="fas fa-robot"></i> 助理<span class="soon-tag">开发中</span></div>
+                    <div class="quick-item soon" data-nav="project"><i class="fas fa-diagram-project"></i> 项目<span class="soon-tag">开发中</span></div>
+                    <div class="quick-item soon" data-nav="automation"><i class="fas fa-gears"></i> 自动化<span class="soon-tag">开发中</span></div>
+                    <div class="quick-item soon" data-nav="more"><i class="fas fa-grip"></i> 更多<span class="soon-tag">开发中</span></div>
+                </div>
             </nav>
             <div class="history-panel">
+                <div class="quick-item" data-nav="history"><i class="fas fa-comments"></i> 历史对话</div>
                 <div class="history-list" id="historyList">
                     <div class="history-empty">暂无对话</div>
                 </div>
@@ -460,7 +567,7 @@
                     <i class="fas fa-cog"></i>
                 </button>
                 <div class="user-menu" id="userMenu">
-                    <button type="button" data-action="space"><i class="fas fa-folder-open"></i> 个人空间</button>
+                    <button type="button" data-action="space"><i class="fas fa-folder-open"></i> 个人工作区</button>
                     <button type="button" data-action="notify"><i class="fas fa-bell"></i> 通知</button>
                     <button type="button" data-action="settings"><i class="fas fa-sliders-h"></i> 设置</button>
                     <button type="button" data-action="logs"><i class="fas fa-file-alt"></i> 运行日志</button>
@@ -468,50 +575,122 @@
             </div>
         </aside>
         <main class="content">
-            <div class="files-col">
-                <div class="space-header">
-                    <div class="space-identity">
-                        <div class="space-avatar">F</div>
-                        <div>
-                            <h2>个人空间</h2>
-                            <p id="spaceSummary">felicex@gmail.com</p>
+            <div class="lib-main">
+                <div class="hero-top">
+                    <div class="hero-slogan">资料都在这儿，我来帮你。</div>
+                    <div class="input-area" id="inputArea">
+                        <div class="composer-row">
+                            <input id="cmdInput" type="text" placeholder="问资料库，比如「帮我把这几份材料整理成一份新的」" autocomplete="off" autofocus />
+                            <div class="input-actions">
+                                <button type="button" class="primary-btn" id="cmdSendBtn">
+                                    <i class="fas fa-arrow-right"></i> 发送
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div class="space-stats">
-                        <div class="stat-pill" title="你在各会话里发出的提问次数"><span>提问</span><strong id="statQuestions">0</strong></div>
-                        <div class="stat-pill" title="当前对话内容的估算用量（约 4 字/Token，非账单）"><span>Token</span><strong id="statTokens">0</strong></div>
-                        <div class="stat-pill"><span>上传</span><strong id="statUpload">0</strong></div>
-                        <div class="stat-pill"><span>生成</span><strong id="statGen">0</strong></div>
-                        <div class="stat-pill"><span>占用</span><strong id="statSize">0</strong></div>
+                </div>
+                <div class="tabs-row">
+                    <div class="tabs">
+                        <div class="tab active" data-tab="brief">今日待办</div>
+                        <div class="tab" data-tab="files" data-scope="all">全部文件</div>
+                        <div class="tab" data-tab="files" data-scope="recent">最近访问</div>
+                        <div class="tab" data-tab="favorites">收藏</div>
+                    </div>
+                    <div class="ai-status" id="aiStatus"><span class="dot"></span><span id="aiStatusText">助理空闲中</span></div>
+                </div>
+                <div class="view active" id="viewBrief">
+                    <div class="briefing-scroll">
+                        <div class="brief-card" data-card="review">
+                            <div class="brief-icon" style="background:var(--amber-bg);color:var(--amber);"><i class="fas fa-triangle-exclamation"></i></div>
+                            <div class="brief-body">
+                                <div class="brief-title">2 份文档还没人复核</div>
+                                <div class="brief-desc">AI 生成的初稿放了 2 天了，建议看一眼再对外发出去，避免带着 AI 的错误直接提交。</div>
+                                <div class="brief-files">
+                                    <span class="file-chip">本周数据异常分析.xlsx</span>
+                                    <span class="file-chip">go-harness调研摘要.md</span>
+                                </div>
+                                <div class="brief-actions">
+                                    <button type="button" class="kb-btn" data-action="accept">标记已复核</button>
+                                    <button type="button" class="kb-btn quiet" data-action="wrong">这个判断不对</button>
+                                </div>
+                                <div class="correction-box"><input type="text" placeholder="说说哪里不对，帮助 AI 下次判断得更准" /></div>
+                            </div>
+                        </div>
+                        <div class="brief-card" data-card="stale">
+                            <div class="brief-icon" style="background:var(--blue-bg);color:var(--blue);"><i class="fas fa-clock"></i></div>
+                            <div class="brief-body">
+                                <div class="brief-title">数字员工生命周期评审.pptx 3 天没更新了</div>
+                                <div class="brief-desc">上次编辑还是评审前一版，如果评审有新结论，可能需要同步进去。</div>
+                                <div class="brief-actions">
+                                    <button type="button" class="kb-btn" data-action="accept">让 AI 补充要点</button>
+                                    <button type="button" class="kb-btn quiet" data-action="wrong">这个判断不对</button>
+                                </div>
+                                <div class="correction-box"><input type="text" placeholder="说说哪里不对，帮助 AI 下次判断得更准" /></div>
+                            </div>
+                        </div>
+                        <div class="brief-card" data-card="reuse">
+                            <div class="brief-icon" style="background:var(--green-bg);color:var(--green);"><i class="fas fa-rotate"></i></div>
+                            <div class="brief-body">
+                                <div class="brief-title">这次的材料，有旧模板可以复用</div>
+                                <div class="brief-desc">检测到「Claw平台架构设计文档」和你去年提交给合规的一份材料结构相似，可以直接抽取对应章节。</div>
+                                <div class="brief-actions">
+                                    <button type="button" class="kb-btn" data-action="accept">直接抽取</button>
+                                    <button type="button" class="kb-btn quiet" data-action="wrong">这个判断不对</button>
+                                </div>
+                                <div class="correction-box"><input type="text" placeholder="说说哪里不对，帮助 AI 下次判断得更准" /></div>
+                            </div>
+                        </div>
+                        <div class="brief-card">
+                            <div class="brief-icon" style="background:var(--purple-bg);color:var(--purple);"><i class="fas fa-file-lines"></i></div>
+                            <div class="brief-body">
+                                <div class="brief-title">本周新增 3 份文件</div>
+                                <div class="brief-desc">分别归到了「Claw平台」「Agent loop研究」两个项目下，已自动打好标签。</div>
+                                <div class="brief-actions">
+                                    <button type="button" class="kb-btn" data-goto="files">查看全部</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="section-label">没有更多了</div>
+                        <div class="brief-history-toggle" id="briefHistoryToggle">
+                            <i class="fas fa-chevron-down"></i>
+                            查看更早的活动记录
+                        </div>
+                        <div class="brief-history" id="briefHistory">
+                            <div class="brief-history-item"><span class="h-time">昨天</span><span>已把「Q3 OKR」相关的 5 份材料自动打上标签并归入 Claw平台分组</span></div>
+                            <div class="brief-history-item"><span class="h-time">3天前</span><span>已根据「平台指标追踪表」生成一份数据异常摘要，等待复核后已确认无误</span></div>
+                        </div>
                     </div>
                 </div>
-                <div class="space-toolbar">
-                    <div class="space-tabs">
-                        <button type="button" class="space-tab active" data-source="all"><i class="fas fa-layer-group"></i> 全部</button>
-                        <button type="button" class="space-tab" data-source="upload"><i class="fas fa-cloud-upload-alt"></i> 上传</button>
-                        <button type="button" class="space-tab" data-source="generated"><i class="fas fa-magic"></i> 生成</button>
+                <div class="view" id="viewFiles">
+                    <div class="table-wrap">
+                        <div class="filter-bar">
+                            <select id="filterType">
+                                <option value="all">全部分类</option>
+                                <option value="doc">文档</option>
+                                <option value="code">代码</option>
+                                <option value="sheet">表格</option>
+                                <option value="deck">演示文稿</option>
+                            </select>
+                            <select id="filterSource">
+                                <option value="all">全部来源</option>
+                                <option value="generated">AI 生成</option>
+                                <option value="upload">本地上传</option>
+                                <option value="local">工作目录</option>
+                            </select>
+                        </div>
+                        <div id="filesHost"></div>
                     </div>
-                    <label class="type-filter">
-                        <i class="fas fa-filter"></i>
-                        <select id="typeFilter">
-                            <option value="all">所有类型</option>
-                            <option value="doc">文档</option>
-                            <option value="web">网页</option>
-                            <option value="sheet">表格</option>
-                            <option value="image">图片</option>
-                            <option value="ppt">演示</option>
-                            <option value="code">代码</option>
-                            <option value="archive">压缩包</option>
-                            <option value="file">其他</option>
-                        </select>
-                    </label>
-                    <label class="space-search">
-                        <i class="fas fa-search"></i>
-                        <input id="fileSearch" type="search" placeholder="搜索文件、任务…" autocomplete="off" />
-                    </label>
-                    <label class="fav-check"><input id="favOnly" type="checkbox" /> 收藏</label>
                 </div>
-                <div class="files-scroll" id="filesScroll"></div>
+                <div class="view" id="viewFavorites">
+                    <div class="table-wrap" id="favsWrap" style="display:none">
+                        <div id="favsHost"></div>
+                    </div>
+                    <div class="empty-state" id="favEmpty">
+                        <div class="empty-icon"><i class="far fa-star"></i></div>
+                        <div class="empty-title">还没有收藏的文件</div>
+                        <div class="empty-desc">在「全部文件」里给重要的文件加个星标，方便的时候能快速找回来。</div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -589,28 +768,14 @@
     }
     function fileIcon(name) { return FILE_ICON_BY_EXT[extOf(name)] || 'fa-file'; }
     function fileKind(name) { return KIND_BY_EXT[extOf(name)] || 'file'; }
-    function fileKey(file) { return `${file.sessionId}:${file.path}`; }
+    function isLocalFile(file) { return file.source === 'local' || !file.sessionId; }
+    function fileKey(file) { return isLocalFile(file) ? `local:${file.path}` : `${file.sessionId}:${file.path}`; }
     function formatSize(bytes) {
         if (bytes < 1024) return `${bytes} B`;
         if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
         return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
     }
-    function formatTokens(n) {
-        const v = Number(n);
-        if (!Number.isFinite(v) || v <= 0) return '0';
-        return Math.round(v).toLocaleString('zh-CN');
-    }
-
-    let spaceUsage = { questions: null, tokens: null, files: null };
-    function paintSpaceSummary() {
-        const parts = ['felicex@gmail.com'];
-        if (spaceUsage.questions != null) parts.push(`${spaceUsage.questions} 个问题`);
-        if (spaceUsage.files != null) parts.push(`${spaceUsage.files} 个文件`);
-        document.getElementById('spaceSummary').textContent =
-            spaceUsage.questions == null && spaceUsage.files == null
-                ? 'felicex@gmail.com · 加载中…'
-                : parts.join(' · ');
-    }
+    let workspaceDir = '';
     function timeAgo(iso) {
         const t = new Date(iso).getTime();
         if (!Number.isFinite(t)) return '';
@@ -648,36 +813,45 @@
     }
     function fileUrl(file, download) {
         const encoded = file.path.split('/').map(encodeURIComponent).join('/');
-        const base = `/sessions/${encodeURIComponent(file.sessionId)}/files/${encoded}`;
+        const base = isLocalFile(file)
+            ? `/workspace-files/${encoded}`
+            : `/sessions/${encodeURIComponent(file.sessionId)}/files/${encoded}`;
         return download ? `${base}?download=1` : base;
     }
 
-    const filesScroll = document.getElementById('filesScroll');
+    let currentTab = 'brief';
+    const filesHost = document.getElementById('filesHost');
+    const favsHost = document.getElementById('favsHost');
     const previewModal = document.getElementById('previewModal');
     const previewBody = document.getElementById('previewBody');
     const FAV_KEY = 'pabuddy-space-favs';
+    const CUSTOM_KEY = 'pabuddy-space-custom-actions';
     let currentFile = null;
     let allFiles = [];
     let allSessions = [];
-    let searchQuery = '';
+    let navFilter = 'all';
     let typeFilter = 'all';
     let sourceFilter = 'all';
-    let favOnly = false;
     let sortNewest = true;
-    let collapsedGroups = new Set();
     function loadFavs() {
         try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')); }
         catch { return new Set(); }
     }
     function saveFavs(set) { localStorage.setItem(FAV_KEY, JSON.stringify([...set])); }
     let favs = loadFavs();
+    function loadCustomActions() {
+        try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '{}'); }
+        catch { return {}; }
+    }
+    function saveCustomActions(map) { localStorage.setItem(CUSTOM_KEY, JSON.stringify(map)); }
+    const TYPE_LABELS = { doc: '文档', sheet: '表格', deck: '演示文稿', code: '代码' };
 
     function emptyState(icon, title, hint) {
         const wrap = document.createElement('div');
-        wrap.className = 'file-empty';
-        wrap.innerHTML = `<div class="empty-icon"><i class="fas ${icon}"></i></div><p></p><span></span>`;
-        wrap.querySelector('p').textContent = title;
-        wrap.querySelector('span').textContent = hint;
+        wrap.className = 'empty-state';
+        wrap.innerHTML = `<div class="empty-icon"><i class="fas ${icon}"></i></div><div class="empty-title"></div><div class="empty-desc"></div>`;
+        wrap.querySelector('.empty-title').textContent = title;
+        wrap.querySelector('.empty-desc').textContent = hint;
         return wrap;
     }
 
@@ -688,56 +862,163 @@
         if (['xlsx', 'xls', 'xlsm', 'csv'].includes(ext)) return { key: 'sheet', label: '表格' };
         if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext)) return { key: 'image', label: '图片' };
         if (['ppt', 'pptx', 'pptm'].includes(ext)) return { key: 'ppt', label: '演示' };
-        if (['py', 'js', 'ts', 'json', 'css', 'sh', 'yaml', 'yml', 'xml'].includes(ext)) return { key: 'code', label: '代码' };
+        if (['py', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'go', 'rs', 'java', 'c', 'h', 'cpp', 'json', 'css', 'scss', 'sh', 'bash', 'yaml', 'yml', 'xml', 'toml'].includes(ext)) return { key: 'code', label: '代码' };
         if (['zip', 'tar', 'gz'].includes(ext)) return { key: 'archive', label: '压缩包' };
         return { key: 'file', label: '文件' };
-    }
-    function updatedBy(file) {
-        return file.source === 'upload' ? 'felicex@gmail.com' : '助手';
     }
     function sessionFor(id) {
         return allSessions.find((s) => s.id === id) || { id };
     }
-
-    function matchesFile(file, session) {
-        if (favOnly && !favs.has(fileKey(file))) return false;
-        if (sourceFilter === 'upload' && file.source !== 'upload') return false;
-        if (sourceFilter === 'generated' && file.source === 'upload') return false;
-        if (typeFilter !== 'all' && typeInfo(file.name).key !== typeFilter) return false;
-        const q = searchQuery.trim().toLowerCase();
-        if (!q) return true;
-        const title = sessionLabel(session).toLowerCase();
-        return `${file.name} ${file.path} ${title} ${file.sessionId}`.toLowerCase().includes(q);
+    function fileLocation(file) {
+        if (file.location) return file.location;
+        if (isLocalFile(file)) return '工作目录';
+        return sessionLabel(sessionFor(file.sessionId));
+    }
+    function sourceLabel(file) {
+        if (file.source === 'upload') return '本地上传';
+        if (file.source === 'local') return '工作目录';
+        return 'AI 生成';
+    }
+    function ownerLabel(file) {
+        return file.source === 'generated' ? '助手' : '我';
+    }
+    function actionKind(file) {
+        const k = file.kind || typeInfo(file.name).key;
+        if (k === 'sheet') return 'sheet';
+        if (k === 'ppt') return 'deck';
+        if (k === 'code') return 'code';
+        return 'doc';
+    }
+    const ACTION_PRESETS = {
+        doc: ['生成摘要', '审阅校对', '翻译'],
+        sheet: ['数据清洗', '生成图表', '生成摘要', '写公式'],
+        deck: ['生成摘要', '优化排版建议'],
+        code: ['代码解读', 'review', '生成测试']
+    };
+    function isRecent(file) {
+        const t = new Date(file.modTime).getTime();
+        return Number.isFinite(t) && (Date.now() - t) <= 7 * 24 * 60 * 60 * 1000;
+    }
+    function matchesType(file) {
+        if (typeFilter === 'all') return true;
+        const kind = file.kind || typeInfo(file.name).key;
+        if (typeFilter === 'deck') return kind === 'ppt';
+        return kind === typeFilter;
+    }
+    function matchesSource(file) {
+        if (sourceFilter === 'all') return true;
+        return file.source === sourceFilter;
+    }
+    function matchesNav(file, filter) {
+        if (filter === 'all') return true;
+        if (filter === 'recent') return isRecent(file);
+        if (filter === 'star') return favs.has(fileKey(file));
+        return true;
+    }
+    function matchesFile(file) {
+        return matchesNav(file, navFilter) && matchesType(file) && matchesSource(file);
     }
 
-    function renderFileRow(file) {
-        const row = document.createElement('div');
-        row.className = 'file-cols file-item-row' + (currentFile && fileKey(currentFile) === fileKey(file) ? ' selected' : '');
+    function bindActionButton(b, label) {
+        b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showToast('「' + label + '」稍后会接入对话', 'fa-wand-magic-sparkles');
+        });
+    }
+    function fillActionBtns(container, kind, file) {
+        container.replaceChildren();
+        ACTION_PRESETS[kind].forEach((label) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'kb-btn';
+            b.textContent = label;
+            bindActionButton(b, label);
+            container.appendChild(b);
+        });
+        const customs = loadCustomActions()[kind] || [];
+        customs.forEach((item) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'kb-btn custom-action';
+            b.textContent = item.name;
+            bindActionButton(b, item.name);
+            container.appendChild(b);
+        });
+        const previewBtn = document.createElement('button');
+        previewBtn.type = 'button';
+        previewBtn.className = 'kb-btn quiet';
+        previewBtn.textContent = '预览';
+        previewBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (file) openPreview(file);
+        });
+        container.appendChild(previewBtn);
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'kb-btn add-action';
+        addBtn.dataset.type = kind;
+        addBtn.textContent = '+ 自定义动作';
+        addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openCustomForm(addBtn, kind);
+        });
+        container.appendChild(addBtn);
+    }
+    function openCustomForm(addBtn, kind) {
+        const existing = addBtn.parentElement.querySelector('.action-form');
+        if (existing) { existing.classList.toggle('open'); return; }
+        const form = document.createElement('div');
+        form.className = 'action-form open';
+        form.innerHTML =
+            '<label>动作名称</label>' +
+            '<input type="text" class="act-name" placeholder="比如「提炼行动项」">' +
+            '<label>提示词模板</label>' +
+            '<textarea class="act-prompt" rows="2" placeholder="比如「从{文件名}里提炼出所有待办事项，按优先级排序」"></textarea>' +
+            '<div class="hint"></div>' +
+            '<div class="form-actions">' +
+              '<button type="button" class="kb-btn save-action">保存</button>' +
+              '<button type="button" class="kb-btn quiet cancel-action">取消</button>' +
+            '</div>';
+        form.querySelector('.hint').textContent = '保存后，这个动作会出现在所有「' + (TYPE_LABELS[kind] || kind) + '」类型文件的 AI 处理菜单里';
+        addBtn.parentElement.appendChild(form);
+        form.addEventListener('click', (e) => e.stopPropagation());
+        form.querySelector('.cancel-action').addEventListener('click', () => form.remove());
+        form.querySelector('.save-action').addEventListener('click', () => {
+            const name = form.querySelector('.act-name').value.trim();
+            if (!name) { form.querySelector('.act-name').style.borderColor = '#a32d2d'; return; }
+            const map = loadCustomActions();
+            map[kind] = map[kind] || [];
+            map[kind].push({ name, prompt: form.querySelector('.act-prompt').value.trim() });
+            saveCustomActions(map);
+            form.remove();
+            renderLists();
+        });
+    }
+
+    function renderFilePair(file) {
+        const frag = document.createDocumentFragment();
+        const row = document.createElement('tr');
+        row.className = 'frow' + (currentFile && fileKey(currentFile) === fileKey(file) ? ' selected' : '');
         row.dataset.key = fileKey(file);
-        const info = typeInfo(file.name);
         const starOn = favs.has(fileKey(file));
         row.innerHTML = `
-            <div class="tree-name indent-file col-name">
+            <td><div class="file-name">
                 <button type="button" class="file-star ${starOn ? 'on' : ''}" title="收藏"><i class="fas fa-star"></i></button>
-                <span class="row-check" aria-hidden="true"><i class="fas fa-check"></i></span>
                 <span class="file-ico kind-${fileKind(file.name)}"><i class="fas ${fileIcon(file.name)}"></i></span>
                 <span class="label"></span>
-                <span class="file-actions">
-                    <button type="button" title="预览" data-act="preview"><i class="fas fa-eye"></i></button>
-                    <button type="button" title="下载" data-act="download"><i class="fas fa-download"></i></button>
-                    <button type="button" class="danger" title="删除" data-act="delete"><i class="fas fa-trash-alt"></i></button>
-                </span>
-            </div>
-            <div class="col-meta col-type"></div>
-            <div class="col-meta col-by"></div>
-            <div class="col-meta col-when"></div>
-            <div class="col-meta col-size"></div>`;
+            </div></td>
+            <td><span class="source-badge ${file.source || 'generated'}"></span></td>
+            <td class="col-secondary"></td>
+            <td class="col-secondary col-loc"></td>
+            <td class="col-secondary col-when"></td>
+            <td style="text-align:right"><button type="button" class="kb-btn" data-act="ai">AI 处理</button></td>`;
         row.querySelector('.label').textContent = file.name;
-        row.querySelector('.col-type').textContent = info.label;
-        row.querySelector('.col-by').textContent = updatedBy(file);
+        row.querySelector('.label').title = file.path;
+        row.querySelector('.source-badge').textContent = sourceLabel(file);
+        row.querySelectorAll('.col-secondary')[0].textContent = ownerLabel(file);
+        row.querySelector('.col-loc').textContent = fileLocation(file);
         row.querySelector('.col-when').textContent = timeAgo(file.modTime);
         row.querySelector('.col-when').title = file.modTime ? new Date(file.modTime).toLocaleString('zh-CN') : '';
-        row.querySelector('.col-size').textContent = formatSize(file.size);
         row.querySelector('.file-star').addEventListener('click', (e) => {
             e.stopPropagation();
             const key = fileKey(file);
@@ -745,138 +1026,146 @@
             saveFavs(favs);
             renderLists();
         });
-        row.querySelector('[data-act="preview"]').addEventListener('click', (e) => { e.stopPropagation(); openPreview(file); });
-        row.querySelector('[data-act="download"]').addEventListener('click', (e) => { e.stopPropagation(); downloadFile(file); });
-        row.querySelector('[data-act="delete"]').addEventListener('click', (e) => { e.stopPropagation(); deleteFile(file); });
-        row.addEventListener('click', () => openPreview(file));
-        return row;
+        const actionsRow = document.createElement('tr');
+        actionsRow.className = 'actions-row';
+        actionsRow.innerHTML = '<td colspan="6"><div class="action-btns"></div></td>';
+        const btns = actionsRow.querySelector('.action-btns');
+        fillActionBtns(btns, actionKind(file), file);
+        row.querySelector('[data-act="ai"]').addEventListener('click', (e) => {
+            e.stopPropagation();
+            actionsRow.classList.toggle('open');
+        });
+        row.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+            openPreview(file);
+        });
+        frag.appendChild(row);
+        frag.appendChild(actionsRow);
+        return frag;
+    }
+
+    function emptyHintFor(filter) {
+        if (typeFilter !== 'all' || sourceFilter !== 'all') {
+            return { icon: 'fa-folder-open', title: '没有符合条件的文件', hint: '换一个筛选，或在对话里生成/上传' };
+        }
+        if (filter === 'star') return { icon: 'fa-star', title: '还没有收藏的文件', hint: '在「全部文件」里给重要的文件加个星标，方便的时候能快速找回来。' };
+        if (filter === 'recent') return { icon: 'fa-clock', title: '最近一周没有更新', hint: '7 天内改过的文件会出现在这里' };
+        if (filter === 'local') {
+            return workspaceDir
+                ? { icon: 'fa-laptop', title: '工作目录是空的', hint: workspaceDir }
+                : { icon: 'fa-laptop', title: '还没指定工作目录', hint: '到设置里填写 workspace_dir，个人工作区就会列出那个目录里的文件' };
+        }
+        return { icon: 'fa-folder-open', title: '还没有文件', hint: '在对话里上传或生成，或在设置里指定工作目录' };
+    }
+
+    function switchTab(name, filter) {
+        if (name === 'favorites') {
+            currentTab = 'favorites';
+            navFilter = 'star';
+        } else if (name === 'files') {
+            currentTab = 'files';
+            navFilter = filter || 'all';
+        } else {
+            currentTab = 'brief';
+            navFilter = 'all';
+        }
+        document.getElementById('viewBrief').classList.toggle('active', currentTab === 'brief');
+        document.getElementById('viewFiles').classList.toggle('active', currentTab === 'files');
+        document.getElementById('viewFavorites').classList.toggle('active', currentTab === 'favorites');
+        document.querySelectorAll('.tab').forEach((el) => {
+            const tab = el.dataset.tab;
+            const scope = el.dataset.scope || '';
+            if (currentTab === 'brief') el.classList.toggle('active', tab === 'brief');
+            else if (currentTab === 'favorites') el.classList.toggle('active', tab === 'favorites');
+            else el.classList.toggle('active', tab === 'files' && (scope || 'all') === navFilter);
+        });
+        if (currentTab === 'files') {
+            document.getElementById('filterType').value = typeFilter;
+            document.getElementById('filterSource').value = sourceFilter;
+        }
+        renderLists();
+    }
+
+    function buildTable(shown) {
+        const table = document.createElement('table');
+        table.className = 'file-table';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th style="width:34%">名称</th>
+                    <th style="width:12%">来源</th>
+                    <th style="width:12%">所有者</th>
+                    <th style="width:16%">位置</th>
+                    <th style="width:12%"><button type="button" class="sort" id="sortUpdated">最近修改</button></th>
+                    <th style="width:14%; text-align:right; padding-right:14px">操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>`;
+        const tbody = table.querySelector('tbody');
+        shown.forEach((f) => tbody.appendChild(renderFilePair(f)));
+        const sortBtn = table.querySelector('#sortUpdated');
+        sortBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sortNewest = !sortNewest;
+            renderLists();
+        });
+        return table;
     }
 
     function renderLists() {
-        filesScroll.replaceChildren();
-        const bySession = new Map();
-        allFiles.forEach((f) => {
-            const id = f.sessionId || '';
-            if (!bySession.has(id)) bySession.set(id, []);
-            bySession.get(id).push(f);
+        const shown = allFiles.filter(matchesFile).sort((a, b) => {
+            const da = new Date(a.modTime).getTime() || 0;
+            const db = new Date(b.modTime).getTime() || 0;
+            return sortNewest ? db - da : da - db;
         });
-        const tasks = [...bySession.entries()].map(([id, files]) => {
-            const session = sessionFor(id);
-            const visible = files.filter((f) => matchesFile(f, session));
-            const q = searchQuery.trim().toLowerCase();
-            const titleHit = q && sessionLabel(session).toLowerCase().includes(q);
-            const shown = titleHit && !favOnly && typeFilter === 'all' && sourceFilter === 'all' ? files.slice() : visible;
-            shown.sort((a, b) => {
-                const da = new Date(a.modTime).getTime() || 0;
-                const db = new Date(b.modTime).getTime() || 0;
-                return sortNewest ? db - da : da - db;
-            });
-            const newest = shown.reduce((m, f) => Math.max(m, new Date(f.modTime).getTime() || 0), 0);
-            return { session, files: shown, newest };
-        }).filter((t) => t.files.length);
-        tasks.sort((a, b) => sortNewest ? b.newest - a.newest : a.newest - b.newest);
-
-        if (!tasks.length) {
-            const filtered = searchQuery || favOnly || typeFilter !== 'all' || sourceFilter !== 'all';
-            const emptyHint = {
-                all: '在对话里上传或生成文件后，会按任务汇总到这里',
-                upload: '在对话里上传的文件会出现在这里',
-                generated: '让助手产出网页、文档或表格后，会汇总到这里',
-            };
-            filesScroll.appendChild(emptyState(
-                sourceFilter === 'upload' ? 'fa-cloud-upload-alt' : (favOnly ? 'fa-star' : 'fa-folder-open'),
-                filtered ? '没有符合条件的文件' : (sourceFilter === 'upload' ? '还没有上传文件' : (sourceFilter === 'generated' ? '还没有生成文件' : '还没有任务输出')),
-                emptyHint[sourceFilter] || emptyHint.all
-            ));
+        const favEmpty = document.getElementById('favEmpty');
+        const favsWrap = document.getElementById('favsWrap');
+        if (currentTab === 'favorites') {
+            filesHost.replaceChildren();
+            if (!shown.length) {
+                favEmpty.style.display = '';
+                favsWrap.style.display = 'none';
+                favsHost.replaceChildren();
+                return;
+            }
+            favEmpty.style.display = 'none';
+            favsWrap.style.display = '';
+            favsHost.replaceChildren(buildTable(shown));
+            markSelected();
             return;
         }
-
-        const table = document.createElement('div');
-        table.className = 'file-table';
-        const head = document.createElement('div');
-        head.className = 'file-cols file-thead';
-        head.innerHTML = `
-            <div>名称</div>
-            <div>类型</div>
-            <div class="col-by">更新者</div>
-            <button type="button" class="sort ${sortNewest ? 'active' : ''}" id="sortUpdated">更新 <span class="carets"><i class="fas fa-caret-up"></i><i class="fas fa-caret-down"></i></span></button>
-            <div class="col-size">大小</div>`;
-        table.appendChild(head);
-
-        const group = document.createElement('div');
-        group.className = 'file-group' + (collapsedGroups.has('ungrouped') ? ' collapsed' : '');
-        const groupRow = document.createElement('div');
-        groupRow.className = 'file-cols file-group-row';
-        groupRow.innerHTML = `
-            <div class="tree-name">
-                <i class="fas fa-chevron-down chevron"></i>
-                <span class="label">未分组</span>
-                <span class="count-pill"></span>
-            </div>
-            <div></div><div></div><div></div><div></div>`;
-        groupRow.querySelector('.count-pill').textContent = `${tasks.length} 个任务`;
-        groupRow.addEventListener('click', () => {
-            if (collapsedGroups.has('ungrouped')) collapsedGroups.delete('ungrouped');
-            else collapsedGroups.add('ungrouped');
-            renderLists();
-        });
-        const body = document.createElement('div');
-        body.className = 'file-group-body';
-        tasks.forEach((task) => {
-            const taskRow = document.createElement('div');
-            taskRow.className = 'file-cols file-task-row';
-            taskRow.innerHTML = `
-                <div class="tree-name indent-task">
-                    <span class="task-ico" title="对话">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path fill="currentColor" opacity=".4" d="M14.2 3.2h5.1c1.4 0 2.5 1.1 2.5 2.5v5.2c0 1.4-1.1 2.5-2.5 2.5h-1.2l-1 1.7c-.22.38-.82.24-.9-.22l-.35-1.48H14.2c-1.4 0-2.5-1.1-2.5-2.5V5.7c0-1.4 1.1-2.5 2.5-2.5z"/>
-                            <path fill="currentColor" d="M2.6 6.6c0-1.6 1.3-2.9 2.9-2.9h7.4c1.6 0 2.9 1.3 2.9 2.9v5.1c0 1.6-1.3 2.9-2.9 2.9H8.2l-2.3 2.5c-.4.42-1.12.13-1.12-.48v-2.02H5.5c-1.6 0-2.9-1.3-2.9-2.9V6.6z"/>
-                        </svg>
-                    </span>
-                    <span class="label"></span>
-                </div>
-                <div></div><div></div><div></div><div></div>`;
-            taskRow.querySelector('.label').textContent = sessionLabel(task.session);
-            taskRow.title = '打开对话';
-            taskRow.style.cursor = 'pointer';
-            taskRow.addEventListener('click', () => {
-                window.location.href = `dialog.html?session=${encodeURIComponent(task.session.id)}`;
-            });
-            body.appendChild(taskRow);
-            task.files.forEach((f) => body.appendChild(renderFileRow(f)));
-        });
-        group.appendChild(groupRow);
-        group.appendChild(body);
-        table.appendChild(group);
-        filesScroll.appendChild(table);
-        const sortBtn = document.getElementById('sortUpdated');
-        if (sortBtn) {
-            sortBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                sortNewest = !sortNewest;
-                renderLists();
-            });
+        favsHost.replaceChildren();
+        if (currentTab !== 'files') {
+            filesHost.replaceChildren();
+            markSelected();
+            return;
         }
+        filesHost.replaceChildren();
+        if (!shown.length) {
+            const empty = emptyHintFor(navFilter);
+            const node = emptyState(empty.icon, empty.title, empty.hint);
+            if (navFilter === 'all' && sourceFilter === 'local' && !workspaceDir) {
+                const link = document.createElement('a');
+                link.href = '/settings.html';
+                link.textContent = '去设置工作目录';
+                node.appendChild(link);
+            }
+            filesHost.appendChild(node);
+            return;
+        }
+        filesHost.appendChild(buildTable(shown));
         markSelected();
     }
 
     function markSelected() {
         const key = currentFile ? fileKey(currentFile) : '';
-        document.querySelectorAll('.file-item-row').forEach((el) => {
+        document.querySelectorAll('.frow').forEach((el) => {
             el.classList.toggle('selected', el.dataset.key === key);
         });
     }
 
     async function refreshFiles() {
         allFiles = await api('/files');
-        const uploads = allFiles.filter(f => f.source === 'upload');
-        const generated = allFiles.filter(f => f.source !== 'upload');
-        const totalBytes = allFiles.reduce((sum, f) => sum + (f.size || 0), 0);
-        document.getElementById('statUpload').textContent = String(uploads.length);
-        document.getElementById('statGen').textContent = String(generated.length);
-        document.getElementById('statSize').textContent = formatSize(totalBytes);
-        spaceUsage.files = allFiles.length;
-        paintSpaceSummary();
         renderLists();
         if (currentFile && !allFiles.some(f => fileKey(f) === fileKey(currentFile))) {
             closePreview();
@@ -894,6 +1183,10 @@
     }
 
     async function deleteFile(file) {
+        if (isLocalFile(file)) {
+            showToast('工作目录里的文件请在本机删除', 'fa-info-circle');
+            return;
+        }
         if (!confirm(`删除文件「${file.name}」？此操作不可恢复。`)) return;
         try {
             await api(`/sessions/${encodeURIComponent(file.sessionId)}/files/${file.path.split('/').map(encodeURIComponent).join('/')}`, { method: 'DELETE' });
@@ -919,7 +1212,8 @@
         document.getElementById('previewFileName').textContent = file.name;
         document.getElementById('previewIcon').className = `fas ${fileIcon(file.name)}`;
         document.getElementById('previewMeta').innerHTML =
-            `<span>${formatSize(file.size)}</span><span>${new Date(file.modTime).toLocaleString()}</span><span>${file.path}</span>`;
+            `<span>${sourceLabel(file)}</span><span>${formatSize(file.size)}</span><span>${new Date(file.modTime).toLocaleString()}</span><span>${file.path}</span>`;
+        document.getElementById('previewDeleteBtn').style.display = isLocalFile(file) ? 'none' : '';
         const ext = extOf(file.name);
         const url = fileUrl(file, false);
         previewBody.classList.remove('is-frame');
@@ -989,39 +1283,20 @@
         if (e.key === 'Escape' && previewModal.classList.contains('show')) closePreview();
     });
 
-    document.querySelectorAll('.space-tab').forEach((tab) => {
-        tab.addEventListener('click', function() {
-            sourceFilter = this.dataset.source || 'all';
-            document.querySelectorAll('.space-tab').forEach((t) => t.classList.toggle('active', t === this));
-            renderLists();
-        });
-    });
-    document.getElementById('fileSearch').addEventListener('input', function() {
-        searchQuery = this.value;
-        renderLists();
-    });
-    document.getElementById('typeFilter').addEventListener('change', function() {
-        typeFilter = this.value;
-        renderLists();
-    });
-    document.getElementById('favOnly').addEventListener('change', function() {
-        favOnly = this.checked;
-        renderLists();
-    });
-
     document.querySelectorAll('.quick-item').forEach(el => {
         el.addEventListener('click', function() {
+            if (this.classList.contains('soon')) {
+                showToast('该功能正在开发中', 'fa-hourglass-half');
+                return;
+            }
             const nav = this.dataset.nav;
-            if (nav === 'task') window.location.href = '/';
-            if (nav === 'schedule') { showToast('🕒 定时任务正在开发中', 'fa-clock'); return; }
+            if (nav === 'task') window.location.href = '/?new=' + Date.now();
             if (nav === 'history') document.getElementById('historyList').scrollIntoView({ block: 'nearest' });
         });
     });
-    document.getElementById('brandLogo').addEventListener('click', () => { window.location.href = '/'; });
+    document.getElementById('brandLogo').addEventListener('click', () => { window.location.href = '/?new=' + Date.now(); });
     document.getElementById('searchBtn').addEventListener('click', () => {
-        const input = document.getElementById('fileSearch');
-        input.focus();
-        input.select();
+        document.getElementById('cmdInput').focus();
     });
     document.getElementById('notifBtn').addEventListener('click', () => showToast('暂无新通知', 'fa-bell'));
 
@@ -1057,21 +1332,10 @@
         document.addEventListener('click', function() { menu.classList.remove('show'); });
     })();
 
-    function paintUsage(sessions) {
-        const questions = (sessions || []).reduce((sum, s) => sum + (Number(s.questionCount) || 0), 0);
-        const tokens = (sessions || []).reduce((sum, s) => sum + (Number(s.totalTokens) || 0), 0);
-        document.getElementById('statQuestions').textContent = String(questions);
-        document.getElementById('statTokens').textContent = formatTokens(tokens);
-        spaceUsage.questions = questions;
-        spaceUsage.tokens = tokens;
-        paintSpaceSummary();
-    }
-
     async function refreshHistory() {
         const list = document.getElementById('historyList');
         const sessions = await api('/sessions');
         allSessions = sessions || [];
-        paintUsage(allSessions);
         list.replaceChildren();
         if (!allSessions.length) {
             const empty = document.createElement('div');
@@ -1096,8 +1360,148 @@
         renderLists();
     }
 
-    refreshFiles().catch(err => showToast('加载文件失败: ' + err.message, 'fa-exclamation-circle'));
-    refreshHistory().catch(() => {});
+    document.querySelectorAll('.tab').forEach((el) => {
+        el.addEventListener('click', () => {
+            const tab = el.dataset.tab;
+            if (tab === 'files') {
+                typeFilter = 'all';
+                sourceFilter = 'all';
+                switchTab('files', el.dataset.scope || 'all');
+            } else if (tab === 'favorites') {
+                typeFilter = 'all';
+                sourceFilter = 'all';
+                switchTab('favorites');
+            } else {
+                switchTab('brief');
+            }
+        });
+    });
+    document.querySelectorAll('[data-goto]').forEach((el) => {
+        el.addEventListener('click', () => {
+            typeFilter = 'all';
+            sourceFilter = 'all';
+            switchTab(el.dataset.goto, 'all');
+        });
+    });
+    document.getElementById('filterType').addEventListener('change', function() {
+        typeFilter = this.value;
+        renderLists();
+    });
+    document.getElementById('filterSource').addEventListener('change', function() {
+        sourceFilter = this.value;
+        renderLists();
+    });
+    document.getElementById('briefHistoryToggle').addEventListener('click', () => {
+        document.getElementById('briefHistory').classList.toggle('open');
+    });
+
+    function submitCmd() {
+        const input = document.getElementById('cmdInput');
+        const text = input.value.trim();
+        if (!text) return;
+        showToast('已记下：' + text + '（工作台问答稍后接入）', 'fa-wand-magic-sparkles', 2800);
+        input.value = '';
+    }
+    document.getElementById('cmdInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitCmd();
+        }
+    });
+    document.getElementById('cmdSendBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        submitCmd();
+    });
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            document.getElementById('cmdInput').focus();
+        }
+    });
+    document.getElementById('inputArea').addEventListener('click', () => {
+        document.getElementById('cmdInput').focus();
+    });
+    document.getElementById('cmdInput').focus();
+    function setAiStatus(state) {
+        const el = document.getElementById('aiStatus');
+        const text = document.getElementById('aiStatusText');
+        el.classList.remove('working', 'done');
+        if (state === 'working') { el.classList.add('working'); text.textContent = 'AI 正在处理…'; }
+        else if (state === 'done') { el.classList.add('done'); text.textContent = '刚刚完成一项任务'; }
+        else { text.textContent = '助理空闲中'; }
+    }
+    const briefLifecycles = {
+        review: {
+            processingTitle: '正在核对这 2 份文档…',
+            processingDesc: '正在比对内容和已有规范，稍等片刻。',
+            doneTitle: '已完成复核：2 份文档',
+            doneDesc: '已标记为人工复核通过，来源状态已更新为「人机协作」。这是工作台示意，尚未接入真实对话。'
+        },
+        stale: {
+            processingTitle: '正在补充评审要点…',
+            processingDesc: '正在从评审记录里提取新结论。',
+            doneTitle: '已完成：补充评审要点',
+            doneDesc: '示意完成。真实改文件会在后续接入对话。'
+        },
+        reuse: {
+            processingTitle: '正在从旧材料抽取内容…',
+            processingDesc: '已定位到相关段落，正在整理格式。',
+            doneTitle: '已完成：抽取旧材料内容',
+            doneDesc: '示意完成。真实抽取会在后续接入对话。'
+        }
+    };
+    document.querySelectorAll('.brief-card[data-card]').forEach((card) => {
+        const lc = briefLifecycles[card.dataset.card];
+        const acceptBtn = card.querySelector('[data-action="accept"]');
+        const wrongBtn = card.querySelector('[data-action="wrong"]');
+        const correctionBox = card.querySelector('.correction-box');
+        if (wrongBtn) {
+            wrongBtn.addEventListener('click', () => {
+                correctionBox.style.display = correctionBox.style.display === 'block' ? 'none' : 'block';
+            });
+        }
+        if (!acceptBtn || !lc) return;
+        acceptBtn.addEventListener('click', () => {
+            card.classList.add('processing');
+            setAiStatus('working');
+            card.querySelector('.brief-title').textContent = lc.processingTitle;
+            card.querySelector('.brief-desc').textContent = lc.processingDesc;
+            const badge = document.createElement('div');
+            badge.className = 'processing-badge';
+            badge.innerHTML = '<i class="fas fa-spinner spin"></i>处理中';
+            card.querySelector('.brief-body').insertBefore(badge, card.querySelector('.brief-title'));
+            card.querySelector('.brief-actions').style.display = 'none';
+            if (correctionBox) correctionBox.style.display = 'none';
+            const files = card.querySelector('.brief-files');
+            if (files) files.style.display = 'none';
+            setTimeout(() => {
+                card.classList.remove('processing');
+                card.classList.add('completed');
+                setAiStatus('done');
+                badge.className = 'done-badge';
+                badge.innerHTML = '<i class="fas fa-check"></i>已完成';
+                card.querySelector('.brief-title').textContent = lc.doneTitle;
+                card.querySelector('.brief-desc').textContent = lc.doneDesc;
+                const actions = card.querySelector('.brief-actions');
+                actions.innerHTML = '<button type="button" class="kb-btn">查看改动</button><button type="button" class="kb-btn quiet">撤销</button>';
+                actions.style.display = 'flex';
+                actions.querySelectorAll('.kb-btn').forEach((b) => {
+                    b.addEventListener('click', () => showToast('工作台示意，稍后接入真实改动', 'fa-info-circle'));
+                });
+                setTimeout(() => setAiStatus('idle'), 2500);
+            }, 1300);
+        });
+    });
+
+    (async function boot() {
+        try {
+            const env = await api('/config');
+            workspaceDir = (env.config && env.config.server && env.config.server.workspace_dir) || '';
+        } catch (_) {}
+        refreshFiles().catch(err => showToast('加载文件失败: ' + err.message, 'fa-exclamation-circle'));
+        refreshHistory().catch(() => {});
+        document.getElementById('cmdInput').focus();
+    })();
 })();
 </script>
 </body>

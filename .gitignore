@@ -1,0 +1,24 @@
+# Build outputs
+/main
+/web/web
+*.test
+*.out
+
+# Archives
+*.tar.gz
+
+# web server runtime state (regenerated per run; see WEB_DEMO_DATA_DIR)
+/web/sessions/
+/web/session-logs/
+/web/python-venv/
+
+# native (Electron shell) build/dependency output
+/native/node_modules/
+/native/node-runtime/*
+!/native/node-runtime/package.json
+/native/dist/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
