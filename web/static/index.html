@@ -461,7 +461,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     },
     flow: {
       label: '资金流', rootId: 'flowRoot', path: 'volume_flow/detail?window=20',
-      steps: ['读取行情和资金流', '计算量能和大单方向', '看有没有涨不动的迹象', '给出结论'],
+      steps: ['读取行情和资金流', '计算量能和大单方向', '看资金和价格是否同向', '给出结论'],
       render: (d) => flowHTML(d),
     },
     fund: {
@@ -510,7 +510,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     neutral: { label: '中性', color: '#5B6372' },
   };
   const CERTAINTY = { low: '把握低', medium: '把握一般', high: '把握高' };
-  const CATEGORY = { earnings: '业绩', ops: '经营', operation: '经营', capital: '资本' };
+  const CATEGORY = { earnings: '业绩', ops: '经营', operation: '经营', operations: '经营', capital: '资本', governance: '风险与治理', industry: '政策与行业', macro: '宏观与市场', opinion: '观点', rumor: '传闻与澄清' };
   const GRADE = { A: 'A 公告', B: 'B 官方数据', C: 'C 媒体', D: 'D 研报', E: 'E 自媒体' };
   const PRICED = {
     not_yet: { label: '还没反应', style: '' },
@@ -593,9 +593,26 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       if (wait > 0) setTimeout(show, wait); else show();
     };
     fetchStockJSON(url, ctrl.signal)
-      .then((data) => { entry.status = 'done'; entry.data = data; renderDims(); if (dim === 'flow') { watchReview(code, entry, 0); renderTabs(); } })
+      .then((data) => {
+        // 新闻还在整理（接口先返回 computing）：继续显示“分析中”的步骤动画，整理好再出结果。
+        if (dim === 'news' && (data.meta || {}).state === 'computing') { waitNews(code, entry, data, 0); return; }
+        entry.status = 'done'; entry.data = data; renderDims(); watchPending(dim, code, entry, 0); renderTabs();
+      })
       .catch(fail)
       .finally(() => clearTimeout(timer));
+  }
+
+  // 新闻整理好之前一直保持 loading（动画不断），每 6 秒再问一次；等了三分钟还没好就放弃，给出“整理得比较慢”的提示。
+  function waitNews(code, entry, data, n) {
+    const key = 'news:' + code;
+    const settle = (d) => { entry.status = 'done'; entry.data = d; if (dimCache[key] === entry) { renderDims(); renderTabs(); } };
+    if (n >= 30) { data._stalled = true; settle(data); return; }
+    setTimeout(() => {
+      if (dimCache[key] !== entry) return;
+      fetchStockJSON(API_BASE + '/api/v1/stocks/' + encodeURIComponent(code) + '/dimensions/' + DIMS.news.path)
+        .then((fresh) => ((fresh.meta || {}).state === 'computing' ? waitNews(code, entry, fresh, n + 1) : settle(fresh)))
+        .catch(() => waitNews(code, entry, data, n + 1));
+    }, 6000);
   }
 
   // ---- loading: built once, then updated in place so the spinner keeps spinning ----
@@ -842,27 +859,32 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   document.addEventListener('focusin', (e) => { const mk = markerOf(e.target); if (mk) showTip(mk); });
   document.addEventListener('focusout', (e) => { const mk = markerOf(e.target); if (mk) hideTip(mk); });
 
+  // ---- 新闻：和资金流同一套版式（状态行 → 方向 + 今日涨跌 → 结论 → 信号表 → 图 → 关键事件）----
+  const NEWS_DROP = { duplicate: '重复', irrelevant: '无关', market_recap: '行情复盘' };
+  const PERSIST = { lasting: '影响持续', one_off: '一次性' };
+
   function keyEventsHTML(d) {
     const evs = d.key_events || [];
-    const head = '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-weight:600">关键事件</span><span style="margin-left:auto;font-size:11px;color:#8A919E">' + (evs.length ? evs.length + ' 条' : '') + '</span></div>';
-    if (!evs.length) return '<div style="display:flex;flex-direction:column">' + head + '<div style="padding:11px 0;color:#8A919E;' + ROW + '">近 ' + esc((d.meta || {}).window_days || 3) + ' 天没有关键事件</div></div>';
+    if (!evs.length) return '<div style="display:flex;flex-direction:column;gap:4px">' + secTitle('关键事件', '') + '<span style="font-size:12px;color:#8A919E">近 ' + esc((d.meta || {}).window_days || 3) + ' 天没有关键事件</span></div>';
     const rows = evs.map((e) => {
       const im = impactOf(e.impact);
-      const meta = [CATEGORY[e.category] || e.category, GRADE[e.source_grade] || (e.source_grade && e.source_grade + ' 级'), e.magnitude_text].filter(Boolean).join(' · ');
-      const r = e.reaction || {};
-      const dx = num(r.day_excess);
-      const react = dx != null ? '当日 ' + pct(dx) : (r.text || '');
-      const reactColor = dx != null ? (dx > 0 ? UP_TXT : dx < 0 ? DOWN_TXT : '#A1A7B2') : '#A1A7B2';
-      return '<div style="display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:start;gap:4px 10px;padding:11px 0;' + ROW + '">' +
-        '<span style="width:18px;height:18px;margin-top:2px;border-radius:50%;background:' + im.dot + ';color:#FFFFFF;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center">' + esc(e.rank) + '</span>' +
-        '<span style="font-weight:600;min-width:0">' + link(e.url, e.title) + '</span>' +
-        '<span style="font-size:12px;color:' + im.txt + ';white-space:nowrap;justify-self:end">' + im.label + (e.role && e.role !== 'main' ? ' · 另一边' : '') + '</span>' +
-        '<span></span><span style="font-size:12px;color:#5B6372">' + esc(meta) + '</span>' +
-        '<span style="font-size:12px;color:' + reactColor + ';white-space:nowrap;justify-self:end">' + esc(react) + '</span></div>';
+      const r = e.reaction || {}, dx = num(r.day_excess);
+      const react = dx != null ? '当日相对板块 ' + pct(dx) : r.text || '';
+      const meta = [CATEGORY[e.category] || e.category, GRADE[e.source_grade] || (e.source_grade && e.source_grade + ' 级'), e.magnitude_text, PERSIST[e.persistence], num(e.sources_count) > 1 ? e.sources_count + ' 家报道' : ''].filter(Boolean).join(' · ');
+      const quotes = (e.evidence || []).filter((x) => x && x.quote).slice(0, 2).map((x) => '<span style="font-size:12px;color:#8A919E;line-height:1.6">原文：' + esc(x.quote) + '</span>').join('');
+      return accRow(
+        '<span style="flex:none;width:18px;height:18px;border-radius:50%;background:' + im.dot + ';color:#FFFFFF;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center">' + esc(e.rank) + '</span>' +
+        '<span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#14171F" title="' + esc(e.title) + '">' + esc(e.title) + '</span>' +
+        '<span style="flex:none;font-size:12px;color:' + im.txt + '">' + im.label + (e.role && e.role !== 'main' ? ' · 另一边' : '') + '</span>',
+        (e.summary ? '<span style="font-size:13px;color:#3A4250;line-height:1.7">' + esc(e.summary) + '</span>' : '') +
+        '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(meta) + '</span>' +
+        (react ? '<span style="font-size:12px;color:' + (dx != null ? (dx > 0 ? UP_TXT : dx < 0 ? DOWN_TXT : '#8A919E') : '#8A919E') + '">' + esc(react) + '</span>' : '') +
+        quotes + (e.url ? '<span style="font-size:12px">' + link(e.url, '查看原文 ↗') + '</span>' : ''));
     }).join('');
-    return '<div style="display:flex;flex-direction:column">' + head + rows + '</div>';
+    return '<div style="display:flex;flex-direction:column;gap:2px">' + secTitle('关键事件', evs.length + ' 条 · 点开看说明') + '<div class="acc-list">' + rows + '</div></div>';
   }
 
+  // 其他新闻：没有关键事件时默认展开，有就收起。
   function otherNewsHTML(d) {
     const items = ((d.other_news || {}).items || []).slice(0, 20);
     if (!items.length) return '';
@@ -875,8 +897,24 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         '<span style="font-size:12px;color:#8A919E">' + esc(mmdd(n.published_at)) + (n.in_window === false ? ' · 窗口外' : '') + '</span></div>';
     }).join('');
     const total = num((d.other_news || {}).total);
-    return '<div style="display:flex;flex-direction:column"><div style="display:flex;align-items:baseline;gap:8px"><span style="font-weight:600">其他新闻</span>' +
-      '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + (total != null ? total : items.length) + ' 条</span></div>' + rows + '</div>';
+    const open = !(d.key_events || []).length;
+    return '<details class="acc"' + (open ? ' open' : '') + ' style="border-top:none"><summary style="padding:0"><span style="font-weight:600">其他新闻</span><span style="font-size:11px;color:#8A919E">' + (total != null ? total : items.length) + ' 条</span></summary>' +
+      '<div style="display:flex;flex-direction:column;padding-top:4px;font-size:13px">' + rows + '</div></details>';
+  }
+
+  // “依据”：这次新闻是怎么筛出来的（搜到多少、留下多少、去掉了哪些）。
+  function newsBasisChipHTML(d, cc) {
+    const text = cc ? HEAD_SOURCE[cc.source] : '';
+    const meta = d.meta || {}, c = meta.counts || {}, drop = meta.dropped || [];
+    const counts = [['搜到', c.found, '条'], ['近 ' + (meta.window_days || 3) + ' 天有效', c.in_window != null ? c.in_window : c.kept, '条'], ['归并成事件', c.events, '个']].filter((r) => num(r[1]) != null);
+    if (!counts.length && !drop.length) return text ? '<span style="display:inline-flex;padding:2px 8px;border-radius:999px;background:#F4F5F7;color:#5B6372;font-size:12px;line-height:20px;white-space:nowrap">' + text + '</span>' : '';
+    return '<details class="facts"><summary title="点开看新闻筛选依据" aria-label="新闻筛选依据">依据<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></summary>' +
+      '<div class="facts-pop"><div style="display:flex;flex-direction:column;gap:10px"><span style="font-weight:600;color:#14171F">' + (text ? text + ' · ' : '') + '新闻筛选依据</span>' +
+      (counts.length ? rvEvidence(counts.map((r) => ({ label: r[0], text: r[1] + ' ' + r[2] }))) : '') +
+      (drop.length ? '<div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:600;color:#3A4250">去掉的 ' + drop.length + ' 条</span>' +
+        '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px">' + drop.slice(0, 20).map((x) =>
+          '<span style="color:#5B6372;line-height:1.5">' + esc(x.title) + '</span><span style="color:#8A919E;white-space:nowrap">' + esc(NEWS_DROP[x.reason] || x.reason || '') + '</span>').join('') + '</div></div>' : '') +
+      '</div></div></details>';
   }
 
   // "由事件 1 带动": draw the 1 as the same numbered dot the key-events list below
@@ -893,25 +931,36 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   }
 
   function resultHTML(d) {
-    const v = d.verdict || {}, meta = d.meta || {}, re = d.reaction || {};
-    const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
+    const meta = d.meta || {}, re = d.reaction || {};
+    const status = '<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') + '</span>';
+    if (meta.state === 'computing') {
+      return status + '<span style="font-size:13px;color:#5B6372;line-height:1.7">' + (d._stalled ? '新闻整理得比较慢，过一会儿再点“更新”看看。' : '正在整理新闻，完成后自动更新。') + '</span>';
+    }
+    const cc = conclusionOf(d);
     const priced = PRICED[re.priced_in] || { label: re.priced_in || '—', style: '' };
-    const pre = num(re.pre_excess_5d);
-    const today = re.today || {};
-    const chg = num(today.chg);
-    const rowStyle = 'display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;padding:9px 0;' + ROW;
-    return '<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') + '</span>' +
-      '<div style="display:flex;flex-direction:column;gap:10px">' +
-      '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:22px;font-weight:700;color:' + lean.color + '">' + lean.label + '</span>' +
-      '<span style="font-size:14px;font-weight:600">' + esc(v.tag_text || '') + '</span>' +
-      '<span style="margin-left:auto;color:#8A919E">' + (CERTAINTY[v.certainty] || '') + '</span></div>' +
-      (v.ai_text ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:8px;background:#EAF0FD"><span style="font-size:12px;font-weight:600;color:#1F3F8A">AI 结论</span><p style="margin:0;line-height:1.7">' + esc(v.ai_text) + '</p></div>' : '') +
-      '<div><div style="' + rowStyle + '"><span style="color:#8A919E">已反应？</span><span><span class="pill" style="' + priced.style + '">' + esc(priced.label) + '</span>' +
-      (pre != null ? '　消息前 5 天已' + (pre >= 0 ? '跑赢' : '跑输') + '板块 <span style="' + MONO + '">' + esc(pct(Math.abs(pre), 1).replace(/^[+−]/, '')) + '</span>' : '') + '</span></div>' +
-      '<div style="' + rowStyle + '"><span style="color:#8A919E">今天</span><span style="display:flex;align-items:center;flex-wrap:wrap">' +
-      (chg != null ? '<span style="' + MONO + ';margin-right:10px;color:' + (chg > 0 ? UP_TXT : chg < 0 ? DOWN_TXT : '#5B6372') + '">' + pct(chg) + '</span>' : '') + todayTextHTML(today, d) + '</span></div></div></div>' +
-      chartHTML(d) + keyEventsHTML(d) + otherNewsHTML(d) +
-      '<span style="font-size:11px;color:#A1A7B2;line-height:1.6">' + esc(noDisclaimer(d.disclaimer_text)) + (hhmm(meta.updated_at) ? ' 更新于 ' + esc(mmdd(meta.updated_at) + ' ' + hhmm(meta.updated_at)) + '。' : '') + '</span>';
+    const pre = num(re.pre_excess_5d), today = re.today || {}, chg = num(today.chg), heat = d.heat || {};
+
+    const left = '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8A919E">方向</span>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;line-height:1.2;color:' + (cc ? HEAD_TONE[cc.status] || '#5B6372' : '#A1A7B2') + '">' + esc(cc ? cc.label : '暂无结论') + '</span>' + newsBasisChipHTML(d, cc) + '</div></div>';
+    const right = chg == null ? '' : '<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:12px;color:#8A919E">今日涨跌</span>' +
+      '<span style="' + MONO + ';font-size:26px;font-weight:700;line-height:1.2;color:' + signColor(chg) + '">' + (pct(chg, 2) || '0.00%') + '</span></div>';
+    const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
+    const sentence = cc && cc.text ? '<p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
+
+    const row = (label, valueHTML, detail, tone) => '<div style="display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:start;padding:10px 0;border-top:1px solid #F1F2F4">' +
+      '<span style="font-size:12px;color:#5B6372;padding-top:1px">' + label + '</span><div style="display:flex;flex-direction:column;gap:2px;min-width:0">' +
+      '<span style="display:flex;align-items:center;gap:6px;font-weight:600;color:' + (tone === 'warn' ? '#7A4A00' : '#14171F') + '"><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[tone || 'neutral'] + '"></span>' + valueHTML + '</span>' +
+      (detail ? '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + detail + '</span>' : '') + '</div></div>';
+    const rows = [];
+    if (re.priced_in) rows.push(row('已反应？', esc(priced.label), pre != null ? '消息前 5 天已' + (pre >= 0 ? '跑赢' : '跑输') + '板块 ' + esc(pct(Math.abs(pre), 1).replace(/^[+−]/, '')) : '', re.priced_in === 'partial' ? 'warn' : 'neutral'));
+    if (today.text) rows.push(row('今天走势', todayTextHTML(today, d), '', 'neutral'));
+    if (heat.risk_hit) rows.push(row('新闻热度', '偏热，留意炒作', '近期报道很多，但没有官方公告或数据来源', 'warn'));
+    else if (num(heat.news_count_pctile_60d) != null) rows.push(row('新闻热度', '近 60 天第 ' + Math.round(heat.news_count_pctile_60d * 100) + ' 分位', '', 'neutral'));
+    const table = rows.length ? '<div style="display:flex;flex-direction:column;margin-top:-6px">' + rows.join('') + '</div>' : '';
+
+    const glance = '<div style="display:flex;flex-direction:column;gap:18px">' + head + sentence + table + '</div>';
+    return status + glance + chartHTML(d) + keyEventsHTML(d) + otherNewsHTML(d) +
+      '<span style="margin-top:auto;font-size:11px;color:#A1A7B2;line-height:1.6">' + esc(noDisclaimer(d.disclaimer_text)) + '</span>';
   }
 
   // ===== 资金流维度 =====
@@ -1029,7 +1078,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const HEAD_SOURCE = { model: 'AI 解读', rule: '规则摘要' };
   // AI 体检还在生成（computing / refreshing）时先不给规则结论，只显示“判断中”；AI 失败、不可用，或等了太久，才退回规则。
   const conclusionOf = (d) => {
-    if (!(d.headline && d.headline.text) && (d.review_state === 'computing' || d.review_state === 'refreshing') && !d._reviewStalled) {
+    if (!(d.headline && d.headline.text) && (d.review_state === 'computing' || d.review_state === 'refreshing') && !d._stalled) {
       return { pending: true, label: '判断中', text: '', status: 'neutral', source: '' };
     }
     const pick = [d.headline, d.verdict].find((x) => x && x.text);
@@ -1271,29 +1320,33 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   document.addEventListener('click', (e) => { document.querySelectorAll('details.facts[open]').forEach((el) => { if (!el.contains(e.target)) el.open = false; }); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('details.facts[open]').forEach((el) => { el.open = false; }); });
 
-  // 体检在后台生成：详情先返回，没有体检（或是旧的）就隔几秒悄悄再取一次，不重新显示"分析中"。
-  function watchReview(code, entry, n) {
-    const st = entry.data && entry.data.review_state;
-    if (st !== 'computing' && st !== 'refreshing') return;
+  // 后台还在生成的面板：详情先返回，没生成好就隔几秒悄悄再取一次，不重新显示"分析中"。
+  // 资金流是 AI 体检（computing / refreshing）；新闻的 computing 在 waitNews 里处理（整理期间保持分析中动画）。
+  const PENDING = {
+    flow: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
+  };
+  function watchPending(dim, code, entry, n) {
+    const P = PENDING[dim];
+    if (!P || !entry.data || !P.pending(P.state(entry.data))) return;
+    const redraw = () => { const root = document.getElementById(DIMS[dim].rootId); if (root) root.dataset.key = ''; renderDims(); renderTabs(); };
     if (n >= 30) {
-      // 等了三分钟还没出来：不再等，退回规则结论。
-      entry.data._reviewStalled = true;
-      const root = document.getElementById(DIMS.flow.rootId);
-      if (root && dimCache['flow:' + code] === entry) { root.dataset.key = ''; renderDims(); renderTabs(); }
+      // 等了三分钟还没出来：不再等（资金流退回规则结论）。
+      entry.data._stalled = true;
+      if (dimCache[dim + ':' + code] === entry) redraw();
       return;
     }
     setTimeout(() => {
-      const key = 'flow:' + code;
+      const key = dim + ':' + code;
       if (dimCache[key] !== entry) return;
-      fetchStockJSON(API_BASE + '/api/v1/stocks/' + encodeURIComponent(code) + '/dimensions/' + DIMS.flow.path)
+      fetchStockJSON(API_BASE + '/api/v1/stocks/' + encodeURIComponent(code) + '/dimensions/' + DIMS[dim].path)
         .then((fresh) => {
           if (dimCache[key] !== entry) return;
-          const changed = fresh.review_state !== entry.data.review_state;
+          const changed = P.state(fresh) !== P.state(entry.data);
           entry.data = fresh;
-          if (changed) { const root = document.getElementById(DIMS.flow.rootId); if (root) root.dataset.key = ''; renderDims(); renderTabs(); }
-          watchReview(code, entry, n + 1);
+          if (changed) redraw();
+          watchPending(dim, code, entry, n + 1);
         })
-        .catch(() => watchReview(code, entry, n + 1));
+        .catch(() => watchPending(dim, code, entry, n + 1));
     }, 6000);
   }
 
@@ -2488,9 +2541,10 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       const e = synthCache[code];
       return { ring: true, title: e && e.status === 'loading' ? '分析中' : e && e.status === 'error' ? '诊断失败' : '点开这只股票后开始分析' };
     }
-    // 资金流的标签跟资金流详情里的结论走：偏多红、偏空绿、不明灰；AI 还在判断时先灰着。详情没加载前用综合诊断里的。
-    if (key === 'volume_flow') {
-      const fe = dimCache['flow:' + code], cc = fe && fe.status === 'done' && fe.data ? conclusionOf(fe.data) : null;
+    // 资金流、新闻的标签跟各自详情里的结论走：偏多红、偏空绿、不明灰；AI 还在判断时先灰着。详情没加载前用综合诊断里的。
+    const own = { volume_flow: 'flow', news: 'news' }[key];
+    if (own) {
+      const fe = dimCache[own + ':' + code], cc = fe && fe.status === 'done' && fe.data ? conclusionOf(fe.data) : null;
       if (cc) return { color: cc.pending ? '#A1A7B2' : HEAD_TONE_DOT[cc.status] || '#A1A7B2', title: cc.pending ? 'AI 判断中' : cc.text };
     }
     const x = (D.dimensions || []).find((d) => d.key === key);
