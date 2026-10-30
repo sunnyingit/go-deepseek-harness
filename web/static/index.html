@@ -1150,7 +1150,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       hero = '<span style="font-size:15px;color:#8A919E">这只股票暂时没有资金流数据</span>';
     } else {
       const pt = flowParts(big);
-      hero = '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="tip" tabindex="0" aria-label="鼠标移上来看资金明细"><span style="font-size:13px;color:#5B6372">大资金净' + (big >= 0 ? '流入' : '流出') + '</span>' +
+      hero = '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="tip" tabindex="0" aria-label="鼠标移上来看资金明细"><span style="font-size:13px;color:#5B6372">近 ' + win + ' 天大资金净' + (big >= 0 ? '流入' : '流出') + '</span>' +
         '<span style="' + MONO + ';font-size:32px;font-weight:700;line-height:1.1;color:' + signColor(big) + '">' + (big > 0 ? '+' : big < 0 ? '−' : '') + pt.n + '<span style="font-size:15px;font-weight:600;margin-left:3px">' + pt.unit + '</span></span>' + tipPop + '</span>' +
         (c.rate != null ? '<span style="margin-left:auto;font-size:12px;color:#5B6372">占成交额 <b style="' + MONO + ';font-weight:600;color:' + signColor(c.rate) + '">' + pct(c.rate, 1) + '</b></span>' : '') + '</div>';
     }
@@ -1178,10 +1178,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 
     const cautHTML = cautionsHTML(d);
 
-    const head = '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#8A919E">近 ' + win + ' 天 · 大资金 = 超大单 + 大单</span>' +
-      '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:13px;color:#5B6372">资金面</span>' +
-      '<span style="font-size:26px;font-weight:700;line-height:1.2;color:' + (cc ? HEAD_TONE[cc.status] || '#5B6372' : '#A1A7B2') + '">' + esc(cc ? cc.label : '暂无结论') + '</span>' +
-      (cc ? '<span style="margin-left:auto">' + rvPill(HEAD_SOURCE[cc.source], 'background:#F4F5F7;color:#5B6372') + '</span>' : '') + '</div></div>';
+    const head = '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:13px;color:#5B6372">资金面</span>' +
+      '<span style="font-size:26px;font-weight:700;line-height:1.2;color:' + (cc ? HEAD_TONE[cc.status] || '#5B6372' : '#A1A7B2') + '">' + esc(cc ? cc.label : '暂无结论') + '</span></div>';
     return '<div style="display:flex;flex-direction:column;gap:18px">' + head + sentHTML +
       (note ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(note) + '</span>' : '') +
       hero + table + cautHTML + '</div>';
@@ -1195,7 +1193,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const ruleText = d.verdict && d.verdict.text;
 
     const rvm = d.review;
-    const rvStamp = rvm ? [RV_SOURCE[rvm.source], rvm.generated_at ? '生成于 ' + rvm.generated_at.slice(5) : ''].filter(Boolean).join(' · ') : '';
+    const rvStamp = cc ? [HEAD_SOURCE[cc.source], cc.source === 'model' && rvm && rvm.generated_at ? '生成于 ' + rvm.generated_at.slice(5) : ''].filter(Boolean).join(' · ') : '';
     out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') + (rvStamp ? ' · ' + esc(rvStamp) : '') +
       (meta.state && meta.state !== 'ok' && meta.state !== 'expired' ? ' · <span style="color:#9A5B00">数据状态：' + esc(meta.state) + '</span>' : '') + '</span>');
 
