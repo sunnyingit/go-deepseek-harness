@@ -82,6 +82,16 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 .mk:hover .dot,.mk:focus .dot{stroke:#14171F;stroke-width:2}
 .chart-tip{position:absolute;z-index:5;width:max-content;max-width:250px;pointer-events:none;background:#14171F;color:#FFFFFF;font-size:12px;line-height:1.55;border-radius:6px;padding:7px 10px;box-shadow:0 4px 12px rgba(20,23,31,.25)}
 .chart-tip[hidden]{display:none}
+.tip{position:relative;display:inline-block;cursor:help;outline:none}
+.tip-pop{display:none;position:absolute;left:0;top:calc(100% + 8px);z-index:20;width:300px;max-width:84vw;padding:12px 14px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:12px;line-height:1.6;box-shadow:0 6px 18px rgba(20,23,31,.28)}
+.tip:hover .tip-pop,.tip:focus .tip-pop,.tip:focus-within .tip-pop{display:block}
+.acc{border-top:1px solid #F1F2F4}
+.acc-list>.acc:first-child{border-top:none}
+.acc>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 0;user-select:none}
+.acc>summary::-webkit-details-marker{display:none}
+.acc>summary::after{content:'›';flex:none;margin-left:auto;color:#A1A7B2;font-size:16px;line-height:1;transition:transform .15s}
+.acc[open]>summary::after{transform:rotate(90deg)}
+.acc-body{display:flex;flex-direction:column;gap:8px;padding:0 0 12px}
 .chart-tip div.tt{display:block;margin-right:0}
 .chart-tip .tt{display:inline-block;margin-right:8px;color:#A1A7B2;font-family:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px}
 </style>
@@ -1095,7 +1105,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (c.big != null && c.ret != null && Math.abs(c.ret) >= 0.001) {
       const up = c.ret > 0, inn = c.big > 0;
       out.push({ label: '资金和价格', value: up && inn ? '同步走强' : !up && !inn ? '同步走弱' : up ? '价涨资金在出' : '价跌资金在进',
-        tone: up && inn ? 'ok' : !up && !inn ? 'warn' : up ? 'warn' : 'neutral', detail: '股价 ' + pct(c.ret, 1) + '，大资金净' + (inn ? '流入' : '流出') });
+        tone: up && inn ? 'ok' : !up && !inn ? 'warn' : up ? 'warn' : 'neutral', detail: '近 ' + (c.win || 20) + ' 天股价 ' + pct(c.ret, 1) + '，大资金净' + (inn ? '流入' : '流出') });
     }
     const total = (num(fd.in_days) || 0) + (num(fd.out_days) || 0);
     if (total) {
@@ -1127,19 +1137,33 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const w = wr.find((r) => r.days === win) || null;
     const bars = rs.bars || [];
     const stock = bars.find((b) => b.kind === 'stock') || null, sector = bars.find((b) => b.kind === 'sector') || null;
-    const c = { elg: elg, lg: lg, big: big, ret: w && num(w.ret) != null ? w.ret : stock ? num(stock.ret) : null, rate: w ? num(w.net_rate) : null, stock: stock, sector: sector };
+    const c = { win: win, elg: elg, lg: lg, big: big, ret: w && num(w.ret) != null ? w.ret : stock ? num(stock.ret) : null, rate: w ? num(w.net_rate) : null, stock: stock, sector: sector };
     const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
     const rv = d.review, st = d.review_state;
     const days = fd.days || [];
 
     // 头：大数字
+    const md = pick('medium'), sm = pick('small');
+    const lastNet = days.length ? num(days[days.length - 1].net) : null;
+    const tv = (v, txt) => '<span style="' + MONO + ';color:' + (v == null ? '#A1A7B2' : v > 0 ? '#FF8F86' : v < 0 ? '#6FD39A' : '#FFFFFF') + '">' + (txt || fmtFlow(v)) + '</span>';
+    const trow = (k, v, strong, txt) => '<div style="display:flex;justify-content:space-between;gap:12px;' + (strong ? 'font-weight:600;padding-top:3px;border-top:1px solid #3A4250;margin-top:2px' : '') + '"><span style="color:' + (strong ? '#FFFFFF' : '#A1A7B2') + '">' + k + '</span>' + tv(v, txt) + '</div>';
+    const small = md == null && sm == null ? null : (md || 0) + (sm || 0);
+    const tipPop = big == null ? '' : '<span class="tip-pop" role="tooltip" style="text-align:left"><div style="font-weight:600;margin-bottom:6px">近 ' + win + ' 天资金明细</div>' +
+      trow('超大单', elg) + trow('大单', lg) + trow('大资金合计', big, true) +
+      '<div style="height:6px"></div>' + trow('中单', md) + trow('小单', sm) + trow('小额资金合计', small, true) +
+      '<div style="height:6px"></div>' +
+      (c.rate != null ? trow('净流入占成交额', c.rate, false, pct(c.rate, 1)) : '') +
+      (lastNet != null ? trow('最近一天（' + mdSlash(days[days.length - 1].date) + '）', lastNet) : '') +
+      (num(fd.in_days) != null ? '<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#A1A7B2">近 ' + days.length + ' 天</span><span>' + fd.in_days + ' 天流入 · ' + fd.out_days + ' 天流出</span></div>' : '') +
+      '<div style="margin-top:8px;font-size:11px;color:#8A919E;line-height:1.6">大资金 = 超大单 + 大单，大单不等于机构；数据来自' + esc((meta.sources || {}).flow || '资金流接口') + '，为推算值，各软件口径不同。</div></span>';
+
     let hero;
     if (big == null) {
       hero = '<span style="font-size:15px;color:#8A919E">这只股票暂时没有资金流数据</span>';
     } else {
       const pt = flowParts(big);
-      hero = '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-size:13px;color:#5B6372">大资金净' + (big >= 0 ? '流入' : '流出') + '</span>' +
-        '<span style="' + MONO + ';font-size:32px;font-weight:700;line-height:1.1;color:' + signColor(big) + '">' + (big > 0 ? '+' : big < 0 ? '−' : '') + pt.n + '<span style="font-size:15px;font-weight:600;margin-left:3px">' + pt.unit + '</span></span>' +
+      hero = '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="tip" tabindex="0" aria-label="鼠标移上来看资金明细"><span style="font-size:13px;color:#5B6372">大资金净' + (big >= 0 ? '流入' : '流出') + '</span>' +
+        '<span style="' + MONO + ';font-size:32px;font-weight:700;line-height:1.1;color:' + signColor(big) + '">' + (big > 0 ? '+' : big < 0 ? '−' : '') + pt.n + '<span style="font-size:15px;font-weight:600;margin-left:3px">' + pt.unit + '</span></span>' + tipPop + '</span>' +
         (c.rate != null ? '<span style="margin-left:auto;font-size:12px;color:#5B6372">占成交额 <b style="' + MONO + ';font-weight:600;color:' + signColor(c.rate) + '">' + pct(c.rate, 1) + '</b></span>' : '') + '</div>';
     }
 
@@ -1167,22 +1191,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       (stamp ? '<span style="font-size:11px;color:#8A919E">' + esc(stamp) + '</span>' : '') + '</div><p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(sentence.text) + '</p>' +
       (behind ? '<span style="font-size:12px;color:#7A4A00">' + (st === 'refreshing' ? '这是上一份体检，新的正在生成，完成后自动更新。' : '这份体检基于 ' + esc(mmdd(rv.as_of)) + ' 的数据。') + '</span>' : '') + '</div>' : '';
 
-    // 最该留意：体检里的异常，没有体检就用命中的位置提示
-    let cautions = [];
-    if (rv && (rv.anomalies || []).length) {
-      const an = rv.anomalies;
-      const main = an.filter((a) => !/^数据/.test(a.title));
-      const pool = main.length ? main : an;
-      cautions = pool.slice(0, 2).map((a) => ({ title: a.title, tag: a.severity_text || '留意', high: a.severity === 'high' }));
-      if (an.length > cautions.length) cautions.push({ more: an.length - cautions.length });
-    } else if (!rv) {
-      cautions = ((d.position_hints || {}).items || []).filter((h) => h.hit).slice(0, 2).map((h) => ({ title: h.text + ((h.detail_text || '').length <= 24 ? '：' + h.detail_text : ''), tag: '留意' }));
-    }
-    const cautHTML = cautions.length ? '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:600;color:#7A4A00">最该留意</span>' + cautions.map((x) =>
-      x.more ? '<span style="font-size:12px;color:#8A919E">另有 ' + x.more + ' 条，见下方详情</span>'
-        : '<div style="display:flex;align-items:flex-start;gap:8px;line-height:1.6"><span aria-hidden="true" style="flex:none;margin-top:3px;width:16px;height:16px;border-radius:50%;background:' + (x.high ? '#C8312B' : '#B87400') +
-          ';color:#FFFFFF;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">!</span><span style="font-size:13px;color:#3A4250">' + esc(x.title) + '</span></div>').join('') + '</div>'
-      : (rv ? '<span style="font-size:12px;color:#5B6372">体检没有发现需要特别留意的异常</span>' : '');
+    const cautHTML = cautionsHTML(d);
 
     const head = '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#8A919E">近 ' + win + ' 天 · 大资金 = 超大单 + 大单</span>' +
       '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:13px;color:#5B6372">量价方向</span>' +
@@ -1316,37 +1325,41 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   function rvEvidence(list) {
     const rows = (list || []).filter((e) => e && e.label);
     if (!rows.length) return '';
-    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;padding:8px 10px;border-radius:6px;background:#F7F8FA;font-size:12px">' +
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;font-size:12px">' +
       rows.map((e) => '<span style="color:#5B6372;line-height:1.5">' + esc(e.label) + '</span><span style="' + MONO + ';text-align:right;color:#14171F;white-space:nowrap">' + esc(e.text) + '</span>').join('') + '</div>';
   }
 
-  // 体检里的异常（带依据）和接下来盯什么；一句话总结和状态说明在顶部的卡片里。
+  // 折叠行：一行标题，点开才看说明。
+  const accRow = (head, body) => '<details class="acc"><summary>' + head + '</summary><div class="acc-body">' + body + '</div></details>';
+  const SEV_DOT = { medium: '#B87400', high: '#C8312B' };
+
+  // 要留意的事：有体检用体检里的异常，没有就用命中的位置提示。数据滞后之类的排到最后。
+  function cautionsHTML(d) {
+    const rv = d.review;
+    let rows = [];
+    if (rv && (rv.anomalies || []).length) {
+      const an = rv.anomalies.slice().sort((a, b) => /^数据/.test(a.title) - /^数据/.test(b.title));
+      rows = an.map((a) => accRow(
+        '<span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + (SEV_DOT[a.severity] || SEV_DOT.medium) + '"></span><span style="color:#14171F">' + esc(a.title) + '</span>',
+        '<span style="font-size:13px;color:#5B6372;line-height:1.7">' + esc(a.detail) + '</span>' + rvEvidence(a.evidence)));
+    } else if (!rv) {
+      rows = ((d.position_hints || {}).items || []).filter((h) => h.hit).map((h) => accRow(
+        '<span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + SEV_DOT.medium + '"></span><span style="color:#14171F">' + esc(h.text) + '</span>',
+        '<span style="font-size:13px;color:#5B6372;line-height:1.7">' + esc(h.detail_text || '') + '</span>'));
+    }
+    if (!rows.length) return rv ? '<span style="font-size:12px;color:#5B6372">体检没有发现需要特别留意的异常</span>' : '';
+    return '<div style="display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:baseline;gap:8px"><span style="font-weight:600">需要留意</span>' +
+      '<span style="font-size:11px;color:#8A919E">' + rows.length + ' 条 · 点开看说明</span></div><div class="acc-list">' + rows.join('') + '</div></div>';
+  }
+
+  // 接下来盯什么；一句话总结、状态说明和要留意的事在顶部。
   function reviewHeadHTML(d) {
     const rv = d.review;
-    if (!rv) return '';
-    const ov = rv.overall || {};
-    const out = [];
-
-    const an = rv.anomalies || [];
-    if (an.length) {
-      out.push(colBox(8) + secTitle('需要留意', esc(ov.text || '')) + an.map((a) =>
-        '<div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:8px;background:' + (a.severity === 'high' ? '#FDF3F2' : '#FFF9EE') + '">' +
-        '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600">' + esc(a.title) + '</span>' +
-        rvPill(a.severity_text || '留意', RV_SEVERITY[a.severity] || RV_SEVERITY.medium) + '</div>' +
-        '<span style="font-size:13px;color:#3A4250;line-height:1.7">' + esc(a.detail) + '</span>' +
-        ((a.evidence || []).length ? '<details style="font-size:12px;color:#5B6372"><summary style="cursor:pointer;user-select:none">依据 · ' + a.evidence.length + ' 项</summary><div style="margin-top:6px">' + rvEvidence(a.evidence) + '</div></details>' : '') + '</div>').join('') + '</div>');
-    } else if (ov.text) {
-      out.push(colBox(4) + secTitle('需要留意', '') + '<span style="font-size:13px;color:#5B6372">' + esc(ov.text) + '</span></div>');
-    }
-
-    const watch = rv.watch || [];
-    if (watch.length) {
-      out.push(colBox(6) + secTitle('接下来盯什么', '') + watch.map((w, i) =>
-        '<details style="' + ROW + ';padding:8px 0"><summary style="cursor:pointer;user-select:none;list-style:none;display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;line-height:1.7">' +
-        '<span style="color:#A1A7B2">' + (i + 1) + '</span><span>' + esc(w.text) + '</span></summary>' +
-        '<div style="margin:8px 0 0 26px">' + rvEvidence(w.evidence) + '</div></details>').join('') + '</div>');
-    }
-    return out.join('');
+    const watch = (rv && rv.watch) || [];
+    if (!watch.length) return '';
+    return '<div style="display:flex;flex-direction:column;gap:2px">' + secTitle('接下来盯什么', '') + '<div class="acc-list">' + watch.map((w, i) => accRow(
+      '<span style="flex:none;color:#A1A7B2;width:14px">' + (i + 1) + '</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(w.text) + '</span>',
+      '<span style="line-height:1.7;color:#3A4250">' + esc(w.text) + '</span>' + rvEvidence(w.evidence))).join('') + '</div></div>';
   }
 
   // 放在图表后面：十个问题的回答，以及体检用到的全部数据。
@@ -1357,12 +1370,10 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const sumText = (rv.summary || {}).text;
     const items = (rv.items || []).filter((it) => !(it.key === 'q10' && it.answer === sumText));
     if (items.length) {
-      out.push(colBox(4) + secTitle('逐项解读', items.length + ' 个问题') + items.map((it) =>
-        '<div style="display:flex;flex-direction:column;gap:6px;padding:10px 0;' + ROW + '">' +
-        '<div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600">' + esc(it.title) + '</span>' + rvStatus(it.status, it.status_text) + '</div>' +
+      out.push('<div style="display:flex;flex-direction:column;gap:2px">' + secTitle('逐项解读', items.length + ' 个问题 · 点开看回答') + '<div class="acc-list">' + items.map((it) => accRow(
+        '<span style="min-width:0">' + esc(it.title) + '</span>' + rvStatus(it.status, it.status_text),
         '<span style="font-size:12px;color:#8A919E;line-height:1.6">' + esc(it.ask || '') + '</span>' +
-        '<span style="color:#3A4250;line-height:1.7">' + esc(it.answer) + '</span>' +
-        ((it.evidence || []).length ? '<details style="font-size:12px;color:#5B6372"><summary style="cursor:pointer;user-select:none">依据 · ' + it.evidence.length + ' 项</summary><div style="margin-top:6px">' + rvEvidence(it.evidence) + '</div></details>' : '') + '</div>').join('') + '</div>');
+        '<span style="color:#3A4250;line-height:1.7">' + esc(it.answer) + '</span>' + rvEvidence(it.evidence))).join('') + '</div></div>');
     }
     const facts = rv.facts || [];
     if (facts.length) {
