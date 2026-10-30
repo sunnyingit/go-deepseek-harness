@@ -1077,28 +1077,6 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     return a >= 1e8 ? { n: (a / 1e8).toFixed(2), unit: '亿' } : a >= 1e4 ? { n: (a / 1e4).toFixed(a >= 1e6 ? 0 : 1), unit: '万' } : { n: String(Math.round(a)), unit: '元' };
   }
 
-  // 近 N 天每天的大资金净额：红柱在轴上方（流入），绿柱在下方（流出），最后一根最深。
-  function flowBarsHTML(days) {
-    const vals = days.map((x) => num(x.net));
-    if (!vals.some((v) => v != null)) return '';
-    const n = days.length, W = 300, mid = 28, half = 24;
-    const maxAbs = Math.max.apply(null, vals.map((v) => Math.abs(v || 0)).concat([1]));
-    const slot = W / n, bw = slot * 0.62;
-    let svg = '<line x1="0" y1="' + mid + '" x2="' + W + '" y2="' + mid + '" stroke="#C9CED6" stroke-width="1"></line>';
-    days.forEach((x, i) => {
-      const v = vals[i], bx = (slot * i + (slot - bw) / 2).toFixed(1);
-      const tip = x.date.slice(5) + (v == null ? ' 没有资金流数据' : ' 大资金净' + (v >= 0 ? '流入 ' : '流出 ') + fmtFlow(v, true));
-      if (v == null) { svg += '<rect x="' + bx + '" y="' + (mid - 1) + '" width="' + bw.toFixed(1) + '" height="2" fill="#E3E6EB"><title>' + esc(tip) + '</title></rect>'; return; }
-      const h = Math.max(1.5, Math.abs(v) / maxAbs * half);
-      svg += '<rect x="' + bx + '" y="' + (v >= 0 ? mid - h : mid).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="1.5" fill="' + (v >= 0 ? UP : DOWN) +
-        '" opacity="' + (i === n - 1 ? '1' : '0.55') + '"><title>' + esc(tip) + '</title></rect>';
-    });
-    const last = days[n - 1], lv = vals[n - 1];
-    return '<div style="display:flex;flex-direction:column;gap:4px"><svg viewBox="0 0 ' + W + ' 56" role="img" aria-label="近 ' + n + ' 天大资金每日净额" style="width:100%;height:auto;display:block">' + svg + '</svg>' +
-      '<div style="display:flex;justify-content:space-between;font-size:11px;color:#8A919E"><span>' + mdSlash(days[0].date) + '</span>' +
-      '<span>' + mdSlash(last.date) + (lv != null ? ' · 最近一天 <b style="' + MONO + ';font-weight:600;color:' + signColor(lv) + '">' + fmtFlow(lv) + '</b>' : '') + '</span></div></div>';
-  }
-
   function flowSignals(d, c) {
     const fd = d.flow_daily || {}, rs = d.relative_strength || {};
     const out = [];
@@ -1167,19 +1145,18 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         (c.rate != null ? '<span style="margin-left:auto;font-size:12px;color:#5B6372">占成交额 <b style="' + MONO + ';font-weight:600;color:' + signColor(c.rate) + '">' + pct(c.rate, 1) + '</b></span>' : '') + '</div>';
     }
 
-    // 近几个窗口的净流入率：数字在变大说明在加速，变小说明在放缓
+    // 左边标签、右边内容的一张表：先是不同时间的净流入率（数字变小就是在放缓），再是四个信号。
     const rates = wr.filter((r) => num(r.net_rate) != null);
-    const strip = rates.length ? '<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;color:#8A919E">不同时间的大资金净流入率（占成交额）</span>' +
-      '<div style="display:grid;grid-template-columns:repeat(' + rates.length + ',minmax(0,1fr));gap:6px">' + rates.map((r) =>
-        '<div style="display:flex;flex-direction:column;align-items:center;padding:2px 0"><span style="font-size:11px;color:#8A919E">近 ' + r.days + ' 天</span>' +
-        '<span style="' + MONO + ';font-size:13px;font-weight:600;color:' + signColor(Number((r.net_rate * 100).toFixed(1))) + '">' + pct(r.net_rate, 1) + '</span></div>').join('') + '</div></div>' : '';
-
     const sigs = flowSignals(d, c);
-    const sigHTML = sigs.length ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px">' + sigs.map((x) =>
-      '<div style="display:flex;flex-direction:column;gap:3px">' +
-      '<span style="font-size:11px;color:#8A919E">' + esc(x.label) + '</span>' +
+    const kv = (label, sub, content) => '<div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;padding:11px 0;border-top:1px solid #F1F2F4">' +
+      '<div style="display:flex;flex-direction:column;gap:1px;padding-top:1px"><span style="font-size:12px;color:#5B6372">' + label + '</span>' + (sub ? '<span style="font-size:11px;color:#A1A7B2">' + sub + '</span>' : '') + '</div>' + content + '</div>';
+    const rateRow = rates.length ? kv('净流入率', '占成交额', '<div style="display:grid;grid-template-columns:repeat(' + rates.length + ',minmax(0,1fr));gap:8px">' + rates.map((r) =>
+      '<div style="display:flex;flex-direction:column;gap:1px"><span style="' + MONO + ';font-size:14px;font-weight:600;color:' + signColor(Number((r.net_rate * 100).toFixed(1))) + '">' + pct(r.net_rate, 1) + '</span>' +
+      '<span style="font-size:11px;color:#8A919E">近 ' + r.days + ' 天</span></div>').join('') + '</div>') : '';
+    const sigRows = sigs.map((x) => kv(esc(x.label), '', '<div style="display:flex;flex-direction:column;gap:2px;min-width:0">' +
       '<span style="display:flex;align-items:center;gap:6px;font-weight:600;color:' + (x.tone === 'warn' ? '#7A4A00' : '#14171F') + '"><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[x.tone] + '"></span>' + esc(x.value) + '</span>' +
-      '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + esc(x.detail) + '</span></div>').join('') + '</div>' : '';
+      (x.detail ? '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + esc(x.detail) + '</span>' : '') + '</div>')).join('');
+    const table = rateRow || sigRows ? '<div style="display:flex;flex-direction:column;margin-top:-6px">' + rateRow + sigRows + '</div>' : '';
 
     // 一句话 + 来源
     const sum = rv && rv.summary;
@@ -1200,7 +1177,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       (CERTAINTY[v.certainty] ? '<span style="margin-left:auto;font-size:12px;color:#8A919E">' + CERTAINTY[v.certainty] + '</span>' : '') + '</div></div>';
     return '<div style="display:flex;flex-direction:column;gap:18px">' + head + sentHTML +
       (note ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(note) + '</span>' : '') +
-      hero + flowBarsHTML(days) + strip + sigHTML + cautHTML + '</div>';
+      hero + table + cautHTML + '</div>';
   }
 
   function flowHTML(d) {
