@@ -593,7 +593,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       if (wait > 0) setTimeout(show, wait); else show();
     };
     fetchStockJSON(url, ctrl.signal)
-      .then((data) => { entry.status = 'done'; entry.data = data; renderDims(); if (dim === 'flow') watchReview(code, entry, 0); })
+      .then((data) => { entry.status = 'done'; entry.data = data; renderDims(); if (dim === 'flow') { watchReview(code, entry, 0); renderTabs(); } })
       .catch(fail)
       .finally(() => clearTimeout(timer));
   }
@@ -1279,7 +1279,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       // 等了三分钟还没出来：不再等，退回规则结论。
       entry.data._reviewStalled = true;
       const root = document.getElementById(DIMS.flow.rootId);
-      if (root && dimCache['flow:' + code] === entry) { root.dataset.key = ''; renderDims(); }
+      if (root && dimCache['flow:' + code] === entry) { root.dataset.key = ''; renderDims(); renderTabs(); }
       return;
     }
     setTimeout(() => {
@@ -1290,7 +1290,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
           if (dimCache[key] !== entry) return;
           const changed = fresh.review_state !== entry.data.review_state;
           entry.data = fresh;
-          if (changed) { const root = document.getElementById(DIMS.flow.rootId); if (root) root.dataset.key = ''; renderDims(); }
+          if (changed) { const root = document.getElementById(DIMS.flow.rootId); if (root) root.dataset.key = ''; renderDims(); renderTabs(); }
           watchReview(code, entry, n + 1);
         })
         .catch(() => watchReview(code, entry, n + 1));
@@ -2480,12 +2480,18 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const DIM6 = [['flow', 'Flow', '资金流', 'volume_flow', '资'], ['news', 'News', '新闻', 'news', '新'], ['over', 'Over', '海外', null, '海'],
     ['sector', 'Sector', '板块', 'sector', '板'], ['fin', 'Fin', '财报', 'finance', '财'], ['fund', 'Fund', '基本面', 'fundamental', '基']];
   const LEAN_DOT = { bullish: '#D9483F', bearish: '#2E8B57' };
+  const HEAD_TONE_DOT = { support: LEAN_DOT.bullish, warn: LEAN_DOT.bearish, neutral: '#A1A7B2' };
   function dimState(code, key) {
     if (!key) return { ring: true, title: '海外映射暂未接入' };
     const D = synthInfo(code);
     if (!D) {
       const e = synthCache[code];
       return { ring: true, title: e && e.status === 'loading' ? '分析中' : e && e.status === 'error' ? '诊断失败' : '点开这只股票后开始分析' };
+    }
+    // 资金流的标签跟资金流详情里的结论走：偏多红、偏空绿、不明灰；AI 还在判断时先灰着。详情没加载前用综合诊断里的。
+    if (key === 'volume_flow') {
+      const fe = dimCache['flow:' + code], cc = fe && fe.status === 'done' && fe.data ? conclusionOf(fe.data) : null;
+      if (cc) return { color: cc.pending ? '#A1A7B2' : HEAD_TONE_DOT[cc.status] || '#A1A7B2', title: cc.pending ? 'AI 判断中' : cc.text };
     }
     const x = (D.dimensions || []).find((d) => d.key === key);
     if (!x) return { ring: true, title: '没有这个方面的结论' };
