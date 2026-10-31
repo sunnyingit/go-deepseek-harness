@@ -82,8 +82,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 .mk:hover .dot,.mk:focus .dot{stroke:#14171F;stroke-width:2}
 .chart-tip{position:absolute;z-index:5;width:max-content;max-width:250px;pointer-events:none;background:#14171F;color:#FFFFFF;font-size:12px;line-height:1.55;border-radius:6px;padding:7px 10px;box-shadow:0 4px 12px rgba(20,23,31,.25)}
 .chart-tip[hidden]{display:none}
-.dw{flex:0 0 400px;width:400px}
-@media (min-width:1400px){.dw{flex-basis:440px;width:440px}}
+.dw{flex:0 0 440px;width:440px}
+@media (min-width:1400px){.dw{flex-basis:484px;width:484px}}
 .tip{position:relative;display:inline-block;cursor:help;outline:none}
 .tip-pop{display:none;position:absolute;left:0;top:calc(100% + 8px);z-index:20;width:300px;max-width:84vw;padding:12px 14px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:12px;line-height:1.6;box-shadow:0 6px 18px rgba(20,23,31,.28)}
 .tip:hover .tip-pop,.tip:focus .tip-pop,.tip:focus-within .tip-pop{display:block}
@@ -1301,16 +1301,18 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const accRow = (head, body) => '<details class="acc"><summary>' + head + '</summary><div class="acc-body">' + body + '</div></details>';
   // 放在图表后面：十个问题的回答，以及体检用到的全部数据。
   // “偏空”旁边：有体检数据时是“依据”按钮，点开看体检用到的全部数据（标题里写结论来源）；没有就只标结论来源。
-  function sourceChipHTML(d, cc) {
-    const text = cc ? HEAD_SOURCE[cc.source] : '';
-    if (!text) return '';
+  function sourceChipHTML(d, cc, extra) {
+    const text = cc ? HEAD_SOURCE[cc.source] || '' : '';
     const rv = d.review, facts = (rv && rv.facts) || [];
-    if (!facts.length) return '<span style="display:inline-flex;padding:2px 8px;border-radius:999px;background:#F4F5F7;color:#5B6372;font-size:12px;line-height:20px;white-space:nowrap">' + text + '</span>';
-    const groups = (rv.fact_groups && rv.fact_groups.length ? rv.fact_groups : facts.map((f) => f.group).filter((g, i, a) => a.indexOf(g) === i));
-    const miss = rv.missing || [];
-    const label = '体检用到的全部数据 · ' + facts.length + ' 项';
+    if (!text && !extra) return '';
+    if (!facts.length && !extra) return '<span style="display:inline-flex;padding:2px 8px;border-radius:999px;background:#F4F5F7;color:#5B6372;font-size:12px;line-height:20px;white-space:nowrap">' + text + '</span>';
+    const groups = facts.length ? (rv.fact_groups && rv.fact_groups.length ? rv.fact_groups : facts.map((f) => f.group).filter((g, i, a) => a.indexOf(g) === i)) : [];
+    const miss = (rv && rv.missing) || [];
+    const label = facts.length ? '体检用到的全部数据 · ' + facts.length + ' 项' : '判断依据';
     return '<details class="facts"><summary title="点开看' + label + '" aria-label="' + label + '">依据<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></summary>' +
-      '<div class="facts-pop"><div style="display:flex;flex-direction:column;gap:10px"><span style="font-weight:600;color:#14171F">' + text + ' · ' + label + '</span>' +
+      '<div class="facts-pop"><div style="display:flex;flex-direction:column;gap:10px">' +
+      (extra || '') +
+      '<span style="font-weight:600;color:#14171F">' + (text ? text + ' · ' : '') + label + '</span>' +
       groups.map((g) => {
         const rows = facts.filter((f) => f.group === g);
         return rows.length ? '<div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:600;color:#3A4250">' + esc(g) + '</span>' + rvEvidence(rows) + '</div>' : '';
@@ -1342,6 +1344,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     flow: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
     fund: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
     fin: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
+    sector: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
   };
   function watchPending(dim, code, entry, n) {
     const P = PENDING[dim];
@@ -1475,6 +1478,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
     const sentence = cc && cc.text ? '<p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
     const note = cc && cc.pending ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">AI 正在解读，完成后自动给出结论。</span>'
+      : rv && d.review_state === 'refreshing' ? '<span style="font-size:12px;color:#7A4A00;line-height:1.7">这是上一份体检，新的正在生成，完成后自动更新。</span>'
       : !rv && d.review_state === 'unavailable' ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(d.review_error || '这只股票暂时没法做基本面体检。') + '</span>' : '';
 
     const rows = (d.cells || []).map((c) => '<div style="display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:start;padding:10px 0;border-top:1px solid #F1F2F4">' +
@@ -1550,7 +1554,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   // ===== 财报维度 =====
   // GET {stock-api-base}/api/v1/stocks/{ts_code}/dimensions/finance/detail
   // 只讲最近一份定期报告带来的变化：方向 + 单季营收同比 → 结论 → 小结表 → 近 8 个季度 → 逐项解读。
-  const FIN_TONE = { up: 'ok', good: 'ok', down: 'warn', loss: 'warn', poor: 'warn' };
+  const FIN_TONE = { up: 'ok', good: 'ok', beat: 'ok', down: 'warn', loss: 'warn', poor: 'warn', miss: 'warn' };
   const yi2 = (v) => (num(v) == null ? '—' : (v / 1e8).toFixed(2));
   const qLabel = (end) => String(end || '').replace(/^(\d{4})(\d{2})\d{2}$/, (m, y, mo) => y + ' Q' + ({ '03': 1, '06': 2, '09': 3, '12': 4 }[mo] || '?'));
 
@@ -1579,6 +1583,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
     const sentence = cc && cc.text ? '<p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
     const note = cc && cc.pending ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">AI 正在解读，完成后自动给出结论。</span>'
+      : rv && d.review_state === 'refreshing' ? '<span style="font-size:12px;color:#7A4A00;line-height:1.7">这是上一份体检，新的正在生成，完成后自动更新。</span>'
       : !rv && d.review_state === 'unavailable' ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(d.review_error || '这只股票暂时没法做财报体检。') + '</span>' : '';
 
     const rows = (d.cells || []).filter((c) => !(c.key === 'expectation' && c.level === 'na')).map((c) =>
@@ -1611,7 +1616,9 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   // stage.current has only been seen as 'weak' / 'none', so the 启动→退潮 track from the
   // design is not drawn; the stage is shown as a label plus the API's own why/next text.
   const SECTOR_TYPE = { industry: '行业', concept: '概念' };
-  const STAGE_LABEL = { weak: '弱势', none: '没有明确阶段' };
+  const STAGE_LABEL = { start: '启动', main: '主升', climax: '高潮', diverge: '分歧', ebb: '退潮', weak: '弱势', none: '没有明确阶段' };
+  const STAGE_TONE = { start: 'ok', main: 'ok', climax: 'warn', diverge: 'warn', ebb: 'warn', weak: 'warn' };
+  const BASIS_TEXT = { business: '业务占比', linkage: '交易联动' };
   const SIGNAL_LABEL = { breadth: '站上 20 日线', up_ratio_today: '今日上涨家数', limit_up: '涨停', max_streak: '最高连板', broken_rate: '炸板率' };
   const SUSTAIN_LABEL = { catalyst: '催化', crowding: '拥挤度', duration: '持续天数', environment: '大环境' };
   const SUSTAIN_ICON = {
@@ -1667,68 +1674,34 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       '<div class="chart-tip" role="tooltip" hidden></div></div>';
   }
 
-  function sectorHTML(d) {
-    const v = d.verdict || {}, meta = d.meta || {}, sc = d.sectors || {}, st = d.stage || {}, rl = d.role || {}, sg = d.strength || {}, su = d.sustain || {};
-    const stock = curStock();
-    const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
-    const ph = d.position_hint || {};
-    const out = [];
+  // 一个板块展开后的内容：走势图、位置、阶段、角色、能持续多久。
+  function sectorBodyHTML(sec) {
+    const st = sec.stage || {}, sg = sec.strength || {}, rl = sec.role || {}, su = sec.sustain || {};
+    const parts = [];
+    const chart = linesChartHTML(sec);
+    if (chart) parts.push('<div style="display:flex;flex-direction:column;gap:6px">' + secTitle('是它强，还是板块强', '近 20 天累计涨幅') + chart + '</div>');
 
-    out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') +
-      (meta.state && meta.state !== 'ok' ? ' · <span style="color:#9A5B00">数据状态：' + esc(meta.state) + '</span>' : '') +
-      (meta.error ? ' · <span style="color:#9A5B00">' + esc(meta.error) + '</span>' : '') + '</span>');
+    const rk = sg.rank || {}, ts = sg.turnover_share || {}, gp = sg.gaps || {};
+    const moved = num(rk.value_5d_ago) != null && num(rk.value) != null ? rk.value_5d_ago - rk.value : null;
+    const facts = [];
+    if (num(rk.value) != null) facts.push({ label: '板块排名（' + (rk.level_text || '') + '，共 ' + rk.total + '）', text: rk.value + (num(rk.value_5d_ago) != null ? ' · 5 日前 ' + rk.value_5d_ago + (moved > 0 ? ' ↑' : moved < 0 ? ' ↓' : '') : '') });
+    if (num(gp.sector_vs_index) != null) facts.push({ label: '板块相对大盘', text: pct(gp.sector_vs_index, 1) || '0.0%' });
+    if (num(gp.stock_vs_sector) != null) facts.push({ label: '本股相对板块', text: pct(gp.stock_vs_sector, 1) || '0.0%' });
+    if (num(ts.value) != null) facts.push({ label: '成交占比', text: (ts.value * 100).toFixed(2) + '%' + (num(ts.pctile_1y) != null ? ' · 近一年 ' + Math.round(ts.pctile_1y * 100) + '% 分位' : '') });
+    facts.push({ label: '板块资金净流入率', text: num(sg.flow_rate) != null ? pct(sg.flow_rate, 1) : '这次没有取到' });
+    parts.push(rvEvidence(facts));
 
-    out.push(colBox(10) + '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:22px;font-weight:700;color:' + lean.color + '">' + lean.label + '</span>' +
-      '<span style="font-size:14px;font-weight:600">' + esc(v.tag_text || '') + '</span>' +
-      '<span title="' + esc((v.certainty_reasons || []).join('；')) + '" style="margin-left:auto;color:#8A919E">' + (CERTAINTY[v.certainty] || '') + '</span></div>' +
-      (v.ai_text ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:8px;background:#EAF0FD"><span style="font-size:12px;font-weight:600;color:#1F3F8A">AI 结论</span><p style="margin:0;line-height:1.7">' + esc(v.ai_text) + '</p></div>' : '') +
-      ((v.certainty_reasons || []).length ? '<span style="font-size:12px;color:#8A919E">把握度：' + esc(v.certainty_reasons.join('；')) + '</span>' : '') +
-      (ph.climax ? '<span class="pill" style="background:#FFF4E0;color:#7A4A00;align-self:flex-start">板块已进入高潮，位置偏高</span>' : '') +
-      (ph.overdue ? '<span class="pill" style="background:#FFF4E0;color:#7A4A00;align-self:flex-start">这轮行情已超过同类行情的持续天数</span>' : '') + '</div>');
-
-    // 归属哪个板块
-    const main = sc.main, cands = sc.candidates || [];
-    if (main || sc.independent) {
-      out.push('<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px">' +
-        (sc.independent ? '<span style="font-size:12px;color:#5B6372">这只股票最近不明显跟随任何板块</span>'
-          : '<span style="font-size:12px;color:#5B6372">最近主要跟着 <strong style="color:#14171F">' + esc(main.name) + '</strong>（' + esc(SECTOR_TYPE[main.type] || main.type) + '）走 · 相关性 <span style="' + MONO + '">' + esc(main.corr_20d) + '</span></span>') +
-        (cands.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-left:auto">' + cands.map((c) => '<span class="pill" title="' + esc((SECTOR_TYPE[c.type] || c.type) + '板块 · ' + c.code) + '" style="' +
-          (c.is_main ? 'background:#14171F;color:#FFFFFF' : 'background:#F1F2F4;color:#3A4250') + '">' + esc(c.name) + ' ' + esc(c.corr_20d) + '</span>').join('') + '</div>' : '') + '</div>');
-    }
-
-    // 是它强，还是板块强
-    const chart = linesChartHTML(d, stock.name);
-    if (chart) {
-      const rk = sg.rank || {}, ts = sg.turnover_share || {};
-      const moved = num(rk.value_5d_ago) != null && num(rk.value) != null ? rk.value_5d_ago - rk.value : null;
-      const tile = (label, big, sub, subColor) => '<div style="display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:8px;background:#F7F8FA;min-width:0">' +
-        '<span style="font-size:11px;color:#8A919E">' + label + '</span><span style="' + MONO + ';font-size:15px;font-weight:600">' + big + '</span>' +
-        '<span style="font-size:11px;color:' + (subColor || '#5B6372') + '">' + sub + '</span></div>';
-      out.push(colBox(8) + secTitle('是它强，还是板块强', '近 20 天累计涨幅 · 板块在全市场的位置') + chart +
-        '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">' +
-        tile('板块排名', num(rk.value) != null ? rk.value + ' / ' + rk.total : '—',
-          num(rk.value_5d_ago) != null ? '5 日前第 ' + rk.value_5d_ago + (moved > 0 ? ' ↑' : moved < 0 ? ' ↓' : '') : '', moved > 0 ? UP_TXT : moved < 0 ? DOWN_TXT : '') +
-        tile('板块资金', num(sg.flow_rate) != null ? pct(sg.flow_rate, 1) : '—', num(sg.flow_rate) != null ? '净流入率' : '这次没有取到') +
-        tile('成交占比', num(ts.value) != null ? (ts.value * 100).toFixed(2) + '%' : '—',
-          (ts.vs_last_week ? '较上周' + (ts.vs_last_week === 'up' ? ' ↑' : ts.vs_last_week === 'down' ? ' ↓' : '') : '') + (num(ts.pctile_1y) != null ? ' · 近一年 ' + Math.round(ts.pctile_1y * 100) + '% 分位' : '')) + '</div>' +
-        (rk.basis_text ? '<span style="font-size:11px;color:#8A919E">排名范围：' + esc(rk.basis_text) + '</span>' : '') + '</div>');
-    }
-
-    // 板块走到哪一步了
     if (st.current) {
-      const sigs = (st.signals || []).filter((s) => !(s.value_text === '—' && (!s.level_text || s.level_text === '—')));
-      const sig = (s) => '<div style="display:flex;flex-direction:column;gap:1px;min-width:0"><span style="font-size:11px;color:#8A919E">' + esc(SIGNAL_LABEL[s.key] || s.key) + '</span>' +
-        '<span><span style="' + MONO + ';font-weight:600">' + esc(s.value_text || '—') + '</span> <span style="font-size:11px;color:#5B6372">' + esc(s.level_text && s.level_text !== '—' && s.level_text !== s.value_text ? s.level_text : '') + '</span></span>' +
-        (s.change_text && s.change_text !== '—' && s.change_text !== '0' && s.change_text !== '0pt' ? '<span style="font-size:11px;color:#8A919E">较前一日 ' + esc(s.change_text) + '</span>' : '') + '</div>';
-      out.push(colBox(12) + secTitle('板块走到哪一步了', num(st.confirmed_days) ? '连续 ' + st.confirmed_days + ' 天确认' : '') +
-        '<div style="display:flex;align-items:center;gap:8px"><span class="pill" style="background:' + (st.current === 'weak' ? '#E8F5EE;color:#1E6B44' : '#F4F5F7;color:#5B6372') + ';font-size:12px;height:24px;padding:0 12px;font-weight:600">' + esc(STAGE_LABEL[st.current] || st.current) + '</span></div>' +
-        (sigs.length ? '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:10px 0;border-top:1px solid #F1F2F4;border-bottom:1px solid #F1F2F4">' + sigs.map(sig).join('') + '</div>' : '') +
-        '<div style="display:grid;grid-template-columns:52px minmax(0,1fr);gap:4px 10px;font-size:12px">' +
-        (st.why_text ? '<span style="color:#8A919E">为什么</span><span>' + esc(st.why_text) + '</span>' : '') +
-        (st.next_text ? '<span style="color:#8A919E">下一步</span><span style="color:#7A4A00">' + esc(st.next_text) + '</span>' : '') + '</div></div>');
+      const sigs = (st.signals || []).filter((x) => !(x.value_text === '—' && (!x.level_text || x.level_text === '—')));
+      const sig = (x) => '<div style="display:flex;flex-direction:column;gap:1px;min-width:0"><span style="font-size:11px;color:#8A919E">' + esc(SIGNAL_LABEL[x.key] || x.key) + '</span>' +
+        '<span><span style="' + MONO + ';font-weight:600">' + esc(x.value_text || '—') + '</span> <span style="font-size:11px;color:#5B6372">' + esc(x.level_text && x.level_text !== '—' && x.level_text !== x.value_text ? x.level_text : '') + '</span></span></div>';
+      parts.push('<div style="display:flex;flex-direction:column;gap:8px">' + secTitle('板块走到哪一步了', num(st.confirmed_days) ? '连续 ' + st.confirmed_days + ' 天确认' : '') +
+        '<span style="font-weight:600;color:' + (STAGE_TONE[st.current] === 'warn' ? '#7A4A00' : '#14171F') + '">' + esc(STAGE_LABEL[st.current] || st.current) + '</span>' +
+        (st.why_text ? '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(st.why_text) + '</span>' : '') +
+        (st.next_text ? '<span style="font-size:12px;color:#7A4A00;line-height:1.6">' + esc(st.next_text) + '</span>' : '') +
+        (sigs.length ? '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:10px 0;border-top:1px solid #F1F2F4">' + sigs.map(sig).join('') + '</div>' : '') + '</div>');
     }
 
-    // 它在板块里是什么角色
     const top = rl.top || [];
     if (top.length) {
       const maxAbs = Math.max.apply(null, top.map((t) => Math.abs(t.ret_20d)).concat([0.01]));
@@ -1736,33 +1709,102 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       const rows = top.map((t) => {
         const gap = prev && t.rank - prev > 1 ? '<div style="font-size:11px;color:#A1A7B2;padding:1px 0 1px 26px">· · ·</div>' : '';
         prev = t.rank;
-        return gap + '<div style="display:grid;grid-template-columns:22px 128px minmax(0,1fr) 56px;align-items:center;gap:8px;padding:5px 0">' +
+        return gap + '<div style="display:grid;grid-template-columns:22px 118px minmax(0,1fr) 52px;align-items:center;gap:8px;padding:5px 0">' +
           '<span style="' + MONO + ';font-size:11px;color:#8A919E">' + esc(t.rank) + '</span>' +
           '<span style="' + (t.is_self ? 'font-weight:600' : 'color:#3A4250') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(t.name) +
           ' <span class="pill" style="' + (ROLE_PILL[t.role] || ROLE_PILL.follower) + ';margin-left:2px">' + esc(t.role_text) + '</span></span>' +
           '<div style="height:6px;border-radius:3px;background:#F1F2F4"><div style="width:' + (Math.abs(t.ret_20d) / maxAbs * 100).toFixed(1) + '%;height:6px;border-radius:3px;background:' + (t.is_self ? BRAND : '#C9CED6') + '"></div></div>' +
           '<span style="' + MONO + ';font-size:12px;text-align:right;color:' + signColor(t.ret_20d) + '">' + pct(t.ret_20d, 1) + '</span></div>';
       }).join('');
-      out.push(colBox(4) + secTitle('它在板块里是什么角色', '近 20 天涨幅排名 · 共 ' + esc(rl.member_count) + ' 只') + rows +
+      parts.push('<div style="display:flex;flex-direction:column;gap:2px">' + secTitle('它在板块里是什么角色', '近 20 天涨幅 · 共 ' + esc(rl.member_count) + ' 只') + rows +
         (rl.reason_text ? '<span style="font-size:12px;color:#5B6372;padding-top:4px">' + esc(rl.reason_text) + (rl.role_text ? ' → <b style="color:#14171F">' + esc(rl.role_text) + '</b>' : '') + '</span>' : '') + '</div>');
     }
 
-    // 还能持续多久
     const items = su.items || [];
     if (items.length) {
-      out.push('<div style="display:flex;flex-direction:column">' + secTitle('还能持续多久', '✓ 没问题 · ! 留意 · ◆ 支持当前判断') + items.map((it) => {
+      parts.push('<div style="display:flex;flex-direction:column">' + secTitle('还能持续多久', '✓ 没问题 · ! 留意 · ◆ 支持当前判断') + items.map((it) => {
         const ic = SUSTAIN_ICON[it.status] || SUSTAIN_ICON.na;
         return '<div style="display:grid;grid-template-columns:16px 64px minmax(0,1fr);gap:8px;padding:9px 0;' + ROW + '"><span title="' + ic.t + '" style="color:' + ic.c + ';cursor:help">' + ic.i + '</span>' +
           '<span>' + esc(SUSTAIN_LABEL[it.key] || it.key) + '</span><span style="font-size:12px;color:' + (it.status === 'warn' ? '#7A4A00' : '#5B6372') + ';line-height:1.6">' + esc(it.text) + '</span></div>';
       }).join('') + '</div>');
     }
+    return parts.join('');
+  }
 
-    // 接下来要盯的
-    const wn = d.watch_next || [];
-    if (wn.length) {
-      out.push(colBox(6) + secTitle('接下来要盯的', '走到这个条件，判断就要更新') + wn.map((w) =>
-        '<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:2px;padding:9px 0;' + ROW + '"><span>' + esc(w.text) + '</span><span style="font-size:12px;color:#7A4A00">→ ' + esc(w.then_text) + '</span></div>').join('') + '</div>');
+  // “依据”里的板块归属：主营构成 + 每个候选板块为什么算（或不算）本股的板块。
+  function sectorBasisHTML(sc) {
+    const out = [];
+    const bl = (sc.business_lines || []).filter((x) => x && x.name);
+    if (bl.length) out.push('<div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:600;color:#3A4250">主营构成</span>' +
+      rvEvidence(bl.map((x) => ({ label: x.name, text: (x.share * 100).toFixed(1) + '%' }))) + '</div>');
+    const cands = (sc.candidates || []).filter((x) => x && x.name);
+    if (cands.length) {
+      const basis = (c) => BASIS_TEXT[c.basis] || c.basis || '';
+      out.push('<div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:600;color:#3A4250">板块归属判断</span>' +
+        '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;font-size:12px">' + cands.map((c) =>
+          '<span style="color:' + (c.belongs ? '#14171F' : '#8A919E') + ';line-height:1.5">' + esc(c.name) + ' <span style="color:#A1A7B2">' + esc(SECTOR_TYPE[c.type] || c.type) + '</span></span>' +
+          '<span style="color:' + (c.belongs ? '#5B6372' : '#A1A7B2') + ';white-space:nowrap">' + (c.belongs ? (c.role === 'primary' ? '主板块 · ' : c.role === 'secondary' ? '次板块 · ' : '') : '不算 · ') + esc(basis(c)) + '</span>').join('') + '</div></div>');
     }
+    return out.join('');
+  }
+
+  function sectorHTML(d) {
+    const meta = d.meta || {}, sc = d.sectors || {}, rv = d.review;
+    const stock = curStock();
+    const out = [];
+    const cc = conclusionOf(d);
+
+    const stamp = cc && cc.source === 'model' && rv && rv.generated_at ? '生成于 ' + rv.generated_at.slice(5) : '';
+    out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') + (stamp ? ' · ' + esc(stamp) : '') +
+      (meta.state && meta.state !== 'ok' ? ' · <span style="color:#9A5B00">数据状态：' + esc(meta.state) + '</span>' : '') +
+      (meta.error ? ' · <span style="color:#9A5B00">' + esc(meta.error) + '</span>' : '') + '</span>');
+
+    // 头：方向 + 谁在驱动本股
+    const dr = sc.driver || {};
+    const drvText = sc.independent ? '不跟随板块' : dr.type_text || '';
+    const left = '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8A919E">方向</span>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;line-height:1.2;color:' + (cc ? HEAD_TONE[cc.status] || '#5B6372' : '#A1A7B2') + '">' + esc(cc ? cc.label : '暂无结论') + '</span>' + sourceChipHTML(d, cc, sectorBasisHTML(sc)) + '</div></div>';
+    const right = !drvText ? '' : '<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:12px;color:#8A919E">谁在驱动本股</span>' +
+      '<span style="font-size:26px;font-weight:700;line-height:1.2;color:#14171F">' + esc(drvText) + '</span></div>';
+    const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
+    const sentence = cc && cc.text ? '<p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
+    const note = cc && cc.pending ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">AI 正在解读，完成后自动给出结论。</span>'
+      : rv && d.review_state === 'refreshing' ? '<span style="font-size:12px;color:#7A4A00;line-height:1.7">这是上一份体检，新的正在生成，完成后自动更新。</span>'
+      : !rv && d.review_state === 'unavailable' ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(d.review_error || '这只股票暂时没法做板块体检。') + '</span>' : '';
+
+    // 信号表：主板块、次板块、驱动、分歧
+    const rows = [];
+    const merged = (sc.merged || []).filter((m) => m && m.name);
+    [['primary', '主板块'], ['secondary', '次板块']].forEach((k) => {
+      const sec = sc[k[0]];
+      if (!sec) return;
+      const stage = (sec.stage || {}).current;
+      const w = num(sec.driver_weight);
+      rows.push(signalRow(k[1], esc(sec.name) + (stage ? ' · ' + esc(STAGE_LABEL[stage] || stage) : ''),
+        esc(sec.tag_text || '') + (w != null ? ' · 解释本股 ' + Math.round(w * 100) + '%' : '') +
+        (k[0] === 'primary' && merged.length ? '<br>' + merged.map((m) => '「' + esc(m.name) + '」与它高度重合（' + Math.round(m.overlap * 100) + '%），已合并').join('；') : ''),
+        STAGE_TONE[stage] || 'neutral'));
+    });
+    if (dr.type_text && num(dr.r2) != null) rows.push(signalRow('驱动', esc(dr.type_text), '近 ' + esc(dr.days || 60) + ' 日，板块合计解释本股 ' + Math.round(dr.r2 * 100) + '% 的走势', 'neutral'));
+    const dv = sc.divergence || {};
+    if (dv.active) rows.push(signalRow('板块分歧', '两个板块走势不一致', esc(dv.text || ''), 'warn'));
+    out.push('<div style="display:flex;flex-direction:column;gap:18px">' + head + sentence + note + (rows.length ? '<div style="display:flex;flex-direction:column;margin-top:-6px">' + rows.join('') + '</div>' : '') +
+      (sc.independent ? '<span style="font-size:12px;color:#5B6372">这只股票最近不明显跟随任何板块</span>' : '') + '</div>');
+
+    // 两个板块各自的详情（主板块默认展开）
+    const secs = [['primary', '主板块'], ['secondary', '次板块']].filter((k) => sc[k[0]]);
+    if (secs.length) {
+      out.push('<div style="display:flex;flex-direction:column;gap:2px">' + secTitle('板块详情', '点开看走势、阶段和角色') + '<div class="acc-list">' + secs.map((k, i) => {
+        const sec = sc[k[0]], stage = (sec.stage || {}).current;
+        return '<details class="acc"' + (i === 0 ? ' open' : '') + '><summary><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[STAGE_TONE[stage] || 'neutral'] + '"></span>' +
+          '<span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:#8A919E">' + k[1] + ' · </span>' + esc(sec.name) + ' <span class="pill" style="background:#F4F5F7;color:#5B6372">' + esc(SECTOR_TYPE[sec.type] || sec.type) + '</span></span>' +
+          '<span style="flex:none;font-size:12px;color:' + (STAGE_TONE[stage] === 'warn' ? '#7A4A00' : '#5B6372') + '">' + esc(STAGE_LABEL[stage] || '') + '</span></summary>' +
+          '<div class="acc-body" style="gap:16px;padding-top:6px">' + sectorBodyHTML(sec) + '</div></details>';
+      }).join('') + '</div></div>');
+    }
+
+    const rvBody = reviewBodyHTML(d);
+    if (rvBody) out.push(rvBody);
 
     const method = meta.source_text;
     out.push('<div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">' +
@@ -2266,8 +2308,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   }
 
   // ---- 右侧 6 个方面的标签 / 折叠栏 ----
-  const DIM6 = [['flow', 'Flow', '资金流', 'volume_flow', '资'], ['news', 'News', '新闻', 'news', '新'], ['over', 'Over', '海外', null, '海'],
-    ['sector', 'Sector', '板块', 'sector', '板'], ['fin', 'Fin', '财报', 'finance', '财'], ['fund', 'Fund', '基本面', 'fundamental', '基']];
+  const DIM6 = [['fund', 'Fund', '基本面', 'fundamental', '基'], ['fin', 'Fin', '财报', 'finance', '财'], ['flow', 'Flow', '资金流', 'volume_flow', '资'],
+    ['news', 'News', '新闻', 'news', '新'], ['sector', 'Sector', '板块', 'sector', '板'], ['over', 'Over', '海外', null, '海']];
   const LEAN_DOT = { bullish: '#D9483F', bearish: '#2E8B57' };
   const HEAD_TONE_DOT = { support: LEAN_DOT.bullish, warn: LEAN_DOT.bearish, neutral: '#A1A7B2' };
   function dimState(code, key) {
@@ -2277,8 +2319,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       const e = synthCache[code];
       return { ring: true, title: e && e.status === 'loading' ? '分析中' : e && e.status === 'error' ? '诊断失败' : '点开这只股票后开始分析' };
     }
-    // 资金流、新闻、基本面、财报的标签跟各自详情里的结论走：偏多红、偏空绿、不明灰；AI 还在判断时先灰着。详情没加载前用综合诊断里的。
-    const own = { volume_flow: 'flow', news: 'news', fundamental: 'fund', finance: 'fin' }[key];
+    // 资金流、新闻、基本面、财报、板块的标签跟各自详情里的结论走：偏多红、偏空绿、不明灰；AI 还在判断时先灰着。详情没加载前用综合诊断里的。
+    const own = { volume_flow: 'flow', news: 'news', fundamental: 'fund', finance: 'fin', sector: 'sector' }[key];
     if (own) {
       const fe = dimCache[own + ':' + code], cc = fe && fe.status === 'done' && fe.data ? conclusionOf(fe.data) : null;
       if (cc) return { color: cc.pending ? '#A1A7B2' : HEAD_TONE_DOT[cc.status] || '#A1A7B2', title: cc.pending ? 'AI 判断中' : cc.text };
