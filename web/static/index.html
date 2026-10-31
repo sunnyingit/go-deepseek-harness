@@ -512,10 +512,13 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const CERTAINTY = { low: '把握低', medium: '把握一般', high: '把握高' };
   const CATEGORY = { earnings: '业绩', ops: '经营', operation: '经营', operations: '经营', capital: '资本', governance: '风险与治理', industry: '政策与行业', macro: '宏观与市场', opinion: '观点', rumor: '传闻与澄清' };
   const GRADE = { A: 'A 公告', B: 'B 官方数据', C: 'C 媒体', D: 'D 研报', E: 'E 自媒体' };
+  // priced_in：mostly 基本反应了 / partly 部分反应 / not_yet 还没反应 / unknown 无法判断（不显示）。partial、priced_in 是旧值。
   const PRICED = {
-    not_yet: { label: '还没反应', style: '' },
-    partial: { label: '部分已反应', style: 'background:#FFF4E0;color:#7A4A00' },
-    priced_in: { label: '已反应', style: 'background:#EEF0F3;color:#4A5260' },
+    mostly: { label: '基本反应了', tone: 'neutral' },
+    partly: { label: '部分反应', tone: 'warn' },
+    not_yet: { label: '还没反应', tone: 'neutral' },
+    priced_in: { label: '基本反应了', tone: 'neutral' },
+    partial: { label: '部分反应', tone: 'warn' },
   };
 
   // Turn whatever went wrong into something a person can act on. `kind` is only
@@ -704,8 +707,15 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       svg += '<rect class="bh" data-i="' + i + '" data-x="' + x(i).toFixed(1) + '" data-y="' + y(b.close).toFixed(1) + '" x="' + bx.toFixed(1) + '" y="0" width="' + bw.toFixed(1) + '" height="128" fill="transparent"></rect>';
     });
     const stem = (cx, cy, color) => '<line x1="' + cx + '" y1="' + cy + '" x2="' + cx + '" y2="128" stroke="' + color + '" stroke-width="1" stroke-dasharray="2 2" opacity="0.5"></line>';
+    // 悬停在事件上也要看到当天的股价：收盘价、较前一天涨跌、相对板块。
+    const dayLine = (date) => {
+      const i = idx[date], b = bars[i];
+      if (i == null || !b) return [];
+      const prev = i > 0 ? bars[i - 1].close : null, ex = num(b.excess_vs_sector);
+      return [['', mmdd(date) + (b.is_intraday ? ' 现价 ' : ' 收盘 ') + b.close.toFixed(2) + (prev ? ' · ' + pct((b.close - prev) / prev, 2) : '') + (ex != null ? ' · 相对板块 ' + pct(ex, 2) : ''), 1, 1]];
+    };
     const marker = (cx, cy, r, color, ms, label, extra) => {
-      const lines = tipLines(ms).concat(extra || []);
+      const lines = dayLine(ms[0].date).concat(tipLines(ms), extra || []);
       return '<g class="mk" tabindex="0" data-tip="' + esc(JSON.stringify(lines)) + '" aria-label="' + esc(lines.map((l) => l.join(' ')).join('；')) + '">' +
         stem(cx, cy, color) +
         '<circle class="dot" cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + color + '" stroke="#FFFFFF" stroke-width="1.5"></circle>' +
@@ -760,6 +770,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       if (l[2]) {
         row.className = 'tt';
         row.textContent = l[1];
+        if (l[3]) { row.style.fontWeight = '600'; row.style.color = '#FFFFFF'; row.style.marginBottom = '2px'; }
       } else {
         const time = document.createElement('span');
         time.className = 'tt';
@@ -937,7 +948,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       return status + '<span style="font-size:13px;color:#5B6372;line-height:1.7">' + (d._stalled ? '新闻整理得比较慢，过一会儿再点“更新”看看。' : '正在整理新闻，完成后自动更新。') + '</span>';
     }
     const cc = conclusionOf(d);
-    const priced = PRICED[re.priced_in] || { label: re.priced_in || '—', style: '' };
+    const priced = PRICED[re.priced_in];
     const pre = num(re.pre_excess_5d), today = re.today || {}, chg = num(today.chg), heat = d.heat || {};
 
     const left = '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8A919E">方向</span>' +
@@ -952,7 +963,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       '<span style="display:flex;align-items:center;gap:6px;font-weight:600;color:' + (tone === 'warn' ? '#7A4A00' : '#14171F') + '"><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[tone || 'neutral'] + '"></span>' + valueHTML + '</span>' +
       (detail ? '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + detail + '</span>' : '') + '</div></div>';
     const rows = [];
-    if (re.priced_in) rows.push(row('已反应？', esc(priced.label), pre != null ? '消息前 5 天已' + (pre >= 0 ? '跑赢' : '跑输') + '板块 ' + esc(pct(Math.abs(pre), 1).replace(/^[+−]/, '')) : '', re.priced_in === 'partial' ? 'warn' : 'neutral'));
+    if (priced) rows.push(row('已反应？', esc(priced.label), pre != null ? '消息前 5 天已' + (pre >= 0 ? '跑赢' : '跑输') + '板块 ' + esc(pct(Math.abs(pre), 1).replace(/^[+−]/, '')) : '', priced.tone));
     if (today.text) rows.push(row('今天走势', todayTextHTML(today, d), '', 'neutral'));
     if (heat.risk_hit) rows.push(row('新闻热度', '偏热，留意炒作', '近期报道很多，但没有官方公告或数据来源', 'warn'));
     else if (num(heat.news_count_pctile_60d) != null) rows.push(row('新闻热度', '近 60 天第 ' + Math.round(heat.news_count_pctile_60d * 100) + ' 分位', '', 'neutral'));
@@ -1082,7 +1093,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       return { pending: true, label: '判断中', text: '', status: 'neutral', source: '' };
     }
     const pick = [d.headline, d.verdict].find((x) => x && x.text);
-    return pick ? { text: pick.text, status: pick.status, label: pick.status_text || (RV_STATUS[pick.status] || {}).text || '不明', source: pick.source === 'model' ? 'model' : 'rule' } : null;
+    return pick ? { text: String(pick.text).replace(/^一句话[：:]\s*/, ''), status: pick.status, label: pick.status_text || (RV_STATUS[pick.status] || {}).text || '不明', source: pick.source === 'model' ? 'model' : 'rule' } : null;
   };
   const FOLLOW_TONE = { strong: 'ok', yes: 'ok', mixed: 'neutral', weak: 'neutral', none: 'warn' };
   const FOLLOW_ITEM = { agree: TONE_DOT.ok, disagree: TONE_DOT.warn, neutral: TONE_DOT.neutral };
@@ -1307,7 +1318,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (!rv) return '';
     const out = [];
     const sumText = ((d.headline || {}).text) || (rv.summary || {}).text;
-    const items = (rv.items || []).filter((it) => !(it.key === 'q10' && it.answer === sumText));
+    const items = (rv.items || []).filter((it) => !(sumText && it.answer === sumText));
     if (items.length) {
       out.push('<div style="display:flex;flex-direction:column;gap:2px">' + secTitle('逐项解读', items.length + ' 个问题 · 点开看回答') + '<div class="acc-list">' + items.map((it) => accRow(
         '<span style="min-width:0">' + esc(it.title) + '</span>' + rvStatus(it.status, it.status_text),
@@ -1324,6 +1335,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   // 资金流是 AI 体检（computing / refreshing）；新闻的 computing 在 waitNews 里处理（整理期间保持分析中动画）。
   const PENDING = {
     flow: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
+    fund: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
   };
   function watchPending(dim, code, entry, n) {
     const P = PENDING[dim];
@@ -1419,34 +1431,57 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       (med != null ? '<span style="margin-left:auto">竖线为行业中位数 ' + med.toFixed(1) + '</span>' : '') + '</div>';
   }
 
-  function fundHTML(d) {
-    const v = d.verdict || {}, meta = d.meta || {}, val = d.valuation || {}, q = d.quality || {};
-    const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
-    const out = [];
+  // 三格小结：估值 / 质地 / 股东行为。level → 圆点颜色（偏便宜、较好、股东偏多 = 好；偏贵、偏弱、股东偏空 = 要留意）。
+  const CELL_TONE = { cheap: 'ok', strong: 'ok', positive: 'ok', expensive: 'warn', weak: 'warn', negative: 'warn' };
 
-    out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') +
+  // 业务驱动和客户：模型整理的背景，不是实时数据。
+  function profileHTML(d) {
+    const p = (d.review || {}).profile;
+    if (!p) return '';
+    const up = (p.drivers_up || []).filter(Boolean), down = (p.drivers_down || []).filter(Boolean), pt = (p.partners || []).filter((x) => x && x.name);
+    if (!up.length && !down.length && !pt.length && !p.link) return '';
+    const list = (title, items, color) => items.length ? '<div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:600;color:#3A4250">' + title + '</span>' + items.map((t) =>
+      '<span style="display:flex;gap:6px;font-size:12px;color:#5B6372;line-height:1.6"><span aria-hidden="true" style="flex:none;width:4px;height:4px;border-radius:50%;margin-top:8px;background:' + color + '"></span>' + esc(t) + '</span>').join('') + '</div>' : '';
+    return '<div style="display:flex;flex-direction:column;gap:2px">' + secTitle('业务驱动和客户', '模型整理 · 点开看') + '<div class="acc-list">' + accRow(
+      '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#14171F">' + esc(p.link || '行业利好、利空因素和主要客户') + '</span>',
+      (p.link ? '<span style="font-size:13px;color:#3A4250;line-height:1.7">' + esc(p.link) + '</span>' : '') +
+      list('利好因素', up, UP) + list('利空因素', down, DOWN) +
+      (pt.length ? '<div style="display:flex;flex-direction:column;gap:3px"><span style="font-weight:600;color:#3A4250">主要客户和渠道</span>' + pt.map((x) =>
+        '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(x.name) + (x.relation || x.note ? ' · ' + esc([x.relation, x.note].filter(Boolean).join('，')) : '') + '</span>').join('') + '</div>' : '') +
+      (p.note ? '<span style="font-size:11px;color:#A1A7B2;line-height:1.6">' + esc(p.note) + '</span>' : '')) + '</div></div>';
+  }
+
+  function fundHTML(d) {
+    const meta = d.meta || {}, val = d.valuation || {}, q = d.quality || {}, rv = d.review;
+    const out = [];
+    const cc = conclusionOf(d);
+
+    const stamp = cc && cc.source === 'model' && rv && rv.generated_at ? '生成于 ' + rv.generated_at.slice(5) : '';
+    out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') + (stamp ? ' · ' + esc(stamp) : '') +
       (meta.state && meta.state !== 'ok' ? ' · <span style="color:#9A5B00">数据状态：' + esc(meta.state) + '</span>' : '') + '</span>');
 
-    const cells = (v.cells || []).map((c) =>
-      '<div style="flex:1;display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:8px;background:#F7F8FA;min-width:0">' +
-      '<span style="font-size:11px;color:#8A919E">' + esc(CELL_LABEL[c.key] || c.key) + '</span>' +
-      '<span style="font-size:18px;font-weight:700;color:' + (c.level === 'quiet' ? '#5B6372' : '#14171F') + '">' + esc(c.level_text) + '</span>' +
-      '<span style="font-size:11px;color:#5B6372;line-height:1.5">' + esc(c.note_text || '') + '</span></div>').join('');
-    out.push(colBox(10) +
-      '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:22px;font-weight:700;color:' + lean.color + '">' + lean.label + '</span>' +
-      '<span style="font-size:14px;font-weight:600">' + esc(v.tag_text || '') + '</span><span style="margin-left:auto;color:#8A919E">' + (CERTAINTY[v.certainty] || '') + '</span></div>' +
-      (cells ? '<div style="display:flex;gap:8px">' + cells + '</div>' : '') +
-      (v.ai_text ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:8px;background:#EAF0FD"><span style="font-size:12px;font-weight:600;color:#1F3F8A">AI 结论</span><p style="margin:0;line-height:1.7">' + esc(v.ai_text) + '</p></div>' : '') + '</div>');
+    // 头：方向 + 估值（最关键的一个数）
+    const unit = /市盈率|市净率|市销率/.test(val.metric_text || '') ? ' 倍' : '';
+    const left = '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8A919E">方向</span>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;line-height:1.2;color:' + (cc ? HEAD_TONE[cc.status] || '#5B6372' : '#A1A7B2') + '">' + esc(cc ? cc.label : '暂无结论') + '</span>' + sourceChipHTML(d, cc) + '</div></div>';
+    const right = num(val.value) == null ? '' : '<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:12px;color:#8A919E">' + esc((val.metric_text || '估值').replace(/（.*$/, '')) + '</span>' +
+      '<span style="' + MONO + ';font-size:26px;font-weight:700;line-height:1.2">' + esc(val.value) + '<span style="font-size:14px;font-weight:600;margin-left:3px">' + unit.trim() + '</span></span></div>';
+    const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
+    const sentence = cc && cc.text ? '<p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
+    const note = cc && cc.pending ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">AI 正在解读，完成后自动给出结论。</span>'
+      : !rv && d.review_state === 'unavailable' ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(d.review_error || '这只股票暂时没法做基本面体检。') + '</span>' : '';
+
+    const rows = (d.cells || []).map((c) => '<div style="display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:start;padding:10px 0;border-top:1px solid #F1F2F4">' +
+      '<span style="font-size:12px;color:#5B6372;padding-top:1px">' + esc(CELL_LABEL[c.key] || c.key) + '</span><div style="display:flex;flex-direction:column;gap:2px;min-width:0">' +
+      '<span style="display:flex;align-items:center;gap:6px;font-weight:600;color:' + (CELL_TONE[c.level] === 'warn' ? '#7A4A00' : '#14171F') + '"><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[CELL_TONE[c.level] || 'neutral'] + '"></span>' + esc(c.level_text) + '</span>' +
+      (c.note_text ? '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + esc(c.note_text) + '</span>' : '') + '</div></div>').join('');
+    out.push('<div style="display:flex;flex-direction:column;gap:18px">' + head + sentence + note + (rows ? '<div style="display:flex;flex-direction:column;margin-top:-6px">' + rows + '</div>' : '') + '</div>');
 
     // 现在贵不贵
     if (num(val.value) != null) {
-      const unit = /市盈率|市净率|市销率/.test(val.metric_text || '') ? '倍' : '';
       const ind = meta.industry || {};
-      out.push(colBox(8) + secTitle('现在贵不贵', '主指标：' + esc(val.metric_text || '')) +
+      out.push(colBox(8) + secTitle('现在贵不贵', num(val.pctile_5y) != null ? '近 5 年 ' + Math.round(val.pctile_5y * 100) + '% 分位' + (num(val.peer_median) != null ? ' · 同行中位数 ' + val.peer_median : '') : '') +
         (val.metric_reason ? '<span style="font-size:12px;color:' + WEAK + '">已改用' + esc((val.metric_text || '').replace(/（.*$/, '')) + '：' + esc(val.metric_reason) + '</span>' : '') +
-        '<div style="display:flex;align-items:baseline;gap:8px"><span style="' + MONO + ';font-size:20px;font-weight:600">' + esc(val.value) + '</span>' +
-        '<span style="color:#5B6372">' + unit + (num(val.pctile_5y) != null ? ' · 近 5 年 ' + Math.round(val.pctile_5y * 100) + '% 分位' : '') +
-        (num(val.peer_median) != null ? ' · 同行中位数 ' + val.peer_median : '') + '</span></div>' +
         valChartHTML(d) + peerStripHTML(d) +
         (ind.name ? '<span style="font-size:11px;color:#8A919E">行业：' + esc(ind.name) + '（可比 ' + esc(ind.peer_count) + ' 家' + (ind.peers_excluded ? '，剔除 ' + esc(ind.peers_excluded) + ' 家' : '') + '）</span>' : '') + '</div>');
     }
@@ -1455,7 +1490,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const items = q.items || [];
     if (items.length) {
       const weakKey = q.weakest && q.weakest.key;
-      const rows = items.map((it) => {
+      const qrows = items.map((it) => {
         const weak = it.key === weakKey, p = num(it.peer_pctile);
         const dot = p == null ? '' : '<span style="position:absolute;left:calc(' + (p * 100).toFixed(0) + '% - 5px);top:2px;width:10px;height:10px;border-radius:50%;background:' + (weak ? WEAK_DOT : BRAND) + (it.counts === false ? ';opacity:.4' : '') + '"></span>';
         return '<span style="color:' + (weak ? WEAK : '#14171F') + '">' + esc(QUALITY_LABEL[it.key] || it.key) + '</span>' +
@@ -1464,7 +1499,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       }).join('');
       const notes = items.filter((it) => it.note_text).map((it) => esc(QUALITY_LABEL[it.key] || it.key) + '：' + esc(it.note_text));
       out.push(colBox(8) + secTitle('底子稳不稳', '在同行中的位置 · 中线为行业中位数') +
-        '<div style="display:grid;grid-template-columns:64px minmax(0,1fr) 112px;align-items:center;gap:10px 12px">' + rows +
+        '<div style="display:grid;grid-template-columns:64px minmax(0,1fr) 112px;align-items:center;gap:10px 12px">' + qrows +
         '<span></span><div style="display:flex;justify-content:space-between;font-size:11px;color:#8A919E"><span>行业最差</span><span>中位</span><span>最好</span></div><span></span></div>' +
         (q.weakest ? '<span style="font-size:12px;color:' + WEAK + '">短板：' + esc(q.weakest.text) + '</span>' : '') +
         (notes.length ? '<span style="font-size:11px;color:#8A919E;line-height:1.6">' + notes.join('；') + '</span>' : '') + '</div>');
@@ -1473,31 +1508,36 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     // 大股东和公司在做什么
     const evs = d.holder_events || [];
     const evRows = evs.map((e) => {
-      const im = HOLDER_IMPACT[e.impact] || { label: '—', color: '#8A919E' };
+      const im = HOLDER_IMPACT[e.impact];
       const when = [e.date, num(e.days_left) != null ? '剩余 ' + e.days_left + ' 天' : ''].filter(Boolean).join(' · ');
       const prog = num(e.progress);
       return '<div style="display:flex;flex-direction:column;gap:5px;padding:10px 0;' + ROW + '">' +
-        '<div style="display:flex;align-items:baseline;gap:8px"><span>' + link(e.source_url, e.title) + '</span><span style="font-size:11px;color:' + im.color + '">' + im.label + '</span>' +
+        '<div style="display:flex;align-items:baseline;gap:8px"><span>' + link(e.source_url, e.title) + '</span>' + (im ? '<span style="font-size:11px;color:' + im.color + '">' + im.label + '</span>' : '') +
         '<span style="margin-left:auto;font-size:12px;color:#5B6372;text-align:right">' + esc([e.detail_text, when].filter(Boolean).join(' · ')) + '</span>' +
         (num(e.float_ratio) != null ? '<span style="' + MONO + ';font-size:12px">' + (e.float_ratio * 100).toFixed(1) + '%</span>' : '') + '</div>' +
-        (prog != null ? '<div style="height:6px;border-radius:3px;background:#EEF0F3"><div style="width:' + Math.min(100, Math.max(0, prog * 100)).toFixed(0) + '%;height:6px;border-radius:3px;background:' + (im.label === '偏空' ? DOWN : UP) + '"></div></div>' : '') + '</div>';
+        (prog != null ? '<div style="height:6px;border-radius:3px;background:#EEF0F3"><div style="width:' + Math.min(100, Math.max(0, prog * 100)).toFixed(0) + '%;height:6px;border-radius:3px;background:' + (im && im.label === '偏空' ? DOWN : UP) + '"></div></div>' : '') + '</div>';
     }).join('');
-    out.push('<div style="display:flex;flex-direction:column">' + secTitle('大股东和公司在做什么', '影响未来几周的买卖力量') +
+    out.push('<div style="display:flex;flex-direction:column">' + secTitle('大股东和公司在做什么', '') +
       (evRows || '<div style="padding:10px 0;color:#8A919E;' + ROW + '">近期没有股东动作</div>') + '</div>');
 
+    const prof = profileHTML(d);
+    if (prof) out.push(prof);
+    const rvBody = reviewBodyHTML(d);
+    if (rvBody) out.push(rvBody);
+
     // 完整数据
-    const rows = (d.table || {}).rows || [];
-    if (rows.length) {
+    const trs = (d.table || {}).rows || [];
+    if (trs.length) {
       const th = (t, left) => '<th style="padding:6px 0;font-weight:400;color:#8A919E;text-align:' + (left ? 'left' : 'right') + '">' + t + '</th>';
       out.push(colBox(4) + secTitle('完整数据', '') +
         '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>' + th('指标', true) + th('本公司') + th('行业中位') + '</tr></thead><tbody>' +
-        rows.map((r) => '<tr style="' + ROW + '"><td style="padding:7px 0;color:#3A4250">' + esc(r.label) + '</td>' +
+        trs.map((r) => '<tr style="' + ROW + '"><td style="padding:7px 0;color:#3A4250">' + esc(r.label) + '</td>' +
           '<td style="padding:7px 0;' + MONO + ';text-align:right">' + fmtTable(r.value, r.format) + '</td>' +
           '<td style="padding:7px 0;' + MONO + ';text-align:right;color:#8A919E">' + fmtTable(r.peer_median, r.format) + '</td></tr>').join('') +
         '</tbody></table></div>');
     }
 
-    if (noDisclaimer(v.disclaimer_text)) out.push('<span style="margin-top:auto;font-size:11px;color:#A1A7B2;line-height:1.6">' + esc(noDisclaimer(v.disclaimer_text)) + '</span>');
+    if (noDisclaimer(d.disclaimer_text)) out.push('<span style="margin-top:auto;font-size:11px;color:#A1A7B2;line-height:1.6">' + esc(noDisclaimer(d.disclaimer_text)) + '</span>');
     return out.join('');
   }
 
@@ -2541,8 +2581,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       const e = synthCache[code];
       return { ring: true, title: e && e.status === 'loading' ? '分析中' : e && e.status === 'error' ? '诊断失败' : '点开这只股票后开始分析' };
     }
-    // 资金流、新闻的标签跟各自详情里的结论走：偏多红、偏空绿、不明灰；AI 还在判断时先灰着。详情没加载前用综合诊断里的。
-    const own = { volume_flow: 'flow', news: 'news' }[key];
+    // 资金流、新闻、基本面的标签跟各自详情里的结论走：偏多红、偏空绿、不明灰；AI 还在判断时先灰着。详情没加载前用综合诊断里的。
+    const own = { volume_flow: 'flow', news: 'news', fundamental: 'fund' }[key];
     if (own) {
       const fe = dimCache[own + ':' + code], cc = fe && fe.status === 'done' && fe.data ? conclusionOf(fe.data) : null;
       if (cc) return { color: cc.pending ? '#A1A7B2' : HEAD_TONE_DOT[cc.status] || '#A1A7B2', title: cc.pending ? 'AI 判断中' : cc.text };
