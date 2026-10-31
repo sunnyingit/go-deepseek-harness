@@ -90,7 +90,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 .facts>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F4F5F7;color:#5B6372;font-size:12px;line-height:20px;white-space:nowrap;user-select:none}
 .facts>summary::-webkit-details-marker{display:none}
 .facts>summary:hover,.facts[open]>summary{background:#E9EBEF;color:#14171F}
-.facts-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;max-height:min(420px,60vh);overflow:auto;padding:12px 14px;border-radius:8px;background:#FFFFFF;border:1px solid #E4E6EA;box-shadow:0 6px 18px rgba(20,23,31,.14);font-size:12px;color:#5B6372}
+.facts-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;max-height:min(420px,60vh);overflow-y:auto;overflow-x:hidden;padding:12px 14px;border-radius:8px;background:#FFFFFF;border:1px solid #E4E6EA;box-shadow:0 6px 18px rgba(20,23,31,.14);font-size:12px;color:#5B6372}
 .acc{border-top:1px solid #F1F2F4}
 .acc-list>.acc:first-child{border-top:none}
 .acc>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 0;user-select:none}
@@ -475,7 +475,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       render: (d) => sectorHTML(d),
     },
     fin: {
-      label: '财报', rootId: 'finRoot', path: 'finance/detail', timeoutMs: 120000, deps: ['flow'],
+      label: '财报', rootId: 'finRoot', path: 'finance/detail', timeoutMs: 120000,
       steps: ['读取定期报告和公告', '核对预告和去年同期', '检查财务风险项', '给出结论'],
       render: (d) => finHTML(d),
     },
@@ -1285,11 +1285,16 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const rvPill = (text, style) => '<span class="pill" style="' + style + '">' + esc(text) + '</span>';
   const rvStatus = (st, text) => { const m = RV_STATUS[st] || RV_STATUS.neutral; return rvPill(text || m.text, m.style); };
 
+  // 一行一项：短的左右对齐；长文本（主营描述、季度序列等）标签在上、内容在下并自动换行，不撑破面板。
   function rvEvidence(list) {
     const rows = (list || []).filter((e) => e && e.label);
     if (!rows.length) return '';
     return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;font-size:12px">' +
-      rows.map((e) => '<span style="color:#5B6372;line-height:1.5">' + esc(e.label) + '</span><span style="' + MONO + ';text-align:right;color:#14171F;white-space:nowrap">' + esc(e.text) + '</span>').join('') + '</div>';
+      rows.map((e) => {
+        const t = String(e.text == null ? '' : e.text);
+        if (t.length > 18) return '<span style="grid-column:1/-1;color:#5B6372;line-height:1.5;margin-top:3px">' + esc(e.label) + '</span><span style="grid-column:1/-1;color:#14171F;line-height:1.6;overflow-wrap:anywhere">' + esc(t) + '</span>';
+        return '<span style="color:#5B6372;line-height:1.5">' + esc(e.label) + '</span><span style="' + MONO + ';text-align:right;color:#14171F;white-space:nowrap">' + esc(t) + '</span>';
+      }).join('') + '</div>';
   }
 
   // 折叠行：一行标题，点开才看说明。
@@ -1336,6 +1341,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const PENDING = {
     flow: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
     fund: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
+    fin: { state: (d) => d.review_state, pending: (st) => st === 'computing' || st === 'refreshing' },
   };
   function watchPending(dim, code, entry, n) {
     const P = PENDING[dim];
@@ -1543,372 +1549,62 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 
   // ===== 财报维度 =====
   // GET {stock-api-base}/api/v1/stocks/{ts_code}/dimensions/finance/detail
-  // The analysis (verdict/surprise/chain/growth/table) is always about the LAST
-  // disclosed report; while the next one is still pending (meta.phase ===
-  // 'upcoming') next_disclosure/preview_basis say when and against what it will
-  // be judged. red_line has only ever been null, so its shape is unknown.
-  const FIN_REFERENCE = { last_year: '去年同期', preview: '业绩预告' };
-  const FIN_METRIC = { revenue: '营业收入', net_profit_deducted: '扣非净利润', net_profit_parent: '归母净利润', ocf: '经营现金流', gross_margin: '毛利率' };
-  const NODE_LABEL = { preview: '业绩预告', report: '正式报告' };
-  const SUE_LEVEL = { inline: '在正常波动范围内', normal: '在正常波动范围内' };
-  const ASKS = ['比预期好还是差（和预告、去年同期比）', '增长靠主业还是一次性因素', '利润是不是真的、有没有监管红线'];
-  const fmtMoney = (v) => {
-    if (num(v) == null) return '—';
-    const a = Math.abs(v);
-    return (v < 0 ? '−' : '') + (a >= 1e8 ? (a / 1e8).toFixed(2) + ' 亿' : a >= 1e4 ? (a / 1e4).toFixed(1) + ' 万' : String(a));
-  };
+  // 只讲最近一份定期报告带来的变化：方向 + 单季营收同比 → 结论 → 小结表 → 近 8 个季度 → 逐项解读。
+  const FIN_TONE = { up: 'ok', good: 'ok', down: 'warn', loss: 'warn', poor: 'warn' };
   const yi2 = (v) => (num(v) == null ? '—' : (v / 1e8).toFixed(2));
-  const periodLabel = (p) => String(p || '').replace(/^(\d{4})Q(\d)$/, '$1 年第 $2 季度单季');
-  // Series periods are report periods (…H1, …FY) holding single-quarter values.
-  const quarterOf = (p) => String(p).replace(/^(\d{4})H1$/, '$1Q2').replace(/^(\d{4})FY$/, '$1Q4');
-  const monthDay = (iso) => (iso || '').slice(5, 10);
+  const qLabel = (end) => String(end || '').replace(/^(\d{4})(\d{2})\d{2}$/, (m, y, mo) => y + ' Q' + ({ '03': 1, '06': 2, '09': 3, '12': 4 }[mo] || '?'));
 
-  // 参照是一个区间（业绩预告）：区间两端直接标数值，中间一根中值刻度，本季用醒目的竖标。
-  // The quarter the whole analysis is about (the last disclosed report's single quarter).
-  // It is not the quarter still waiting to be disclosed, so it gets an explicit marker.
-  const CN_Q = ['', '一', '二', '三', '四'];
-  function currentQuarter(meta, table) {
-    const rep = (meta || {}).report || {};
-    const m = /^(\d{4})(H1|FY|Q(\d))$/.exec(rep.period || '');
-    if (m) {
-      const q = m[2] === 'H1' ? 2 : m[2] === 'FY' ? 4 : Number(m[3]);
-      return { long: m[1] + ' 年第' + CN_Q[q] + '季度单季', short: m[1] + ' Q' + q, src: rep.label || '' };
-    }
-    const t = table && table.period_text;
-    return t ? { long: t, short: t, src: '' } : null;
-  }
-  const qPill = (t) => '<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EAF0FD;color:#1F3F8A;font-size:11px;font-weight:600;white-space:nowrap">' + esc(t) + '</span>';
-
-  function rangeBarHTML(b) {
-    const a = num(b.actual), lo = num(b.ref_low), hi = num(b.ref_high);
-    if (a == null || lo == null || hi == null) return '';
-    const R = hi - lo;
-    const vLo = Math.min(lo - 0.9 * R, a - 0.1 * R), vHi = Math.max(hi + 0.9 * R, a + 0.1 * R);
-    const p = (x) => Math.min(100, Math.max(0, ((x - vLo) / (vHi - vLo)) * 100));
-    const mark = num(b.deviation_vs_mid) > 0 ? UP : num(b.deviation_vs_mid) < 0 ? DOWN : '#14171F';
-    const edge = (x, v) => '<span style="position:absolute;left:' + p(x).toFixed(1) + '%;top:26px;transform:translateX(-50%);white-space:nowrap;font-size:10px;color:#8A919E;' + MONO + '">' + v + '</span>';
-    const fmtEdge = (v) => (Math.abs(v) >= 1e8 ? (v / 1e8).toFixed(2) + ' 亿' : (v / 1e4).toFixed(0) + ' 万');
-    return '<div style="position:relative;height:42px">' +
-      '<div style="position:absolute;left:0;right:0;top:11px;height:4px;border-radius:2px;background:#EEF0F3"></div>' +
-      '<div style="position:absolute;left:' + p(lo).toFixed(1) + '%;width:' + (p(hi) - p(lo)).toFixed(1) + '%;top:7px;height:12px;border-radius:3px;background:#E3E6EB"></div>' +
-      '<div style="position:absolute;left:' + p((lo + hi) / 2).toFixed(1) + '%;top:5px;width:1px;height:16px;background:#A1A7B2"></div>' +
-      '<div title="本季 ' + esc(fmtMoney(a)) + '" style="position:absolute;left:calc(' + p(a).toFixed(1) + '% - 2px);top:0;width:4px;height:26px;border-radius:2px;background:' + mark + '"></div>' +
-      edge(lo, fmtEdge(lo)) + edge(hi, fmtEdge(hi)) + '</div>';
-  }
-
-  // 参照只是一个点（去年同期）：本季和参照并排两条横条，各自标数值。
-  function pairBarsHTML(b) {
-    const a = num(b.actual), r = num(b.ref_low);
-    if (a == null || r == null) return '';
-    const max = Math.max(Math.abs(a), Math.abs(r)) || 1;
-    const line = (label, v, fill, valColor) =>
-      '<span style="color:#5B6372">' + esc(label) + '</span>' +
-      '<div style="height:8px;border-radius:2px;background:#F1F2F4"><div style="width:' + (Math.abs(v) / max * 100).toFixed(1) + '%;height:8px;border-radius:2px;background:' + fill + '"></div></div>' +
-      '<span style="' + MONO + ';text-align:right;color:' + valColor + '">' + fmtMoney(v) + '</span>';
-    return '<div style="display:grid;grid-template-columns:56px minmax(0,1fr) 68px;align-items:center;gap:6px 8px;font-size:12px">' +
-      line('本季', a, '#14171F', '#14171F') + line(b.ref_text || '参照', r, '#A1A7B2', '#8A919E') + '</div>';
-  }
-
-  function surpriseHTML(sp, cq) {
-    const bars = sp.bars || [];
-    if (!bars.length) return '';
-    const rows = bars.map((b) => {
-      const hasRange = num(b.ref_high) != null && num(b.ref_low) != null && b.ref_high !== b.ref_low;
-      const head = '<div style="display:flex;align-items:baseline"><span>' + esc(FIN_METRIC[b.metric] || b.metric) + '</span>' +
-        '<span style="margin-left:auto;' + MONO + ';font-weight:600;color:' + (hasRange && num(b.deviation_vs_mid) > 0 ? '#D9483F' : '#14171F') + '">' + fmtMoney(b.actual) + '</span></div>';
-      return colBox(8) + head + (hasRange ? rangeBarHTML(b) : pairBarsHTML(b)) +
-        '<div style="display:flex;font-size:11px;color:#8A919E"><span>' + (hasRange ? esc(b.ref_text || '参照区间') + '（中间的竖线是中值）' : '') + '</span>' +
-        '<span style="margin-left:auto;color:#3A4250;font-size:12px">' + esc(b.verdict_text || '') + '</span></div></div>';
-    }).join('');
-    const sue = num(sp.sue);
-    return colBox(14) + secTitle('比预期好还是差', esc((sp.reference_text || '').split(' · ')[0])) +
-      (cq ? '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:#5B6372;margin-top:-6px"><span>分析的季度</span>' + qPill(cq.long) + (cq.src ? '<span style="color:#8A919E">· 来自 ' + esc(cq.src) + '，不是待披露的季度</span>' : '') + '</div>' : '') + rows +
-      (sue != null ? '<span style="font-size:12px;color:#5B6372">按公司过去 8 个季度的波动衡量，这次偏离是 <span style="' + MONO + ';color:' + signColor(sue) + '">' +
-        (sue > 0 ? '+' : sue < 0 ? '−' : '') + Math.abs(sue).toFixed(2) + '</span> 个标准差，属于“' + esc(SUE_LEVEL[sp.sue_level] || sp.sue_level || '—') + '”</span>' : '') +
-      (sp.small_base ? '<span style="font-size:11px;color:#8A919E">基数很小，同比百分比仅供参考</span>' : '') + '</div>';
-  }
-
-  function chainHTML(ch) {
-    const nodes = ch.nodes || [];
-    if (!nodes.length) return '';
-    const n = nodes.length;
-    let lastDone = -1;
-    nodes.forEach((x, i) => { if (x.status === 'done') lastDone = i; });
-    const cols = nodes.map((x) => {
-      const done = x.status === 'done', rx = x.reaction;
-      const rxColor = rx && num(rx.day_excess) != null ? signColor(rx.day_excess) : '#8A919E';
-      return '<div style="flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0">' +
-        '<span style="width:10px;height:10px;border-radius:50%;background:' + (done ? '#14171F' : '#FFFFFF') + ';border:2px solid #14171F;box-sizing:border-box;position:relative;z-index:1"></span>' +
-        '<span style="font-size:11px;color:#8A919E">' + esc(monthDay(x.date)) + '</span>' +
-        '<span style="font-weight:600;font-size:12px">' + (x.status === 'next' ? '下一节点' : esc(NODE_LABEL[x.node] || x.node)) + '</span>' +
-        '<span style="font-size:11px;color:#5B6372">' + (x.summary_text && x.summary_text !== (NODE_LABEL[x.node] || '') ? link(x.source_url, x.summary_text) : link(x.source_url, '—')) + '</span>' +
-        '<span style="font-size:11px;color:' + rxColor + '">' + esc(rx && rx.text ? rx.text : done ? '—' : '待发布') + '</span></div>';
-    }).join('');
-    const black = lastDone > 0 ? '<div style="position:absolute;left:5px;width:calc(' + (lastDone / n * 100).toFixed(1) + '%);top:4px;height:2px;background:#14171F"></div>' : '';
-    const gray = n - 1 > Math.max(lastDone, 0)
-      ? '<div style="position:absolute;left:calc(' + (Math.max(lastDone, 0) / n * 100).toFixed(1) + '% + 5px);width:calc(' + ((n - 1 - Math.max(lastDone, 0)) / n * 100).toFixed(1) + '%);top:4px;height:2px;background:#DDE1E7"></div>' : '';
-    return colBox(10) + secTitle('披露链', '每一步只看新增的信息') +
-      '<div style="position:relative;display:flex;gap:8px">' + black + gray + cols + '</div>' +
-      (ch.new_info_text ? '<span style="font-size:12px;color:#5B6372">' + esc(ch.new_info_text) + '</span>' : '') + '</div>';
-  }
-
-  // 披露后的反应：三个时段的超额收益 + 次日量能。接口只给超额收益（相对基准），
-  // 不给披露日前后的具体股价，所以这里只画收益，不编价格。
-  function reactionHTML(ch, d) {
-    const rd = ch.reaction_detail || {};
-    const tiles = [['披露前 10 日', num(rd.pre_excess_10d)], ['次日', num(rd.t1_excess)], ['次日起 3 日', num(rd.t1_t3_excess)]].filter((t) => t[1] != null);
-    const vr = num(rd.t1_vol_ratio);
-    if (!tiles.length && vr == null) return '';
-    const maxAbs = Math.max.apply(null, tiles.map((t) => Math.abs(t[1])).concat([0.01]));
-    const done = (ch.nodes || []).filter((n) => n.status === 'done' && n.node === 'report').pop();
-    const rep = (d.meta || {}).report;
-    const tile = (t) => {
-      const v = t[1], c = v >= 0 ? UP : DOWN;
-      return '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;padding:10px 10px 12px;border-radius:8px;background:#F7F8FA">' +
-        '<span style="font-size:11px;color:#8A919E">' + t[0] + '</span>' +
-        '<span style="' + MONO + ';font-size:18px;font-weight:700;color:' + signColor(v) + '">' + pct(v, 1) + '</span>' +
-        '<div style="position:relative;height:6px;border-radius:3px;background:#EEF0F3"><div style="position:absolute;left:50%;top:-1px;width:1px;height:8px;background:#C9CED6"></div>' +
-        '<div style="position:absolute;top:0;height:6px;border-radius:3px;background:' + c + ';' + (v >= 0 ? 'left:50%' : 'right:50%') + ';width:' + (Math.abs(v) / maxAbs * 50).toFixed(1) + '%"></div></div></div>';
-    };
-    let vol = '';
-    if (vr != null) {
-      const label = vr >= 1.2 ? '放量' : vr <= 0.8 ? '缩量' : '量能持平';
-      const color = vr >= 1.2 ? UP_TXT : vr <= 0.8 ? '#5B6372' : '#5B6372';
-      vol = '<div style="display:grid;grid-template-columns:72px minmax(0,1fr) auto;align-items:center;gap:10px">' +
-        '<span style="font-size:12px;color:#5B6372">次日成交量</span>' +
-        '<div style="position:relative;height:8px;border-radius:2px;background:#F1F2F4"><div style="width:' + (Math.min(vr, 2) / 2 * 100).toFixed(1) + '%;height:8px;border-radius:2px;background:' + (vr >= 1.2 ? UP : '#A1A7B2') + '"></div>' +
-        '<div title="平时的量能" style="position:absolute;left:50%;top:-2px;width:1px;height:12px;background:#5B6372"></div></div>' +
-        '<span style="font-size:12px;white-space:nowrap"><span style="' + MONO + ';font-weight:600">' + vr.toFixed(2) + ' 倍</span> <span style="color:' + color + '">' + label + '</span></span></div>';
-    }
-    return colBox(10) + secTitle('披露后的反应', '上次：' + esc((rep && rep.label) || '正式报告') + (done ? ' · ' + esc(monthDay(done.date)) : '')) +
-      '<div style="display:flex;gap:8px">' + tiles.map(tile).join('') + '</div>' + vol +
-      (rd.limit_state && rd.limit_state !== 'none' ? '<span style="font-size:11px;color:#7A4A00">涨跌停状态：' + esc(rd.limit_state) + '</span>' : '') +
-      '<span style="font-size:11px;color:#8A919E;line-height:1.6">超额收益：相对基准的涨跌幅，不是股价本身的涨跌。收益条中间的竖线是 0，成交量条中间的竖线是平时的量能。</span></div>';
-  }
-
-  // 下次披露前的股价：复用资金流接口里已有的价格序列（最近 20 个交易日）。
-  function priceStripHTML(code, nd) {
-    const fl = dimCache['flow:' + code];
-    if (!fl || fl.status === 'error') return '';
-    if (fl.status === 'loading') return '<span style="font-size:11px;color:#8A919E">股价走势加载中…</span>';
-    const bars = (((fl.data || {}).price_volume || {}).bars || []).filter((b) => num(b.close) != null);
-    const n = bars.length;
-    if (n < 3) return '';
-    const last = bars[n - 1];
-    const back = (k) => (n > k ? last.close / bars[n - 1 - k].close - 1 : null);
-    const c10 = back(10), cAll = last.close / bars[0].close - 1;
-    const closes = bars.map((b) => b.close);
-    const lo = Math.min.apply(null, closes), hi = Math.max.apply(null, closes);
-    const x = (i) => 4 + (i / (n - 1)) * 192, y = (c) => 38 - ((c - lo) / (hi - lo || 1)) * 30;
-    let svg = '<polyline points="' + bars.map((b, i) => x(i).toFixed(1) + ',' + y(b.close).toFixed(1)).join(' ') + '" fill="none" stroke="#14171F" stroke-width="1.5" stroke-linejoin="round"></polyline>' +
-      '<circle cx="' + x(n - 1).toFixed(1) + '" cy="' + y(last.close).toFixed(1) + '" r="2.6" fill="#14171F"></circle>';
-    const step = 192 / (n - 1);
-    bars.forEach((b, i) => {
-      svg += '<rect class="bh" data-i="' + i + '" data-x="' + x(i).toFixed(1) + '" data-y="' + y(b.close).toFixed(1) + '" x="' + Math.max(0, x(i) - step / 2).toFixed(1) + '" y="0" width="' + step.toFixed(1) + '" height="44" fill="transparent"></rect>';
-    });
-    svg += '<line class="xh-line" x1="0" y1="2" x2="0" y2="44" stroke="#14171F" stroke-width="1" opacity="0.35" pointer-events="none" style="display:none"></line>' +
-      '<circle class="xh-dot" cx="0" cy="0" r="3.5" fill="#14171F" stroke="#FFFFFF" stroke-width="1.5" pointer-events="none" style="display:none"></circle>';
-    const data = bars.map((b) => [b.date, b.close, null, false, b.volume]);
-    const stat = (label, v) => '<span style="color:#8A919E">' + label + '</span><span style="' + MONO + ';text-align:right;color:' + signColor(v) + '">' + (v == null ? '—' : pct(v, 2)) + '</span>';
-    return '<div style="display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid #F1F2F4">' +
-      '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:12px;color:#8A919E">披露前的股价</span>' +
-      '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + esc(mmdd(last.date)) + ' 收盘 · 近 ' + (n - 1) + ' 个交易日</span></div>' +
-      '<div style="display:grid;grid-template-columns:minmax(0,1fr) 128px;gap:12px;align-items:center">' +
-      '<div class="chart-wrap" style="position:relative" data-xh-bottom="44" data-bars="' + esc(JSON.stringify(data)) + '"><svg viewBox="0 0 200 44" style="width:100%;height:auto;display:block" aria-label="披露前的股价走势">' + svg + '</svg><div class="chart-tip" role="tooltip" hidden></div></div>' +
-      '<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 8px;font-size:12px"><span style="color:#8A919E">现价</span><span style="' + MONO + ';text-align:right;font-weight:600">' + last.close.toFixed(2) + '</span>' +
-      stat('今日', num(last.chg)) + stat('近 10 日', c10) + stat('近 ' + (n - 1) + ' 日', cAll) + '</div></div>' +
-      '<span style="font-size:11px;color:#8A919E;line-height:1.6">股价本身的涨跌（不是超额）；距' + esc(nd.label || '披露') + (nd.date ? ' ' + esc(nd.date.slice(5)) : '') + ' 披露' +
-      (num(nd.days_left) != null ? '还有 ' + nd.days_left + ' 天' : '') + '。</span></div>';
-  }
-
-  // "近 4 季扣非同比 2025Q3 -33%、2025Q4 由负转正、2026Q1 基数过低、2026Q2 +108%"
-  // 是接口拼好的一句话；能拆成「季度 + 结果」就画成小块，拆不出来就原样显示。
-  function parseTrend(text) {
-    const t = String(text || '');
-    const first = t.search(/\d{4}Q\d/);
-    if (first < 0) return null;
-    const items = t.slice(first).split(/[、，,]/).map((x) => /^\s*(\d{4})Q(\d)\s*(.+?)\s*$/.exec(x));
-    if (!items.length || items.some((m) => !m)) return null;
-    return { title: t.slice(0, first).trim() || '近几季趋势', items: items.map((m) => ({ q: m[1] + ' Q' + m[2], v: m[3] })) };
-  }
-
-  function trendTilesHTML(tr) {
-    const num_ = (v) => {
-      const m = /^([+\-−＋－]?)\s*([\d.]+)%$/.exec(v);
-      return m ? (/[-−－]/.test(m[1]) ? -1 : 1) * parseFloat(m[2]) / 100 : null;
-    };
-    const tiles = tr.items.map((it) => {
-      const n = num_(it.v);
-      let color = '#5B6372', big = false, bar = '';
-      if (n != null) {
-        big = true;
-        color = signColor(n);
-        bar = '<div style="position:relative;height:5px;border-radius:3px;background:#EEF0F3"><div style="position:absolute;left:50%;top:-1px;width:1px;height:7px;background:#C9CED6"></div>' +
-          '<div style="position:absolute;top:0;height:5px;border-radius:3px;background:' + (n >= 0 ? UP : DOWN) + ';' + (n >= 0 ? 'left:50%' : 'right:50%') + ';width:' + (Math.min(Math.abs(n), 1.5) / 1.5 * 50).toFixed(1) + '%"></div></div>';
-      } else if (/由负转正/.test(it.v)) {
-        color = UP_TXT;
-      } else if (/由正转负/.test(it.v)) {
-        color = DOWN_TXT;
-      }
-      return '<div title="' + esc(it.q + ' ' + it.v) + '" style="min-width:0;display:flex;flex-direction:column;gap:6px;padding:9px 8px 10px;border-radius:8px;background:#F7F8FA">' +
-        '<span style="font-size:11px;color:#8A919E;white-space:nowrap">' + esc(it.q) + '</span>' +
-        (big ? '<span style="' + MONO + ';font-size:15px;font-weight:700;color:' + color + '">' + esc(it.v.replace(/^-/, '−')) + '</span>'
-             : '<span style="font-size:12px;font-weight:600;line-height:1.4;color:' + color + '">' + esc(it.v) + '</span>') + bar + '</div>';
-    }).join('');
-    return colBox(8) + '<span style="font-size:12px;color:#5B6372">' + esc(tr.title) + '</span>' +
-      '<div style="display:grid;grid-template-columns:repeat(' + tr.items.length + ',minmax(0,1fr));gap:6px">' + tiles + '</div></div>';
-  }
-
-  function basisHTML(pb) {
-    const ly = pb.last_year;
-    const tr = parseTrend(pb.recent_trend_text);
-    const metric = (label, v) => '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#5B6372">' + label + '</span>' +
-      '<span style="' + MONO + ';font-size:20px;font-weight:600">' + fmtMoney(v) + '</span></div>';
-    return colBox(12) + secTitle('下一次披露后拿什么比', pb.reference ? '参照：' + esc(FIN_REFERENCE[pb.reference] || pb.reference) : '') +
-      (pb.reference_text ? '<span style="color:#3A4250;line-height:1.7">' + esc(pb.reference_text) + '</span>' : '') +
-      (ly ? '<div style="display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:8px;border:1px solid #E3E6EB">' +
-        '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-weight:600">去年同期</span><span style="font-size:12px;color:#8A919E">' + esc(periodLabel(ly.period)) + '</span></div>' +
-        '<div style="display:flex;gap:12px">' + metric('营业收入', ly.revenue) + metric('扣非净利润', ly.net_profit_deducted) + '</div>' +
-        '<span style="font-size:11px;color:#8A919E">披露后，本季的这两项会直接和这两个数比。</span></div>' : '') +
-      (tr ? trendTilesHTML(tr) : (pb.recent_trend_text ? '<span style="font-size:12px;color:#5B6372;line-height:1.7">' + esc(pb.recent_trend_text) + '</span>' : '')) +
-      (pb.certainty_note ? '<div style="display:flex;gap:6px;align-items:flex-start;padding:8px 10px;border-radius:6px;background:#FFF4E0;color:#7A4A00;font-size:12px;line-height:1.6"><span aria-hidden="true">ⓘ</span><span>' + esc(pb.certainty_note) + '</span></div>' : '') + '</div>';
-  }
-
-  function miniChartHTML(s, quarters) {
-    const vals = s.values || [];
-    const n = vals.length;
-    if (!n) return '';
-    const ci = s.current_index, yi_ = s.yoy_index;
-    const label = (i) => quarterOf((quarters || [])[i] || '');
-    const isRatio = s.metric === 'gross_margin';
-    const shown = isRatio ? (vals[ci] * 100).toFixed(1) + '%' : yi2(vals[ci]);
-    const title = isRatio ? '毛利率' : (FIN_METRIC[s.metric] || s.metric) + '（亿）';
-    const hi = Math.max.apply(null, vals), lo = Math.min.apply(null, vals);
-    let svg = '';
-    if (isRatio) {
-      const span = hi - lo || 1;
-      const x = (i) => 7.5 + i * (105 / Math.max(n - 1, 1));
-      const y = (v) => 40 - ((v - lo) / span) * 34;
-      svg = '<polyline points="' + vals.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ') + '" fill="none" stroke="#14171F" stroke-width="1.5"></polyline>' +
-        vals.map((v, i) => i === ci || i === yi_ ? '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="2.5" fill="' + (i === ci ? '#14171F' : '#8A919E') + '"><title>' + esc(label(i) + ' ' + (v * 100).toFixed(1) + '%') + '</title></circle>' : '').join('');
-    } else {
-      const top = Math.max(hi, 0), bottom = Math.min(lo, 0), span = top - bottom || 1;
-      const base = 46 * (top / span); // zero line; bars below it are losses
-      const w = 9.6, step = 15;
-      svg = vals.map((v, i) => {
-        const h = Math.max(Math.abs(v) / span * 46, 0.8);
-        const yy = v >= 0 ? base - h : base;
-        const fill = i === ci ? '#14171F' : i === yi_ ? '#8A919E' : '#D5D9DF';
-        return '<rect x="' + (2.7 + i * step).toFixed(1) + '" y="' + yy.toFixed(1) + '" width="' + w + '" height="' + h.toFixed(1) + '" rx="1" fill="' + fill + '"><title>' +
-          esc(label(i) + ' ' + yi2(v) + ' 亿' + ((s.derived || [])[i] ? '（由累计数推算）' : '')) + '</title></rect>';
-      }).join('') + (bottom < 0 ? '<line x1="0" y1="' + base.toFixed(1) + '" x2="120" y2="' + base.toFixed(1) + '" stroke="#C9CED6" stroke-width="0.5"></line>' : '');
-    }
-    return '<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:11px;color:#5B6372">' + esc(title) + '</span>' +
-      '<span style="' + MONO + ';font-size:14px;font-weight:600">' + shown + '</span>' +
-      '<svg viewBox="0 0 120 46" style="width:100%;height:auto;display:block;overflow:visible" aria-hidden="true">' + svg + '</svg></div>';
-  }
-
-  function growthHTML(g, cq) {
-    const series = g.series || [];
-    if (!series.length) return '';
-    const effect = (e) => (e > 0 ? 'background:#FDECEA;color:#B42318' : e < 0 ? 'background:#E8F5EE;color:#1E6B44' : 'background:#F4F5F7;color:#A1A7B2');
-    return colBox(10) + secTitle('增长拆解', '近 ' + (series[0].values || []).length + ' 个季度单季 · 黑色 = ' + (cq ? qPill(cq.short) : '本季') + ' · 深灰上年同期') +
-      '<div style="display:grid;grid-template-columns:repeat(' + series.length + ',minmax(0,1fr));gap:14px">' + series.map((s) => miniChartHTML(s, g.quarters)).join('') + '</div>' +
-      ((g.notes || []).length ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + g.notes.map((n) => '<span class="pill" style="' + effect(n.effect) + '">' + esc(n.text) + '</span>').join('') + '</div>' : '') +
-      (g.restated ? '<span style="font-size:11px;color:#8A919E">部分历史数据经过追溯调整</span>' : '') + '</div>';
-  }
-
-  function tableHTML(t, cq) {
-    const rows = t.rows || [];
-    if (!rows.length) return '';
-    const isPct = (r) => r.format === 'percent';
-    const cell = (v, r) => (num(v) == null ? '—' : isPct(r) ? (v * 100).toFixed(1) + '%' : yi2(v));
-    const th = (x, left) => '<th style="padding:6px 0;font-weight:400;color:#8A919E;text-align:' + (left ? 'left' : 'right') + '">' + x + '</th>';
-    const yoyText = (r) => (num(r.yoy) == null ? '—' : isPct(r) ? (r.yoy > 0 ? '+' : r.yoy < 0 ? '−' : '') + Math.abs(r.yoy * 100).toFixed(1) + 'pt' : pct(r.yoy, 1));
-    return colBox(4) + secTitle('完整数据', (cq ? qPill(cq.long) : esc(t.period_text || '')) + ' · 亿元') +
-      '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>' + th('指标', true) + th('本季') + th('上年同期') + th('同比') + '</tr></thead><tbody>' +
-      rows.map((r) => '<tr style="' + ROW + '"><td style="padding:7px 0;color:#3A4250">' + esc(r.label) + (r.derived ? '<span title="' + esc(r.derived_from || '由累计数推算') + '" style="color:#A1A7B2;cursor:help"> *</span>' : '') + '</td>' +
-        '<td style="padding:7px 0;' + MONO + ';text-align:right">' + cell(r.current, r) + '</td>' +
-        '<td style="padding:7px 0;' + MONO + ';text-align:right;color:#8A919E">' + cell(r.last_year, r) + '</td>' +
-        '<td style="padding:7px 0;' + MONO + ';text-align:right;color:' + signColor(r.yoy) + '">' + yoyText(r) + '</td></tr>').join('') +
-      '</tbody></table><span style="font-size:11px;color:#8A919E">* 单季数由累计数推算，悬停可看算法</span></div>';
-  }
+  // 左边问题、右边一句答案的一行（和资金流、新闻、基本面同一个版式）。
+  const signalRow = (label, valueHTML, detail, tone) => '<div style="display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:start;padding:10px 0;border-top:1px solid #F1F2F4">' +
+    '<span style="font-size:12px;color:#5B6372;padding-top:1px">' + label + '</span><div style="display:flex;flex-direction:column;gap:2px;min-width:0">' +
+    '<span style="display:flex;align-items:center;gap:6px;font-weight:600;color:' + (tone === 'warn' ? '#7A4A00' : '#14171F') + '"><span aria-hidden="true" style="flex:none;width:8px;height:8px;border-radius:50%;background:' + TONE_DOT[tone || 'neutral'] + '"></span>' + valueHTML + '</span>' +
+    (detail ? '<span style="font-size:12px;color:#5B6372;line-height:1.5">' + detail + '</span>' : '') + '</div></div>';
 
   function finHTML(d) {
-    const meta = d.meta || {}, nd = d.next_disclosure || {}, pb = d.preview_basis || {}, rc = d.risk_checks || {}, v = d.verdict;
+    const meta = d.meta || {}, rv = d.review;
     const out = [];
-    const upcoming = meta.phase === 'upcoming';
-    const hasAnalysis = !!(v || d.surprise || d.chain || d.growth || d.table);
-    const cq = currentQuarter(meta, d.table);
+    const cc = conclusionOf(d);
+    const qs = (d.quarters || []).slice().sort((a, b) => String(b.end).localeCompare(String(a.end)));
+    const cur = qs[0] || null;
 
-    // 待披露 with no analysis yet: the plain "what's coming" view.
-    if (upcoming && !hasAnalysis) {
-      out.push(colBox(6) + '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:18px;font-weight:700;color:#5B6372">待披露</span>' +
-        '<span style="font-size:12px;color:#8A919E">' + esc(nd.label || '财报') + (nd.date ? ' ' + esc(nd.date.slice(5)) : '') + ' · 不参与当前判断</span></div>' +
-        '<span style="font-size:13px;color:#5B6372">完成后结论会自动更新，这里会显示详细依据</span></div>');
-    } else {
-      out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') +
-        (meta.state && meta.state !== 'ok' ? ' · <span style="color:#9A5B00">数据状态：' + esc(meta.state) + '</span>' : '') + '</span>');
+    const stamp = cc && cc.source === 'model' && rv && rv.generated_at ? '生成于 ' + rv.generated_at.slice(5) : '';
+    out.push('<span style="font-size:12px;color:#8A919E;margin-bottom:-12px">' + esc(meta.status_text || '') + (stamp ? ' · ' + esc(stamp) : '') +
+      (meta.state && meta.state !== 'ok' ? ' · <span style="color:#9A5B00">数据状态：' + esc(meta.state) + '</span>' : '') + '</span>');
+
+    const left = '<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8A919E">方向</span>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:26px;font-weight:700;line-height:1.2;color:' + (cc ? HEAD_TONE[cc.status] || '#5B6372' : '#A1A7B2') + '">' + esc(cc ? cc.label : '暂无结论') + '</span>' + sourceChipHTML(d, cc) + '</div></div>';
+    const yoy = cur ? num(cur.revenue_yoy) : null;
+    const right = yoy == null ? '' : '<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:12px;color:#8A919E">' + esc(qLabel(cur.end)) + ' 单季营收同比</span>' +
+      '<span style="' + MONO + ';font-size:26px;font-weight:700;line-height:1.2;color:' + signColor(yoy) + '">' + (pct(yoy, 1) || '0.0%') + '</span></div>';
+    const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
+    const sentence = cc && cc.text ? '<p style="margin:0;font-size:15px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
+    const note = cc && cc.pending ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">AI 正在解读，完成后自动给出结论。</span>'
+      : !rv && d.review_state === 'unavailable' ? '<span style="font-size:12px;color:#8A919E;line-height:1.7">' + esc(d.review_error || '这只股票暂时没法做财报体检。') + '</span>' : '';
+
+    const rows = (d.cells || []).filter((c) => !(c.key === 'expectation' && c.level === 'na')).map((c) =>
+      signalRow(esc(FIN_CELL[c.key] || c.key), esc(c.level_text), esc(c.note_text || ''), FIN_TONE[c.level]));
+    const nd = meta.next_disclosure || {};
+    if (nd.date) rows.push(signalRow('下次披露', esc(nd.date), esc([nd.source, num(nd.days_left) != null ? '还有 ' + nd.days_left + ' 天' : ''].filter(Boolean).join(' · ')), 'neutral'));
+    out.push('<div style="display:flex;flex-direction:column;gap:18px">' + head + sentence + note + (rows.length ? '<div style="display:flex;flex-direction:column;margin-top:-6px">' + rows.join('') + '</div>' : '') + '</div>');
+
+    // 近 8 个季度（单季）
+    if (qs.length) {
+      const th = (t, left) => '<th style="padding:6px 0;font-weight:400;color:#8A919E;text-align:' + (left ? 'left' : 'right') + '">' + t + '</th>';
+      const td = (t, extra) => '<td style="padding:7px 0;' + MONO + ';text-align:right;' + (extra || '') + '">' + t + '</td>';
+      const yc = (v) => (num(v) == null ? td('—', 'color:#A1A7B2') : td(pct(v, 1) || '0.0%', 'color:' + signColor(v)));
+      out.push(colBox(4) + secTitle('近 ' + qs.length + ' 个季度（单季）', '金额：亿元') +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>' + th('季度', true) + th('营收') + th('同比') + th('归母净利') + th('同比') + '</tr></thead><tbody>' +
+        qs.map((q, i) => '<tr style="' + ROW + (i === 0 ? ';font-weight:600' : '') + '"><td style="padding:7px 0;color:#3A4250">' + esc(qLabel(q.end)) + '</td>' +
+          td(yi2(q.revenue)) + yc(q.revenue_yoy) + td(yi2(q.net_profit)) + yc(q.net_profit_yoy) + '</tr>').join('') + '</tbody></table></div>');
     }
 
-    if (v && typeof v === 'object') {
-      const lean = LEAN[v.lean] || { label: '不明', color: '#5B6372' };
-      const rep = meta.report;
-      out.push(colBox(10) + '<div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:22px;font-weight:700;color:' + lean.color + '">' + lean.label + '</span>' +
-        '<span style="font-size:14px;font-weight:600">' + esc(v.tag_text || '') + '</span><span style="margin-left:auto;color:#8A919E">' + (CERTAINTY[v.certainty] || '') + '</span></div>' +
-        (upcoming && rep ? '<span style="font-size:12px;color:#8A919E">以下分析基于 ' + esc(rep.label || rep.period) + (rep.published_at ? '（' + esc(mmdd(rep.published_at)) + ' 披露）' : '') + '</span>' : '') +
-        (v.ai_text ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:8px;background:#EAF0FD"><span style="font-size:12px;font-weight:600;color:#1F3F8A">AI 结论</span><p style="margin:0;line-height:1.7">' + esc(v.ai_text) + '</p></div>' : '') +
-        (v.drivers_text ? '<details style="font-size:12px;color:#5B6372"><summary style="cursor:pointer;user-select:none">公司对业绩的说法</summary><p style="margin:6px 0 0;line-height:1.7">' + esc(v.drivers_text) + '</p></details>' : '') + '</div>');
-    }
-
-    // 披露日
-    if (nd.date) {
-      const sub = nd.alert && nd.alert.subscribed;
-      out.push('<div style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:8px;border:1px solid #E3E6EB">' +
-        '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:13px">' + esc(nd.label || '财报') + ' ' + esc(nd.date.slice(5)) + ' 披露</span>' +
-        (num(nd.days_left) != null ? '<span style="' + MONO + ';font-size:12px;color:#5B6372">' + (nd.days_left > 0 ? nd.days_left + ' 天后' : nd.days_left === 0 ? '今天' : '已过 ' + Math.abs(nd.days_left) + ' 天') + '</span>' : '') +
-        '<span style="margin-left:auto;font-size:12px;color:' + (sub ? BRAND : '#8A919E') + '">' + (sub ? '✓ 已设提醒' : '未设提醒') + '</span></div>' +
-        '<span style="font-size:12px;color:#8A919E">' + (nd.date_confirmed ? '披露日已确认' : '预约日期，可能调整') +
-        (num(nd.reschedule_count) > 0 ? ' · 已改期 ' + nd.reschedule_count + ' 次' : '') + '</span>' + priceStripHTML(d.ts_code, nd) + '</div>');
-    }
-
-    if (d.surprise) out.push(surpriseHTML(d.surprise, cq));
-    if (d.chain) { out.push(chainHTML(d.chain)); out.push(reactionHTML(d.chain, d)); }
-    if (d.growth) out.push(growthHTML(d.growth, cq));
-
-    // 披露后拿什么比
-    if (upcoming && (pb.reference_text || pb.last_year || pb.recent_trend_text)) out.push(basisHTML(pb));
-
-    if (upcoming && !hasAnalysis) {
-      out.push('<div style="display:flex;flex-direction:column"><span style="font-weight:600;padding-bottom:4px">财报会回答</span>' +
-        ASKS.map((t, i) => '<div style="display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;padding:9px 0;' + ROW + '"><span style="color:#A1A7B2">' + (i + 1) + '</span><span>' + t + '</span></div>').join('') + '</div>');
-    }
-
-    // 风险检查
-    const items = (rc.items || []).filter((it) => it.shown !== false);
-    if (items.length) {
-      const hits = items.filter((it) => it.hit);
-      const pills = items.map((it) => '<span class="pill" title="' + esc(it.label + '：' + (it.value_text || '—') + '（阈值 ' + (it.threshold_text || '—') + '）') + '" style="' +
-        (it.hit ? 'background:#FFF4E0;color:#7A4A00' : 'background:#F4F5F7;color:#A1A7B2') + '">' + esc(it.label) + '</span>').join('');
-      out.push(colBox(8) + secTitle('风险检查', '出现 ' + (num(rc.hit_count) != null ? rc.hit_count : hits.length) + ' / ' + (num(rc.shown_count) != null ? rc.shown_count : items.length) + (rc.summary_text ? ' · ' + esc(rc.summary_text) : '')) +
-        '<span style="display:flex;flex-wrap:wrap;gap:6px">' + pills + '</span>' +
-        hits.map((it) => '<span style="font-size:12px;color:#5B6372;line-height:1.7"><b style="color:#7A4A00;font-weight:600">' + esc(it.label) + '</b>：' + esc(it.value_text || '—') + '（阈值 ' + esc(it.threshold_text || '—') + '）</span>').join('') +
-        '<details style="font-size:12px;color:#5B6372"><summary style="cursor:pointer;user-select:none">查看每一项的数值' + (rc.based_on ? '（基于 ' + esc(rc.based_on) + '）' : '') + '</summary>' +
-        '<div style="margin-top:6px">' + items.map((it) => '<div style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;padding:5px 0;' + ROW + '"><span>' + esc(it.label) + '</span><span style="' + MONO + ';color:' + (it.hit ? '#7A4A00' : '#5B6372') + '">' + esc(it.value_text || '—') + '</span></div>').join('') + '</div></details></div>');
-    }
-
-    if (d.table) out.push(tableHTML(d.table, cq));
-
-    // red_line has never been seen non-null; don't guess its shape.
-    if (d.red_line) {
-      const rl = d.red_line;
-      const text = typeof rl === 'string' ? rl : (rl && (rl.text || rl.title || rl.summary_text)) || '接口返回了红线信息，展示还没有适配';
-      out.push('<div style="padding:10px 12px;border-radius:8px;background:#FDEEEC;color:#9E2A22;font-size:13px;line-height:1.7"><b>触及监管红线</b>：' + esc(text) + '</div>');
-    }
+    const rvBody = reviewBodyHTML(d);
+    if (rvBody) out.push(rvBody);
 
     if (noDisclaimer(d.disclaimer_text)) out.push('<span style="margin-top:auto;font-size:11px;color:#A1A7B2;line-height:1.6">' + esc(noDisclaimer(d.disclaimer_text)) + '</span>');
     return out.join('');
   }
+  const FIN_CELL = { growth: '增长', quality: '含金量', expectation: '预期对照' };
 
   // ===== 板块维度 =====
   // GET {stock-api-base}/api/v1/stocks/{ts_code}/dimensions/sector/detail
@@ -2581,8 +2277,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       const e = synthCache[code];
       return { ring: true, title: e && e.status === 'loading' ? '分析中' : e && e.status === 'error' ? '诊断失败' : '点开这只股票后开始分析' };
     }
-    // 资金流、新闻、基本面的标签跟各自详情里的结论走：偏多红、偏空绿、不明灰；AI 还在判断时先灰着。详情没加载前用综合诊断里的。
-    const own = { volume_flow: 'flow', news: 'news', fundamental: 'fund' }[key];
+    // 资金流、新闻、基本面、财报的标签跟各自详情里的结论走：偏多红、偏空绿、不明灰；AI 还在判断时先灰着。详情没加载前用综合诊断里的。
+    const own = { volume_flow: 'flow', news: 'news', fundamental: 'fund', finance: 'fin' }[key];
     if (own) {
       const fe = dimCache[own + ':' + code], cc = fe && fe.status === 'done' && fe.data ? conclusionOf(fe.data) : null;
       if (cc) return { color: cc.pending ? '#A1A7B2' : HEAD_TONE_DOT[cc.status] || '#A1A7B2', title: cc.pending ? 'AI 判断中' : cc.text };
