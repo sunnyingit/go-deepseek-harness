@@ -1,0 +1,19 @@
+id: fundamental
+name: 基本面分析师
+dimension: fundamental
+skills:
+  - fundamental-facts
+  - fundamental-reply
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+fact_prefix: "fd."
+max_steps: 9
+opening: 请给出这只股票的基本面结论，先说公司靠什么赚钱。
+forbid:
+  - 建议买入
+  - 建议卖出
+  - 目标价

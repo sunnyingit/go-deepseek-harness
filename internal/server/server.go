@@ -123,6 +123,12 @@ type Server struct {
 	// just a lookup table keyed by (sessionID, callID), not itself
 	// session-scoped state.
 	answers *answerRegistry
+	// groups is the spoken transcript of one stock's 研判群. Keyed only by
+	// ts_code: switching analysts appends to the same log. Tool traces and
+	// fact JSON are not stored here.
+	groupsMu sync.Mutex
+	groups   map[string][]groupLine
+	debates  map[string]*debateFile
 	// persistence is nil-able by construction (Open can't fail short of a
 	// filesystem error, so it's always set in practice) — kept as a plain
 	// field rather than assumed non-nil so a future caller could construct
@@ -182,6 +188,8 @@ func New(ctx context.Context, cfg appconfig.Config) (*Server, error) {
 		cfg:            cfg,
 		persistence:    persistence,
 		answers:        newAnswerRegistry(),
+		groups:         map[string][]groupLine{},
+		debates:        map[string]*debateFile{},
 	}
 
 	restored, err := server.restorePersistedSessions()
@@ -352,10 +360,10 @@ func (s *Server) buildAgent(sess *session.Session) (*agentloop.Agent, error) {
 	if _, err := toolRegistry.Register(editTool); err != nil {
 		return nil, err
 	}
-	if _, err := toolRegistry.Register(listSkillsTool(s.skills)); err != nil {
+	if _, err := toolRegistry.Register(listSkillsTool(s.skills, nil)); err != nil {
 		return nil, err
 	}
-	if _, err := toolRegistry.Register(loadSkillTool(s.skills)); err != nil {
+	if _, err := toolRegistry.Register(loadSkillTool(s.skills, nil)); err != nil {
 		return nil, err
 	}
 	for _, def := range displayTools() {

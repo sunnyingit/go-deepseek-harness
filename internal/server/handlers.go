@@ -59,6 +59,10 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("DELETE /sessions/{id}/files/{path...}", s.handleDeleteFile)
 	mux.HandleFunc("GET /sessions/{id}/tokens", s.handleGetTokens)
 	mux.HandleFunc("POST /sessions/{id}/cancel", s.handleCancelSession)
+	mux.HandleFunc("GET /api/stocks/{code}/agents/group", s.handleGroupRecord)
+	mux.HandleFunc("GET /api/stocks/{code}/agents/{agent}/stream", s.handleAnalystStream)
+	mux.HandleFunc("POST /api/stocks/{code}/agents/{agent}/reply", s.handleAnalystReply)
+	mux.HandleFunc("POST /api/stocks/{code}/agents/chief/plan", s.handleChiefPlan)
 	return mux
 }
 

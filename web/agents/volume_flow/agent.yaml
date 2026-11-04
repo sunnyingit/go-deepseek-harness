@@ -1,0 +1,22 @@
+id: volume_flow
+name: 资金流分析师
+dimension: volume_flow
+skills:
+  - flow-facts
+  - flow-reply
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+fact_prefix: "fr."
+detail_query:
+  window: "5"
+max_steps: 9
+opening: 请给出这只股票的资金流结论。
+forbid:
+  - 主力
+  - 建议买入
+  - 建议卖出
+  - 目标价

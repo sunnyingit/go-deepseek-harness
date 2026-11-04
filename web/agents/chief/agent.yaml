@@ -1,0 +1,14 @@
+id: chief
+name: 主分析师
+speak: chief
+skills:
+  - chief-verdict
+  - answer-outline
+  - answer-table
+  - stock-basic
+max_steps: 4
+opening: 请根据五位分析师的发言，以及看多、看空列出的论据，做本轮裁决。
+forbid:
+  - 建议买入
+  - 建议卖出
+  - 目标价

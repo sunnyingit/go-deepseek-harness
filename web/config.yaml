@@ -7,7 +7,7 @@ server:
 llm:
   api_key: sk-fe1f2cbbba6740e58de3f7be1f5f6f9a
   base_url: ""
-  model: deepseek-v4-pro
+  model: deepseek-v4-flash
   stream_idle_timeout: 10m
   connect_timeout: 100s
   tls_handshake_timeout: 100s

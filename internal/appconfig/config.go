@@ -181,6 +181,7 @@ type Config struct {
 
 	AutoApprovePlan bool
 	SystemPrompt    string
+	WecomWebhook    string
 }
 
 const DefaultUploadBytes int64 = 64 << 20
@@ -468,6 +469,9 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("HARNESS_PYTHON_BIN"); v != "" {
 		cfg.PythonBin = v
+	}
+	if v := strings.TrimSpace(os.Getenv("WECOM_WEBHOOK_URL")); v != "" {
+		cfg.WecomWebhook = v
 	}
 }
 

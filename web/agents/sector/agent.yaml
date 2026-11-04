@@ -1,0 +1,19 @@
+id: sector
+name: 板块分析师
+dimension: sector
+skills:
+  - sector-facts
+  - sector-reply
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+fact_prefix: "sp."
+max_steps: 9
+opening: 请给出这只股票所属板块和板块阶段的结论。
+forbid:
+  - 建议买入
+  - 建议卖出
+  - 目标价

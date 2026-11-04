@@ -1,0 +1,19 @@
+id: finance
+name: 财报分析师
+dimension: finance
+skills:
+  - finance-facts
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+fact_prefix: "ff."
+max_steps: 9
+opening: 请给出这只股票最新财报的结论。
+forbid:
+  - 财务造假
+  - 建议买入
+  - 建议卖出
+  - 目标价
