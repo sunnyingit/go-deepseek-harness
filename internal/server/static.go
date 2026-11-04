@@ -36,6 +36,10 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	serveStaticFile(w, "static/settings.html")
 }
 
+func (s *Server) handleMarket(w http.ResponseWriter, r *http.Request) {
+	serveStaticFile(w, "static/market.html")
+}
+
 // handleStaticAsset serves vendored CSS/fonts/images under /static/vendor/... —
 // the only files besides the three HTML pages that the UI is allowed to
 // fetch. Paths are confined to that prefix so this cannot be used to read
