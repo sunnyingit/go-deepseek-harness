@@ -1,13 +1,13 @@
-# 由设置页保存。端口、数据目录、Python 缓存需重启后完全生效。
+# 示例配置，不含任何密钥。复制成 config.yaml 再填 llm.api_key（也可以在设置页里填），config.yaml 不入库。
 server:
-  port: 8083
+  port: 8081
   data_dir: ""
-  workspace_dir: /Users/lisun/AI_Workspace
+  workspace_dir: ""
   shutdown_timeout: 1m
 llm:
-  api_key: sk-fe1f2cbbba6740e58de3f7be1f5f6f9a
+  api_key: ""
   base_url: ""
-  model: deepseek-v4-flash
+  model: deepseek-v4-pro
   stream_idle_timeout: 10m
   connect_timeout: 100s
   tls_handshake_timeout: 100s

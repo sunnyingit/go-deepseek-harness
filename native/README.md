@@ -43,3 +43,16 @@ make win          # 下载 win-x64 运行时并交叉编译 web，打出 .zip
 
 - `PORT`（默认 `8081`）和 `HARNESS_URL`（默认 `http://127.0.0.1:$PORT`）可覆盖地址。
 - 快捷键：`Cmd/Ctrl+1` 工作台，`+2` 对话，`+3` 个人工作区。
+
+## 托盘常驻、开机自启、定时任务与通知
+
+`host.js` 管客户端宿主这一层；定时任务和通知本身在 Python 股票后端（`stock_agent_assitant`，默认 `127.0.0.1:8090`）里跑，设计见那个仓库的 `docs/scheduler-and-notify-spec.md`。
+
+- **托盘常驻**：关窗口只是藏起来，右键托盘 → 退出才真退出。托盘显示未读通知数。
+- **开机自启**：默认开启，托盘菜单里可关；自启时只起托盘，不弹窗口。偏好存在用户数据目录的 `host.json`。
+- **单实例**：重复打开只会把已有窗口叫出来（第二个实例不会去动后端端口）。
+- **休眠恢复**：`resume` / 解锁屏幕时调用 `POST /sched/tick?reason=resume`，错过的任务按各自的补跑策略处理（盘中的提醒不补，收盘复盘等会补）。
+- **桌面通知**：每 10 秒取一次 `GET /notify/desktop/pending`，弹系统通知，点击打开对应页面，并 `POST /notify/desktop/ack`。
+- **股票后端**：8090 没有人起时，开发模式会从 `../../stock_agent_assitant`（或 `STOCK_AGENT_DIR`）用 `python3 -m app.main` 拉起，日志在用户数据目录的 `stock-backend.log`。安装包里还没有打进股票后端，这是后续要补的。
+
+单测：`node host.test.js`。

@@ -7,5 +7,5 @@ package web
 
 import "embed"
 
-//go:embed static/index.html static/market.html static/dailog.html static/space.html static/settings.html static/vendor
+//go:embed static/index.html static/market.html static/holdings.html static/dailog.html static/space.html static/settings.html static/vendor
 var FS embed.FS
