@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read one volume-flow reply slice. Does not call Tushare.
 
-Usage: fetch_part.py <ts_code> <dc|factor|chip|bar|premarket|limit|toplist|margin>
+Usage: fetch_part.py <ts_code> <dc|factor|chip|bar|premarket|limit|toplist|margin> [days]
 """
 
 from __future__ import annotations
@@ -17,12 +17,16 @@ PARTS = ("dc", "factor", "chip", "bar", "premarket", "limit", "toplist", "margin
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3 or argv[2] not in PARTS or not argv[1].strip():
-        sys.stderr.write("usage: fetch_part.py <ts_code> <dc|factor|chip|bar|premarket|limit|toplist|margin>\n")
+    if len(argv) not in (3, 4) or argv[2] not in PARTS or not argv[1].strip():
+        sys.stderr.write("usage: fetch_part.py <ts_code> <dc|factor|chip|bar|premarket|limit|toplist|margin> [days]\n")
+        return 2
+    days = argv[3].strip() if len(argv) == 4 else ""
+    if days and not days.isdigit():
+        sys.stderr.write("days must be a positive integer\n")
         return 2
     base = os.environ.get("STOCK_API_BASE", "http://127.0.0.1:8090").rstrip("/")
     code = urllib.parse.quote(argv[1].strip(), safe="")
-    url = f"{base}/api/v1/stocks/{code}/dimensions/volume_flow/reply?part={argv[2]}"
+    url = f"{base}/api/v1/stocks/{code}/dimensions/volume_flow/reply?part={argv[2]}" + (f"&days={days}" if days else "")
     request = urllib.request.Request(url, headers={"Accept": "application/json"})
     try:
         with urllib.request.urlopen(request, timeout=80) as response:

@@ -29,11 +29,11 @@ func (s *Server) handleChiefPlan(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, fmt.Errorf("股票代码无法识别: %s", code))
 		return
 	}
-	var body struct {
-		Question string `json:"question"`
+	question, err := readQuestion(w, r)
+	if errors.Is(err, errQuestionTooLong) {
+		writeError(w, http.StatusRequestEntityTooLarge, err)
+		return
 	}
-	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 8192)).Decode(&body)
-	question := strings.TrimSpace(body.Question)
 	if question == "" {
 		writeError(w, http.StatusBadRequest, errors.New("缺少 question"))
 		return

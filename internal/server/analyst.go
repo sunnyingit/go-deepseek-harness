@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,14 +64,35 @@ func (s *Server) handleAnalystStream(w http.ResponseWriter, r *http.Request) {
 	s.handleAnalyst(w, r, "analysis", "")
 }
 
-func (s *Server) handleAnalystReply(w http.ResponseWriter, r *http.Request) {
+// maxQuestionBytes 追问正文的上限。主分析师「合说」那一问会把几位分析师的回答整段带上，
+// 中文一个字三个字节，几位加起来很容易超过原来的 8KB，被截断后读不出 question。
+const maxQuestionBytes = 256 << 10
+
+var errQuestionTooLong = errors.New("问题太长，超过了上限")
+
+// readQuestion 从请求体（{"question": "..."}）或 ?q= 读出追问。正文太长要明说，不能当成「没有 question」。
+func readQuestion(w http.ResponseWriter, r *http.Request) (string, error) {
 	var body struct {
 		Question string `json:"question"`
 	}
-	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 8192)).Decode(&body)
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxQuestionBytes)).Decode(&body); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return "", errQuestionTooLong
+		}
+	}
 	question := strings.TrimSpace(body.Question)
 	if question == "" {
 		question = strings.TrimSpace(r.URL.Query().Get("q"))
+	}
+	return question, nil
+}
+
+func (s *Server) handleAnalystReply(w http.ResponseWriter, r *http.Request) {
+	question, err := readQuestion(w, r)
+	if errors.Is(err, errQuestionTooLong) {
+		writeError(w, http.StatusRequestEntityTooLarge, err)
+		return
 	}
 	if question == "" {
 		writeError(w, http.StatusBadRequest, errors.New("缺少 question"))
@@ -794,6 +816,7 @@ func (s *Server) registerFundamentalTools(toolRegistry *coretools.Registry, cfg 
 			Description: part.text + part.via,
 			Parameters: coretools.ParameterSchema{
 				"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，例如 600519.SH"}, Required: true},
+				"days":    {ValueSchema: coretools.ValueSchema{Kind: coretools.KindNumber, Description: "要看多少个交易日，1 到 120。不传就用默认的多个时间尺度。用户问了具体天数或「最近一个月、三个月」时再传（一个月约 20 日，三个月约 60 日）"}},
 			},
 			Output: coretools.Output{
 				Schema: coretools.ValueSchema{Kind: coretools.KindString},
@@ -826,14 +849,14 @@ func (s *Server) registerFlowTools(toolRegistry *coretools.Registry, cfg agentCo
 		return errors.New("python 还没有准备好")
 	}
 	parts := []struct{ name, text string }{
-		{"fetch_flow_dc", "读取东财个股资金流：近 5 日和近 20 日的净流入、超大单、大单、中单、小单，以及近 5 日逐日净流入。只能传股票代码。不要把净流入叫做主力。"},
+		{"fetch_flow_dc", "读取东财个股资金流：近 1、3、5、10、20、60 日（历史够的才给）的净流入、超大单、大单、中单、小单，以及逐日净流入。默认逐日只给近 5 日；用户问某个天数（比如近 30 日、近 3 个月），就传 days，会多给这个窗口的合计和这么多天的逐日。不要把净流入叫做主力。"},
 		{"fetch_flow_factor", "读取 MACD、RSI、KDJ、布林带和 CCI。只能传股票代码。只报数字，不要写成金叉、死叉或已经反转。"},
 		{"fetch_flow_chip", "读取筹码加权成本和胜率，以及收盘相对成本的位置。只能传股票代码。"},
-		{"fetch_flow_bar", "读取前复权收盘、涨跌幅、5 日和 20 日均线、换手率和近 5 日涨跌。只能传股票代码。"},
+		{"fetch_flow_bar", "读取前复权收盘、涨跌幅、5 日和 20 日均线、换手率，各时间尺度（3、5、10、20、60 日）的累计涨跌，以及逐日涨跌（默认近 5 日，传 days 可以看更长）。"},
 		{"fetch_flow_premarket", "读取总股本、流通股本、昨收、涨停价和跌停价。只能传股票代码。"},
-		{"fetch_flow_limit", "读取本股近 20 日涨停、跌停、炸板和连板。只能传股票代码。"},
-		{"fetch_flow_toplist", "读取本股近 20 日龙虎榜净买额和上榜理由。只能传股票代码。不分析席位。"},
-		{"fetch_flow_margin", "读取每日融资余额、融资买入额和融资净买入，以及近 5 日合计。只能传股票代码。融资净买入是买入额减去偿还额。"},
+		{"fetch_flow_limit", "读取本股涨停、跌停、炸板和连板，默认近 20 日；传 days 可以看更长（最多 120 日）。"},
+		{"fetch_flow_toplist", "读取本股龙虎榜净买额和上榜理由，默认近 20 日；传 days 可以看更长。不分析席位。"},
+		{"fetch_flow_margin", "读取每日融资余额、融资买入额和融资净买入，以及近 5、10、20 日合计；传 days 可以多看几天的逐日。融资净买入是买入额减去偿还额。"},
 	}
 	for _, part := range parts {
 		name := strings.TrimPrefix(part.name, "fetch_flow_")
@@ -864,7 +887,11 @@ func (s *Server) runFlowPart(pythonBin, script, part string) func(context.Contex
 		if !tsCodePattern.MatchString(code) {
 			return "", fmt.Errorf("ts_code 必须是 600519.SH 这种代码")
 		}
-		cmd := exec.CommandContext(ctx, pythonBin, script, code, part)
+		argv := []string{script, code, part}
+		if days := flowDays(args["days"]); days > 0 {
+			argv = append(argv, strconv.Itoa(days))
+		}
+		cmd := exec.CommandContext(ctx, pythonBin, argv...)
 		cmd.Env = basicEnv()
 		var out bytes.Buffer
 		cmd.Stdout = &out
@@ -882,6 +909,32 @@ func (s *Server) runFlowPart(pythonBin, script, part string) func(context.Contex
 		}
 		return text, nil
 	}
+}
+
+// flowDays 把模型传来的 days 收成 1 到 120 的整数；没传或不合法返回 0（用默认的多尺度）。
+func flowDays(value any) int {
+	var n float64
+	switch v := value.(type) {
+	case float64:
+		n = v
+	case int:
+		n = float64(v)
+	case string:
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil {
+			return 0
+		}
+		n = parsed
+	default:
+		return 0
+	}
+	if n < 1 {
+		return 0
+	}
+	if n > 120 {
+		return 120
+	}
+	return int(n)
 }
 
 func (s *Server) registerSectorTools(toolRegistry *coretools.Registry, cfg agentConfig) error {

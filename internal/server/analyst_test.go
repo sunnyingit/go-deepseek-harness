@@ -1,7 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -388,5 +392,35 @@ func TestChiefScoreUsesAdoptedWeights(t *testing.T) {
 	verdict := annotated[0]["verdict"].(map[string]any)
 	if verdict["adopt"] != false {
 		t.Fatalf("verdict = %+v", verdict)
+	}
+}
+
+func TestReadQuestionKeepsLongQuestionsAndSaysSoWhenTooLong(t *testing.T) {
+	post := func(question string) (*httptest.ResponseRecorder, *http.Request) {
+		raw, _ := json.Marshal(map[string]string{"question": question})
+		return httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/x", bytes.NewReader(raw))
+	}
+	// 主分析师「合说」会带上几位分析师的整段回答：1 万多个字节，原来 8KB 的上限会把它截断，读出来是空的，报「缺少 question」。
+	long := strings.Repeat("资金流比自己平时偏流入。", 900)
+	if len(long) <= 8192 {
+		t.Fatalf("fixture must exceed the old 8KB limit, got %d", len(long))
+	}
+	w, r := post(long)
+	got, err := readQuestion(w, r)
+	if err != nil || got != long {
+		t.Fatalf("long question lost: len=%d err=%v", len(got), err)
+	}
+	w, r = post(strings.Repeat("x", maxQuestionBytes+10))
+	if _, err := readQuestion(w, r); !errors.Is(err, errQuestionTooLong) {
+		t.Fatalf("oversized question should say so, got %v", err)
+	}
+	w, r = post("")
+	if got, _ := readQuestion(w, r); got != "" {
+		t.Fatalf("empty question = %q", got)
+	}
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/x?q=%E8%B5%84%E9%87%91", nil)
+	if got, _ := readQuestion(w, r); got != "资金" {
+		t.Fatalf("q= fallback = %q", got)
 	}
 }

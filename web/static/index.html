@@ -2740,7 +2740,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         return askNext(0, []).then((bubbles) => {
           const spoken = bubbles.filter((item) => item && item.text);
           if (spoken.length < 2) return null;
-          const brief = spoken.map((item) => ROLE[item.who].name + '：' + item.text).join('\n\n');
+          const brief = spoken.map((item) => ROLE[item.who].name + '：' + (item.text.length > 900 ? item.text.slice(0, 900) + '…' : item.text)).join('\n\n');
           return askAnalyst(code, 'chief', '下面是几位分析师刚刚的回答。请用两三句话合说，只概括他们说过的话，不要复述原文，不要重复这条指令，不要新编数字，不要给买卖建议。\n\n' + brief, { hideQuote: true });
         });
       })
