@@ -600,9 +600,8 @@ function renderMain() {
   $('dot').style.background = '#2E8B57';
   $('mainBody').innerHTML = '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:stretch">' + hero(s) + changes(s) + '</div>' +
     '<div style="display:flex;align-items:baseline;gap:10px;margin-top:6px"><span class="lv">L2</span><span style="font-size:15px;font-weight:700">能不能做</span><span style="font-size:12px;color:#8A919E">钱 → 国家队 → 好不好做（趋势 + 情绪）</span></div>' +
-    '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px">' + moneyCard(s.money) + teamCard(s.team) + moodCard(s.mood) + '<div style="display:flex;flex-direction:column;gap:14px">' + macroCard(s.macro) + '</div></div>' +
-    '<div style="display:flex;align-items:baseline;gap:10px;margin-top:6px"><span class="lv">L3</span><span style="font-size:15px;font-weight:700">做什么</span></div>' +
-    '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start">' + sectorCard(s.sectors) + calendarCard(s.calendar) + '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px">' + moneyCard(s.money) + teamCard(s.team) + moodCard(s.mood) + sectorCard(s.sectors) + '</div>' +
+    '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start">' + macroCard(s.macro) + calendarCard(s.calendar) + '</div>' +
     watchCard(s.watch);
 }
 
@@ -913,7 +912,7 @@ document.body.addEventListener('click', (e) => {
   const nt = e.target.closest('[data-ntabbtn]');
   if (nt) { state.nTab = nt.dataset.ntabbtn; renderNotif(); return; }
   const ni = e.target.closest('[data-ntab]');
-  if (ni) { if (ni.dataset.nid) markRead([Number(ni.dataset.nid)]); const t = ni.dataset.ntab; state.notif = false; updateBell(); if (t) openTab(t); else renderDrawer(); return; }
+  if (ni) { if (ni.dataset.nid) markRead([ni.dataset.nid.startsWith('inbox:') ? ni.dataset.nid : Number(ni.dataset.nid)]); const t = ni.dataset.ntab; state.notif = false; updateBell(); if (t) openTab(t); else renderDrawer(); return; }
   const etf = e.target.closest('[data-etf]');
   if (etf) { openEtf(etf.dataset.etf); return; }
   if (e.target.closest('[data-back]')) { state.etf = null; renderDrawer(); return; }
@@ -978,10 +977,10 @@ async function loadNotif() {
   if (state.notif) renderNotif();
 }
 function nItem(i) {
-  const bg = i.kind === '提醒' ? '#F1F2F4' : '#FFF4E0';
+  const bg = i.kind === '提醒' || i.kind === '简报' ? '#F1F2F4' : i.kind === '系统' ? '#FDECEA' : '#FFF4E0';
   return '<button type="button" data-nid="' + (i.id || '') + '" data-ntab="' + esc(i.tab || '') + '" style="display:grid;grid-template-columns:6px 28px minmax(0,1fr) auto;align-items:start;gap:10px;width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;font:inherit;color:#14171F;cursor:pointer">' +
     '<span style="width:6px;height:6px;border-radius:50%;margin-top:7px;background:' + (i.unread ? '#D9483F' : 'transparent') + '"></span>' +
-    '<span style="width:28px;height:28px;border-radius:8px;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:13px">' + (i.kind === '提醒' ? '📅' : '⇄') + '</span>' +
+    '<span style="width:28px;height:28px;border-radius:8px;background:' + bg + ';display:flex;align-items:center;justify-content:center;font-size:13px">' + (i.kind === '提醒' ? '📅' : i.kind === '系统' ? '⚙' : i.kind === '简报' ? '📰' : '⇄') + '</span>' +
     '<span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:11px;color:#8A919E">' + esc(i.kind) + '</span><span style="font-weight:600">' + esc(i.title) + '</span><span style="font-size:12px;color:#5B6372">' + esc(i.text || '') + '</span></span>' +
     '<span style="font-size:11px;color:#8A919E;white-space:nowrap">' + esc(i.time || '') + '</span></button>';
 }
