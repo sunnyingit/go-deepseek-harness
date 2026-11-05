@@ -39,7 +39,7 @@ a{color:inherit}
 .mini{height:30px;padding:0 12px;border:1px solid #C9CED6;border-radius:6px;background:#FFFFFF;color:inherit;font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
 .pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EEF0F3;color:#4A5260;font-size:11px;white-space:nowrap}
 .opt{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid #DDE1E7;border-radius:999px;background:#FFFFFF;cursor:pointer;font-size:13px}
-.dtab{flex:none;height:44px;padding:0 8px;border:none;background:transparent;color:#5B6372;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.dtab{flex:none;height:44px;padding:0 5px;border:none;background:transparent;color:#5B6372;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
 .dtab:hover{color:#14171F}
 .drow{display:grid;grid-template-columns:52px 112px minmax(0,1fr);align-items:center;gap:8px;width:100%;height:36px;padding:0 14px 0 20px;border:none;background:transparent;color:#14171F;font:inherit;font-size:13px;text-align:left;cursor:pointer}
 .drow:hover{background:#F4F5F7}
@@ -186,6 +186,9 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 <aside class="dw" aria-label="6 个方面" style="align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; display: flex; flex-direction: column; font-size: 13px">
 <div style="position: sticky; top: 0; z-index: 2; background: #FFFFFF; border-bottom: 1px solid #E3E6EB; padding: 0 8px 0 12px; display: flex; align-items: center"><div role="tablist" id="drawerTabs" aria-label="6 个方面" style="display: flex; gap: 0; overflow-x: auto"></div><button type="button" aria-label="收起（⌘\）" title="收起（⌘\）" data-click="closeDrawer" style="margin-left: auto; flex: none; width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: #5B6372; font: inherit; font-size: 16px; cursor: pointer">⇥</button></div>
 <div style="padding: 20px 28px 28px; display: flex; flex-direction: column; gap: 24px; flex: 1">
+<sc-if data-if="conclOpen">
+<div id="conclPanel" style="display: contents"></div>
+</sc-if>
 <sc-if data-if="flowOpen">
 <div id="flowRoot" style="display: contents"></div>
 </sc-if>
@@ -205,7 +208,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 <div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 18px; font-weight: 700; color: #3A4250">开发中</span><span style="font-size: 12px; color: #8A919E">对标：[美股 / 韩股同行]</span></div><span style="font-size: 13px; color: #5B6372">完成后结论会自动更新，这里会显示详细依据</span></div>
 <div style="display: flex; flex-direction: column"><span style="font-weight: 600; padding-bottom: 4px">海外映射会回答</span><div style="display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; padding: 9px 0; border-top: 1px solid #F1F2F4"><span style="color: #A1A7B2">1</span><span>海外同行昨夜涨跌了多少</span></div><div style="display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; padding: 9px 0; border-top: 1px solid #F1F2F4"><span style="color: #A1A7B2">2</span><span>这只股票平时跟它们跟得紧不紧</span></div><div style="display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; padding: 9px 0; border-top: 1px solid #F1F2F4"><span style="color: #A1A7B2">3</span><span>A 股是不是已经提前反应了</span></div></div>
 </sc-if>
-<span style="margin-top: auto; padding-top: 8px; font-size: 11px; color: #A1A7B2">按 1–6 切换 · ⌘\ 收起</span>
+<span style="margin-top: auto; padding-top: 8px; font-size: 11px; color: #A1A7B2">按 1–7 切换 · ⌘\ 收起</span>
 </div>
 </aside>
 </sc-if>
@@ -235,7 +238,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   // (default "蓝色" theme). Everything except the ask box is presentational.
   const BR = '#2457D6';
   const SOFT = '#EAF0FD';
-  const DRAWERS = [['fund', 'Fund'], ['fin', 'Fin'], ['flow', 'Flow'], ['news', 'News'], ['sector', 'Sector'], ['over', 'Over']];
+  const DRAWERS = [['concl', 'Concl'], ['fund', 'Fund'], ['fin', 'Fin'], ['flow', 'Flow'], ['news', 'News'], ['sector', 'Sector'], ['over', 'Over']];
   // ---- 自选股 ----
   // The list lives on the server (GET / POST / DELETE /api/v1/watchlist). Only the selected stock is remembered here.
   const keep = {
@@ -246,7 +249,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const opened = {}; // stocks opened from search that are not on the list: code -> { name, code }
   const watchItem = (code) => watchState.items.find((s) => s.ts_code === code);
   const state = {
-    stock: keep.get('diag.stock') || '002430.SZ', drawer: 'flow', fold: false, notif: false, srch: '', concl: false, replyTo: 'chief',
+    stock: keep.get('diag.stock') || '002430.SZ', drawer: 'concl', fold: false, notif: false, srch: '', concl: false, replyTo: 'chief',
   };
   function curStock() {
     const code = state.stock, it = watchItem(code);
@@ -295,6 +298,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       pressed['p' + K] = String(d === k);
     });
     flags.newsOpen = d === 'news';
+    flags.conclOpen = d === 'concl';
     flags.flowOpen = d === 'flow';
     flags.fundOpen = d === 'fund';
     flags.finOpen = d === 'fin';
@@ -339,6 +343,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     renderDims();
     renderChat();
     renderConcl();
+    renderConclPanel();
     renderChrome();
     syncSearchOpen();
     renderSearch();
@@ -1322,6 +1327,14 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (c.big != null && c.ret != null && Math.abs(c.ret) >= 0.001) {
       const inn = c.big > 0;
       out.push({ label: '资金和价格', ...word('price'), detail: '近 ' + (c.win || 5) + ' 天股价 ' + pct(c.ret, 1) + '，大资金净' + (inn ? '流入' : '流出') });
+    }
+    const own = d.flow_by_size || {};
+    if (own.state) {
+      const OWN = { in_strong: ['比自己平时明显更流入', 'ok'], in: ['比自己平时偏流入', 'ok'], normal: ['和自己平时差不多', 'neutral'], out: ['比自己平时偏流出', 'warn'], out_strong: ['比自己平时明显更流出', 'warn'] }[own.state] || ['', 'neutral'];
+      const z = num(own.rate_z), r = num(own.rate), pc = num(own.rate_pctile);
+      out.push({ label: '和自己平时比', value: OWN[0] + (z != null ? '（' + (z > 0 ? '+' : '') + z.toFixed(1) + ' 个标准差）' : ''), tone: OWN[1],
+        detail: [r != null ? '近 ' + (c.win || 5) + ' 天大资金净流入占成交额 ' + pct(r, 1) + (pc != null ? '，在这只股票自己过去的同长度窗口里排第 ' + Math.round(pc * 100) + '% 分位' : '') : '',
+          '大额净流出在 A 股本来就是常态，只有比自己平时偏离，才算有信息'].filter(Boolean).map((t) => ({ text: t, color: TONE_DOT.neutral })) });
     }
     const fd = d.flow_daily || {};
     const total = (num(fd.in_days) || 0) + (num(fd.out_days) || 0);
@@ -2857,11 +2870,12 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     fetchStockJSON(chatUrl(code, 'chief/detail'), ctrl.signal)
       .then((data) => { e.status = 'done'; e.data = data; })
       .catch((err) => { e.status = 'error'; e.error = errText(err); })
-      .finally(() => { clearTimeout(timer); renderConcl(); });
+      .finally(() => { clearTimeout(timer); renderConcl(); renderConclPanel(); });
   }
   actions.toggleConcl = () => {
-    state.concl = !state.concl;
-    if (state.concl && !chiefDetail[state.stock]) loadChiefDetail(state.stock);
+    state.concl = false;
+    set({ drawer: 'concl', notif: false, fold: false });
+    if (!chiefDetail[state.stock]) loadChiefDetail(state.stock);
   };
   actions.retryConcl = () => loadChiefDetail(state.stock);
 
@@ -3020,6 +3034,111 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const prices = card('down', lv.down) + card('up', lv.up);
     const watch = prices ? '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:700">要盯的两个价</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">' + prices + '</div></div>' : '';
     return shell(summary + notices + watch + synthTrendHTML({ trend: D.trend }), D.updated_at ? mmdd(D.updated_at) + ' ' + hhmm(D.updated_at) : '');
+  }
+
+
+  // ---- 右侧「结论」页：主分析师的裁决 + 五位分析师的立场 + 正反方论据 + 要盯的价 ----
+  const STANCE_LINK = { sector: 'openSector', volume_flow: 'openFlow', news: 'openNews', finance: 'openFin', fundamental: 'openFund' };
+  const STANCE_DIM = [['sector', '板块', 'sector'], ['volume_flow', '资金流', 'flow'], ['news', '新闻', 'news'], ['finance', '财报', 'fin'], ['fundamental', '基本面', 'fund']];
+  const CZ_STATUS = { support: JUDGE.bullish, warn: JUDGE.bearish, neutral: JUDGE.unclear };
+  const czClean = (t) => String(t == null ? '' : t).replace(/\*\*|__|`/g, '').replace(/\s*\n+\s*/g, ' ').trim();
+  const czTitle = (t, right) => '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:13px;font-weight:700;color:#14171F">' + t + '</span>' + (right ? '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + right + '</span>' : '') + '</div>';
+
+  // 主分析师还没说完时，先把已经出来的几位分析师的结论摆在这里
+  function stanceFromCache(code) {
+    return STANCE_DIM.map(([dim, label, key]) => {
+      const fe = dimCache[key + ':' + code];
+      const cc = fe && fe.status === 'done' && fe.data ? analystConclusionOf(fe.data) : null;
+      const J = cc && !cc.pending ? CZ_STATUS[cc.status] || JUDGE.unclear : null;
+      return { dimension: dim, label, direction: J ? J.label : null, strength: '', certainty: '', text: cc && !cc.pending ? cc.text : '', done: !!J };
+    });
+  }
+
+  function czStanceRows(rows) {
+    return '<div style="display:flex;flex-direction:column">' + rows.map((r) => {
+      const J = r.direction ? judgeOf(r.direction) : null;
+      const act = STANCE_LINK[r.dimension];
+      return '<button type="button" ' + (act ? 'data-click="' + act + '" ' : '') + 'title="打开' + esc(r.label) + '分析师" style="display:grid;grid-template-columns:8px minmax(0,1fr);gap:10px;align-items:start;padding:10px 0;border:none;border-top:1px solid #F1F2F4;background:transparent;font:inherit;text-align:left;cursor:pointer;color:#14171F">' +
+        '<span aria-hidden="true" style="width:8px;height:8px;border-radius:2px;margin-top:6px;' + (J ? 'background:' + J.fill : 'box-sizing:border-box;border:1.5px solid #C9CED6') + '"></span>' +
+        '<span style="display:flex;flex-direction:column;gap:3px;min-width:0"><span style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:13px">' + esc(r.label) + '</b>' +
+        (J ? '<span style="font-size:12px;font-weight:600;color:' + J.txt + '">' + esc(r.direction) + (r.strength ? ' · ' + esc(r.strength) : '') + '</span>' : '<span style="font-size:12px;color:#A1A7B2">' + (r.done === false ? '暂无结论' : '分析中…') + '</span>') +
+        (r.certainty ? '<span style="font-size:11px;color:#8A919E">把握 ' + esc(r.certainty) + '</span>' : '') + '</span>' +
+        (r.text ? '<span style="font-size:12px;line-height:1.65;color:#5B6372;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">' + esc(czClean(r.text)) + '</span>' : '') + '</span></button>';
+    }).join('') + '</div>';
+  }
+
+  function czPoints(label, color, bg, block) {
+    const pts = (block && block.points) || [];
+    if (!pts.length && !(block && block.risk)) return '<div style="display:flex;flex-direction:column;gap:6px">' + czTitle(label) + '<span style="font-size:12px;color:#8A919E;line-height:1.7">这边没有找到能改变这几个星期判断的硬论据。</span></div>';
+    const rows = pts.map((p) => {
+      const took = p.state === 'adopted', pending = p.state === 'pending', dots = [1, 2, 3].map((i) => '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:2px;background:' + (i <= (p.final_weight || p.weight || 0) && took ? color : '#DDE1E7') + '"></span>').join('');
+      return '<div style="display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;padding:8px 0;border-top:1px solid #F1F2F4;' + (took || pending ? '' : 'opacity:.62') + '">' +
+        '<span style="font-size:13px;color:' + color + '">' + esc(p.mark || '') + '</span>' +
+        '<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:13px;line-height:1.65;color:#14171F">' + esc(czClean(p.claim)) + '</span>' +
+        '<span style="display:flex;align-items:center;gap:8px;font-size:11px;color:#8A919E">' + (took ? '<span class="pill" style="background:' + bg + ';color:' + color + '">采信</span>' + dots : pending ? '<span class="pill" style="background:#F4F5F7;color:#5B6372">主分析师没有裁决，仅列出</span>' : '<span class="pill" style="background:#F4F5F7;color:#5B6372">不采信' + (p.reason ? ' · ' + esc(p.reason) : '') + '</span>') + '</span></span></div>';
+    }).join('');
+    return '<div style="display:flex;flex-direction:column;gap:0">' + czTitle(label, pts.length + ' 条') + '<div style="margin-top:4px">' + rows + '</div>' +
+      (block.risk ? '<div style="margin-top:6px;padding:8px 10px;border-radius:8px;background:#F7F8FA;font-size:12px;line-height:1.65;color:#5B6372"><b style="font-weight:600;color:#3A4250">这一边最大的弱点：</b>' + esc(czClean(block.risk)) + '</div>' : '') + '</div>';
+  }
+
+  function czPrice(code, side, x) {
+    if (!x || num(x.price) == null) return '';
+    const up = side === 'up', c = up ? UP_TXT : DOWN_TXT, dist = num(x.dist) != null ? (up ? '上方 ' : '下方 ') + (Math.abs(x.dist) * 100).toFixed(1) + '%' : '';
+    const line = (k, v) => v ? '<div style="display:grid;grid-template-columns:34px minmax(0,1fr);gap:6px;font-size:12px;line-height:1.6"><span style="color:#8A919E">' + k + '</span><span style="color:#3A4250">' + esc(v) + '</span></div>' : '';
+    return '<div style="display:flex;flex-direction:column;gap:5px;border-radius:12px;padding:12px;background:' + (up ? '#FDF0EF' : '#EDF7F1') + '">' +
+      '<span style="display:flex;justify-content:space-between;align-items:center"><span style="' + MONO + ';font-size:20px;font-weight:700;color:' + c + '">' + (up ? '▲ ' : '▼ ') + x.price.toFixed(2) + '</span>' + (dist ? '<span class="pill" style="background:#FFFFFF">' + dist + '</span>' : '') + '</span>' +
+      line('依据', x.name) + line('条件', x.condition) + line('结果', x.consequence) + (x.why ? '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(x.why) + '</span>' : '') +
+      synthBell(code + ':' + side, c, up ? '#F0C4C0' : '#B9DCC8') + '</div>';
+  }
+
+  function conclPanelHTML(code) {
+    const c = chats[code], chief = c && c.results && c.results.chief, e = chiefDetail[code];
+    const wrap = (inner) => '<div style="display:flex;flex-direction:column;gap:20px">' + inner + '</div>';
+    const wait = (text, partial) => wrap('<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#5B6372"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>' + text + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:2px">' + czTitle('各位分析师的结论') + czStanceRows(partial) + '</div>');
+    if (!chief) return wait('主分析师等各位分析师发言完，再给出整体结论…', stanceFromCache(code));
+    if (!e || e.status === 'loading') return wait('主分析师正在整理结论详情，第一次大约要等一分钟…', stanceFromCache(code));
+    if (e.status === 'error') return wrap('<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#7A4A00">没能取到结论详情：' + esc(e.error) + '<button type="button" class="mini" data-click="retryConcl" style="color:#2457D6">↻ 重试</button></div>');
+    const D = e.data || {}, dir = D.direction || {}, pos = D.position || {}, sc = D.score || {};
+    const parts = String(dir.verdict || '不明').split(' · '), J = judgeOf(parts[0]);
+    const total = (sc.bull || 0) + (sc.bear || 0);
+    const bar = total ? '<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:#E3E6EB"><span style="width:' + (100 * (sc.bull || 0) / total).toFixed(1) + '%;background:#D9483F"></span><span style="width:' + (100 * (sc.bear || 0) / total).toFixed(1) + '%;background:#2E8B57"></span></div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:11px;color:#5B6372"><span><b style="color:' + UP_TXT + '">看多 ' + (sc.bull || 0) + '</b></span><span>采信的论据分量</span><span><b style="color:' + DOWN_TXT + '">看空 ' + (sc.bear || 0) + '</b></span></div></div>' : '';
+    const hero = '<div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:14px;background:' + J.bg + '">' +
+      '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:32px;font-weight:700;line-height:1.1;color:' + J.txt + '">' + esc(parts[0]) + '</span>' + (parts[1] ? '<span style="font-size:13px;font-weight:600;color:' + J.txt + '">' + esc(parts[1]) + '</span>' : '') +
+      (pos.label ? '<span class="pill" style="background:#FFFFFF;color:#3A4250">位置 ' + esc(pos.label) + '</span>' : '') + '</div>' +
+      (dir.text ? '<p style="margin:0;font-size:14px;font-weight:600;line-height:1.7;color:#14171F">' + esc(czClean(dir.text)) + '</p>' : '') +
+      (pos.text ? '<span style="font-size:12px;color:#5B6372">' + esc(czClean(pos.text)) + '</span>' : '') + bar +
+      '<span style="font-size:11px;color:#8A919E">主分析师 · ' + (D.updated_at ? esc(mmdd(D.updated_at) + ' ' + hhmm(D.updated_at)) + ' 更新' : '') + (D.source_note ? ' · ' + esc(D.source_note) : '') + '</span></div>';
+    const callout = (k, text, bg, fg) => text ? '<div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;background:' + bg + '"><span style="font-size:11px;font-weight:600;color:' + fg + '">' + k + '</span><span style="font-size:12.5px;line-height:1.7;color:#3A4250">' + esc(czClean(text)) + '</span></div>' : '';
+    const callouts = callout('结论可能在哪里错', D.postmortem, '#FFF8E8', '#7A4A00') + callout('分歧怎么处理的', D.conflict, '#F4F5F7', '#5B6372');
+    const pts = D.points || {};
+    const lv = D.levels || {}, prices = czPrice(code, 'down', lv.down) + czPrice(code, 'up', lv.up);
+    const notices = (D.notices || []).filter((n) => n.tag && n.text);
+    const noticeRows = notices.length ? '<div style="display:flex;flex-direction:column;gap:0">' + czTitle('值得注意的事') + notices.map((n) =>
+      '<button type="button" data-click="' + (DIM_DRAWER[n.dimension] || '') + '" style="display:grid;grid-template-columns:42px minmax(0,1fr);gap:8px;align-items:start;padding:9px 0;border:none;border-top:1px solid #F1F2F4;background:transparent;font:inherit;text-align:left;cursor:pointer;color:#14171F">' +
+      '<span class="pill" style="' + (DETAIL_TAG[n.tag] || DETAIL_TAG['中性']) + ';justify-self:start">' + esc(n.tag) + '</span><span style="font-size:12px;line-height:1.65;color:#3A4250"><b style="font-weight:600">' + esc(n.label) + '</b>　' + esc(czClean(n.text)) + '</span></button>').join('') + '</div>' : '';
+    return wrap(hero + callouts +
+      '<div style="display:flex;flex-direction:column;gap:2px">' + czTitle('各位分析师的结论', '点开看依据') + czStanceRows(D.stance || stanceFromCache(code)) + '</div>' +
+      czPoints('看多的理由', '#C8312B', '#FDECEA', pts.bull) + czPoints('看空的理由', '#1E6B44', '#E5F3EB', pts.bear) +
+      (prices ? '<div style="display:flex;flex-direction:column;gap:8px">' + czTitle('要盯的两个价', '到价提醒') + prices + '</div>' : '') + noticeRows +
+      (D.trend ? synthTrendHTML({ trend: D.trend }) : '') +
+      '<span style="font-size:11px;color:#A1A7B2;line-height:1.7">以上是基于公开数据的研究分析，描述的是未来 5 到 20 个交易日的倾向，不构成投资建议。</span>');
+  }
+
+  function renderConclPanel() {
+    if (state.drawer !== 'concl') return;
+    const root = document.getElementById('conclPanel');
+    if (!root) return;
+    const code = curStock().code, c = chats[code], chief = c && c.results && c.results.chief;
+    if (chief && !chiefDetail[code]) loadChiefDetail(code);
+    const e = chiefDetail[code];
+    const alerts = Object.keys(alertsOn).filter((k) => alertsOn[k] && k.indexOf(code + ':') === 0).join(',');
+    const dims = STANCE_DIM.map((d) => (dimCache[d[2] + ':' + code] || {}).status || '-').join(',');
+    const key = [code, chief ? 1 : 0, e && e.status, e && e.data && e.data.updated_at, alerts, dims].join('|');
+    if (root.dataset.key === key) return;
+    root.dataset.key = key;
+    root.innerHTML = conclPanelHTML(code);
   }
 
   function renderConcl() {
@@ -3298,7 +3417,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       (phase ? '<span style="flex:none;width:1px;height:22px;background:#DDE1E7;margin:0 2px"></span>' + avatarHTML('chief', 24) +
         (verdict ? '<span style="flex:none;font-size:17px;font-weight:700;color:' + verdict.color + '">' + esc(verdict.label) + '</span>' +
           '<span title="' + esc(verdict.text) + '" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:600">' + esc(verdict.text) + '</span>' +
-          '<button type="button" class="mini" data-click="toggleConcl" style="flex:none;height:28px;' + (state.concl ? '' : 'color:#2457D6') + '">' + (state.concl ? '收起 ▴' : '详情 ▾') + '</button>'
+          '<button type="button" class="mini" data-click="toggleConcl" style="flex:none;height:28px;color:#2457D6">' + '结论详情 →' + '</button>'
           : phase === 'failed' ? '<span style="flex:1;min-width:0;font-size:13px;color:#8A919E">主分析师这次没能给出裁决，群里点“重试”再试一次</span>'
           : '<span style="flex:1;min-width:0;display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#8A919E"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>主分析师等各位发言完，正在裁决…</span>')
         : '<span style="flex:1"></span>') +
@@ -3313,11 +3432,15 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   }
 
   // ---- 右侧 6 个方面的标签 / 折叠栏 ----
-  const DIM5 = [['fund', 'Fund', '基本面', 'fundamental', '基'], ['fin', 'Fin', '财报', 'finance', '财'], ['flow', 'Flow', '资金流', 'volume_flow', '资'],
+  const DIM5 = [['concl', 'Concl', '结论', '__concl', '结'], ['fund', 'Fund', '基本面', 'fundamental', '基'], ['fin', 'Fin', '财报', 'finance', '财'], ['flow', 'Flow', '资金流', 'volume_flow', '资'],
     ['news', 'News', '新闻', 'news', '新'], ['sector', 'Sector', '板块', 'sector', '板'], ['over', 'Over', '海外', null, '海']];
   const LEAN_DOT = { bullish: '#D9483F', bearish: '#2E8B57' };
   const HEAD_TONE_DOT = { support: LEAN_DOT.bullish, warn: LEAN_DOT.bearish, neutral: '#A1A7B2' };
   function dimState(code, key) {
+    if (key === '__concl') {
+      const c = chats[code], msg = c && c.results && c.results.chief && c.results.chief.msg, v = (msg && msg.verdict) || '';
+      return v ? { color: /多/.test(v) ? LEAN_DOT.bullish : /空/.test(v) ? LEAN_DOT.bearish : '#A1A7B2', title: '主分析师：' + v } : { ring: true, title: '主分析师还在等各位发言' };
+    }
     if (!key) return { ring: true, title: '海外映射暂未接入' };
     const D = synthInfo(code);
     if (!D) {
