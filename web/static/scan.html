@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="stock-api-base" content="http://127.0.0.1:8090">
+<title>扫描</title>
+<style>
+body{margin:0;background:#EEF0F3}
+a{color:inherit}
+button,input{font:inherit}
+.seg{display:flex;border:1px solid #DDE1E7;border-radius:8px;overflow:hidden}
+.seg button{height:28px;padding:0 10px;border:none;border-right:1px solid #DDE1E7;background:#FFFFFF;color:#3A4250;font-family:inherit;font-size:12px;cursor:pointer}
+.seg button:last-child{border-right:none}
+.seg button[aria-pressed="true"]{background:#14171F;color:#FFFFFF}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EEF0F3;color:#4A5260;font-size:11px;white-space:nowrap}
+.nav-a{width:48px;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5B6372;text-decoration:none;font-size:11px}
+.nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:500}
+.empty{padding:36px 20px;text-align:center;color:#5B6372;display:flex;flex-direction:column;align-items:center;gap:12px}
+.skeleton{color:#8A919E;padding:24px 0}
+.toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:60;padding:9px 16px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:13px;max-width:80vw}
+.toast.err{background:#B42318}
+.modal{position:fixed;inset:0;z-index:30;background:rgba(20,23,31,.32);display:flex;align-items:center;justify-content:center}
+.modal>div{width:560px;max-width:calc(100% - 32px);max-height:80vh;overflow:auto;background:#FFFFFF;border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.7}
+.xbtn{border:none;background:transparent;color:#8A919E;cursor:pointer;font-size:12px;padding:0 4px}
+.xbtn:hover{color:#B42318}
+a.row:hover,div.row:hover{background:#F7F8FA}
+</style>
+</head>
+<body>
+<div style="height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #EEF0F3; font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; color: #14171F; font-size: 13px; line-height: 1.55">
+
+<header style="flex: none; display: flex; align-items: center; height: 44px; background: #FFFFFF; border-bottom: 1px solid #DDE1E7">
+<div style="flex: 0 0 64px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #EEF0F3; height: 44px">
+<div style="width: 28px; height: 28px; border-radius: 8px; background: #2457D6; display: flex; align-items: center; justify-content: center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"></path><path d="M15 8h5v5"></path></svg>
+</div>
+</div>
+<span style="padding: 0 16px; font-weight: 700; font-size: 14px">扫描</span>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 14px; padding-right: 16px"><span id="session" style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5B6372"></span><button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="position: relative; width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent; color: #3A4250; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position: absolute; top: 2px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #D9483F; color: #FFFFFF; font-size: 10px; font-weight: 600; line-height: 16px; text-align: center"></span></button></div>
+</header>
+
+<div style="flex: 1 1 auto; display: flex; flex-wrap: nowrap; align-items: stretch; min-width: 0; min-height: 0; overflow: hidden">
+
+<nav aria-label="主导航" style="flex: 0 0 64px; overflow: hidden; background: #FFFFFF; border-right: 1px solid #DDE1E7; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0">
+<a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
+<a class="nav-a on" href="/scan.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>扫描</a>
+<a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>诊断</a>
+<a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>持仓</a>
+<a class="nav-a" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>问问</a>
+<a class="nav-a" href="/settings.html" style="margin-top: auto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>设置</a>
+</nav>
+
+<main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; overflow: hidden">
+<div style="flex: none; padding: 12px 28px 0; background: #FFFFFF; border-bottom: 1px solid #DDE1E7"><div style="max-width: 1240px"><div id="head" style="display: flex; align-items: center; gap: 22px; flex-wrap: wrap"></div><div id="tabs" role="tablist" aria-label="扫描" style="display: flex; align-items: center; gap: 24px; margin-top: 6px"></div></div></div>
+<div id="scroll" style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px 28px 24px; box-sizing: border-box"><div id="body" style="max-width: 1240px"><div class="skeleton">正在读取预测记录…</div></div></div>
+</main>
+
+<aside id="aside" aria-label="今天结算" hidden style="flex: 0 0 380px; width: 380px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7"></aside>
+<aside id="notifAside" aria-label="通知" hidden style="flex: 0 0 400px; width: 400px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; flex-direction: column; font-size: 13px"></aside>
+</div>
+
+<footer style="position: relative; flex: none; height: 26px; display: flex; align-items: center; gap: 18px; padding: 0 12px; border-top: 1px solid #DDE1E7; background: #F7F8FA; font-size: 11px; color: #5B6372; white-space: nowrap; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display: flex; gap: 18px"></span><span style="position: absolute; left: 50%; transform: translateX(-50%); color: #8A919E">研究分析，不构成投资建议</span><span style="margin-left: auto">数据源：行情 · 资金流 · 公告</span><span>v0.1</span></footer>
+</div>
+<div id="modal"></div>
+<script>
+const MONO_F = "font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace";
+const DEMO = new URLSearchParams(location.search).get('demo') === '1';
+const API = (new URLSearchParams(location.search).get('stockApi') || (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
+const S = { tab: 'today', sum: null, up: null, panel: null, data: {}, notif: false, nData: null, nTab: 'all', open: {}, shown: { today: 12, track: 30, done: 4 },
+  f: { today: 'all', track: { due: 'all', who: 'all' }, done: { src: 'all', h: 5, wrong: false, range: 'month', q: '' }, acc: 5 } };
+const TABS = [['today', '今日扫描'], ['track', '跟踪中'], ['done', '已结算'], ['acc', '准不准']];
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = (id) => document.getElementById(id);
+const sign = (v) => v > 0 ? '+' : v < 0 ? '−' : '';
+const pct = (v, d) => v == null || v !== v ? '—' : sign(v) + Math.abs(v * 100).toFixed(d == null ? 1 : d) + '%';
+const rate = (v) => v == null || v < 0 ? '—' : (v * 100).toFixed(1) + '%';
+const day5 = (d) => (d || '').slice(5);
+const diagnoseHref = (code) => '/?stock=' + encodeURIComponent(code);
+const num = (n) => Number(n || 0).toLocaleString('en-US');
+
+/* ---------- 设计稿里的样式积木 ---------- */
+const CARD = 'display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 14px; overflow: hidden';
+const LINKBTN = 'display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: #2457D6; text-decoration: none; white-space: nowrap; cursor: pointer; box-sizing: border-box';
+const pl = (bg, fg, text) => '<span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 6px; background: ' + bg + '; color: ' + fg + '; font-size: 12px; font-weight: 600; white-space: nowrap">' + esc(text) + '</span>';
+const dirPill = (r) => r.direction === 'bullish' ? pl('#FDF0EF', '#B42318', r.verdict || '偏多') : r.direction === 'bearish' ? pl('#EDF7F1', '#1E6B44', r.verdict || '偏空') : pl('#F1F2F4', '#5B6372', r.verdict || '不明');
+const srcPill = (r, short) => r.source === 'diagnose' ? pl('#EAF0FD', '#2457D6', '你诊断') : pl('#F1F2F4', '#5B6372', short ? '扫描' : '定时扫描');
+const OUT = { hit: ['#EDF7F1', '#1E6B44', '✓ 对'], miss: ['#FDF0EF', '#B42318', '✗ 错'], flat: ['#F1F2F4', '#5B6372', '＝ 持平'] };
+const NOW = { hit: ['#EDF7F1', '#1E6B44', '目前算对'], miss: ['#FDF0EF', '#B42318', '目前算错'], flat: ['#F1F2F4', '#5B6372', '目前持平'] };
+const box = (label, value, sub, o) => { o = o || {}; return '<div style="display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; background: ' + (o.bg || '#F7F8FA') + '"><span style="font-size: 11px; color: #5B6372">' + label + '</span><b style="' + MONO_F + '; font-size: ' + (o.size || 18) + 'px; color: ' + (o.color || '#14171F') + '">' + value + '</b><span style="font-size: 11px; color: #8A919E">' + sub + '</span></div>'; };
+const bigBox = (label, value, sub, color) => '<div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E3E6EB"><span style="font-size: 12px; color: #5B6372">' + label + '</span><b style="' + MONO_F + '; font-size: 20px; color: ' + (color || '#14171F') + '">' + value + '</b><span style="font-size: 11px; color: #8A919E">' + sub + '</span></div>';
+const segs = (items, cur, act) => '<span class="seg">' + items.map(([k, n]) => '<button type="button" style="white-space: nowrap" data-act="' + act + '" data-k="' + k + '" aria-pressed="' + (String(cur) === String(k)) + '">' + n + '</button>').join('') + '</span>';
+
+// 本股 / 板块 两根条：以这一行里较大的那个为满格（一半），颜色深浅区分
+function retBar(v, m, color) {
+  const w = m > 0 ? Math.min(Math.abs(v) / m, 1) * 50 : 0, left = v >= 0 ? 50 : 50 - w;
+  return '<span style="position: relative; display: block; height: 6px; border-radius: 3px; background: #F1F2F4"><span style="position: absolute; left: 50%; top: -2px; width: 1px; height: 10px; background: #C9CED6"></span><span style="position: absolute; left: ' + left.toFixed(1) + '%; width: ' + w.toFixed(1) + '%; height: 100%; border-radius: 3px; background: ' + color + '"></span></span>';
+}
+function versus(r, right) {
+  if (!r.have && r.have !== undefined) return '<span style="font-size: 11px; color: #8A919E">等发出后的第一根日线</span>';
+  const m = Math.max(Math.abs(r.stock_ret), Math.abs(r.sector_ret));
+  const good = right == null ? (r.direction === 'bullish' ? r.excess > 0 : r.excess < 0) : right;
+  return '<span style="display: flex; flex-direction: column; gap: 4px"><span style="display: grid; grid-template-columns: 30px 80px 52px; gap: 2px 6px; align-items: center; font-size: 11px"><span style="color: #5B6372">本股</span>' + retBar(r.stock_ret, m, '#3A4250') +
+    '<b style="' + MONO_F + '; text-align: right">' + pct(r.stock_ret) + '</b><span style="color: #8A919E">板块</span>' + retBar(r.sector_ret, m, '#A1A7B2') + '<span style="' + MONO_F + '; text-align: right; color: #8A919E">' + pct(r.sector_ret) + '</span></span>' +
+    '<span style="font-size: 12px; color: ' + (good ? '#14171F' : '#5B6372') + '">' + (r.excess >= 0 ? '跑赢' : '跑输') + ' <b style="' + MONO_F + '">' + Math.abs(r.excess * 100).toFixed(1) + '</b> 个点</span></span>';
+}
+// 设计稿里没有「你持有」这类小标签；只在 AI 偏空、而你持有或想买的时候提一句，这是要紧的冲突
+function mineTags(r) {
+  const m = r.mine || {};
+  if (r.direction !== 'bearish' || !(m.held || m.wish)) return '';
+  return '<span style="font-size: 11px; color: #7A4A00">你' + (m.held ? '持有' : '想买') + '，AI 偏空，和你的打算不一致</span>';
+}
+
+/* ---------- 请求（?demo=1 时读示例数据） ---------- */
+async function api(path) {
+  if (DEMO) return demoApi(path);
+  const res = await fetch('/api/scan' + path);
+  let json = {};
+  try { json = await res.json(); } catch (e) { /* 没有正文 */ }
+  if (!res.ok) throw new Error(json.error || '请求失败（' + res.status + '）');
+  return json;
+}
+function toast(text, bad) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (bad ? ' err' : '');
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), bad ? 4500 : 2200);
+}
+function setStatus(ok, text) { $('dot').style.background = ok ? '#2E8B57' : '#B42318'; $('status').textContent = text; }
+
+/* ---------- 头部、页签 ---------- */
+function renderHead() {
+  const s = S.sum, m = s && s.market;
+  $('head').innerHTML = '<h1 style="margin: 0; font-size: 20px; font-weight: 700">扫描</h1>' +
+    '<span style="font-size: 13px; color: #5B6372">' + (s ? esc(s.next_run) : '') + '</span>' +
+    (m ? '<span style="font-size: 13px; color: #5B6372">市场环境 <b style="color: #7A4A00">' + esc(m.level) + (m.tilt ? ' · ' + esc(m.tilt) : '') + '</b></span>' : '') +
+    '<span style="margin-left: auto; display: flex; gap: 8px; align-items: center">' + (DEMO ? '<span class="pill" style="background: #F1F2F4; color: #5B6372">示意数据</span>' : '') +
+    '<button type="button" data-act="rules" style="height: 32px; padding: 0 12px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">统计口径</button></span>';
+}
+function renderTabs() {
+  const s = S.sum;
+  const on = (k) => S.tab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : '';
+  const badge = {
+    today: s ? '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + s.made + '</span>' : '',
+    track: s ? '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + s.tracking + '</span>' : '',
+    done: s && s.settled_today.n ? '<span style="height: 18px; padding: 0 6px; border-radius: 999px; background: #EDF7F1; color: #1E6B44; font-size: 11px; font-weight: 600; line-height: 18px">今天 ' + s.settled_today.hit + '/' + s.settled_today.n + '</span>' : '',
+    acc: s && s.accuracy != null ? '<span style="height: 18px; padding: 0 6px; border-radius: 999px; background: #EAF0FD; color: #2457D6; font-size: 11px; font-weight: 600; line-height: 18px">' + rate(s.accuracy) + '</span>' : '',
+  };
+  $('tabs').innerHTML = TABS.map(([k, n]) => '<button type="button" role="tab" data-act="tab" data-k="' + k + '" aria-selected="' + (S.tab === k) + '" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 2px; border: none; background: transparent; font: inherit; font-size: 14px; color: #5B6372; cursor: pointer; ' + on(k) + '">' + n + badge[k] + '</button>').join('');
+}
+
+/* ---------- 今日扫描 ---------- */
+function emptyCard() {
+  return '<div style="' + CARD + '"><div class="empty"><b style="font-size: 15px">还没有预测</b><span style="max-width: 520px; line-height: 1.7">扫描记的是你自己的自选、持仓和想买：夜间任务（20:30 起）每跑完一只就记一条，不用你操作；在「诊断」页点「重新分析」也会记一条。第一批要等夜间任务跑完才有，之后每天一批，到期后在这里对账。</span>' +
+    '<span style="display: flex; gap: 8px"><a href="/" style="' + LINKBTN + '">去诊断页</a><a href="/scan.html?demo=1" style="' + LINKBTN + '">看示例数据</a></span></div></div>';
+}
+function todayRow(r) {
+  const unclear = r.direction === 'unclear';
+  return '<a class="row" href="' + diagnoseHref(r.ts_code) + '" style="display: grid; grid-template-columns: 76px 110px 84px 128px minmax(0, 1fr) 70px; gap: 10px; align-items: center; padding: 10px 16px; border-top: 1px solid #F1F2F4; text-decoration: none; color: #14171F">' +
+    '<span>' + srcPill(r) + '</span><span style="display: flex; flex-direction: column"><b style="font-size: 14px">' + esc(r.name || r.ts_code) + '</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(r.made_at) + ' · 存证 ' + (r.base_close ? Number(r.base_close).toFixed(2) : '—') + '</span></span>' +
+    '<span style="font-size: 12px; color: #5B6372">' + esc(r.sector || '—') + '</span><span>' + dirPill(r) + '</span>' +
+    '<span style="font-size: 12px; color: #3A4250; line-height: 1.5">' + esc(r.evidence || '—') + (mineTags(r) ? '<br>' + mineTags(r) : '') + '</span>' +
+    '<span style="' + MONO_F + '; font-size: 11px; color: #8A919E; text-align: right">' + (unclear ? '不结算' : day5(r.due['5']) + '<br>' + day5(r.due['20'])) + '</span></a>';
+}
+function renderToday() {
+  const s = S.sum, d = S.data.today, fn = s.funnel;
+  const up = S.up ? upcomingCard() : '';
+  if (s.empty) return '<div style="display: flex; flex-direction: column; gap: 14px">' + up + emptyCard() + '</div>';
+  const rows = d ? d.rows : [];
+  const shown = rows.slice(0, S.shown.today);
+  const first = rows[0];
+  const dueTip = first && first.due ? '每条到期两次：5 个交易日（' + day5(first.due['5']) + '）、20 个交易日（' + day5(first.due['20']) + '）' : '每条到期两次：5 个交易日、20 个交易日';
+  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">今日预测</b><span style="font-size: 12px; color: #8A919E">' + esc(s.day) + ' 夜间任务的结论 + 你这天的诊断 · 全部存证，不可删改</span>' +
+    '<button type="button" data-act="scope" style="margin-left: auto; height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: #2457D6; cursor: pointer">设置扫描范围</button></div>' +
+    '<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">' + box('我的标的', num(fn.subjects), '自选 · 持仓 · 想买') + box('已研判', num(fn.researched), esc(day5(s.day)) + ' 的结论') +
+    box('给出方向', num(fn.bullish + fn.bearish), '偏多 ' + fn.bullish + ' · 偏空 ' + fn.bearish, { bg: '#EAF0FD' }) + box('不明', num(fn.unclear), '不计入命中率', { color: '#8A919E' }) + box('跟踪中', num(s.tracking), '还没到期的') + '</div>' +
+    '<div style="display: flex; align-items: center; gap: 8px">' + segs([['all', '全部 ' + s.made], ['scan', '定时扫描 ' + fn.scan], ['diagnose', '你诊断 ' + fn.diagnose]], S.f.today, 'tsrc') +
+    '<span style="margin-left: auto; font-size: 12px; color: #8A919E; text-align: right">同一只被扫描和你诊断各记一条 · ' + dueTip + '</span></div>' +
+    '<div style="margin: 0 -16px -14px; border-top: 1px solid #EEF0F3"><div style="display: grid; grid-template-columns: 76px 110px 84px 128px minmax(0, 1fr) 70px; gap: 10px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA"><span>来源</span><span>股票</span><span>板块</span><span>预测</span><span>主要依据</span><span style="text-align: right">到期</span></div>' +
+    (d ? (shown.length ? shown.map(todayRow).join('') : '<div class="empty" style="padding: 24px">这一类今天还没有预测</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
+    (rows.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="today" style="' + LINKBTN + '">查看全部 ' + rows.length + ' 条 →</button></div>' : '') + '</div></div>' + up + '</div>';
+}
+
+/* ---------- 跟踪中 ---------- */
+function squares(day, h) {
+  let out = '';
+  for (let i = 1; i <= h; i++) out += '<span style="height: 4px; border-radius: 1px; background: ' + (i <= day ? '#2457D6' : '#E3E6EB') + '"></span>';
+  return '<span style="display: flex; flex-direction: column; gap: 3px"><span style="' + MONO_F + '; font-size: 12px">第 ' + Math.min(day, h) + ' / ' + h + ' 天</span><span style="display: grid; grid-template-columns: repeat(' + h + ', 1fr); gap: 2px; width: ' + (h === 5 ? 70 : 100) + 'px">' + out + '</span></span>';
+}
+function settleText(r) {
+  const tm = S.sum ? S.sum.today : '';
+  const next = S.data.track && S.data.track.tomorrow_day;
+  const rel = r.settle_day === tm ? ' 今天' : (next && r.settle_day === next) ? ' 明天' : '';
+  return day5(r.settle_day) + rel + ' 结算';
+}
+function trackRow(r) {
+  const now = r.now ? NOW[r.now] : null;
+  const note = r.close_call ? '差距很小，可能翻' : '';
+  return '<a class="row" href="' + diagnoseHref(r.ts_code) + '" style="display: grid; grid-template-columns: 112px 128px 110px 200px 96px minmax(0, 1fr); gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid #F1F2F4; font-size: 13px; text-decoration: none; color: #14171F">' +
+    '<span style="display: flex; flex-direction: column; gap: 3px"><b style="font-size: 14px">' + esc(r.name || r.ts_code) + '</b><span style="display: flex; gap: 4px; align-items: center">' + srcPill(r, true) + '<span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + day5(r.base_day) + '</span></span></span>' +
+    '<span style="display: flex; flex-direction: column; gap: 3px"><span>' + dirPill(r) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(r.sector || '') + '</span></span>' + squares(r.day, r.horizon) + versus(r) +
+    '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + (now ? pl(now[0], now[1], now[2]) : '<span style="font-size: 11px; color: #8A919E">还没有数据</span>') + '</span><span style="font-size: 11px; color: #8A919E">' + esc(settleText(r)) + (r.horizon === 20 ? ' · 20 天' : '') + '</span></span>' +
+    '<span style="font-size: 12px; color: #7A4A00">' + note + '</span></a>';
+}
+function renderTrack() {
+  const d = S.data.track, s = S.sum;
+  if (s.empty) return '<div style="display: flex; flex-direction: column; gap: 14px">' + emptyCard() + '</div>';
+  const steps = [['发出', '记下方向和起点价，不能改。起点价是发出那一刻最近的一个收盘价，本股和板块用同一天', '#5B6372'], ['跟踪', '每天收盘后算：从起点到今天，这只票比同板块多涨（少跌）了多少', '#2457D6'],
+    ['5 天结算', '看第 5 个交易日的收盘价，不是第二天。偏多跑赢板块算对，偏空跑输算对；差不到 0.5 个点算持平，不计', '#1E6B44'], ['20 天再结算', '同一条预测看第 20 个交易日收盘，两次分开算命中率', '#1E6B44']];
+  const rows = d ? d.rows : [];
+  const shown = rows.slice(0, S.shown.track);
+  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 12px 14px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E3E6EB">' +
+    steps.map((x, i) => '<div style="display: flex; gap: 8px; align-items: flex-start; padding-right: 12px' + (i ? '; border-left: 1px dashed #DDE1E7; padding-left: 12px' : '') + '"><span style="flex: none; width: 22px; height: 22px; border-radius: 50%; background: ' + x[2] + '; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">' + (i + 1) + '</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="font-size: 13px">' + x[0] + '</b><span style="font-size: 11px; color: #5B6372; line-height: 1.5">' + x[1] + '</span></span></div>').join('') + '</div>' +
+    '<div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 10px; background: #F7F8FA; font-size: 12px; color: #3A4250; line-height: 1.7"><b style="flex: none">「稍微」「比较明显」怎么算：</b><span>强度不改变对错，只看方向。强度单独检验：「比较明显」的平均跑赢幅度应该明显大于「稍微」，命中率也应该更高；如果两者差不多，说明强度没意义，会在「准不准」里标出来。「位置偏高」只结算方向，位置另算。</span></div>' +
+    (d ? '<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">' + bigBox('跟踪中', d.total + ' 条', '5 天 ' + d.by_horizon['5'] + ' 条 · 20 天 ' + d.by_horizon['20'] + ' 条') + bigBox('目前算对', d.now_right + ' 条', d.total ? Math.round(d.now_right / d.total * 100) + '%，到期前还会变' : '—') +
+      bigBox('明天结算', d.tomorrow + ' 条', '5 天预测') + bigBox('和你有关', d.mine + ' 条', '你持有、想买或诊断过的', '#2457D6') + '</div>' : '') +
+    '<div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">还没到期的预测</b><span style="font-size: 12px; color: #8A919E">快到期的在前 · 每天收盘后更新</span><span style="margin-left: auto; display: flex; gap: 8px">' +
+    segs([['all', '全部到期日'], ['tomorrow', '明天'], ['week', '本周'], ['next', '下周']], S.f.track.due, 'tdue') + segs([['all', '全部'], ['mine', '和我有关'], ['diagnose', '你诊断的']], S.f.track.who, 'twho') + '</span></div>' +
+    '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: 112px 128px 110px 200px 96px minmax(0, 1fr); gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>股票 · 发出</span><span>AI 说</span><span>进度</span><span>发出后：本股 vs 板块</span><span>现在</span><span></span></div>' +
+    (d ? (shown.length ? shown.map(trackRow).join('') : '<div class="empty" style="padding: 24px">没有符合条件的预测</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
+    (rows.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="track" style="' + LINKBTN + '">再加载 ' + Math.min(20, rows.length - shown.length) + ' 条</button><span style="margin-left: 10px; font-size: 11px; color: #A1A7B2">已显示 ' + shown.length + ' / ' + rows.length + ' 条</span></div>' : '') + '</div></div>' +
+    '<span style="font-size: 11px; color: #A1A7B2">「目前算对 / 算错」只是到今天为止的情况，到期那天收盘才算数。</span></div>';
+}
+
+/* ---------- 已结算 ---------- */
+function settledRow(r) {
+  const o = OUT[r.outcome] || OUT.flat;
+  return '<div style="display: flex; flex-direction: column; gap: 6px; padding: 11px 16px; border-top: 1px solid #F1F2F4"><div style="display: grid; grid-template-columns: 112px 128px 200px 70px minmax(0, 1fr); gap: 12px; align-items: center; font-size: 13px">' +
+    '<span style="display: flex; flex-direction: column; gap: 3px"><b style="font-size: 14px">' + esc(r.name || r.ts_code) + '</b><span>' + srcPill(r, true) + (r.horizon === 20 ? ' ' + pl('#F1F2F4', '#5B6372', '20 天') : '') + '</span></span>' +
+    '<span style="display: flex; flex-direction: column; gap: 3px"><span>' + dirPill(r) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(r.sector || '') + '</span></span>' + versus(r, r.outcome === 'hit') +
+    '<span>' + pl(o[0], o[1], o[2]) + '</span><a href="' + diagnoseHref(r.ts_code) + '" style="' + LINKBTN + '; justify-self: end">诊断 →</a></div>' +
+    (r.why ? '<div style="margin-left: 124px; padding: 8px 10px; border-radius: 8px; background: #FFF8F7; font-size: 12px; color: #3A4250; line-height: 1.6"><b>为什么错了：</b>' + esc(r.why) + '</div>' : '') + '</div>';
+}
+function dayBlock(g, i) {
+  const open = S.open[g.day] !== undefined ? S.open[g.day] : i === 0;
+  const r = g.rate, n = r.hit + r.miss;
+  const hs = [...new Set(g.rows.map((x) => x.horizon))].sort((a, b) => a - b).join(' 和 ');
+  const mades = [...new Set(g.rows.map((x) => x.made_day))].sort();
+  const madeText = mades.length === 1 ? day5(mades[0]) + ' 发出的' : day5(mades[0]) + ' 起发出的';
+  return '<div style="border-top: 1px solid #EEF0F3"><div data-act="day" data-k="' + esc(g.day) + '" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: ' + (open ? '#F7FAFF' : '#FFFFFF') + '; cursor: pointer"><span style="color: #8A919E; font-size: 12px">' + (open ? '▾' : '▸') + '</span>' +
+    '<b style="' + MONO_F + '; font-size: 14px">' + day5(g.day) + (g.day === S.sum.today ? ' 今天' : '') + '</b><span style="font-size: 12px; color: #5B6372">结算 ' + madeText + ' ' + hs + ' 天预测</span>' +
+    '<span style="margin-left: auto; ' + MONO_F + '; font-size: 13px"><b>' + r.hit + ' / ' + n + '</b> <span style="color: ' + (r.pct >= 0.55 ? '#B42318' : '#5B6372') + '">' + rate(r.pct) + '</span></span><span style="font-size: 12px; color: #8A919E">错 ' + r.miss + ' 条</span></div>' +
+    (open ? g.rows.map(settledRow).join('') + '<div style="padding: 8px 16px 12px 140px"><span style="font-size: 12px; color: #8A919E">' + (g.wrong_reasons && g.wrong_reasons.length ? '错因：' + g.wrong_reasons.slice(0, 3).map((x) => esc(x.label) + ' ' + x.count + ' 条').join('、') : '这天没有错的') + '</span></div>' : '') + '</div>';
+}
+function doneQuery() {
+  const f = S.f.done;
+  return '?horizon=' + f.h + '&source=' + f.src + '&range=' + f.range + (f.wrong ? '&wrong=1' : '') + (f.q ? '&q=' + encodeURIComponent(f.q) : '');
+}
+function renderDone() {
+  const d = S.data.done, f = S.f.done;
+  if (S.sum.empty) return '<div style="display: flex; flex-direction: column; gap: 14px">' + emptyCard() + '</div>';
+  const t = d ? d.total : null;
+  const days = d ? d.days : [];
+  const shown = days.slice(0, S.shown.done);
+  const range = days.length ? day5(days[days.length - 1].day) + ' <span style="color: #A1A7B2">→</span> ' + day5(days[0].day) : '—';
+  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">' + segs([['all', '全部'], ['scan', '扫描'], ['diagnose', '你诊断的']], f.src, 'dsrc') + segs([[5, '5 天'], [20, '20 天']], f.h, 'dh') +
+    '<span class="seg"><button type="button" data-act="dwrong" aria-pressed="' + f.wrong + '">只看错的</button></span></div>' +
+    '<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><span style="font-size: 12px; color: #5B6372; white-space: nowrap">结算日</span>' + segs([['week', '近 1 周'], ['month', '近 1 月'], ['quarter', '近 3 月'], ['year', '今年']], f.range, 'drange') +
+    '<span style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font-size: 12px; ' + MONO_F + '; box-sizing: border-box; white-space: nowrap">' + range + ' <span style="color: #8A919E">▾</span></span>' +
+    (t ? '<span style="font-size: 12px; color: #8A919E; white-space: nowrap">这段时间 <b style="color: #14171F">' + d.n_days + ' 个结算日 · ' + t.n + ' 条 · 对 ' + t.hit + '（' + rate(t.pct) + '）· 持平 ' + t.flat + '</b></span>' : '') +
+    '<input id="dq" placeholder="搜某只票的全部结算（回车）" value="' + esc(f.q) + '" style="display: inline-flex; align-items: center; gap: 8px; width: 240px; height: 32px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font-size: 12px; color: #14171F; box-sizing: border-box; outline: none">' +
+    '<a href="' + (DEMO ? '#' : '/api/scan/export.csv' + doneQuery()) + '" style="' + LINKBTN + '; margin-left: auto">导出 CSV</a></div>' +
+    '<div style="' + CARD + '"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">按结算日</b><span style="font-size: 12px; color: #8A919E">每天收盘后结算一批；错的默认展开原因</span></div><div style="margin: 0 -16px -14px">' +
+    (d ? (shown.length ? shown.map(dayBlock).join('') : '<div class="empty" style="padding: 28px">这段时间没有结算。预测满 5 个交易日才第一次结算，所以刚开始用时这里是空的。</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
+    (days.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="done" style="' + LINKBTN + '">再加载 4 个结算日</button><span style="margin-left: 10px; font-size: 11px; color: #A1A7B2">已显示 ' + shown.length + ' / ' + days.length + ' 个结算日 · 改上面的时间范围可以一次看更多</span></div>' : '') + '</div></div>' +
+    '<span style="font-size: 11px; color: #A1A7B2">结算后不能改；所有预测在发出时存证，包括没对的。「不明」不结算，但计入不明率。</span></div>';
+}
+
+/* ---------- 准不准 ---------- */
+function chart(a) {
+  const days = a.by_day.slice(-20);
+  if (!days.length) return '';
+  const W = 1100, X0 = 36, step = (W - 36) / Math.max(days.length, 20), bw = step - 4;
+  const y = (p) => 125.8 - (Math.max(35, Math.min(78, p * 100)) - 40) * 3.2533;
+  let out = '<svg viewBox="0 0 1100 160" width="100%" height="160" aria-label="每日命中率" style="display: block">';
+  [40, 50, 60, 70].forEach((v) => { const yy = y(v / 100); out += '<line x1="30" x2="1100" y1="' + yy.toFixed(1) + '" y2="' + yy.toFixed(1) + '" stroke="#F1F2F4"></line><text x="2" y="' + (yy + 3).toFixed(1) + '" font-size="10" fill="#A1A7B2">' + v + '%</text>'; });
+  days.forEach((d, i) => { if (d.rate.pct < 0) return; const yy = y(d.rate.pct); out += '<rect x="' + (X0 + i * step).toFixed(1) + '" y="' + yy.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (142 - yy).toFixed(1) + '" fill="#C9CED6" opacity="0.55"></rect>'; });
+  const cx = (i) => (X0 + i * step + bw / 2 + 0.5).toFixed(1);
+  if (a.baseline >= 0) out += '<polyline points="' + days.map((d, i) => cx(i) + ',' + y(a.baseline).toFixed(1)).join(' ') + '" fill="none" stroke="#8A919E" stroke-width="2" stroke-dasharray="4 3"></polyline>';
+  const pts = days.map((d, i) => d.rolling >= 0 ? cx(i) + ',' + y(d.rolling).toFixed(1) : null).filter(Boolean);
+  if (pts.length > 1) out += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#2457D6" stroke-width="2"></polyline>';
+  out += '<text x="34" y="158" font-size="10" fill="#A1A7B2">' + day5(days[0].day) + '</text><text x="1100" y="158" font-size="10" fill="#A1A7B2" text-anchor="end">' + day5(days[days.length - 1].day) + '</text></svg>';
+  return out + '<div style="display: flex; gap: 14px; font-size: 11px; color: #5B6372"><span><b style="color: #C9CED6">■</b> 每天的命中率</span><span><b style="color: #2457D6">━</b> 近 ' + a.days + ' 天滚动</span><span><b style="color: #8A919E">┅</b> 随便选</span></div>';
+}
+const SUBNOTE = { diagnose: '多是你已经关注、涨了一段的票，AI 也更难判断', news: '利好常已提前反应', fundamental: '估值类判断短期不灵，看 20 天更合适' };
+function bheader(title) { return '<div style="display: grid; grid-template-columns: minmax(0, 1fr) 64px 70px 74px; gap: 8px; padding-top: 10px; font-size: 11px; color: #8A919E"><b style="color: #14171F; font-size: 12px">' + title + '</b><span style="text-align: right">命中</span><span style="text-align: right">样本</span><span style="text-align: right">比随便选</span></div>'; }
+function brow(r, a, cur) {
+  const few = r.rate.n < a.min_n || r.rate.pct < 0;
+  const sub = SUBNOTE[r.key] ? '<span style="font-size: 11px; color: #8A919E">' + SUBNOTE[r.key] + '</span>' : '';
+  const label = esc(r.label) + (cur && r.key === cur ? ' · 当前' : '');
+  const bg = cur && r.key === cur ? '; background: #F7FAFF' : '';
+  return '<div style="display: grid; grid-template-columns: minmax(0, 1fr) 64px 70px 74px; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid #F4F5F7' + bg + '"><span style="display: flex; flex-direction: column"><span style="font-size: 13px">' + label + '</span>' + sub + '</span>' +
+    (few ? '<b style="' + MONO_F + '; font-size: 13px; text-align: right; color: #8A919E">—</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E; text-align: right">样本不足</span><span></span>' :
+      '<b style="' + MONO_F + '; font-size: 13px; text-align: right">' + rate(r.rate.pct) + '</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E; text-align: right">n=' + num(r.rate.n) + '</span><span style="' + MONO_F + '; font-size: 12px; text-align: right; color: ' + (r.edge >= 5 ? '#B42318' : '#5B6372') + '">' + sign(r.edge) + Math.abs(r.edge).toFixed(1) + '</span>') + '</div>';
+}
+const group = (title, rows, a, cur) => bheader(title) + (rows && rows.length ? rows.map((r) => brow(r, a, cur)).join('') : '<div style="font-size: 12px; color: #8A919E; padding: 8px 0">暂时没有数据</div>');
+function renderAcc() {
+  const a = S.data.acc;
+  if (S.sum.empty) return '<div style="display: flex; flex-direction: column; gap: 14px">' + emptyCard() + '</div>';
+  if (!a) return '<div class="skeleton">读取中…</div>';
+  const n = a.overall.n, h = a.horizon, dt = Object.assign({}, a.due_today);
+  dt.n = dt.hit + dt.miss;
+  let line;
+  if (!n) line = '还没有已结算的 ' + h + ' 天预测。' + (S.sum.first_made ? '第一批预测是 ' + day5(S.sum.first_made) + ' 发出的，满 ' + h + ' 个交易日后第一次结算。' : '');
+  else line = '近 ' + a.days + ' 天，AI 给出方向的 ' + num(n) + ' 条预测里对了 ' + rate(a.overall.pct) + (a.baseline >= 0 ? '，比「随便选」' + (a.edge >= 0 ? '高 ' : '低 ') + Math.abs(a.edge).toFixed(1) + ' 个百分点。' : '。');
+  const sub = (n && n < a.min_n ? '样本只有 ' + n + ' 条，数字还不稳，先当参考。' : '') + (dt.n ? '今天到期 ' + dt.n + ' 条，对了 ' + dt.hit + ' 条（' + rate(dt.pct) + '）；单日数字波动大，看蓝线。' : '');
+  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 14px"><div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">AI 准不准</b><span style="font-size: 12px; color: #8A919E">每天盘后结算到期的预测 · 比的是「跑没跑赢所在板块」</span>' +
+    '<span class="seg" style="margin-left: auto"><button type="button" data-act="ah" data-k="5" aria-pressed="' + (S.f.acc === 5) + '">看 5 天</button><button type="button" data-act="ah" data-k="20" aria-pressed="' + (S.f.acc === 20) + '">看 20 天</button></span></div>' +
+    '<div style="padding: 10px 12px; border-radius: 10px; background: #F1F5FE; font-size: 14px; line-height: 1.6"><b>' + esc(line) + '</b>' + (sub ? '<span style="font-size: 12px; color: #5B6372">' + esc(sub) + '</span>' : '') + '</div>' +
+    '<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">' + box('近 ' + a.days + ' 天命中率', rate(a.overall.pct), num(n) + ' 条 · ' + h + ' 天到期', { size: 20 }) + box('随便选', rate(a.baseline), '每次都说同一方向', { size: 20, color: '#5B6372' }) +
+    box('今天到期', dt.n ? dt.hit + ' / ' + dt.n : '—', dt.n ? rate(dt.pct) : '今天没有到期的', { size: 20 }) + box('不明率', Math.round(a.unclear_rate * 100) + '%', '没靠多说不明刷分', { size: 20, color: '#5B6372' }) + '</div>' + chart(a) + '</div>' +
+    '<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start"><div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 14px"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">哪类预测更靠谱</b><span style="font-size: 12px; color: #8A919E">近 ' + a.days + ' 天 · ' + h + ' 天到期 · 比随便选高 5 个点以上标红</span></div>' +
+    group('按来源', a.by_source, a) + group('按强度：强度高的是不是真的更准', a.by_level, a) + group('按方向', a.by_direction, a) + group('按市场环境', a.by_market, a, a.current_market) +
+    (a.level_note ? '<span style="font-size: 12px; color: #5B6372; line-height: 1.6; padding-top: 6px">' + esc(a.level_note) + '</span>' : '') + '</div>' +
+    '<div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 14px"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">各分析师的命中率</b><span style="font-size: 12px; color: #8A919E">' + (a.current_market ? '当前' + esc(a.current_market) + ' · ' : '') + '诊断群里名字旁显示的就是这个数</span></div>' + group('分析师', a.by_analyst, a) +
+    '<span style="font-size: 12px; color: #5B6372; line-height: 1.6; padding-top: 6px">比随便选高不到 3 个点的，说明这一维暂时没有预测力；样本少于 ' + a.min_n + ' 条的不下结论。</span></div></div></div>';
+}
+
+/* ---------- 右侧：今天结算 ---------- */
+function renderPanel() {
+  const p = S.panel;
+  if (S.notif || !p || !S.sum || S.sum.empty && !DEMO) { $('aside').hidden = true; return; }
+  $('aside').hidden = false;
+  const tm = p.tomorrow || {};
+  const tomorrowBox = '<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px; border: 1px solid #E3E6EB"><span style="display: flex; justify-content: space-between; font-size: 13px"><b>明天结算</b><span style="' + MONO_F + '">' + (tm.count || 0) + ' 条</span></span>' +
+    '<span style="font-size: 12px; color: #5B6372">' + (tm.count ? esc(tm.made_text) + ' 发出 · 目前算对 ' + tm.now_right + ' 条 · 和你有关 ' + tm.mine + ' 条' : '明天没有要结算的') + '</span></div>';
+  if (!p.has) {
+    $('aside').innerHTML = '<div style="display: flex; flex-direction: column; gap: 12px; padding: 18px 20px"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 16px">今天结算</b></div><span style="font-size: 12px; color: #5B6372; line-height: 1.7">还没有结算过：预测满 5 个交易日才第一次对账。到时这里会写今天对了多少、错在哪、和你有关的有哪些。</span>' + tomorrowBox + '</div>';
+    return;
+  }
+  const r = p.rate, n = r.hit + r.miss + r.flat;
+  const sq = p.squares.map((o) => o === 'hit' ? '<span style="height: 10px; border-radius: 2px; background: #1E6B44; opacity: 0.75"></span>' : o === 'miss' ? '<span style="height: 10px; border-radius: 2px; background: #B42318; opacity: 0.55"></span>' : '<span style="height: 10px; border-radius: 2px; background: repeating-linear-gradient(45deg, #C9CED6 0 2px, transparent 2px 4px)"></span>').join('');
+  const mine = (p.mine || []).length ? (p.mine.slice(0, 4).map((m) => { const o = OUT[m.outcome] || OUT.flat; return '<span style="display: flex; align-items: center; gap: 6px; font-size: 12px"><b>' + esc(m.name) + '</b><span style="color: #5B6372">' + esc(m.source_text) + ' · ' + esc(m.direction_text) + ' · ' + (m.excess >= 0 ? '跑赢' : '跑输') + '板块 ' + Math.abs(m.excess * 100).toFixed(1) + ' 个点</span><span style="margin-left: auto">' + pl(o[0], o[1], o[2]) + '</span></span>'; }).join('')) : '<span style="font-size: 12px; color: #5B6372">你的标的今天都没有到期</span>';
+  const wrongs = (p.wrong_reasons || []);
+  const wrongBlock = p.wrong ? '<div style="display: flex; flex-direction: column; gap: 6px"><b style="font-size: 13px">错的 ' + p.wrong + ' 条，主要错在</b>' + wrongs.slice(0, 3).map((w) => '<div style="display: grid; grid-template-columns: minmax(0, 1fr) 40px; gap: 8px; align-items: center; font-size: 12px; padding: 6px 0; border-top: 1px solid #F4F5F7"><span>' + esc(w.label) + '</span><b style="' + MONO_F + '; text-align: right">' + w.count + ' 条</b></div>').join('') + '<span style="font-size: 11px; color: #8A919E">已计入各分析师的命中率。</span></div>' : '';
+  $('aside').innerHTML = '<div style="display: flex; flex-direction: column; gap: 12px; padding: 18px 20px"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 16px">' + (p.is_today ? '今天结算' : day5(p.day) + ' 结算') + '</b><span style="font-size: 12px; color: #8A919E">' + esc(day5(p.day)) + ' · ' + esc(p.label) + '</span></div>' +
+    '<div style="display: flex; align-items: baseline; gap: 10px"><b style="' + MONO_F + '; font-size: 28px">' + r.hit + ' / ' + (r.hit + r.miss) + '</b><span style="font-size: 13px; color: #5B6372">对了 ' + rate(r.pct) + (p.baseline >= 0 ? '　随便选 ' + rate(p.baseline) : '') + '</span></div>' +
+    '<span style="font-size: 12px; color: #5B6372; margin-top: -6px">到期 ' + n + ' 条：对 ' + r.hit + ' · 错 ' + r.miss + ' · 持平 ' + r.flat + '（差不到 0.5 个点，不计）</span>' +
+    '<div style="display: grid; grid-template-columns: repeat(' + Math.min(Math.max(p.squares.length, 1), 24) + ', 1fr); gap: 2px">' + sq + '</div>' +
+    '<div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 10px; background: #F7F8FA"><b style="font-size: 13px">和你有关的</b>' + mine + (p.held_other ? '<span style="font-size: 11px; color: #8A919E">你持有的其他 ' + p.held_other + ' 只今天没有到期</span>' : '') + '</div>' +
+    wrongBlock + tomorrowBox + '<span style="font-size: 11px; color: #8A919E">' + esc(p.notify_text) + '</span>' +
+    '<button type="button" data-act="tab" data-k="done" style="' + LINKBTN + '; align-self: flex-start">看今天全部 ' + n + ' 条 →</button></div>';
+}
+
+/* ---------- 即将执行的定时任务（设计稿之外，按设计稿的卡片样式放在页面底部） ---------- */
+const STATE_TEXT = { succeeded: '成功', partial: '部分成功', failed: '失败', skipped: '已跳过', running: '运行中', waiting: '等待中', planned: '已排队', expired: '已过期' };
+const STATE_COLOR = { succeeded: ['#EDF7F1', '#1E6B44'], failed: ['#FDF0EF', '#B42318'], partial: ['#FFF1D6', '#7A4A00'] };
+const busy = (t) => t.last && (t.last.state === 'running' || t.last.state === 'waiting' || t.last.state === 'planned');
+function taskRow(t, scan) {
+  const last = t.last ? '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + pl((STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[t.last.state] || t.last.state) + '</span><span style="font-size: 11px; color: #8A919E">上次 ' + esc(t.last.at) + '</span></span>' : '<span style="font-size: 11px; color: #8A919E">还没跑过</span>';
+  return '<div style="display: grid; grid-template-columns: 220px minmax(0, 1fr) 140px 100px; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid #F1F2F4"><span style="display: flex; flex-direction: column"><b style="' + MONO_F + '; font-size: 13px">' + (t.when_text ? esc(t.when_text) : '—') + '</b><span style="font-size: 11px; color: #8A919E">' + esc(t.trigger_text) + (t.paused ? ' · 已暂停' : '') + '</span></span>' +
+    '<span style="display: flex; flex-direction: column"><b style="font-size: 13px">' + esc(t.title) + '</b>' + (t.note ? '<span style="font-size: 11px; color: #5B6372; line-height: 1.5">' + esc(t.note) + '</span>' : '') + '</span>' + last +
+    (scan && !DEMO ? '<button type="button" data-act="runnow" data-k="' + esc(t.task_id) + '" ' + (busy(t) ? 'disabled style="opacity: .5; cursor: default; ' : 'style="') + 'height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font-size: 12px; color: #2457D6; cursor: pointer; white-space: nowrap">' + (busy(t) ? '正在跑…' : '现在跑一次') + '</button>' : '<span></span>') + '</div>';
+}
+function upcomingCard() {
+  const u = S.up;
+  if (!u) return '';
+  const n = u.nightly, subs = n.subjects || [], w = u.watch || { alerts: [] };
+  const sec = (inner) => '<div style="padding-top: 10px; border-top: 1px solid #F1F2F4; display: flex; flex-direction: column; gap: 6px">' + inner + '</div>';
+  const stockChips = subs.slice(0, 12).map((x) => '<span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid #E3E6EB; border-radius: 8px; background: #FFFFFF; font-size: 12px"><b>' + esc(x.name || x.ts_code) + '</b>' + pl('#EEF0F3', '#4A5260', x.tier_text).replace('height: 20px', 'height: 16px').replace('font-size: 12px', 'font-size: 10px') + '<span style="font-size: 11px; color: #8A919E">' + (x.last_at ? '现有结论 ' + esc(x.last_at.slice(5)) + ' ' + esc(x.last_verdict || '') : '还没有结论') + '</span></span>').join('');
+  const stocks = subs.length ? sec('<span style="font-size: 12px; color: #3A4250"><b>' + (n.next ? esc(n.next.slice(5)) + ' 夜间任务' : '下一次夜间任务') + '会扫这 ' + subs.length + ' 只：</b>持仓排最前，然后想买，最后自选；每只各出一份结论、各记一条预测。</span><span style="display: flex; gap: 8px; flex-wrap: wrap">' + stockChips + (subs.length > 12 ? '<span style="font-size: 11px; color: #8A919E; align-self: center">…共 ' + subs.length + ' 只</span>' : '') + '</span>')
+    : sec('<span style="font-size: 12px; color: #8A919E">你还没有自选、持仓或想买的股票，夜间任务没有东西可扫。在诊断页加入自选后，下一个交易日晚上就会扫。</span>');
+  const alerts = (w.alerts || []).map((a) => '<div style="display: grid; grid-template-columns: minmax(0, 1fr) 190px 210px 44px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid #F4F5F7"><a href="' + diagnoseHref(a.ts_code) + '" style="text-decoration: none"><b style="font-size: 13px">' + esc(a.name || a.ts_code) + '</b> <span style="font-size: 12px; color: #3A4250">' + (a.side === 'down' ? '跌到' : '涨到') + ' <b style="' + MONO_F + '">' + Number(a.price).toFixed(2) + '</b>' + (a.confirm === 'close' ? ' <span style="display: inline-flex; align-items: center; height: 16px; padding: 0 5px; border-radius: 4px; background: #EEF0F3; color: #4A5260; font-size: 10px; font-weight: 600">收盘确认</span>' : '') + '</span></a>' +
+    '<span style="font-size: 11px; color: #8A919E">' + (a.now ? '现价 ' + Number(a.now).toFixed(2) + ' · 还差 ' + Math.abs(a.gap_pct * 100).toFixed(1) + '%' : '现价取不到') + '</span><span style="font-size: 11px; color: #8A919E">' + esc(a.check || '') + '</span><button type="button" class="xbtn" data-act="alertdel" data-id="' + a.id + '" title="撤掉这条提醒">撤掉</button></div>').join('');
+  const watch = sec('<span style="font-size: 12px; color: #3A4250"><b>盯价</b>：' + (w.alerts.length ? '你设了 ' + w.alerts.length + ' 条到价提醒' : '你没有设到价提醒') + '，盘中每 3 分钟、收盘后各检查一次，到价才会进通知。' + (w.offline ? '离线转发已开，关机也会提醒。' : '') + (w.held ? ' 持仓的 ' + w.held + ' 只还会自动盯日内涨跌。' : '') + '</span>' + (alerts || '<span style="font-size: 11px; color: #8A919E">在诊断页「要盯的两个价」点「到了提醒我」，这里就会出现。</span>'));
+  const settle = (u.settle || []).length ? sec('<span style="font-size: 12px; color: #3A4250"><b>接下来到期的预测：</b></span><span style="display: flex; gap: 8px; flex-wrap: wrap">' + u.settle.map((x) => '<span style="padding: 5px 10px; border-radius: 8px; background: #F7F8FA; font-size: 12px"><b style="' + MONO_F + '">' + day5(x.day) + '</b> · ' + x.count + ' 条 <span style="font-size: 11px; color: #8A919E">' + esc(x.names.join('、')) + (x.count > x.names.length ? ' 等' : '') + '</span></span>').join('') + '</span>')
+    : sec('<span style="font-size: 12px; color: #8A919E">现在没有在跟踪的预测，所以没有要结算的。</span>');
+  const others = (u.others || []).length ? '<details style="padding-top: 10px; border-top: 1px solid #F1F2F4"><summary style="cursor: pointer; font-size: 12px; color: #5B6372">其他定时任务（' + u.others.length + '）</summary>' + u.others.map((t) => taskRow(t)).join('') + '</details>' : '';
+  return '<div style="' + CARD + '"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">即将执行的定时任务</b><span style="font-size: 12px; color: #8A919E">现在 ' + esc(u.now) + ' · 周末和休市日不跑交易日任务</span></div>' + (u.scan_tasks || []).map((t) => taskRow(t, true)).join('') + watch + stocks + settle + others + '</div>';
+}
+
+/* ---------- 口径 ---------- */
+function openRules() {
+  $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1"><div style="display: flex; align-items: center"><b style="font-size: 16px">统计口径</b><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 18px">×</button></div>' +
+    '<span><b>预测从哪来：</b>你的自选、持仓和想买，每个交易日夜间任务出一份结论就记一条；你在诊断页点「重新分析」也记一条（标成「你诊断」）。同一份结论只记一次。</span>' +
+    '<span><b>起点：</b>发出时最近的一个收盘价，本股和所在板块（申万二级，没有则一级）用同一天。</span>' +
+    '<span><b>结算：</b>满 5 个、20 个交易日后各结算一次，比较本股和板块的涨幅差。偏多且跑赢、偏空且跑输算对；差不到 0.5 个点算持平，不计入命中率。「不明」不结算。</span>' +
+    '<span><b>随便选：</b>每次都押同一方向的命中率，取多数方向。AI 的命中率要比它高才算有用。</span>' +
+    '<span><b>存证：</b>预测和结果只追加，不能改、不能删，放在本机 client/predictions.json。</span>' +
+    '<span><b>为什么错了：</b>错的预测按模板列出当时同向的分析师和之后走势的矛盾处，不是模型事后编的故事。</span></div></div>';
+}
+function openScope() {
+  $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1"><div style="display: flex; align-items: center"><b style="font-size: 16px">扫描范围</b><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 18px">×</button></div>' +
+    '<span>扫描的范围就是你自己的<b>持仓、想买和自选</b>，不用另外设置：在诊断页加入自选、在持仓页记一笔或加一个想买，下一个交易日晚上夜间任务就会扫到。</span>' +
+    '<span>全市场的候选池（规则初筛后再让 AI 研判）现在没有做。</span><span style="display: flex; gap: 8px"><a href="/" style="' + LINKBTN + '">去诊断页加自选</a><a href="/holdings.html" style="' + LINKBTN + '">去持仓页</a></span></div></div>';
+}
+
+/* ---------- 通知（和设计稿一样的抽屉） ---------- */
+const NOTIF_TABS = [['all', '全部'], ['alert', '提醒'], ['change', '判断变化'], ['settle', '战绩']];
+const NOTIF_ICON = { alert: ['🔔', '#FDECEA'], change: ['⇄', '#FFF4E0'], upcoming: ['📅', '#F1F2F4'], settle: ['★', '#EDF7F1'], ann: ['📢', '#F1F2F4'], move: ['📈', '#F1F2F4'], system: ['⚙', '#F1F2F4'] };
+function renderNotif() {
+  const el = $('notifAside');
+  el.hidden = !S.notif;
+  el.style.display = S.notif ? 'flex' : 'none';
+  if (!S.notif) return;
+  const d = S.nData;
+  const items = d ? d.items.filter((i) => S.nTab === 'all' || i.kind === S.nTab || (S.nTab === 'alert' && i.kind === 'upcoming')) : [];
+  const groups = ['今天', '即将发生', '昨天', '更早'].map((g) => [g, items.filter((i) => i.group === g)]).filter((x) => x[1].length);
+  el.innerHTML = '<div style="display: flex; align-items: center; gap: 12px; padding: 14px 12px 0 20px"><span style="font-size: 16px; font-weight: 700">通知</span><button type="button" data-act="notifread" style="margin-left: auto; font-size: 12px; color: #2457D6; border: none; background: transparent; cursor: pointer">全部已读</button><button type="button" aria-label="关闭（Esc）" data-act="notif" style="width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: #5B6372; font: inherit; font-size: 18px; cursor: pointer">×</button></div>' +
+    '<div style="display: flex; padding: 0 10px; border-bottom: 1px solid #EEF0F3">' + NOTIF_TABS.map(([k, n]) => '<button type="button" data-act="ntab" data-k="' + k + '" style="padding: 0 10px; height: 36px; display: inline-flex; align-items: center; font-size: 13px; border: none; background: transparent; cursor: pointer; ' + (S.nTab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : 'color: #5B6372') + '">' + n + '</button>').join('') + '</div>' +
+    (!d ? '<div class="skeleton" style="padding: 20px">正在取通知…</div>' : groups.length ? groups.map(([g, list]) => '<span style="padding: 10px 16px 2px 32px; font-size: 11px; font-weight: 600; color: #8A919E">' + g + '</span>' + list.map((i) => { const ic = NOTIF_ICON[i.kind] || ['•', '#F1F2F4']; return '<button type="button" data-act="nsel" data-kind="' + esc(i.kind) + '" data-code="' + esc(i.code) + '" style="display: grid; grid-template-columns: 6px 28px minmax(0, 1fr) auto; align-items: start; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: transparent; text-align: left; font: inherit; color: #14171F; cursor: pointer">' + (i.unread ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #D9483F; margin-top: 7px"></span>' : '<span style="width: 6px"></span>') + '<span style="width: 28px; height: 28px; border-radius: 8px; background: ' + ic[1] + '; display: flex; align-items: center; justify-content: center; font-size: 13px">' + ic[0] + '</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 11px; color: #8A919E">' + esc(i.title) + '</span><span style="font-weight: 600">' + esc(i.text) + '</span>' + (i.sub ? '<span style="font-size: 12px; color: #5B6372; white-space: pre-line">' + esc(i.sub) + '</span>' : '') + '</span><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(i.when) + '</span></button>'; }).join('')).join('') : '<div style="padding: 28px 20px; color: #8A919E">现在没有通知。</div>') +
+    '<div style="display: flex; align-items: center; gap: 12px; margin-top: auto; padding: 12px 20px; border-top: 1px solid #EEF0F3; background: #F7F8FA; font-size: 12px; color: #5B6372"><span>系统通知 · 仅交易时间提醒</span><a href="/settings.html" style="margin-left: auto; color: #2457D6; text-decoration: none">通知设置</a></div>';
+}
+async function loadNotif() {
+  if (DEMO) { S.nData = demoNotif(); } else {
+    try { const res = await fetch('/api/v1/holdings/notifications'); S.nData = await res.json(); } catch (e) { S.nData = S.nData || { items: [], unread: 0 }; }
+  }
+  const n = S.nData ? S.nData.unread || 0 : 0;
+  $('bellDot').hidden = !n; $('bellDot').textContent = n > 99 ? '99+' : n;
+  $('bell').style.background = S.notif ? '#EAF0FD' : 'transparent';
+}
+
+/* ---------- 交互 ---------- */
+const reload = (tab) => loadTab(tab || S.tab, true);
+let pollTimer = null;
+function pollAfterRun() {
+  clearInterval(pollTimer);
+  let left = 24;
+  const tick = async () => {
+    try { S.up = await api('/upcoming'); S.sum = await api('/summary'); S.panel = await api('/panel'); renderHead(); renderTabs(); renderPanel(); S.data = {}; if (S.tab === 'today') await loadTab('today', true); else renderBody(); } catch (e) { /* 下次再试 */ }
+    const running = (S.up && S.up.scan_tasks || []).some(busy);
+    if (--left <= 0 || (!running && left < 22)) clearInterval(pollTimer);
+  };
+  pollTimer = setInterval(tick, 5000); setTimeout(tick, 1500);
+}
+const ACT = {
+  tab: (el) => { S.tab = el.dataset.k; renderTabs(); loadTab(S.tab); },
+  tsrc: (el) => { S.f.today = el.dataset.k; reload(); },
+  tdue: (el) => { S.f.track.due = el.dataset.k; reload(); },
+  twho: (el) => { S.f.track.who = el.dataset.k; reload(); },
+  dsrc: (el) => { S.f.done.src = el.dataset.k; reload(); },
+  dh: (el) => { S.f.done.h = Number(el.dataset.k); reload(); },
+  dwrong: () => { S.f.done.wrong = !S.f.done.wrong; reload(); },
+  drange: (el) => { S.f.done.range = el.dataset.k; reload(); },
+  day: (el) => { const k = el.dataset.k; const i = (S.data.done.days || []).findIndex((x) => x.day === k); const cur = S.open[k] !== undefined ? S.open[k] : i === 0; S.open[k] = !cur; renderBody(); },
+  more: (el) => { const k = el.dataset.k; S.shown[k] += k === 'done' ? 4 : k === 'track' ? 20 : 20; renderBody(); },
+  ah: (el) => { S.f.acc = Number(el.dataset.k); reload(); },
+  rules: openRules,
+  scope: openScope,
+  close: (el, e) => { if (el.classList.contains('modal') && e.target.closest('[data-stop]')) return; $('modal').innerHTML = ''; },
+  notif: async () => { S.notif = !S.notif; renderNotif(); renderPanel(); $('bell').style.background = S.notif ? '#EAF0FD' : 'transparent'; if (S.notif) { await loadNotif(); renderNotif(); } },
+  ntab: (el) => { S.nTab = el.dataset.k; renderNotif(); },
+  notifread: async () => { if (DEMO) return; try { await fetch('/api/v1/holdings/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); await loadNotif(); renderNotif(); } catch (e) { toast('标记失败', true); } },
+  nsel: (el) => {
+    S.notif = false; renderNotif(); renderPanel();
+    if (el.dataset.kind === 'settle' && !el.dataset.code) { S.tab = 'done'; renderTabs(); loadTab('done', true); }
+    else if (el.dataset.code) location.href = diagnoseHref(el.dataset.code);
+  },
+  runnow: async (el) => {
+    const task = el.dataset.k;
+    const n = S.up && S.up.nightly ? S.up.nightly.count : 0;
+    if (task === 'stock.nightly' && !confirm('现在给 ' + n + ' 只股票各跑一遍夜间任务？\n\n今天已经有结论的会直接记成预测，不重新分析；没有的会调用你的模型重新出一份。')) return;
+    el.disabled = true;
+    try {
+      const r = await fetch('/api/scan/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || '启动失败');
+      toast(j.queued ? '已开始' + (j.queued > 1 ? '，共 ' + j.queued + ' 只' : '') : (j.reason || '没有要跑的'));
+      pollAfterRun();
+    } catch (e) { toast(e.message, true); el.disabled = false; }
+  },
+  alertdel: async (el) => {
+    try {
+      const r = await fetch('/api/v1/alerts/' + el.dataset.id, { method: 'DELETE' });
+      if (!r.ok) throw new Error('撤掉失败');
+      toast('已撤掉这条提醒');
+      S.up = await api('/upcoming'); renderBody();
+    } catch (e) { toast(e.message, true); }
+  },
+};
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const fn = ACT[el.dataset.act];
+  if (fn) fn(el, e);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { if ($('modal').innerHTML) $('modal').innerHTML = ''; else if (S.notif) ACT.notif(); }
+  if (e.key === 'Enter' && e.target && e.target.id === 'dq') { S.f.done.q = e.target.value.trim(); reload('done'); }
+});
+
+/* ---------- 加载与渲染 ---------- */
+function renderBody() {
+  if (!S.sum) return;
+  $('body').innerHTML = { today: renderToday, track: renderTrack, done: renderDone, acc: renderAcc }[S.tab]();
+}
+async function loadTab(t, force) {
+  if (!S.sum) return;
+  if (force || !S.data[t]) {
+    S.data[t] = null; renderBody();
+    try {
+      const f = S.f;
+      if (t === 'today') S.data[t] = await api('/today?source=' + f.today);
+      else if (t === 'track') { S.data[t] = await api('/tracking?due=' + f.track.due + '&source=' + (f.track.who === 'diagnose' ? 'diagnose' : 'all') + (f.track.who === 'mine' ? '&mine=1' : '')); S.shown.track = 30; }
+      else if (t === 'done') { S.data[t] = await api('/settled' + doneQuery()); S.shown.done = 4; }
+      else if (t === 'acc') S.data[t] = await api('/accuracy?horizon=' + f.acc);
+    } catch (e) { $('body').innerHTML = '<div style="' + CARD + '"><span style="color: #B42318">' + esc(e.message) + '</span></div>'; return; }
+  }
+  if (S.tab === t) renderBody();
+}
+async function refreshAll() {
+  try { S.sum = await api('/summary'); setStatus(true, DEMO ? '示例数据 · 不是你的预测' : '已连接 · 预测记在本机'); }
+  catch (e) { setStatus(false, '后端没连上：' + e.message); $('body').innerHTML = '<div style="' + CARD + '"><b>扫描接口没有响应</b><span style="font-size: 12px; color: #8A919E">' + esc(e.message) + '</span></div>'; return; }
+  renderHead(); renderTabs();
+  S.data = {};
+  api('/panel').then((p) => { S.panel = p; renderPanel(); }).catch(() => {});
+  api('/upcoming').then((u) => { S.up = u; if (S.tab === 'today') renderBody(); }).catch(() => {});
+  await loadTab(S.tab, true);
+  loadNotif();
+}
+function tickClock() {
+  const d = new Date(), t = d.getHours() * 60 + d.getMinutes(), wk = d.getDay() > 0 && d.getDay() < 6;
+  const live = wk && ((t >= 570 && t <= 690) || (t >= 780 && t <= 900));
+  $('session').innerHTML = '<span style="width: 7px; height: 7px; border-radius: 50%; background: ' + (live ? '#2E8B57' : '#A1A7B2') + '"></span>' + (live ? '交易中' : wk ? '已休市' : '休市日') + ' · 行情 <span style="' + MONO_F + '">' + [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':') + '</span>';
+}
+async function loadIndexes() {
+  try {
+    const j = await (await fetch(API + '/api/v1/market/summary')).json();
+    const want = ['上证', '深成', '创业板'];
+    const rows = (j.indexes || []);
+    const pick = want.map((w) => rows.find((r) => String(r.name).indexOf(w) >= 0)).filter(Boolean);
+    $('footIndexes').innerHTML = (pick.length ? pick : rows.slice(0, 3)).map((r) => '<span>' + esc(r.name) + ' <span style="' + MONO_F + '; color: ' + (r.pct > 0 ? '#B42318' : r.pct < 0 ? '#1E6B44' : '#5B6372') + '">' + Number(r.close).toFixed(2) + ' ' + (r.pct == null ? '' : sign(r.pct) + Math.abs(r.pct).toFixed(2) + '%') + '</span></span>').join('');
+  } catch (e) { /* 指数取不到不影响扫描 */ }
+}
+setInterval(tickClock, 1000); tickClock();
+setInterval(() => { if (!DEMO && !document.hidden && !$('modal').innerHTML && document.activeElement !== $('dq')) refreshAll(); }, 300000);
+
+/* ---------- 示例数据：?demo=1，数字照设计稿手写，只用来看版式 ---------- */
+function demoDays(n, endDay) {
+  const out = [];
+  let d = new Date(endDay + 'T00:00:00');
+  while (out.length < n) { if (d.getDay() > 0 && d.getDay() < 6) out.unshift(d.toISOString().slice(0, 10)); d = new Date(d.getTime() - 86400000); }
+  return out;
+}
+function demoRow(o) {
+  return Object.assign({ id: 'd' + Math.random().toString(36).slice(2, 7), source: 'scan', source_text: '定时扫描', made_day: '2026-11-02', made_at: '08:30', base_day: '2026-10-30', base_close: 0, evidence: '', level: 2, mine: {}, due: { '5': '2026-11-09', '20': '2026-11-30' } }, o);
+}
+function demoApi(path) {
+  const q = path.split('?')[0], params = new URLSearchParams(path.split('?')[1] || '');
+  const ds = demoData();
+  if (q === '/summary') return ds.summary;
+  if (q === '/today') { const src = params.get('source'); return { day: '2026-11-02', rows: ds.today.filter((r) => !src || src === 'all' || r.source === src) }; }
+  if (q === '/tracking') {
+    let rows = ds.tracking.slice();
+    if (params.get('mine') === '1') rows = rows.filter((r) => r.mine && r.mine.related);
+    if (params.get('source') === 'diagnose') rows = rows.filter((r) => r.source === 'diagnose');
+    return { rows, total: 128, by_horizon: { '5': 106, '20': 22 }, now_right: 74, tomorrow: 22, mine: 6, tomorrow_day: '2026-11-03' };
+  }
+  if (q === '/settled') { const h = Number(params.get('horizon')) || 5; return ds.settled(h, params.get('wrong') === '1', params.get('source') || 'all'); }
+  if (q === '/accuracy') return ds.accuracy(Number(params.get('horizon')) || 5);
+  if (q === '/panel') return ds.panel;
+  if (q === '/upcoming') return null;
+  return {};
+}
+function demoNotif() {
+  return { unread: 3, items: [
+    { kind: 'alert', group: '今天', title: '到点提醒', text: '拓普集团 跌到 56.50', sub: '你设的提醒价已触发 · 现价 56.42', when: '10:32', unread: true, code: '' },
+    { kind: 'change', group: '今天', title: '判断变化', text: '三花智控 · 从偏多变为不明', sub: '资金流转为流出，新闻没有新的催化', when: '09:58', unread: true, code: '002050.SZ' },
+    { kind: 'settle', group: '今天', title: '战绩结算', text: '战绩结算：今天到期 24 条，对了 62.5%', sub: '5 天：对 15 · 错 9 · 持平 2', when: '17:30', unread: true, code: '' },
+    { kind: 'upcoming', group: '即将发生', title: '明天', text: '杭氧股份 · 三季报披露', sub: '已设提前一天提醒 · 披露后自动重新诊断', when: '11-03', unread: false, code: '' },
+    { kind: 'settle', group: '昨天', title: '战绩结算', text: '战绩结算：昨天到期 28 条，对了 57.1%', sub: '5 天：对 16 · 错 12', when: '10-30', unread: false, code: '' },
+  ] };
+}
+let _demo = null;
+function demoData() {
+  if (_demo) return _demo;
+  const V = (s, l) => (l ? s + ' · ' + l : s);
+  const today = [
+    demoRow({ name: '招商银行', ts_code: '600036.SH', sector: '银行', direction: 'bullish', verdict: '偏多 · 比较明显', evidence: '板块三层同向；银行 ETF 近 2 周 +8.2 亿', base_close: 39.2 }),
+    demoRow({ name: '贵州茅台', ts_code: '600519.SH', sector: '白酒', direction: 'bullish', verdict: '偏多 · 稍微', evidence: '三季报落地；行业两融回升', base_close: 1432.5, level: 1 }),
+    demoRow({ name: '泰晶科技', ts_code: '603738.SH', sector: '通信元件', direction: 'bullish', verdict: '偏多 · 比较明显', evidence: '板块主升、本股领涨；大资金在买', base_close: 22.41 }),
+    demoRow({ name: '泰晶科技', ts_code: '603738.SH', source: 'diagnose', source_text: '你诊断', made_at: '10:40', sector: '通信元件', direction: 'bullish', verdict: '偏多 · 稍微', evidence: '你点了重新分析；10:52 大资金转小幅流出，强度下调', base_close: 22.41, level: 1, mine: { related: true, held: true } }),
+    demoRow({ name: '中芯国际', ts_code: '688981.SH', sector: '芯片', direction: 'bearish', verdict: '偏空 · 稍微', evidence: '只热不增：换手 2.1 倍，ETF 近 2 周被赎回 9.6 亿', base_close: 88.6, level: 1 }),
+    demoRow({ name: '隆基绿能', ts_code: '601012.SH', sector: '光伏', direction: 'bearish', verdict: '偏空 · 比较明显', evidence: '板块在流出；跌破 60 日线', base_close: 17.8 }),
+    demoRow({ name: '拓普集团', ts_code: '601689.SH', sector: '汽车零部件', direction: 'bearish', verdict: '偏空 · 位置偏高', evidence: '估值涨到偏高；板块只热不增', base_close: 58.2, level: 1, mine: { related: true, wish: true } }),
+    demoRow({ name: '宁德时代', ts_code: '300750.SZ', sector: '电池', direction: 'unclear', verdict: '不明', evidence: '证据互相抵消，没有明确方向', base_close: 195, level: 0 }),
+  ];
+  const T = (o) => Object.assign(demoRow({ made_day: '2026-10-27', base_day: '2026-10-27', horizon: 5, have: true }), o);
+  const tracking = [
+    T({ name: '贵州茅台', ts_code: '600519.SH', sector: '白酒', direction: 'bullish', verdict: '偏多 · 稍微', day: 4, stock_ret: 0.018, sector_ret: 0.012, excess: 0.006, now: 'hit', close_call: true, settle_day: '2026-11-03', mine: { related: true } }),
+    T({ name: '隆基绿能', ts_code: '601012.SH', sector: '光伏', direction: 'bearish', verdict: '偏空 · 比较明显', day: 4, stock_ret: -0.035, sector_ret: -0.02, excess: -0.015, now: 'hit', settle_day: '2026-11-03', mine: { related: true, held: true } }),
+    T({ name: '中芯国际', ts_code: '688981.SH', sector: '芯片', direction: 'bearish', verdict: '偏空 · 稍微', day: 3, base_day: '2026-10-28', stock_ret: 0.011, sector_ret: -0.006, excess: 0.017, now: 'miss', settle_day: '2026-11-04', mine: { related: true } }),
+    T({ name: '泰晶科技', ts_code: '603738.SH', source: 'diagnose', source_text: '你诊断', sector: '通信元件', direction: 'bullish', verdict: '偏多 · 稍微', day: 2, base_day: '2026-10-29', stock_ret: 0.004, sector_ret: 0.004, excess: 0.0, now: 'flat', settle_day: '2026-11-05', mine: { related: true, held: true } }),
+    T({ name: '拓普集团', ts_code: '601689.SH', sector: '汽车零部件', direction: 'bearish', verdict: '偏空 · 位置偏高', day: 1, base_day: '2026-10-30', stock_ret: -0.012, sector_ret: -0.004, excess: -0.008, now: 'hit', settle_day: '2026-11-06', mine: { related: true, wish: true } }),
+    T({ name: '招商银行', ts_code: '600036.SH', sector: '银行', direction: 'bullish', verdict: '偏多 · 比较明显', horizon: 20, day: 8, base_day: '2026-10-20', stock_ret: 0.031, sector_ret: 0.012, excess: 0.019, now: 'hit', settle_day: '2026-11-23', mine: { related: true } }),
+  ];
+  const ex = [['招商银行', '银行', 'bullish', '偏多 · 比较明显', 0.032, 0.011, 'hit', ''], ['杭氧股份', '通用设备', 'bullish', '偏多 · 位置偏高', 0.0, -0.012, 'hit', '', 'diagnose'],
+    ['机器人股', '机器人', 'bullish', '偏多 · 稍微', -0.031, -0.004, 'miss', '资金流分析师偏多（大资金连续流入），但 5 天后本股跑输板块 2.7 个点。'], ['白酒龙头', '白酒', 'bearish', '偏空 · 稍微', 0.024, 0.01, 'miss', '基本面分析师偏空（估值涨到偏高），但 5 天后本股跑赢板块 1.4 个点。'], ['芯片股', '芯片', 'bearish', '偏空 · 稍微', -0.04, -0.026, 'hit', '']];
+  const mkRow = (e, hz) => ({ name: e[0], ts_code: '000000.SZ', sector: e[1], direction: e[2], verdict: e[3], stock_ret: e[4], sector_ret: e[5], excess: e[4] - e[5], outcome: e[6], why: e[7], source: e[8] || 'scan', source_text: e[8] ? '你诊断' : '定时扫描', horizon: hz, made_day: '2026-10-26', mine: {} });
+  const rt = (h, m, f) => ({ hit: h, miss: m, flat: f, n: h + m + f, pct: h + m ? h / (h + m) : -1 });
+  const dayDefs = [['2026-11-02', 15, 9, 2, 24], ['2026-10-30', 16, 12, 0, 28], ['2026-10-29', 14, 12, 0, 26], ['2026-10-28', 15, 8, 0, 23]];
+  const settled = (h, wrong, src) => {
+    const days = dayDefs.map(([d, hit, miss, flat], i) => ({ day: d, rate: rt(hit, miss, flat), rows: i === 0 ? ex.map((e) => mkRow(e, h)).filter((r) => (!wrong || r.outcome === 'miss') && (src === 'all' || r.source === src)) : [], wrong_reasons: [{ label: '资金流分析师的判断', count: 4 }, { label: '基本面分析师的判断', count: 3 }] }));
+    return { days, total: rt(60, 41, 2), n_days: 18 };
+  };
+  const dp = [73.8, 51.0, 99.8, 25.0, 86.8, 60.8, 67.2, 112.8, 41.2, 54.2, 77.0, 64.0, 93.2, 34.8, 70.5, 57.5, 83.5, 47.8, 67.2, 52.6].map((y) => (40 + (125.8 - y) / 3.2533) / 100 + 0.1 * 0 + 0);
+  const roll = [71.2, 70.5, 70.8, 69.8, 70.2, 69.5, 69.2, 69.8, 68.9, 68.2, 68.5, 67.9, 68.2, 67.6, 67.2, 66.9, 67.2, 66.6, 66.9, 66.6].map((y) => (40 + (125.8 - y) / 3.2533) / 100);
+  const dys = demoDays(20, '2026-11-02');
+  const mk = (key, label, h, n, edge) => ({ key, label, rate: rt(Math.round(n * h), n - Math.round(n * h), 0), edge });
+  const accuracy = (h) => ({ horizon: h, days: 60, overall: rt(879, 631, 0), baseline: 0.51, edge: 7.2, unclear_rate: 0.68, made: 4700, min_n: 20,
+    by_day: dys.map((d, i) => ({ day: d, rate: rt(Math.round(dp[i] * 26), 26 - Math.round(dp[i] * 26), 0), rolling: roll[i] })).map((x, i) => (x.rate.pct = dp[i], x)),
+    due_today: rt(15, 9, 2), current_market: '震荡市', level_note: '强度「比较明显」比「稍微」高 6.7 个点：强度有区分度，说明 AI 不只是在猜方向。',
+    by_source: [{ key: 'diagnose', label: '你自己诊断的', rate: { hit: 25, miss: 22, flat: 0, n: 47, pct: 0.532 }, edge: 2.2 }, { key: 'scan', label: '定时扫描', rate: { hit: 886, miss: 626, flat: 0, n: 1512, pct: 0.586 }, edge: 7.6 }],
+    by_level: [{ key: '2', label: '比较明显', rate: { hit: 260, miss: 152, flat: 0, n: 412, pct: 0.631 }, edge: 12.1 }, { key: '1', label: '稍微', rate: { hit: 655, miss: 507, flat: 0, n: 1162, pct: 0.564 }, edge: 5.4 }],
+    by_direction: [{ key: 'bearish', label: '偏空', rate: { hit: 319, miss: 209, flat: 0, n: 528, pct: 0.605 }, edge: 9.5 }, { key: 'bullish', label: '偏多', rate: { hit: 597, miss: 449, flat: 0, n: 1046, pct: 0.571 }, edge: 6.1 }],
+    by_market: [{ key: '上涨市', label: '上涨市', rate: { hit: 214, miss: 174, flat: 0, n: 388, pct: 0.55 }, edge: 2.7 }, { key: '震荡市', label: '震荡市', rate: { hit: 612, miss: 419, flat: 0, n: 1031, pct: 0.594 }, edge: 8.8 }, { key: '下跌市', label: '下跌市', rate: { hit: 3, miss: 2, flat: 0, n: 5, pct: 0.6 }, edge: 9 }],
+    by_analyst: [{ key: 'volume_flow', label: '资金流', rate: { hit: 605, miss: 375, flat: 0, n: 980, pct: 0.618 }, edge: 11.2 }, { key: 'sector', label: '板块', rate: { hit: 728, miss: 482, flat: 0, n: 1210, pct: 0.602 }, edge: 9.6 }, { key: 'news', label: '新闻', rate: { hit: 345, miss: 295, flat: 0, n: 640, pct: 0.539 }, edge: 3.3 }, { key: 'finance', label: '财报', rate: { hit: 117, miss: 93, flat: 0, n: 210, pct: 0.557 }, edge: 5.1 }, { key: 'fundamental', label: '基本面', rate: { hit: 234, miss: 216, flat: 0, n: 450, pct: 0.521 }, edge: 1.5 }] });
+  _demo = {
+    summary: { day: '2026-11-02', today: '2026-11-02', market: { level: '震荡', tilt: '中性偏弱' }, next_run: '每个交易日 20:30 自动跑 · 盘后结算 · 下次 11-03 周二 20:30', made: 27, tracking: 128, settled_today: { hit: 15, n: 24 }, accuracy: 0.582, accuracy_n: 1510, empty: false, first_made: '2026-09-28',
+      funnel: { subjects: 27, researched: 27, bullish: 13, bearish: 7, unclear: 7, scan: 26, diagnose: 1 } },
+    today, tracking, settled, accuracy,
+    panel: { day: '2026-11-02', is_today: true, has: true, label: '10-26 发出的 5 天预测', rate: rt(15, 9, 2), baseline: 0.5, squares: ['hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'miss', 'miss', 'miss', 'miss', 'miss', 'miss', 'miss', 'miss', 'miss', 'flat', 'flat'], wrong: 9,
+      mine: [{ name: '杭氧股份', source_text: '你诊断', direction_text: '偏多', excess: 0.012, outcome: 'hit' }], held_other: 3, wrong_reasons: [{ label: '资金流信号被少数超大单误导', count: 4 }, { label: '估值类「涨多了」理由 5 天内不灵', count: 3 }, { label: '其他', count: 2 }],
+      tomorrow: { day: '2026-11-03', count: 22, made_text: '10-27', now_right: 13, mine: 0 }, notify_text: '这份摘要结算后会推送到你设置的渠道。' },
+  };
+  return _demo;
+}
+refreshAll().then(loadIndexes);
+</script>
+</body>
+</html>

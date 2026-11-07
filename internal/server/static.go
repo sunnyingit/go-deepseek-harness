@@ -44,6 +44,10 @@ func (s *Server) handleHoldings(w http.ResponseWriter, r *http.Request) {
 	serveStaticFile(w, "static/holdings.html")
 }
 
+func (s *Server) handleScan(w http.ResponseWriter, r *http.Request) {
+	serveStaticFile(w, "static/scan.html")
+}
+
 // handleStaticAsset serves vendored CSS/fonts/images under /static/vendor/... —
 // the only files besides the three HTML pages that the UI is allowed to
 // fetch. Paths are confined to that prefix so this cannot be used to read

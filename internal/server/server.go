@@ -26,6 +26,11 @@ import (
 	"go-harness/fs/fssandbox"
 	"go-harness/fs/toolfs"
 	"go-harness/internal/appconfig"
+	"go-harness/internal/inbox"
+	"go-harness/internal/personal"
+	"go-harness/internal/quotes"
+	"go-harness/internal/scan"
+	"go-harness/internal/sched"
 	"go-harness/llm/deepseek"
 	"go-harness/llm/llmretry"
 	"go-harness/plan/planmode"
@@ -129,6 +134,21 @@ type Server struct {
 	groupsMu sync.Mutex
 	groups   map[string][]groupLine
 	debates  map[string]*debateFile
+	// codeMu 让同一只股票的诊断同时只跑一轮：页面上的分析师和每晚任务共用这一把锁。
+	codeMu sync.Mutex
+	codes  map[string]*sync.Mutex
+	// 客户端的定时任务、收件箱和个人数据（自选、提醒、成交）。都只在本机。
+	sch         *sched.Scheduler
+	inbox       *inbox.Inbox
+	personal    *personal.Store
+	quotes      *quotes.Client
+	cal         *sched.Calendar
+	relay       *relayClient
+	scan        *scan.Store
+	sharedMu    sync.Mutex
+	sharedCache map[string]cachedBody
+	// stepFn 替换夜间任务里每一步调模型的那一下，测试用。
+	stepFn func(ctx context.Context, id, code string) stepOutcome
 	// persistence is nil-able by construction (Open can't fail short of a
 	// filesystem error, so it's always set in practice) — kept as a plain
 	// field rather than assumed non-nil so a future caller could construct
@@ -200,6 +220,7 @@ func New(ctx context.Context, cfg appconfig.Config) (*Server, error) {
 		fmt.Println("restored", restored, "session(s) from", filepath.Join(cfg.DataDir, "session-logs"))
 	}
 
+	server.initClientTasks(ctx)
 	return server, nil
 }
 

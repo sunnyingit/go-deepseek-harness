@@ -31,7 +31,7 @@ const (
 )
 
 var (
-	tsCodePattern = regexp.MustCompile(`^[0-9]{6}\.(SH|SZ|BJ)$`)
+	tsCodePattern = regexp.MustCompile(`^([0-9]{6}\.(SH|SZ|BJ)|[0-9]{5}\.HK)$`)
 	statusTextOf  = map[string]string{"support": "偏多", "warn": "偏空", "neutral": "不明"}
 )
 
@@ -45,6 +45,7 @@ type groupLine struct {
 	Text       string `json:"text"`
 	Status     string `json:"status,omitempty"`
 	StatusText string `json:"status_text,omitempty"`
+	Day        string `json:"day,omitempty"`
 }
 
 type analystSpeak struct {
@@ -112,6 +113,8 @@ func (s *Server) handleAnalyst(w http.ResponseWriter, r *http.Request, kind, que
 		writeError(w, http.StatusNotFound, err)
 		return
 	}
+	unlock := s.lockCode(code)
+	defer unlock()
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		writeError(w, http.StatusInternalServerError, errors.New("streaming unsupported"))
@@ -504,7 +507,7 @@ func analystUserPrompt(cfg agentConfig, code, question string, lines []groupLine
 	} else if cfg.oneShot() {
 		fmt.Fprintf(&b, "用户提问：%s\n按这个问题回答。\n", strings.TrimSpace(question))
 	} else if cfg.ID == "news" {
-		fmt.Fprintf(&b, "用户提问：%s\n分析时间：%s。\n先 load_skill news-raw，再调用 fetch_news。keyword 传用户要搜的原话，不要加上股票名称，也不要留空。这是按这句话搜索新闻，不限于这只股票。不要只复述近几日 detail。回答按时效和冲击写。\n", strings.TrimSpace(question), time.Now().Format("2006-01-02 15:04"))
+		fmt.Fprintf(&b, "用户提问：%s\n分析时间：%s。\n先 load_skill news-raw，再调用 fetch_news。keyword 传用户要搜的原话，不要加上股票名称，也不要留空。这是按这句话搜索新闻，不限于这只股票。不要只复述近几日 detail。用户是在分析这条新闻本身时，按新闻写谁、发生了什么、冲击和时效；不要改写成对当前股票有没有影响。只有用户问到这只股票，或新闻写到这家公司，才补一句关系。\n", strings.TrimSpace(question), time.Now().Format("2006-01-02 15:04"))
 	} else if cfg.ID == "fundamental" {
 		fmt.Fprintf(&b, "用户提问：%s\n按这个问题回答。公司用 fetch_company，业务构成用 fetch_business 或 fetch_mainbz，估值用 fetch_valuation，质地用 fetch_quality，股东用 fetch_holders，业绩预告用 fetch_forecast，业绩快报用 fetch_express，解禁用 fetch_share_float，机构调研用 fetch_survey，分红用 fetch_dividend。不要先拿整份 facts 来框住回答。\n", strings.TrimSpace(question))
 	} else if cfg.ID == "sector" {
@@ -592,7 +595,7 @@ func (c agentConfig) replyPrompt() string {
 	} else if containsSkill(c.Skills, "flow-reply") {
 		b.WriteString("。追问先 load_skill flow-reply，再按问题选一到两个工具，不要一次调完。个股资金用 fetch_flow_dc，技术指标用 fetch_flow_factor，筹码用 fetch_flow_chip，前复权行情用 fetch_flow_bar，涨跌停价用 fetch_flow_premarket，涨跌停记录用 fetch_flow_limit，龙虎榜用 fetch_flow_toplist，融资余额和融资净买入用 fetch_flow_margin。不要把大单叫做主力。\n")
 	} else if containsSkill(c.Skills, "news-raw") {
-		b.WriteString("。每次追问都要 load_skill news-raw，并调用 fetch_news。keyword 传用户要搜的原话，不要加上股票名称，也不要留空。搜索不限于这只股票。不要只根据近几日 detail 回答。\n")
+		b.WriteString("。每次追问都要 load_skill news-raw，并调用 fetch_news。keyword 传用户要搜的原话，不要加上股票名称，也不要留空。搜索不限于这只股票。不要只根据近几日 detail 回答。用户没问这只股票时，不要把答案收成「对这只股票没有影响」。\n")
 	} else {
 		b.WriteString("。先 load_skill 事实技能，调用 fetch_facts，把这次 detail 读进来。回答里要带上这些事实。\n")
 		b.WriteString("用户的问题还需要别的数据时，继续 load_skill 并调用对应工具。不要在拿到 detail 后停住。\n")
@@ -1545,6 +1548,9 @@ func (s *Server) appendGroup(code string, line groupLine) {
 	lines := s.groups[code]
 	if lines == nil {
 		lines = readGroupFile(s.groupPath(code))
+	}
+	if line.Day == "" {
+		line.Day = diagnosisDay(time.Now())
 	}
 	lines = append(lines, line)
 	if len(lines) > maxGroupLines {

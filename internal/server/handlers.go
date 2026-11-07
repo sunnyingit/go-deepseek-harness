@@ -38,6 +38,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /settings.html", s.handleSettings)
 	mux.HandleFunc("GET /market.html", s.handleMarket)
 	mux.HandleFunc("GET /holdings.html", s.handleHoldings)
+	mux.HandleFunc("GET /scan.html", s.handleScan)
 	mux.HandleFunc("GET /config", s.handleGetConfig)
 	mux.HandleFunc("PUT /config", s.handlePutConfig)
 	mux.HandleFunc("GET /logs", s.handleGetLogs)
@@ -61,9 +62,12 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /sessions/{id}/tokens", s.handleGetTokens)
 	mux.HandleFunc("POST /sessions/{id}/cancel", s.handleCancelSession)
 	mux.HandleFunc("GET /api/stocks/{code}/agents/group", s.handleGroupRecord)
+	mux.HandleFunc("POST /api/stocks/{code}/diagnose", s.handleDiagnose)
+	mux.HandleFunc("GET /api/stocks/{code}/agents/chief/detail", s.handleChiefDetail)
 	mux.HandleFunc("GET /api/stocks/{code}/agents/{agent}/stream", s.handleAnalystStream)
 	mux.HandleFunc("POST /api/stocks/{code}/agents/{agent}/reply", s.handleAnalystReply)
 	mux.HandleFunc("POST /api/stocks/{code}/agents/chief/plan", s.handleChiefPlan)
+	s.registerClientRoutes(mux)
 	return mux
 }
 

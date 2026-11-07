@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"go-harness/internal/notify"
 )
@@ -128,6 +129,9 @@ func (s *Server) notifyChief(code string, decision *chiefDecision) {
 }
 
 func (s *Server) pointsAfterChief(code string, cfg agentConfig) (map[string]any, bool) {
+	if !s.bullBearJudgedToday(code, diagnosisDay(time.Now())) {
+		return nil, false
+	}
 	file := s.loadDebate(code)
 	if file.Chief == nil {
 		return nil, false

@@ -73,6 +73,7 @@ func chiefPlanPrompt() string {
 - fundamental：基本面、估值、主营构成、股东、业绩预告、业绩快报、限售解禁、机构调研、现金分红
 
 一次最多 3 位。问题用不上他们时，analysts 用空数组。用户写了 @某位分析师，只当作倾向，仍按问题决定。
+用户要分析一条新闻、一个事件，没有问这只股票的资金、涨跌、板块或财报时，只选 news，不要把 volume_flow 或其他人拉进来。
 最后一条回复只能是一个 JSON 对象，不要用代码围栏：
 {"analysts":["volume_flow","sector"],"note":"请资金流分析师、板块分析师来回答"}
 note 用一句话，点出被请到的人。analysts 为空时，note 写「这个问题我来回答」。`
