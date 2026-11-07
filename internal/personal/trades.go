@@ -26,9 +26,12 @@ func heldAfter(trades []Trade) int {
 	sort.SliceStable(sorted, func(a, b int) bool { return tradeLess(sorted[a], sorted[b]) })
 	held := 0
 	for _, t := range sorted {
-		if t.Side == "buy" {
+		switch t.Side {
+		case "adjust": // 校正: this is what is held from here on
+			held = t.Qty
+		case "buy":
 			held += t.Qty
-		} else {
+		default:
 			held -= t.Qty
 		}
 		if held < 0 {
@@ -426,4 +429,131 @@ func (st *Store) Import(e Export) (bool, map[string]int) {
 	}
 	st.save()
 	return true, map[string]int{"trades": len(e.Trades), "wishes": len(e.Wishes), "reasons": len(e.Reasons), "rules": len(e.Rules), "checkups": len(e.Checkups), "watch": len(e.Watch), "alerts": len(e.Alerts)}
+}
+
+// TradeAdjust corrects what is held in a stock: from that date on it is qty shares at an average cost of avg. It is
+// a line in the trade list of its own kind, so the buys and sells before it stay where they are.
+func (st *Store) TradeAdjust(code, name string, qty int, avg float64, date string) (Trade, error) {
+	if code == "" || !ValidDay(date) {
+		return Trade{}, InputError("日期要写成 2026-11-02 这样")
+	}
+	if qty < 0 {
+		return Trade{}, InputError("数量不能是负数")
+	}
+	if qty > 0 && avg <= 0 {
+		return Trade{}, InputError("成本价要大于 0")
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	t := Trade{Code: code, Name: name, Side: "adjust", Price: avg, Qty: qty, Date: date}
+	if heldAfter(append(st.tradesOf(code), Trade{Side: "adjust", Qty: qty, Date: date, ID: 1 << 40})) < 0 {
+		return Trade{}, InputError("校正之后，后面的卖出会比手里有的多；先改后面的卖出")
+	}
+	t.ID, t.CreatedAt = st.id(), st.now().UnixMilli()
+	st.d.Trades = append(st.d.Trades, t)
+	st.save()
+	return t, nil
+}
+
+// TradeUpdate changes the price, quantity and date of a trade that was already written down. The change is refused
+// when a later sale would then be larger than what was held.
+func (st *Store) TradeUpdate(id int, price float64, qty int, date string) (Trade, error) {
+	if !ValidDay(date) {
+		return Trade{}, InputError("日期要写成 2026-11-02 这样")
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	idx := -1
+	for i, t := range st.d.Trades {
+		if t.ID == id {
+			idx = i
+		}
+	}
+	if idx < 0 {
+		return Trade{}, InputError("没有这笔记录")
+	}
+	cur := st.d.Trades[idx]
+	if cur.Side == "adjust" {
+		if qty < 0 {
+			return Trade{}, InputError("数量不能是负数")
+		}
+		if qty > 0 && price <= 0 {
+			return Trade{}, InputError("成本价要大于 0")
+		}
+	} else {
+		if price <= 0 {
+			return Trade{}, InputError("价格要大于 0")
+		}
+		if qty <= 0 {
+			return Trade{}, InputError("数量要是大于 0 的整数")
+		}
+	}
+	next := cur
+	next.Price, next.Qty, next.Date = price, qty, date
+	var probe []Trade
+	for _, t := range st.tradesOf(cur.Code) {
+		if t.ID == id {
+			t = next
+		}
+		probe = append(probe, t)
+	}
+	if heldAfter(probe) < 0 {
+		return Trade{}, InputError("改成这样之后，后面的卖出会比手里有的多")
+	}
+	st.d.Trades[idx] = next
+	st.save()
+	return next, nil
+}
+
+// WishUpdate rewrites a wish that is still open: why, the conditions, what would prove it wrong and how much.
+func (st *Store) WishUpdate(id int, w Wish) (Wish, error) {
+	w.Reason = strings.TrimSpace(w.Reason)
+	if w.Reason == "" {
+		return Wish{}, InputError("先写一句为什么想买")
+	}
+	if w.Match == "" {
+		w.Match = "all"
+	}
+	if w.Match != "all" && w.Match != "any" {
+		return Wish{}, InputError("条件只能选全部满足或任一满足")
+	}
+	if w.PlanPct < 0 || w.PlanPct > 100 {
+		return Wish{}, InputError("打算买的仓位要在 0 到 100 之间")
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for i := range st.d.Wishes {
+		x := &st.d.Wishes[i]
+		if x.ID != id || x.Status != "open" {
+			continue
+		}
+		x.Reason, x.Match, x.PlanPct = w.Reason, w.Match, w.PlanPct
+		x.Conditions, x.Invalid = w.Conditions, w.Invalid
+		if x.Conditions == nil {
+			x.Conditions = []Item{}
+		}
+		if x.Invalid == nil {
+			x.Invalid = []Item{}
+		}
+		st.save()
+		return *x, nil
+	}
+	return Wish{}, InputError("没有这条想买")
+}
+
+// Capital is the money the user sets aside for stocks, held and not held; 0 means it was never set.
+func (st *Store) Capital() float64 {
+	var v float64
+	if !st.KVGet("capital", &v) || v < 0 {
+		return 0
+	}
+	return v
+}
+
+func (st *Store) SetCapital(v float64) error {
+	if v < 0 {
+		return InputError("总资金不能是负数")
+	}
+	st.KVSet("capital", v)
+	return nil
 }

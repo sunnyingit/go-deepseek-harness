@@ -383,6 +383,14 @@ func (c *Ctx) triggers() map[string]float64 {
 
 // ---- 持有
 
+// capShare is a value as a share of the total money set aside for stocks; nil until that total was set.
+func capShare(v, capital float64) any {
+	if capital <= 0 {
+		return nil
+	}
+	return v / capital
+}
+
 func (c *Ctx) holdRow(r personal.Row) (Map, [2]float64) {
 	ai, sector, reason := c.AI(r.Code), c.Sector(r.Code), c.Reason(r.Code)
 	near := c.nearAlert(r.Code)
@@ -428,7 +436,7 @@ func (c *Ctx) holdRow(r personal.Row) (Map, [2]float64) {
 	}
 	row := Map{
 		"ts_code": r.Code, "name": r.Name, "qty": r.Qty, "avg": r.Avg, "price": r.Price, "live": r.Live, "change_pct": fptr(r.ChangePct),
-		"day_pnl": r.DayPnL, "pnl": r.PnL, "pnl_pct": r.PnLPct, "weight": r.Weight, "since": r.Since, "days": daysV,
+		"day_pnl": r.DayPnL, "pnl": r.PnL, "pnl_pct": r.PnLPct, "weight": r.Weight, "cap_weight": capShare(r.MV, c.Store.Capital()), "since": r.Since, "days": daysV,
 		"sector": sectorBlock(sector), "ai": aiBlock(ai), "flip": flip, "tag": tag,
 		"reason": Map{"status": reason["status"], "text": reason["status_text"], "line": reason["line"]},
 	}
@@ -439,7 +447,7 @@ func (c *Ctx) reviewTrades(days int) []personal.Trade {
 	since := c.Today.AddDate(0, 0, -days).Format("2006-01-02")
 	var out []personal.Trade
 	for _, t := range c.Trades() {
-		if t.Date >= since && !imported(t) {
+		if t.Date >= since && !imported(t) && t.Side != "adjust" {
 			out = append(out, t)
 		}
 	}
@@ -447,6 +455,17 @@ func (c *Ctx) reviewTrades(days int) []personal.Trade {
 }
 
 func imported(t personal.Trade) bool { v, _ := t.Context["imported"].(bool); return v }
+
+// summaryHeader is the money line at the top of the page. With the total set, it also says how much of it is in stocks.
+func (c *Ctx) summaryHeader(t personal.Totals, count int) Map {
+	capital := c.Store.Capital()
+	h := Map{"mv": t.MV, "day_pnl": t.DayPnL, "day_pct": t.DayPct, "pnl": t.PnL, "pnl_pct": t.PnLPct, "count": count, "capital": capital,
+		"invested_pct": capShare(t.MV, capital), "cash": nil, "over": capital > 0 && t.MV > capital}
+	if capital > 0 {
+		h["cash"] = capital - t.MV
+	}
+	return h
+}
 
 func (c *Ctx) Summary() Map {
 	type scored struct {
@@ -471,7 +490,7 @@ func (c *Ctx) Summary() Map {
 	t := c.Total()
 	return Map{
 		"empty":  len(c.Rows()) == 0 && len(c.Wishes()) == 0 && len(c.Trades()) == 0,
-		"header": Map{"mv": t.MV, "day_pnl": t.DayPnL, "day_pct": t.DayPct, "pnl": t.PnL, "pnl_pct": t.PnLPct, "count": len(out)},
+		"header": c.summaryHeader(t, len(out)),
 		"tabs":   Map{"buy": len(c.Wishes()), "now": len(out), "chk": c.attention(), "rev": len(c.reviewTrades(ReviewDays)), "rev_days": ReviewDays},
 		"market": marketBlock(c.Market()),
 		"rows":   out,
@@ -590,6 +609,7 @@ func (c *Ctx) wishCard(w personal.Wish) Map {
 		"source": fmt.Sprintf("%s · %s 加入", orDefault(sourceWord[w.Source], "自己加的"), created), "status": Map{"text": state["status"], "tone": state["tone"]},
 		"reason": w.Reason, "match": w.Match, "conditions": state["conditions"], "met": state["met"], "auto": state["auto"],
 		"ai": aiBlock(c.AI(w.Code)), "plan_pct": w.PlanPct, "impact": impact, "invalid": w.Invalid,
+		"amount": planAmount(w.PlanPct, c.Store.Capital()), "edit": Map{"conditions": w.Conditions, "invalid": w.Invalid, "match": w.Match, "plan_pct": w.PlanPct, "reason": w.Reason},
 	}
 }
 
@@ -675,8 +695,12 @@ func (c *Ctx) WishPreview(query string, planPct float64) Map {
 	_, held := c.Held()[code]
 	total := c.Total().MV
 	amount := 0.0
+	capital := c.Store.Capital()
 	if planPct > 0 {
 		amount = total * planPct / 100
+		if capital > 0 {
+			amount = capital * planPct / 100 // the plan is a share of the total set aside, not of what is held now
+		}
 	}
 	var priceV any
 	if price > 0 {
@@ -684,7 +708,7 @@ func (c *Ctx) WishPreview(query string, planPct float64) Map {
 	}
 	return Map{
 		"ts_code": code, "name": name, "price": priceV, "sector": sectorBlock(sector), "ai": aiBlock(ai), "market": marketBlock(c.Market()),
-		"ma20": ma20, "ma20_gap": gap, "sector_flow": fptr(sector.Flow), "impact": impact, "total": total, "amount": amount,
+		"ma20": ma20, "ma20_gap": gap, "sector_flow": fptr(sector.Flow), "impact": impact, "total": total, "amount": amount, "capital": capital,
 		"evidence": evidence(ai, sector), "held": held, "wished": wished,
 	}
 }
@@ -1131,7 +1155,7 @@ func (c *Ctx) StockDetail(code string) Map {
 		if row.Days != nil {
 			daysV = *row.Days
 		}
-		held = Map{"avg": row.Avg, "qty": row.Qty, "weight": row.Weight, "since": row.Since, "days": daysV, "price": row.Price, "pnl": row.PnL, "pnl_pct": row.PnLPct, "mv": row.MV}
+		held = Map{"avg": row.Avg, "qty": row.Qty, "weight": row.Weight, "cap_weight": capShare(row.MV, c.Store.Capital()), "since": row.Since, "days": daysV, "price": row.Price, "pnl": row.PnL, "pnl_pct": row.PnLPct, "mv": row.MV}
 	}
 	var priceV any
 	if price > 0 {
@@ -1147,7 +1171,7 @@ func (c *Ctx) StockDetail(code string) Map {
 			wishV = c.wishCard(w)
 		}
 	}
-	return Map{"wish": wishV,
+	return Map{"capital": c.Store.Capital(), "wish": wishV,
 		"ts_code": code, "name": name, "price": priceV, "held": held, "sector": sectorBlock(sector), "ai": aiBlock(ai), "flip": flipText(ai), "flip_items": watch,
 		"reason": reason, "alerts": alerts, "rules": rules, "needs_price": row != nil && !hasPrice, "trades": trades, "entries": c.entries(code), "market": marketBlock(c.Market()),
 	}
@@ -1392,7 +1416,17 @@ func (c *Ctx) TradePreview(body Map) Map {
 	if held {
 		heldQty = pos.Qty
 	}
-	out := Map{"found": true, "ts_code": code, "name": name, "price": qprice, "market": marketBlock(c.Market()), "ai": aiBlock(ai), "sector": sectorBlock(sector),
+	capital := c.Store.Capital()
+	var capPct, capAfter any
+	if capital > 0 && price > 0 && qty > 0 {
+		capPct = price * qty / capital * 100
+		after := total + price*qty
+		if side == "sell" {
+			after = total - price*qty
+		}
+		capAfter = math.Max(after, 0) / capital * 100
+	}
+	out := Map{"found": true, "ts_code": code, "name": name, "price": qprice, "capital": capital, "cap_pct": capPct, "cap_after": capAfter, "market": marketBlock(c.Market()), "ai": aiBlock(ai), "sector": sectorBlock(sector),
 		"side": side, "pct": pctV, "held": held, "held_qty": heldQty, "conflict": side == "buy" && NoAdd(c.Market()), "impact": nil}
 	if side == "buy" && pctF > 0 {
 		out["impact"] = c.impactView(code, pctF)
@@ -1597,4 +1631,104 @@ func (c *Ctx) SetPriceLine(code string, price float64) error {
 	c.syncInvalid(code, invalid)
 	c.reset()
 	return nil
+}
+
+func planAmount(plan, capital float64) any {
+	if plan <= 0 || capital <= 0 {
+		return nil
+	}
+	return capital * plan / 100
+}
+
+// ---- editing
+
+// SetCapital stores the total money set aside for stocks, held and not held.
+func (c *Ctx) SetCapital(body Map) (Map, error) {
+	v, ok := number(body["capital"])
+	if !ok {
+		return nil, fail("总资金要填数字")
+	}
+	if err := c.Store.SetCapital(v); err != nil {
+		return nil, err
+	}
+	c.reset()
+	return Map{"capital": v}, nil
+}
+
+// AdjustPosition corrects what is held: the quantity and the average cost, from a date on.
+func (c *Ctx) AdjustPosition(code string, body Map) (personal.Trade, error) {
+	qty, ok := number(body["qty"])
+	if !ok || qty != math.Trunc(qty) {
+		return personal.Trade{}, fail("数量要填整数")
+	}
+	avg, _ := number(body["avg"])
+	day := firstStr(body["date"])
+	if day == "" {
+		day = c.todayISO()
+	}
+	name := code
+	if pos, held := c.Held()[code]; held {
+		name = pos.Name
+	} else if ts := c.Store.TradesOf(code); len(ts) > 0 {
+		name = ts[len(ts)-1].Name
+	} else if _, n, ok := c.Data.Resolve(code); ok {
+		name = n
+	}
+	t, err := c.Store.TradeAdjust(code, name, int(qty), avg, day)
+	if err != nil {
+		return personal.Trade{}, err
+	}
+	c.reset()
+	return t, nil
+}
+
+// UpdateTrade changes the price, quantity and date of a trade already written down.
+func (c *Ctx) UpdateTrade(id int, body Map) (personal.Trade, error) {
+	cur, ok := c.Store.TradeByID(id)
+	if !ok {
+		return personal.Trade{}, fail("没有这笔记录")
+	}
+	price, qty, day := cur.Price, float64(cur.Qty), cur.Date
+	if v, present := body["price"]; present && v != nil && v != "" {
+		f, ok := number(v)
+		if !ok {
+			return personal.Trade{}, fail("价格要填数字")
+		}
+		price = f
+	}
+	if v, present := body["qty"]; present && v != nil && v != "" {
+		f, ok := number(v)
+		if !ok || f != math.Trunc(f) {
+			return personal.Trade{}, fail("数量要填整数")
+		}
+		qty = f
+	}
+	if d := firstStr(body["date"]); d != "" {
+		day = d
+	}
+	t, err := c.Store.TradeUpdate(id, price, int(qty), day)
+	if err != nil {
+		return personal.Trade{}, err
+	}
+	c.reset()
+	return t, nil
+}
+
+// UpdateWish rewrites an open wish.
+func (c *Ctx) UpdateWish(id int, body Map) (personal.Wish, error) {
+	plan := 0.0
+	if v, present := body["plan_pct"]; present && v != nil && v != "" {
+		f, ok := number(v)
+		if !ok {
+			return personal.Wish{}, fail("仓位要填数字")
+		}
+		plan = f
+	}
+	w, err := c.Store.WishUpdate(id, personal.Wish{Reason: str(body["reason"]), Conditions: cleanConditions(items(body["conditions"])), Match: firstStr(body["match"]),
+		PlanPct: plan, Invalid: cleanInvalid(items(body["invalid"]))})
+	if err != nil {
+		return personal.Wish{}, err
+	}
+	c.reset()
+	return w, nil
 }

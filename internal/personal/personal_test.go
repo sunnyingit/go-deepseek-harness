@@ -166,3 +166,78 @@ func TestWishReasonRulesCheckupsAndKV(t *testing.T) {
 		t.Fatal("tagged alert drop wrong")
 	}
 }
+
+func TestAdjustAndEditTradesKeepTheLedgerConsistent(t *testing.T) {
+	st := Open("", func() time.Time { return time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC) })
+	if _, err := st.TradeAdd(Trade{Code: "600036.SH", Name: "招商银行", Side: "buy", Price: 10, Qty: 100, Date: "2026-11-01"}); err != nil {
+		t.Fatal(err)
+	}
+	sell, err := st.TradeAdd(Trade{Code: "600036.SH", Name: "招商银行", Side: "sell", Price: 11, Qty: 60, Date: "2026-11-03"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// the buy cannot be cut below what the later sale needs
+	buyID := st.TradesOf("600036.SH")[0].ID
+	if _, err := st.TradeUpdate(buyID, 10, 50, "2026-11-01"); err == nil {
+		t.Fatal("a buy smaller than the later sale was accepted")
+	}
+	if _, err := st.TradeUpdate(buyID, 10.5, 120, "2026-11-01"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.TradeUpdate(sell.ID, 0, 60, "2026-11-03"); err == nil {
+		t.Fatal("a zero price was accepted")
+	}
+	held := Held(st.Trades())["600036.SH"]
+	if held.Qty != 60 || held.Avg != 10.5 {
+		t.Fatalf("held = %+v", held)
+	}
+	// a correction sets quantity and cost; later trades build on it
+	if _, err := st.TradeAdjust("600036.SH", "招商银行", 200, 9.5, "2026-11-04"); err != nil {
+		t.Fatal(err)
+	}
+	held = Held(st.Trades())["600036.SH"]
+	if held.Qty != 200 || held.Avg != 9.5 {
+		t.Fatalf("after correction %+v", held)
+	}
+	if _, err := st.TradeAdd(Trade{Code: "600036.SH", Name: "招商银行", Side: "sell", Price: 12, Qty: 250, Date: "2026-11-05"}); err == nil {
+		t.Fatal("selling more than the corrected quantity was accepted")
+	}
+	// a correction to zero closes the position; one that would break a later sale is refused
+	if _, err := st.TradeAdjust("600036.SH", "招商银行", 30, 9, "2026-11-02"); err == nil {
+		t.Fatal("a correction below a later sale was accepted")
+	}
+	if _, err := st.TradeAdjust("600036.SH", "招商银行", 0, 0, "2026-11-05"); err != nil {
+		t.Fatal(err)
+	}
+	if len(Held(st.Trades())) != 0 {
+		t.Fatalf("still held: %v", Held(st.Trades()))
+	}
+}
+
+func TestCapitalIsKeptAndWishesCanBeRewritten(t *testing.T) {
+	st := Open("", func() time.Time { return time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC) })
+	if st.Capital() != 0 {
+		t.Fatal("capital should start unset")
+	}
+	if err := st.SetCapital(-1); err == nil {
+		t.Fatal("negative capital accepted")
+	}
+	_ = st.SetCapital(500000)
+	if st.Capital() != 500000 {
+		t.Fatalf("capital = %v", st.Capital())
+	}
+	w, err := st.WishAdd(Wish{Code: "000001.SZ", Name: "平安银行", Reason: "便宜", PlanPct: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.WishUpdate(w.ID, Wish{Reason: " ", PlanPct: 5}); err == nil {
+		t.Fatal("an empty reason was accepted")
+	}
+	got, err := st.WishUpdate(w.ID, Wish{Reason: "更便宜了", PlanPct: 12, Match: "any", Invalid: []Item{{"kind": "sector_out"}}})
+	if err != nil || got.Reason != "更便宜了" || got.PlanPct != 12 || got.Match != "any" || len(got.Invalid) != 1 || got.Conditions == nil {
+		t.Fatalf("wish = %+v %v", got, err)
+	}
+	if _, err := st.WishUpdate(w.ID+99, Wish{Reason: "x"}); err == nil {
+		t.Fatal("an unknown wish was updated")
+	}
+}

@@ -176,6 +176,40 @@ func (s *Server) registerHoldingsRoutes(mux *http.ServeMux) {
 		}
 		writeJSON(w, http.StatusOK, holdings.Map{"status": "ok", "id": id})
 	})
+	mux.HandleFunc("PUT "+base+"/trades/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.Atoi(r.PathValue("id"))
+		t, err := s.holdingsCtx().UpdateTrade(id, readMap(r))
+		if err != nil {
+			holdingsFail(w, err, "trade update")
+			return
+		}
+		writeJSON(w, http.StatusOK, holdings.Map{"status": "ok", "trade": t})
+	})
+	mux.HandleFunc("POST "+base+"/stock/{code}/adjust", func(w http.ResponseWriter, r *http.Request) {
+		t, err := s.holdingsCtx().AdjustPosition(r.PathValue("code"), readMap(r))
+		if err != nil {
+			holdingsFail(w, err, "position adjust")
+			return
+		}
+		writeJSON(w, http.StatusCreated, holdings.Map{"status": "ok", "trade": t})
+	})
+	mux.HandleFunc("PUT "+base+"/capital", func(w http.ResponseWriter, r *http.Request) {
+		out, err := s.holdingsCtx().SetCapital(readMap(r))
+		if err != nil {
+			holdingsFail(w, err, "capital")
+			return
+		}
+		writeJSON(w, http.StatusOK, ok(out))
+	})
+	mux.HandleFunc("PUT "+base+"/wishes/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.Atoi(r.PathValue("id"))
+		wish, err := s.holdingsCtx().UpdateWish(id, readMap(r))
+		if err != nil {
+			holdingsFail(w, err, "wish update")
+			return
+		}
+		writeJSON(w, http.StatusOK, holdings.Map{"status": "ok", "wish": wish})
+	})
 	mux.HandleFunc("PUT "+base+"/trades/{id}/note", func(w http.ResponseWriter, r *http.Request) {
 		id, _ := strconv.Atoi(r.PathValue("id"))
 		note, _ := readMap(r)["note"].(string)

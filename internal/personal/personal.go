@@ -42,7 +42,7 @@ type Trade struct {
 	ID        int     `json:"id"`
 	Code      string  `json:"ts_code"`
 	Name      string  `json:"name"`
-	Side      string  `json:"side"` // buy | sell
+	Side      string  `json:"side"` // buy | sell | adjust (校正：数量和成本价直接设定)
 	Price     float64 `json:"price"`
 	Qty       int     `json:"qty"`
 	Date      string  `json:"date"`

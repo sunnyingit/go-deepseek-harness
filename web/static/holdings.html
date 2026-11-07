@@ -150,6 +150,15 @@ function toast(text, bad) {
 function setStatus(ok, text) { $('dot').style.background = ok ? '#2E8B57' : '#B42318'; $('status').textContent = text; }
 
 /* ---------- 头部、页签 ---------- */
+// 总资金：你自己填的一个数；有了它，每只票占多少、总仓位多少才算得出来
+function capitalStat(h) {
+  const lbl = (t) => '<span class="lbl">' + t + '</span>';
+  if (!h.capital) return '<span style="display:flex;flex-direction:column">' + lbl('总资金') + '<button type="button" class="mini" data-act="capital" title="填一个总资金，就能看到每只票占多少、总仓位多少">设置总资金</button></span>';
+  const over = h.over ? ' <span style="color:#B42318;font-size:11px">超出总资金</span>' : '';
+  return '<span style="display:flex;flex-direction:column">' + lbl('总资金 <button type="button" class="x" data-act="capital" title="改总资金" style="font-size:11px;color:#2457D6">编辑</button>') + '<b ' + MONO + ' style="font-size:16px;font-weight:600">' + money(h.capital) + '</b></span>' +
+    '<span style="display:flex;flex-direction:column">' + lbl('仓位') + '<b ' + MONO + ' style="font-size:16px;font-weight:600">' + (h.invested_pct * 100).toFixed(1) + '%</b></span>' +
+    '<span style="display:flex;flex-direction:column">' + lbl('现金') + '<b ' + MONO + ' style="font-size:16px;font-weight:600;color:' + (h.cash < 0 ? '#B42318' : '#14171F') + '">' + money(h.cash) + '</b>' + over + '</span>';
+}
 function renderHead() {
   const s = S.summary, h = s ? s.header : null;
   const stat = (label, body) => '<span style="display:flex;flex-direction:column"><span class="lbl">' + label + '</span>' + body + '</span>';
@@ -158,6 +167,7 @@ function renderHead() {
     (h ? stat('持仓市值', '<b style="' + big.replace('font-weight:700', 'font-weight:600') + '">' + money(h.mv) + '</b>') +
       stat('今天', '<span class="' + cls(h.day_pnl) + '" style="' + big + '">' + money(h.day_pnl, true) + ' <span style="font-size:11px">' + pct(h.day_pct) + '</span></span>') +
       stat('总盈亏', '<span class="' + cls(h.pnl) + '" style="' + big + '">' + money(h.pnl, true) + ' <span style="font-size:11px">' + pct(h.pnl_pct) + '</span></span>') : '') +
+    (h ? capitalStat(h) : '') +
     '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">' +
     '<button type="button" class="btn" data-act="import">导入券商持仓</button>' +
     '<button type="button" class="btn pri" data-act="rec">＋ 记一笔</button></span>';
@@ -183,7 +193,8 @@ function holdRow(r) {
     '<span style="display:flex;flex-direction:column;gap:3px;white-space:nowrap">' +
     '<span style="display:flex;align-items:baseline;gap:6px"><span class="lbl">今天</span><span ' + MONO + ' class="' + cls(r.day_pnl) + '" style="font-weight:700;font-size:13px">' + money(r.day_pnl, true) + ' <span style="font-size:11px">' + (r.change_pct == null ? '' : sign(r.change_pct) + Math.abs(r.change_pct).toFixed(1) + '%') + '</span></span></span>' +
     '<span style="display:flex;align-items:baseline;gap:6px"><span class="lbl">总计</span><span ' + MONO + ' class="' + cls(r.pnl) + '" style="font-weight:700;font-size:12px">' + money(r.pnl, true) + ' <span style="font-size:11px">' + pct(r.pnl_pct) + '</span></span></span></span>' +
-    '<span style="display:flex;flex-direction:column;gap:4px"><b ' + MONO + ' style="font-size:13px">' + (r.weight * 100).toFixed(1) + '%</b><span style="height:4px;border-radius:2px;background:#EEF0F3;overflow:hidden"><span style="display:block;height:100%;width:' + Math.min(100, r.weight * 200).toFixed(0) + '%;background:' + (r.weight >= 0.3 ? '#E0B25C' : '#A1A7B2') + '"></span></span></span>' +
+    (r.cap_weight != null ? '<span style="display:flex;flex-direction:column;gap:4px"><b ' + MONO + ' style="font-size:13px">' + (r.cap_weight * 100).toFixed(1) + '%</b><span style="height:4px;border-radius:2px;background:#EEF0F3;overflow:hidden"><span style="display:block;height:100%;width:' + Math.min(100, r.cap_weight * 100 * 2).toFixed(0) + '%;background:' + (r.cap_weight >= 0.3 ? '#E0B25C' : '#A1A7B2') + '"></span></span><span class="sub">占持仓 ' + (r.weight * 100).toFixed(0) + '%</span></span>'
+      : '<span style="display:flex;flex-direction:column;gap:4px"><b ' + MONO + ' style="font-size:13px">' + (r.weight * 100).toFixed(1) + '%</b><span style="height:4px;border-radius:2px;background:#EEF0F3;overflow:hidden"><span style="display:block;height:100%;width:' + Math.min(100, r.weight * 200).toFixed(0) + '%;background:' + (r.weight >= 0.3 ? '#E0B25C' : '#A1A7B2') + '"></span></span><span class="sub">占持仓</span></span>') +
     '<span style="display:flex;align-items:center;gap:6px;min-width:0">' + reasonPill(r.reason.status) + '<span class="ell" style="font-size:12px;color:#5B6372" title="' + esc(r.reason.line) + '">' + esc(r.reason.line) + '</span></span>' +
     '<span style="display:flex;flex-direction:column;gap:3px;min-width:0"><span>' + aiPill(r.ai) + '</span><span class="ell" style="font-size:12px;color:#5B6372" title="' + esc(r.flip) + '">' + esc(r.flip) + '</span></span>' +
     '<span style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;min-width:0">' + sector + '</span>' +
@@ -203,7 +214,7 @@ function renderNow() {
   if (s.empty) return emptyState();
   if (!s.rows.length) return '<div class="card"><div class="empty"><b>现在手里没有持仓</b><span>想买里有计划的话，条件到了会提醒你；买了就「记一笔」。</span><button type="button" class="btn pri" data-act="rec">＋ 记一笔</button></div></div>';
   return '<div style="display:flex;flex-direction:column;gap:12px"><div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;overflow:auto"><div style="min-width:900px">' +
-    '<div class="grid-h" style="padding:10px 16px;font-size:11px;color:#8A919E;background:#F7F8FA"><span>股票 · 要处理的在前</span><span>盈亏</span><span>占持仓</span><span>你的理由</span><span>AI 现在怎么看</span><span>板块</span><span></span></div>' +
+    '<div class="grid-h" style="padding:10px 16px;font-size:11px;color:#8A919E;background:#F7F8FA"><span>股票 · 要处理的在前</span><span>盈亏</span><span>占总资金</span><span>你的理由</span><span>AI 现在怎么看</span><span>板块</span><span></span></div>' +
     s.rows.map(holdRow).join('') + '</div></div>' +
     '<div style="display:flex;align-items:center;gap:12px;font-size:13px;color:#3A4250;flex-wrap:wrap">' + marketLine(s.market) + '<span style="margin-left:auto;font-size:12px;color:#8A919E">这里只说 AI 怎么看、离改判还差什么，不给买卖指令</span></div></div>';
 }
@@ -228,9 +239,9 @@ function wishCard(w) {
     '<div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:16px">' +
     '<span style="display:flex;flex-direction:column;gap:4px"><span class="lbl">为什么想买</span><span style="font-size:13px;line-height:1.5">「' + esc(w.reason) + '」</span></span>' +
     '<span style="display:flex;flex-direction:column;gap:5px"><span class="lbl">什么时候买' + (w.conditions.length > 1 ? ' · ' + (w.match === 'all' ? '全部满足' : '任一满足') : '') + '</span>' + (w.conditions.length ? w.conditions.map(condRow).join('') : '<span class="sub">没有设条件，自己盯</span>') + '</span>' +
-    '<span style="display:flex;flex-direction:column;gap:4px"><span class="lbl">AI 现在怎么看 · 打算买多少</span><span style="display:flex;align-items:center;gap:6px">' + aiPill(w.ai) + '<span ' + MONO + ' style="font-size:12px">' + (w.plan_pct ? '计划 ' + w.plan_pct + '%' : '没写仓位') + '</span></span></span></div>' +
+    '<span style="display:flex;flex-direction:column;gap:4px"><span class="lbl">AI 现在怎么看 · 打算买多少</span><span style="display:flex;align-items:center;gap:6px">' + aiPill(w.ai) + '<span ' + MONO + ' style="font-size:12px">' + (w.plan_pct ? '计划 ' + w.plan_pct + '%' + (w.amount ? ' · 约 ' + money(w.amount) + ' 元' : '') : '没写仓位') + '</span></span></span></div>' +
     '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:#F7F8FA;font-size:12px;color:#3A4250"><span>' + (note || '这只票还没有可比的持仓占比') + '</span>' +
-    '<span style="margin-left:auto;display:flex;gap:6px"><a class="mini" href="' + diagnoseHref(w.ts_code) + '">诊断 →</a><button type="button" class="mini" data-act="rec" data-wish="' + w.id + '">记一笔</button><button type="button" class="mini" style="color:#5B6372" data-act="wishdrop" data-id="' + w.id + '">不想买了</button></span></div></div>';
+    '<span style="margin-left:auto;display:flex;gap:6px"><a class="mini" href="' + diagnoseHref(w.ts_code) + '">诊断 →</a><button type="button" class="mini" data-act="wishedit" data-id="' + w.id + '">编辑</button><button type="button" class="mini" data-act="rec" data-wish="' + w.id + '">记一笔</button><button type="button" class="mini" style="color:#5B6372" data-act="wishdrop" data-id="' + w.id + '">不想买了</button></span></div></div>';
 }
 function renderBuy(d) {
   const head = '<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#5B6372"><span>先写好理由、条件和仓位，条件到了提醒你；买入时这些会自动变成逻辑卡。</span><button type="button" class="btn pri" data-act="addwish" style="margin-left:auto">＋ 加一只想买的</button></div>';
@@ -295,7 +306,7 @@ function renderDetail() {
   const h = d.held, r = d.reason;
   const top = '<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:18px">' + esc(d.name) + '</b><span ' + MONO + ' style="font-size:12px;color:#8A919E">' + codeOnly(d.ts_code) + '</span><a class="mini" style="margin-left:auto" href="' + diagnoseHref(d.ts_code) + '">诊断 →</a></div>' +
     (h ? '<div style="display:flex;align-items:baseline;gap:10px"><span ' + MONO + ' class="' + cls(h.pnl) + '" style="font-weight:700;font-size:22px">' + money(h.pnl, true) + ' <span style="font-size:14px">' + pct(h.pnl_pct) + '</span></span><span class="sub">现价 ' + px(d.price) + '</span></div>' : '<div class="sub">现价 ' + px(d.price) + ' · 现在没有持仓</div>') + '</div>';
-  const mine = h ? '<div><div style="font-size:12px;font-weight:700;color:#5B6372;padding-bottom:4px">我的持仓</div><div class="kv"><span>成本 · 数量</span><b ' + MONO + '>' + px(h.avg) + ' · ' + h.qty + ' 股</b></div><div class="kv"><span>占总持仓</span><b ' + MONO + '>' + (h.weight * 100).toFixed(0) + '%</b></div><div class="kv"><span>买入</span><b ' + MONO + '>' + day5(h.since) + ' · 持有 ' + h.days + ' 天</b></div></div>' : '';
+  const mine = h ? '<div><div style="display:flex;align-items:center;font-size:12px;font-weight:700;color:#5B6372;padding-bottom:4px">我的持仓<button type="button" class="mini" style="margin-left:auto" data-act="adjust" data-code="' + esc(d.ts_code) + '" title="数量或成本价和券商对不上时，直接改成对的">编辑持仓</button></div><div class="kv"><span>成本 · 数量</span><b ' + MONO + '>' + px(h.avg) + ' · ' + h.qty + ' 股</b></div>' + (h.cap_weight != null ? '<div class="kv"><span>占总资金</span><b ' + MONO + '>' + (h.cap_weight * 100).toFixed(1) + '%</b></div>' : '<div class="kv"><span>占总持仓</span><b ' + MONO + '>' + (h.weight * 100).toFixed(0) + '%</b></div>') + '<div class="kv"><span>买入</span><b ' + MONO + '>' + day5(h.since) + ' · 持有 ' + h.days + ' 天</b></div></div>' : '';
   const reason = r ? '<div class="note" style="gap:6px;padding:12px"><div style="display:flex;align-items:center;gap:6px"><b style="font-size:13px">我买的理由</b>' + reasonPill(r.status) + '<span class="sub" style="margin-left:auto">' + (r.written_at ? '写于 ' + day5(r.written_at) : '') + '</span></div>' +
     '<span style="font-size:14px;line-height:1.6">' + (r.text ? '「' + esc(r.text) + '」' : '<span class="sub">没写理由，只设了「什么情况算我错」</span>') + '</span>' +
     (r.invalid.length ? '<span class="sub">什么情况说明我错了：' + r.invalid.map(invalidText).map(esc).join('；') + '</span>' : '') +
@@ -307,8 +318,8 @@ function renderDetail() {
   const flip = d.flip ? '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span style="display:flex;flex-direction:column;gap:1px"><span>AI 改判时通知我</span><span class="sub">' + esc(d.flip) + (d.flip_items.length ? '：' + esc(d.flip_items.join('、')) : '') + '</span></span></div>' : (d.ai ? '<div style="display:flex;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span>AI 改判时通知我</span></div>' : '');
   const reminders = h ? '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">我设的提醒</b>' + d.alerts.map(alertRow).join('') + d.rules.map((x) => '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span style="display:flex;flex-direction:column;gap:1px"><span>' + esc(x.text) + '</span><span class="sub">' + esc(x.detail) + '</span></span><button type="button" class="x" style="margin-left:auto" data-act="ruledel" data-id="' + x.id + '">×</button></div>').join('') + flip +
     (d.needs_price ? '<div class="warnbox" style="margin-top:4px"><span><b style="color:#7A4A00">还没设「理由不成立」的价格</b>：现在跌多少都不会提醒你。</span><button type="button" class="mini" style="align-self:flex-start" data-act="priceline" data-code="' + esc(d.ts_code) + '">设一个价格</button></div>' : '') + '</div>' : '';
-  const trades = d.trades.length ? '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">买卖记录</b>' + d.trades.map((t) => '<div style="display:grid;grid-template-columns:42px 36px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span ' + MONO + ' style="color:#5B6372">' + day5(t.date) + '</span><b>' + esc(t.label) + '</b><span style="display:flex;flex-direction:column;gap:2px"><span ' + MONO + '>' + px(t.price) + ' × ' + t.qty + ' 股' + (t.imported ? ' <span class="sub">（导入）</span>' : '') + '</span>' +
-    ((t.market_text || t.ai_label) ? '<span class="sub">当时大盘 ' + esc(t.market_text || '—') + (t.ai_label ? ' · AI ' + esc(t.ai_label) : '') + (t.conflict ? '　<span style="color:#7A4A00">⚠ 和大盘结论不一致</span>' : '') + '</span>' : '') + (t.note ? '<span style="font-size:12px;color:#5B6372">复盘：' + esc(t.note) + '</span>' : '') + '</span><button type="button" class="x" title="删除这笔记录" data-act="tradedel" data-id="' + t.id + '">×</button></div>').join('') + '</div>' : '';
+  const trades = d.trades.length ? '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">买卖记录</b>' + d.trades.map((t) => '<div style="display:grid;grid-template-columns:42px 36px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span ' + MONO + ' style="color:#5B6372">' + day5(t.date) + '</span><b>' + esc(t.label) + '</b><span style="display:flex;flex-direction:column;gap:2px"><span ' + MONO + '>' + (t.side === 'adjust' ? '成本 ' + px(t.price) + ' · ' + t.qty + ' 股' : px(t.price) + ' × ' + t.qty + ' 股') + (t.imported ? ' <span class="sub">（导入）</span>' : '') + '</span>' +
+    ((t.market_text || t.ai_label) ? '<span class="sub">当时大盘 ' + esc(t.market_text || '—') + (t.ai_label ? ' · AI ' + esc(t.ai_label) : '') + (t.conflict ? '　<span style="color:#7A4A00">⚠ 和大盘结论不一致</span>' : '') + '</span>' : '') + (t.note ? '<span style="font-size:12px;color:#5B6372">复盘：' + esc(t.note) + '</span>' : '') + '</span><span style="display:flex;gap:2px"><button type="button" class="x" title="改这一笔" data-act="tradeedit" data-id="' + t.id + '" data-side="' + esc(t.side) + '" data-price="' + t.price + '" data-qty="' + t.qty + '" data-date="' + esc(t.date) + '">改</button><button type="button" class="x" title="删除这笔记录" data-act="tradedel" data-id="' + t.id + '">×</button></span></div>').join('') + '</div>' : '';
   const entries = '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">这只票的研判记录</b>' + (d.entries.length ? d.entries.map((e) => '<div style="display:grid;grid-template-columns:42px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span ' + MONO + ' style="color:#5B6372">' + day5(e.date) + '</span><span>' + esc(e.text) + '</span><span class="pl" style="height:18px;font-size:11px;background:' + (e.outcome.state === 'hit' ? '#EDF7F1' : e.outcome.state === 'miss' ? '#FFF1D6' : '#F1F2F4') + ';color:' + (e.outcome.state === 'hit' ? '#1E6B44' : e.outcome.state === 'miss' ? '#7A4A00' : '#5B6372') + '">' + esc(e.outcome.text) + '</span></div>').join('') : '<span class="sub">还没有记录。AI 的判断每个交易日盘前更新，买入时和之后每次改判都会记在这里。</span>') + '<span class="sub" style="padding-top:4px">单只票样本太少，只列逐条记录，不算胜率。</span></div>';
   return '<div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px">' + top + wish + view + mine + reason + reminders + trades + entries + '</div>';
 }
@@ -387,7 +398,7 @@ function showGlance() {
   if (r.side === 'buy' && p.impact && p.impact.lines.length) parts.push(impactText(p.impact).replace('买入后：', '买入后'));
   if (r.side === 'sell') parts.push('现在手里 ' + p.held_qty + ' 股');
   el.innerHTML = '<span><b>记之前看一眼：</b>' + parts.join('；') + '。</span><span class="sub">只是提醒，记不记、买不买由你决定。</span>';
-  const pc = $('rPct'); if (pc) pc.textContent = p.pct ? '约占现在持仓的 ' + p.pct.toFixed(1) + '%' : '';
+  const pc = $('rPct'); if (pc) pc.textContent = p.cap_pct != null ? '占总资金 ' + p.cap_pct.toFixed(1) + '%，' + (r.side === 'sell' ? '卖后' : '买后') + '仓位 ' + p.cap_after.toFixed(1) + '%' : (p.pct ? '约占现在持仓的 ' + p.pct.toFixed(1) + '%' : '');
   if (!val('rPrice') && p.price) { $('rPrice').value = Number(p.price).toFixed(2); }
 }
 async function submitRec() {
@@ -469,14 +480,14 @@ function renderAddForm() {
     ck('flowIn', '大资金连续 3 天流入', '') +
     '<label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" data-act="wchk" data-k="customOn"' + (f.customOn ? ' checked' : '') + '><span>自己写一个条件</span>' + (f.customOn ? '<input class="inp" id="wCustom" style="flex:1;min-height:28px;padding:3px 8px" value="' + esc(f.custom) + '" placeholder="比如：三季报落地">' : '') + '</label></div>';
   const plan = [5, 8, 10].map((n) => '<button type="button" class="chip' + (f.plan === n ? ' on' : '') + '" data-act="wplan" data-n="' + n + '">' + n + '%</button>').join('') + '<input class="inp" id="wPlan" style="width:72px;min-height:28px;padding:3px 8px" inputmode="decimal" value="' + (f.plan || '') + '" placeholder="自定义"> <span class="sub" id="wAmt">' + (p.amount ? '约 ' + money(p.amount) + ' 元 · 按现在持仓市值算' : p.total ? '' : '现在没有持仓，占比无从算起') + '</span>';
-  modal(modalHead('加一只想买的') + stepper(2) + stock +
+  modal(modalHead(a.editId ? '编辑想买' : '加一只想买的') + (a.editId ? '' : stepper(2)) + stock +
     field('为什么想买 <span style="color:#B42318">*</span>', '<textarea class="inp" id="wReason" rows="2" placeholder="用你自己的话，一句就够；买入后它会变成逻辑卡，拿来和事实对照">' + esc(f.reason) + '</textarea>', (ev ? '点一下插入 AI 最近的依据：<span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-top:4px">' + ev + '</span>' : '')) +
     field('什么时候买 <span class="seg" style="display:inline-flex;margin-left:6px"><button type="button" data-act="wmatch" data-k="all" aria-pressed="' + (f.match === 'all') + '">全部</button><button type="button" data-act="wmatch" data-k="any" aria-pressed="' + (f.match === 'any') + '">任一</button></span>', conds) +
     field('打算买多少', '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + plan + '</div>') +
     '<div class="note" id="wImpact" style="font-size:12px;color:#3A4250">' + (p.impact ? esc(impactText(p.impact).replace(/<[^>]+>/g, '')) : '<span class="sub">选了仓位，这里显示买入后各板块占比怎么变。</span>') + '</div>' +
     field('什么情况说明我错了 <span class="sub">· 可选</span>', '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:12px;color:#5B6372">收盘跌破</span><input class="inp" id="wInv" style="width:96px;min-height:28px;padding:3px 8px" inputmode="decimal" value="' + esc(f.invBelow) + '"><span class="sub" style="margin:0 4px">或</span><button type="button" class="chip' + (f.invSector ? ' on' : '') + '" data-act="winv">板块转为在流出</button></div>', '现在可以不填，买入时再补') +
     '<span class="sub">保存后每天盯：离条件还差多少、AI 看法变没变、大盘允不允许；条件到了通知你。</span>' +
-    '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="addback">上一步</button><button type="button" class="btn pri" id="wSave" data-act="wsave">保存到想买</button></div>', '加一只想买的');
+    '<div style="display:flex;justify-content:flex-end;gap:8px">' + (a.editId ? '<button type="button" class="btn" data-act="close">取消</button><button type="button" class="btn pri" id="wSave" data-act="wsave">保存修改</button>' : '<button type="button" class="btn" data-act="addback">上一步</button><button type="button" class="btn pri" id="wSave" data-act="wsave">保存到想买</button>') + '</div>', '加一只想买的');
   const pl = $('wPlan'); if (pl) pl.addEventListener('input', debounce(async () => { captureAdd(); f.plan = Number(pl.value) || 0; await refreshWishImpact(); }, 400));
 }
 async function refreshWishImpact() {
@@ -485,7 +496,7 @@ async function refreshWishImpact() {
     const p = await api('/wishes/preview', 'POST', { ts_code: a.stock.ts_code, plan_pct: a.form.plan });
     a.preview = { ...a.preview, impact: p.impact, amount: p.amount };
     const el = $('wImpact'); if (el) el.textContent = p.impact ? impactText(p.impact).replace(/<[^>]+>/g, '') : '选了仓位，这里显示买入后各板块占比怎么变。';
-    const am = $('wAmt'); if (am) am.textContent = p.amount ? '约 ' + money(p.amount) + ' 元 · 按现在持仓市值算' : '';
+    const am = $('wAmt'); if (am) am.textContent = p.amount ? '约 ' + money(p.amount) + ' 元 · ' + (p.capital ? '按总资金算' : '按现在持仓市值算') : '';
   } catch (e) { /* 预览失败不影响保存 */ }
 }
 async function saveWish() {
@@ -503,8 +514,9 @@ async function saveWish() {
   if (f.invSector) invalid.push({ kind: 'sector_out' });
   const btn = $('wSave'); btn.disabled = true;
   try {
-    await api('/wishes', 'POST', { ts_code: a.stock.ts_code, reason: f.reason, conditions, match: f.match, plan_pct: f.plan || 0, invalid, source: (a.source || 'manual') });
-    closeModal(); toast('已加到想买'); S.tabs = {}; S.tab = 'buy'; await refreshAll();
+    if (a.editId) await api('/wishes/' + a.editId, 'PUT', { reason: f.reason, conditions, match: f.match, plan_pct: f.plan || 0, invalid });
+    else await api('/wishes', 'POST', { ts_code: a.stock.ts_code, reason: f.reason, conditions, match: f.match, plan_pct: f.plan || 0, invalid, source: (a.source || 'manual') });
+    closeModal(); toast(a.editId ? '已保存修改' : '已加到想买'); S.tabs = {}; S.detail = {}; S.tab = 'buy'; await refreshAll();
   } catch (e) { toast(e.message, true); btn.disabled = false; }
 }
 
@@ -559,6 +571,73 @@ async function saveNote() {
   try { await api('/trades/' + S.noteId + '/note', 'PUT', { note: val('nText') }); closeModal(); delete S.tabs.rev; S.detail = {}; await showTab(S.tab, true); renderAside(); } catch (e) { toast(e.message, true); }
 }
 
+
+/* ---------- 编辑：总资金、持仓、买卖记录、想买 ---------- */
+function openCapital() {
+  const cur = S.summary && S.summary.header ? S.summary.header.capital : 0;
+  modal(modalHead('总资金') +
+    field('你准备放在股票上的总钱数（元）', '<input class="inp" id="cInput" inputmode="decimal" value="' + (cur || '') + '" placeholder="比如 500000">', '包括已经买了的和还没买的。有了它，每只票占多少、总仓位多少、现金还剩多少才算得出来；只记在本机。') +
+    '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="close">取消</button><button type="button" class="btn pri" id="cSave" data-act="csave">保存</button></div>', '总资金');
+  $('cInput').focus();
+}
+async function saveCapital() {
+  const v = val('cInput').replace(/[,，\s]/g, '');
+  const btn = $('cSave'); btn.disabled = true;
+  try { await api('/capital', 'PUT', { capital: v === '' ? 0 : Number(v) }); closeModal(); toast(v && Number(v) > 0 ? '已保存总资金' : '已清掉总资金'); S.tabs = {}; S.detail = {}; await refreshAll(); }
+  catch (e) { toast(e.message, true); btn.disabled = false; }
+}
+function openAdjust(code) {
+  const d = S.detail[code], h = d && d.held; if (!h) return;
+  S.edit = { kind: 'adjust', code };
+  modal(modalHead('编辑持仓 · ' + esc(d.name)) +
+    '<div class="sub">数量或成本价和券商对不上时，直接改成对的。会在买卖记录里加一行「校正」，从你选的日期起按这个数量和成本算；之前的买卖记录不动。</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">' + field('现在持有（股）', '<input class="inp" id="eQty" inputmode="numeric" value="' + h.qty + '">', '改成 0 就是清仓') +
+    field('成本价', '<input class="inp" id="ePrice" inputmode="decimal" value="' + Number(h.avg).toFixed(3).replace(/0+$/, '').replace(/\.$/, '') + '">') + field('从哪天起', '<input class="inp" id="eDate" type="date" value="' + today() + '">') + '</div>' +
+    '<div class="note" id="eGlance" style="font-size:12px;color:#3A4250"></div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="close">取消</button><button type="button" class="btn pri" id="eSave" data-act="adjsave">保存</button></div>', '编辑持仓');
+  const cap = d.capital || (S.summary && S.summary.header && S.summary.header.capital) || 0;
+  const glance = () => { const q = Number(val('eQty')), p = Number(val('ePrice')); const el = $('eGlance'); if (!el) return; el.innerHTML = q > 0 && p > 0 ? '<span>成本合计 <b>' + money(q * p) + '</b> 元' + (cap ? '，占总资金 <b>' + (q * p / cap * 100).toFixed(1) + '%</b>' : '') + (d.price ? '；按现价 ' + px(d.price) + ' 算盈亏 <b class="' + cls(d.price - p) + '">' + money((d.price - p) * q, true) + '</b>' : '') + '</span>' : '<span class="sub">数量写 0 就是这只票现在不持有了。</span>'; };
+  ['eQty', 'ePrice'].forEach((id) => $(id).addEventListener('input', glance)); glance();
+}
+async function saveAdjust() {
+  const e = S.edit; if (!e) return;
+  const btn = $('eSave'); btn.disabled = true;
+  try { await api('/stock/' + encodeURIComponent(e.code) + '/adjust', 'POST', { qty: val('eQty'), avg: val('ePrice'), date: val('eDate') }); closeModal(); toast('已校正持仓'); S.tabs = {}; S.detail = {}; await refreshAll(); }
+  catch (err) { toast(err.message, true); btn.disabled = false; }
+}
+function openTradeEdit(el) {
+  const side = el.dataset.side, adjust = side === 'adjust';
+  S.edit = { kind: 'trade', id: el.dataset.id };
+  modal(modalHead(adjust ? '改这条校正' : '改这一笔' + (side === 'sell' ? '卖出' : '买入')) +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">' + field(adjust ? '成本价' : '成交价', '<input class="inp" id="tPrice" inputmode="decimal" value="' + el.dataset.price + '">') + field(adjust ? '持有（股）' : '数量（股）', '<input class="inp" id="tQty" inputmode="numeric" value="' + el.dataset.qty + '">') + field('日期', '<input class="inp" id="tDate" type="date" value="' + el.dataset.date + '">') + '</div>' +
+    '<span class="sub">改完会按所有买卖记录重新算持仓和成本；如果后面的卖出会比手里有的多，会拒绝。</span>' +
+    '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="close">取消</button><button type="button" class="btn pri" id="tSave" data-act="tsave">保存</button></div>', '改这一笔');
+}
+async function saveTradeEdit() {
+  const e = S.edit; if (!e) return;
+  const btn = $('tSave'); btn.disabled = true;
+  try { await api('/trades/' + e.id, 'PUT', { price: val('tPrice'), qty: val('tQty'), date: val('tDate') }); closeModal(); toast('已保存修改'); S.tabs = {}; S.detail = {}; await refreshAll(); }
+  catch (err) { toast(err.message, true); btn.disabled = false; }
+}
+async function openWishEdit(id) {
+  const w = ((S.tabs.buy || {}).items || []).find((x) => String(x.id) === String(id)); if (!w) return;
+  const e = w.edit || {};
+  const f = { plan: e.plan_pct || 0, match: e.match || 'all', price: false, etf: false, ai: false, market: false, flowIn: false, custom: '', customOn: false, reason: e.reason || '', below: '', invBelow: '', invSector: false };
+  (e.conditions || []).forEach((c) => {
+    if (c.kind === 'price_below') { f.price = true; f.below = String(c.value); }
+    else if (c.kind === 'etf_inflow') f.etf = true;
+    else if (c.kind === 'ai_bullish') f.ai = true;
+    else if (c.kind === 'market_ok') f.market = true;
+    else if (c.kind === 'flow_in_days') f.flowIn = true;
+    else if (c.kind === 'custom') { f.customOn = true; f.custom = c.text || ''; }
+  });
+  (e.invalid || []).forEach((i) => { if (i.kind === 'close_below') f.invBelow = String(i.value); else if (i.kind === 'sector_out') f.invSector = true; });
+  S.add = { step: 2, editId: w.id, stock: { ts_code: w.ts_code, name: w.name }, form: f, preview: null };
+  modal(modalHead('编辑想买') + '<div class="skeleton">正在取这只票的现价、AI 判断和板块…</div>', '编辑想买');
+  try { S.add.preview = await api('/wishes/preview', 'POST', { ts_code: w.ts_code, plan_pct: f.plan }); } catch (err) { S.add.preview = null; }
+  renderAddForm();
+}
+
 /* ---------- 动作 ---------- */
 const ACT = {
   tab: (el) => { S.tab = el.dataset.k; renderTabs(); showTab(S.tab); },
@@ -592,6 +671,13 @@ const ACT = {
   winv: () => { captureAdd(); S.add.form.invSector = !S.add.form.invSector; renderAddForm(); },
   wevid: (el) => { captureAdd(); const t = S.add.preview.evidence[Number(el.dataset.i)]; const f = S.add.form; f.reason = (f.reason ? f.reason + '；' : '') + t; renderAddForm(); },
   wsave: saveWish,
+  capital: openCapital,
+  csave: saveCapital,
+  adjust: (el) => openAdjust(el.dataset.code),
+  adjsave: saveAdjust,
+  tradeedit: (el) => openTradeEdit(el),
+  tsave: saveTradeEdit,
+  wishedit: (el) => openWishEdit(el.dataset.id),
   wishdrop: async (el) => { if (!confirm('不想买这只了？这条计划会被删掉。')) return; try { await api('/wishes/' + el.dataset.id, 'DELETE'); delete S.tabs.buy; await refreshAll(); } catch (e) { toast(e.message, true); } },
   import: openImport,
   idoit: doImport,

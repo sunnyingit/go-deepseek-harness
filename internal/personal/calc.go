@@ -46,6 +46,19 @@ func Positions(trades []Trade) (map[string]*Position, map[int]TradeNote) {
 		}
 		pos.Name = t.Name
 		note := TradeNote{AvgBefore: pos.Avg, QtyBefore: pos.Qty}
+		if t.Side == "adjust" { // 校正: what is held and its cost are set, nothing is bought or sold
+			note.Label = "校正"
+			if t.Qty <= 0 {
+				pos.Qty, pos.Avg, pos.Since, pos.Buys = 0, 0, "", nil
+			} else {
+				if pos.Qty == 0 || pos.Since == "" {
+					pos.Since = t.Date
+				}
+				pos.Qty, pos.Avg, pos.Buys = t.Qty, t.Price, []Trade{t}
+			}
+			notes[t.ID] = note
+			continue
+		}
 		if t.Side == "buy" {
 			note.Label = "加仓"
 			if pos.Qty == 0 {

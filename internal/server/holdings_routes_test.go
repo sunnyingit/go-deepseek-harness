@@ -5,6 +5,7 @@ import (
 	"go-harness/internal/personal"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -106,4 +107,82 @@ func TestPersonalImportLoadsOnceAndOnlyIntoAnEmptyStore(t *testing.T) {
 
 func personalTrade() personal.Trade {
 	return personal.Trade{Code: "000001.SZ", Name: "平安银行", Side: "buy", Price: 10, Qty: 100, Date: "2026-11-02"}
+}
+
+func TestEditingHoldingsAndTheShareOfTheTotalMoney(t *testing.T) {
+	fakeShared(t)
+	s, _ := newClientServer(t, zoneTime("2026-11-05", "20:00"))
+	s.quotes.Get = func(string) (string, error) { return `v_sh600036="1~招商银行~600036~11.00~10.50~1";`, nil }
+	mux := http.NewServeMux()
+	s.registerClientRoutes(mux)
+	call := func(method, path, body string) (int, map[string]any) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(method, path, strings.NewReader(body)))
+		var out map[string]any
+		_ = json.Unmarshal(rec.Body.Bytes(), &out)
+		return rec.Code, out
+	}
+	call("POST", "/api/v1/holdings/trades", `{"ts_code":"600036.SH","side":"buy","price":10,"qty":100,"date":"2026-11-01"}`)
+	// no total yet: only the share of what is held, and a hint that the total is not set
+	_, out := call("GET", "/api/v1/holdings/summary", "")
+	if h := out["header"].(map[string]any); h["capital"].(float64) != 0 || h["invested_pct"] != nil {
+		t.Fatalf("header = %v", h)
+	}
+	if code, out := call("PUT", "/api/v1/holdings/capital", `{"capital":-5}`); code != 400 {
+		t.Fatalf("negative capital = %d %v", code, out)
+	}
+	if code, _ := call("PUT", "/api/v1/holdings/capital", `{"capital":5000}`); code != 200 {
+		t.Fatal("capital was refused")
+	}
+	_, out = call("GET", "/api/v1/holdings/summary", "")
+	h := out["header"].(map[string]any)
+	row := out["rows"].([]any)[0].(map[string]any)
+	if h["capital"].(float64) != 5000 || h["invested_pct"].(float64) != 0.22 || h["cash"].(float64) != 3900 || row["cap_weight"].(float64) != 0.22 || row["weight"].(float64) != 1 {
+		t.Fatalf("with the total set: header %v row %v", h, row)
+	}
+	// a buy preview says how much of the total it would take
+	_, pv := call("POST", "/api/v1/holdings/trades/preview", `{"ts_code":"600036.SH","side":"buy","price":10,"qty":100}`)
+	if pv["cap_pct"].(float64) != 20 || pv["cap_after"].(float64) != 42 {
+		t.Fatalf("preview = %v", pv)
+	}
+	// correcting the position: 200 shares at 9.5 from today, as a line of its own
+	if code, out := call("POST", "/api/v1/holdings/stock/600036.SH/adjust", `{"qty":200,"avg":9.5,"date":"2026-11-05"}`); code != 201 {
+		t.Fatalf("adjust = %d %v", code, out)
+	}
+	_, out = call("GET", "/api/v1/holdings/summary", "")
+	row = out["rows"].([]any)[0].(map[string]any)
+	if row["qty"].(float64) != 200 || row["avg"].(float64) != 9.5 {
+		t.Fatalf("after adjust: %v", row)
+	}
+	_, det := call("GET", "/api/v1/holdings/stock/600036.SH", "")
+	trades := det["trades"].([]any)
+	if len(trades) != 2 || trades[len(trades)-1].(map[string]any)["label"] != "校正" && trades[0].(map[string]any)["label"] != "校正" {
+		t.Fatalf("trades = %v", trades)
+	}
+	// editing the buy of 100 to 150 shares at 10.2
+	buyID := 0
+	for _, x := range trades {
+		if m := x.(map[string]any); m["side"] == "buy" {
+			buyID = int(m["id"].(float64))
+		}
+	}
+	if code, out := call("PUT", "/api/v1/holdings/trades/"+strconv.Itoa(buyID), `{"price":10.2,"qty":150,"date":"2026-11-01"}`); code != 200 {
+		t.Fatalf("update trade = %d %v", code, out)
+	}
+	if code, out := call("PUT", "/api/v1/holdings/trades/"+strconv.Itoa(buyID), `{"qty":0}`); code != 400 {
+		t.Fatalf("zero quantity was accepted: %d %v", code, out)
+	}
+	// a wish can be rewritten
+	_, w := call("POST", "/api/v1/holdings/wishes", `{"ts_code":"000001.SZ","reason":"便宜","plan_pct":5}`)
+	_ = w
+	wishes := s.personal.Wishes()
+	if len(wishes) == 1 {
+		if code, out := call("PUT", "/api/v1/holdings/wishes/"+strconv.Itoa(wishes[0].ID), `{"reason":"更便宜了","plan_pct":10,"match":"any","conditions":[{"kind":"ai_bullish"}]}`); code != 200 {
+			t.Fatalf("update wish = %d %v", code, out)
+		}
+		got := s.personal.Wishes()[0]
+		if got.Reason != "更便宜了" || got.PlanPct != 10 || got.Match != "any" || len(got.Conditions) != 1 {
+			t.Fatalf("wish = %+v", got)
+		}
+	}
 }
