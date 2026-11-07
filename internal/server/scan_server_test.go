@@ -278,3 +278,53 @@ func TestDayPanelSummarisesTheSettleDayAndTomorrow(t *testing.T) {
 		t.Fatalf("tomorrow = %+v", tm)
 	}
 }
+
+func TestAPredictionIsFiledByWhatAskedForTheConclusion(t *testing.T) {
+	ds := &dataService{closes: map[string][][2]any{"600036.SH": series("2026-10-26", 9, 10, 0.1)}}
+	ds.start(t)
+	s, c := newClientServer(t, zoneTime("2026-11-05", "20:00"))
+	s.stepFn = (&speaker{}).fn
+	for _, code := range []string{"600036.SH", "000001.SZ", "300750.SZ"} {
+		s.personal.WatchAdd(code, code)
+		seedDebate(s, code)
+	}
+	due(s, c) // the schedule makes all three
+	s.sch.TickSync()
+	for _, p := range s.scan.All() {
+		if p.Source != "scan" {
+			t.Fatalf("the schedule's conclusion was filed as %q", p.Source)
+		}
+	}
+	// pressing 重新分析 makes a new conclusion that is yours, and the same stock gets a second prediction
+	if _, err := s.requestConclusion("600036.SH", "manual", true); err != nil {
+		t.Fatal(err)
+	}
+	s.sch.TickSync()
+	got := map[string]int{}
+	for _, p := range s.scan.All() {
+		got[p.Code+":"+p.Source]++
+	}
+	if got["600036.SH:scan"] != 1 || got["600036.SH:diagnose"] != 1 {
+		t.Fatalf("predictions = %v", got)
+	}
+	// the run-now button only writes down conclusions that are already there: each keeps what asked for it
+	s.scan = scan.Open("", c.now)
+	b := s.readBundle("600036.SH")
+	if b.Trigger != "manual" {
+		t.Fatalf("trigger = %q", b.Trigger)
+	}
+	if _, err := s.runScanNow(nightlyID); err != nil {
+		t.Fatal(err)
+	}
+	s.sch.TickSync()
+	by := map[string]string{}
+	for _, p := range s.scan.All() {
+		by[p.Code] = p.Source
+	}
+	if by["600036.SH"] != "diagnose" || by["000001.SZ"] != "scan" {
+		t.Fatalf("sources after run-now = %v", by)
+	}
+	if sourceFromTrigger("watch_add") != "diagnose" || sourceFromTrigger("first_view") != "diagnose" || sourceFromTrigger("holdings") != "scan" || sourceFromTrigger("schedule") != "scan" {
+		t.Fatal("trigger mapping changed")
+	}
+}

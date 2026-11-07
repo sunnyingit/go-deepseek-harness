@@ -235,6 +235,7 @@ func (s *Server) nightly(c *sched.JobCtx) (any, error) {
 	levels, _ := sched.Step(c, "levels", func() (map[string]any, error) { return s.fetchLevels(code), nil }) // never fails the job
 	made, err := sched.Step(c, "conclude", func() (map[string]any, error) {
 		b := s.buildBundle(code, c.Now(), outcomes, levels)
+		b.Trigger = triggerOf(c)
 		s.writeBundle(b)
 		return map[string]any{"id": b.ID, "source": b.Source}, nil
 	})

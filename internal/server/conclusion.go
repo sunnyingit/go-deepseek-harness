@@ -35,7 +35,8 @@ type conclusionBundle struct {
 	Session        string         `json:"session"`
 	GeneratedAt    string         `json:"generated_at"`
 	GeneratedDay   string         `json:"generated_day"`
-	Source         string         `json:"source"` // agent | none
+	Trigger        string         `json:"trigger,omitempty"` // what asked for it: schedule, or the reason of an on-demand run
+	Source         string         `json:"source"`            // agent | none
 	Model          string         `json:"model"`
 	FallbackReason string         `json:"fallback_reason"`
 	Analysts       []bundleRow    `json:"analysts"`

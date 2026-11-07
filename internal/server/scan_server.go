@@ -25,12 +25,35 @@ func (s *Server) registerScanTasks() {
 	})
 }
 
-// sourceOf says who asked for a conclusion: a person who opened or refreshed it, or the schedule.
-func sourceOf(c *sched.JobCtx) string {
-	if reason, _ := c.Input()["reason"].(string); reason == "manual" || reason == "first_view" {
+// triggerOf says what asked for a conclusion: the schedule, or the reason a run was queued for.
+func triggerOf(c *sched.JobCtx) string {
+	if on, _ := c.Input()["on_demand"].(bool); !on {
+		return "schedule"
+	}
+	if reason, _ := c.Input()["reason"].(string); reason != "" {
+		return reason
+	}
+	return "manual"
+}
+
+// sourceFromTrigger is the source a prediction is filed under. A conclusion you asked for (you pressed
+// 重新分析, opened a stock that had none, or added it) is yours; the schedule's, the run-now button's and the
+// background fill-ins are the scan's.
+func sourceFromTrigger(trigger string) string {
+	switch trigger {
+	case "manual", "first_view", "watch_add":
 		return "diagnose"
 	}
 	return "scan"
+}
+
+// sourceOf is the source for a conclusion that is being written down. The conclusion remembers what asked for
+// it; one made before it remembered falls back to the run that is writing it down.
+func sourceOf(c *sched.JobCtx, b *conclusionBundle) string {
+	if b != nil && b.Trigger != "" {
+		return sourceFromTrigger(b.Trigger)
+	}
+	return sourceFromTrigger(triggerOf(c))
 }
 
 func firstSentence(text string) string {
@@ -78,7 +101,7 @@ func (s *Server) recordPrediction(c *sched.JobCtx, b *conclusionBundle) (bool, e
 		level = 0
 	}
 	p := scan.Prediction{
-		Code: b.Code, Name: s.stockName(b.Code), Source: sourceOf(c), Direction: dir, Level: level, Verdict: verdict, Evidence: firstSentence(text),
+		Code: b.Code, Name: s.stockName(b.Code), Source: sourceOf(c, b), Direction: dir, Level: level, Verdict: verdict, Evidence: firstSentence(text),
 		MadeAt: madeAt.UnixMilli(), BaseDay: sched.Day(s.cal.LastClose(madeAt)), BundleID: b.ID,
 	}
 	if info := (holdingsData{s}).Sector(b.Code); info.Name != "" {
