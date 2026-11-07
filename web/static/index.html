@@ -248,8 +248,22 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const watchState = { status: 'loading', items: [], error: null };
   const opened = {}; // stocks opened from search that are not on the list: code -> { name, code }
   const watchItem = (code) => watchState.items.find((s) => s.ts_code === code);
+  // 从别的页面点「诊断 →」过来：地址里带 ?stock=代码，直接定位到这只票。读完就把参数从地址里去掉，
+  // 以后在页面里换了股票、再刷新，不会又跳回这一只。
+  const urlStock = (() => {
+    try {
+      const raw = new URLSearchParams(location.search).get('stock');
+      const code = raw && raw.trim().toUpperCase();
+      return code && /^([0-9]{6}\.(SH|SZ|BJ)|[0-9]{5}\.HK)$/.test(code) ? code : null;
+    } catch (e) { return null; }
+  })();
+  let urlPending = !!urlStock;   // 自选读回来之后，这只票不在自选里就加进去
+  if (urlStock) {
+    keep.set('diag.stock', urlStock);
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* ignore */ }
+  }
   const state = {
-    stock: keep.get('diag.stock') || '002430.SZ', drawer: 'concl', fold: true, notif: false, srch: '', concl: false, replyTo: 'chief',
+    stock: urlStock || keep.get('diag.stock') || '002430.SZ', drawer: 'concl', fold: true, notif: false, srch: '', concl: false, replyTo: 'chief',
   };
   function curStock() {
     const code = state.stock, it = watchItem(code);
@@ -3328,6 +3342,11 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         watchState.error = null;
         watchState.items = Array.isArray(body.items) ? body.items : [];
         settleRediag();
+        // 从持仓、扫描页点「诊断 →」过来的票：不在自选里就默认加进自选
+        if (urlPending) {
+          urlPending = false;
+          if (!watchItem(urlStock)) addWatch(urlStock);
+        }
         // first visit: nothing remembered, so start on the first listed stock
         if (!keep.get('diag.stock') && !watchItem(state.stock) && watchState.items.length) openStock(watchState.items[0].ts_code);
       })
