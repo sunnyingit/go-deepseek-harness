@@ -1,7 +1,7 @@
 // 客户端宿主：托盘常驻、登录自启、休眠恢复补跑、桌面通知。（单实例锁在 main.js 最前面，要赶在启动后端之前。）
-// 定时任务本身在 Python 后端（stock_agent_assitant）里跑；这里只负责「让它有人看着」：
+// 定时任务在本机的 Go 服务里跑（调度、分析师、收件箱）；Python 股票服务只提供数据，不跑任务。这里只负责「让它有人看着」：
 //   - 电脑从休眠恢复时唤醒调度器（POST /sched/tick?reason=resume），错过的任务按补跑策略处理；
-//   - 把后端排好的桌面通知取出来弹给用户，点击后打开对应页面；
+//   - 把 Go 服务排好的桌面通知取出来弹给用户，点击后打开对应页面；
 //   - 托盘显示未读数，关窗口不退出（右键托盘才退出）。
 // 纯函数放在最上面导出，方便单测（host.test.js）。
 
@@ -65,8 +65,8 @@ function request(method, url, body, timeoutMs = 4000) {
 
 function init({ app, electron, pageBase, showMainWindow, loadPage, iconPath, userData }) {
   const { Tray, Menu, Notification, powerMonitor, nativeImage } = electron;
-  const base = stockBase();          // Python 后端：调度和通知接口
-  const pages = pageBase;            // Go 服务：页面
+  const pages = pageBase;            // 本机 Go 服务：页面、调度和通知接口
+  const base = pageBase;
   const prefsFile = path.join(userData, 'host.json');
   const state = { tray: null, quitting: false, unread: 0, timer: null, shown: new Set() };
   const prefs = { autostart: true, ...readPrefs(prefsFile) };

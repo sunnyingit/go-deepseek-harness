@@ -142,7 +142,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 
 <nav aria-label="主导航" style="flex: 0 0 64px; overflow: hidden; background: #FFFFFF; border-right: 1px solid #DDE1E7; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0">
 <a href="/market.html" style="width: 48px; min-height: 48px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B6372; text-decoration: none; font-size: 11px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
-<a href="#" style="width: 48px; min-height: 48px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B6372; text-decoration: none; font-size: 11px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>扫描</a>
+<a href="/scan.html" style="width: 48px; min-height: 48px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B6372; text-decoration: none; font-size: 11px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>扫描</a>
 <a href="Lite.dc.html" aria-current="page" style="width: 48px; min-height: 48px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #2457D6; background: #EAF0FD; text-decoration: none; font-size: 11px; font-weight: 500"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>诊断</a>
 <a href="Record.dc.html" style="width: 48px; min-height: 48px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B6372; text-decoration: none; font-size: 11px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"></path></svg>战绩</a>
 <a href="/holdings.html" style="width: 48px; min-height: 48px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B6372; text-decoration: none; font-size: 11px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>持仓</a>
@@ -249,7 +249,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const opened = {}; // stocks opened from search that are not on the list: code -> { name, code }
   const watchItem = (code) => watchState.items.find((s) => s.ts_code === code);
   const state = {
-    stock: keep.get('diag.stock') || '002430.SZ', drawer: 'concl', fold: false, notif: false, srch: '', concl: false, replyTo: 'chief',
+    stock: keep.get('diag.stock') || '002430.SZ', drawer: 'concl', fold: true, notif: false, srch: '', concl: false, replyTo: 'chief',
   };
   function curStock() {
     const code = state.stock, it = watchItem(code);
@@ -2237,7 +2237,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const SYNTH_TIMEOUT_MS = 120000;
   const SYNTH_POLL_MS = 5000, SYNTH_MAX_POLLS = 24;
   const synthCache = {}; // ts_code -> { status: 'loading' | 'done' | 'error', startedAt, data, error, polls }
-  const alertsOn = {};   // 'ts_code:key' -> true
+  const alertsOn = {};   // 'ts_code:side' -> { id, price } once the alert is stored on this computer
+  const alertsLoaded = {}; // ts_code -> true once its alerts were read
 
 
   function startSynth(code) {
@@ -2274,9 +2275,9 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     }, SYNTH_POLL_MS);
   }
 
-  const synthBell = (key, color, border) => {
+  const synthBell = (key, color, border, price, confirm) => {
     const on = alertsOn[key];
-    return '<button type="button" class="mini" data-click="toggleAlert" data-alert="' + esc(key) + '"' + (on ? ' title="再点一次取消"' : '') +
+    return '<button type="button" class="mini" data-click="toggleAlert" data-alert="' + esc(key) + '"' + (price != null ? ' data-price="' + price + '"' : '') + (confirm ? ' data-confirm="' + confirm + '"' : '') + (on ? ' title="再点一次取消"' : ' title="到价时在通知里提醒你；盘中每 3 分钟查一次"') +
       ' style="margin-top:auto;align-self:flex-start;' + (on ? 'color:' + color + ';border-color:' + border + ';background:#FFFFFF' : 'color:#2457D6') + '">' +
       (on ? '✓ 已设提醒' : '🔔 到了提醒我') + '</button>';
   };
@@ -2333,6 +2334,9 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     'dimensions/fundamental/': 'fundamental',
   };
   const chatUrl = (code, path) => {
+    if (path === 'chief/detail') {
+      return HARNESS_ORIGIN + '/api/stocks/' + encodeURIComponent(code) + '/agents/chief/detail';
+    }
     const debate = /^(bull|bear|chief)\/(stream|reply)\b/.exec(path);
     if (debate) {
       return HARNESS_ORIGIN + '/api/stocks/' + encodeURIComponent(code) + '/agents/' + debate[1] + '/' + debate[2];
@@ -2561,26 +2565,140 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     return c;
   }
 
+  // ---- 结论包：页面上所有地方读的同一份结论，由本机定时任务生成（GET …/conclusion）----
+  // 点开页面只读；还没有就让后端排一次，这里显示进度。追问仍然走本服务，本服务会把同一份结论读进群里。
+  const BUNDLE_DIM = { volume_flow: 'flow', sector: 'sector', news: 'news', finance: 'fin', fundamental: 'fund' };
+  const conclUrl = (code, tail) => HARNESS_ORIGIN + '/api/stocks/' + encodeURIComponent(code) + '/conclusion' + (tail || '');
+
+  function conclusionChat(code, concl, group) {
+    const c = { msgs: [{ id: ++chatSeq, who: 'chief', kind: 'opening', at: new Date() }], results: {}, revealed: FULL.length, holding: false, startedAt: new Date(), debateStarted: true, chiefStarted: true, gen: ++chatEpoch, restored: true, bundle: null, job: concl.job || null, pending: null };
+    const b = concl.bundle;
+    if (!b) {
+      c.pending = { state: concl.state, message: (concl.job && concl.job.message) || '' };
+      c.results.chief = concl.state === 'failed' ? { error: c.pending.message || '还没有生成结论' } : null;
+      if (!c.results.chief) delete c.results.chief;
+      return c;
+    }
+    c.bundle = b;
+    c.refreshing = concl.state === 'refreshing';
+    const at = b.generated_at ? new Date(b.generated_at.replace(' ', 'T')) : new Date();
+    ROUND.forEach((who) => {
+      const row = (b.analysts || []).find((x) => x.dimension === who) || {};
+      const h = row.headline;
+      const dim = BUNDLE_DIM[who];
+      if (h && h.text) {
+        c.msgs.push({ id: ++chatSeq, who: who, kind: 'analysis', round: true, text: h.text, headline: headlineOf(h), at: at });
+        c.results[who] = { msg: { text: h.text, headline: headlineOf(h) } };
+        patchDimCache(dim, code, { headline: { text: h.text, status: h.status || 'neutral', status_text: h.status_text || '不明', source: 'model' }, analyst_failed: false });
+      } else {
+        const why = row.state === 'no_data' ? '没有取到这一块的数据' + (row.reason ? '：' + row.reason : '') : row.state === 'failed' ? '这次没能给出结论' + (row.reason ? '：' + row.reason : '') : '这次没有结论';
+        c.msgs.push({ id: ++chatSeq, who: who, kind: 'nodata', round: true, text: why, at: at });
+        c.results[who] = { error: why };
+        patchDimCache(dim, code, { headline: null, analyst_failed: true });
+      }
+    });
+    c.msgs.push({ id: ++chatSeq, who: 'chief', kind: 'divider', text: dimSummary(c), at: at });
+    const debate = b.debate || {};
+    ['bull', 'bear'].forEach((who) => {
+      const pts = (debate[who] && debate[who].points) || [];
+      c.msgs.push({ id: ++chatSeq, who: who, kind: 'analysis', round: true, fromBundle: true, points: pts, errors: debate[who] ? debate[who].errors : null, at: at });
+      c.results[who] = { msg: { points: pts } };
+    });
+    const card = Object.assign({}, b.chief || {});
+    c.msgs.push({ id: ++chatSeq, who: 'chief', kind: 'analysis', round: true, card: card, text: card.text || '', at: at });
+    c.results.chief = { msg: card };
+    // 之后的追问和回答来自群里的记录（只取结论之后的 reply）
+    ((group && group.lines) || []).filter((line) => line.kind === 'reply' && ROLE[line.agent]).forEach((line) => {
+      if (line.quote) c.msgs.push({ id: ++chatSeq, who: 'me', kind: 'reply', text: line.quote, at: new Date() });
+      c.msgs.push({ id: ++chatSeq, who: line.agent, kind: 'reply', text: line.text || '', quote: line.quote || '', headline: headlineOf(line), at: new Date() });
+    });
+    return c;
+  }
+
+  function loadConclusion(code, keep) {
+    const enc = encodeURIComponent(code);
+    return Promise.all([
+      fetchStockJSON(conclUrl(code)),
+      fetch(HARNESS_ORIGIN + '/api/stocks/' + enc + '/agents/group').then((res) => (res.ok ? res.json() : null)).catch(() => null),
+    ]).then((pair) => {
+      const prev = chats[code];
+      if (keep && prev && prev.bundle && pair[0].bundle && prev.bundle.id === pair[0].bundle.id && !pair[0].job.state.match(/^(queued|running|retrying)$/)) {
+        prev.refreshing = false; prev.job = pair[0].job; return;
+      }
+      if (keep && prev && prev.bundle && pair[0].bundle && prev.bundle.id === pair[0].bundle.id) {
+        prev.refreshing = true; prev.job = pair[0].job; return;
+      }
+      chats[code] = conclusionChat(code, pair[0], pair[1]);
+    }).catch((err) => {
+      if (keep && chats[code]) return;
+      const c = conclusionChat(code, { state: 'failed', job: { message: errText(err) } }, null);
+      chats[code] = c;
+    }).then(() => { pollConclusion(code); });
+  }
+
+  // 还在生成（首次打开）或正在重新分析时，每 3 秒看一次进度；出了新结论包就换上。
+  function pollConclusion(code) {
+    const c = chats[code];
+    if (!c || !c.restored || c.pollTimer) return;
+    const busy = (c.pending && c.pending.state === 'pending') || c.refreshing;
+    if (!busy) return;
+    c.pollTimer = setTimeout(() => {
+      c.pollTimer = 0;
+      if (chats[code] !== c) return;
+      fetchStockJSON(conclUrl(code)).then((concl) => {
+        if (chats[code] !== c) return;
+        const newer = concl.bundle && (!c.bundle || concl.bundle.id !== c.bundle.id);
+        const running = /^(queued|running|retrying)$/.test((concl.job && concl.job.state) || '');
+        if (newer || (!running && concl.state !== 'pending')) {
+          loadConclusion(code).finally(renderChat);
+          return;
+        }
+        c.job = concl.job;
+        if (concl.state === 'failed') { c.pending = { state: 'failed', message: (concl.job && concl.job.message) || '' }; c.refreshing = false; }
+        renderChat();
+        pollConclusion(code);
+      }).catch(() => { pollConclusion(code); });
+    }, 3000);
+  }
+
   function ensureRecord(code) {
     if (chats[code] || chatLoads[code]) return;
     chatLoads[code] = true;
-    fetch(HARNESS_ORIGIN + '/api/stocks/' + encodeURIComponent(code) + '/agents/group')
-      .then((res) => res.ok ? res.json() : Promise.reject(new Error('服务返回 ' + res.status)))
-      .then((body) => {
-        if (chats[code]) return;
-        if (body && body.has_record && (body.lines || []).length) restoreChat(code, body);
-        else newChat(code);
-      })
-      .catch(() => { if (!chats[code]) newChat(code); })
-      .finally(() => { delete chatLoads[code]; renderChat(); });
+    loadConclusion(code).finally(() => { delete chatLoads[code]; renderChat(); });
   }
 
   function reanalyze(code) {
     code = code || state.stock;
-    abandonChat(code);
-    delete chats[code];
-    newChat(code);
-    renderChat(true);
+    fetchStockJSON(conclUrl(code, '/refresh'), undefined, { method: 'POST' }).catch(() => null).then(() => {
+      const c = chats[code];
+      if (!c) { ensureRecord(code); return; }
+      if (c.pollTimer) { clearTimeout(c.pollTimer); c.pollTimer = 0; }
+      if (c.bundle) c.refreshing = true;
+      else c.pending = { state: 'pending', message: '' };
+      c.job = { state: 'queued', done: 0, total: 7, message: '' };
+      pollConclusion(code);
+      renderChat();
+    });
+  }
+
+  function conclusionBarHTML(c) {
+    const b = c.bundle, job = c.job || {};
+    const muted = 'font-size:12px;color:#5B6372;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:0 2px';
+    const progress = job.total ? '正在重新分析 ' + (job.done || 0) + '/' + job.total : '正在重新分析';
+    if (!b) {
+      if (c.pending && c.pending.state === 'failed') {
+        return '<div style="padding:10px 12px;border-radius:10px;background:#FFF6E5;color:#7A4A00;font-size:13px;line-height:1.6">这只股票的结论还没有生成出来' + (c.pending.message ? '：' + esc(c.pending.message) : '') +
+          '<button type="button" class="mini" data-click="reanalyze" style="margin-left:8px;color:#2457D6">重新分析</button></div>';
+      }
+      return '<div style="padding:12px;border-radius:10px;background:#F4F7FF;color:#2457D6;font-size:13px;line-height:1.6;display:flex;align-items:center;gap:10px"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>' +
+        '<span>正在生成这只股票的结论（五位分析师在本机依次分析，约一两分钟）' + (job.total ? ' · ' + (job.done || 0) + '/' + job.total : '') + '</span></div>';
+    }
+    const failed = (b.analysts || []).filter((a) => a.state !== 'ok').map((a) => a.label);
+    return '<div style="' + muted + '"><span>' + esc(b.trade_date) + (b.session === 'intraday' ? ' 盘中' : ' 收盘后') + ' · ' + esc(b.generated_at) + ' 生成</span>' +
+      '<span>' + (b.source === 'agent' ? '主分析师：模型裁决' : '主分析师：规则版（模型这次没有出结果）') + '</span>' +
+      (failed.length ? '<span style="color:#7A4A00">没有结论：' + esc(failed.join('、')) + '</span>' : '') +
+      (c.refreshing ? '<span style="color:#2457D6">' + esc(progress) + '</span>' : '') + '</div>' +
+      (b.stale ? '<div style="padding:8px 12px;border-radius:10px;background:#FFF6E5;color:#7A4A00;font-size:12px;line-height:1.6">' + esc(b.stale) + '。点右上角“重新分析”可以现在更新。</div>' : '');
   }
 
   // 发言结果落到气泡上。headline 为空（模型还没给出结论）显示成「暂时没有结论」。
@@ -2765,7 +2883,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (!pts.length) {
       const why = (m.errors && m.errors[0]) ? '论据没能通过核对：' + m.errors[0] : '这一轮还没有站得住的论据。';
       return '<span style="color:#8A919E">' + esc(why) + '</span>' +
-        (m.round ? '<button type="button" class="mini" data-click="retryChat" data-id="' + m.id + '" style="align-self:flex-start;color:#2457D6">↻ 再试一次</button>' : '');
+        (m.round && !m.fromBundle ? '<button type="button" class="mini" data-click="retryChat" data-id="' + m.id + '" style="align-self:flex-start;color:#2457D6">↻ 再试一次</button>' : '');
     }
     return '<span>' + (m.kind === 'reply' ? '' : atName('主分析师') + ' 我的 ' + pts.length + ' 条：') + '</span>' + pts.map((p, i) => {
       const by = p.analyst && ROLE[p.analyst.dimension];
@@ -2786,7 +2904,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       mdBox(k.text || '') +
       '<div style="display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid #F1F2F4">' +
       row('采纳', esc(k.adopted || '')) + row('未采纳', esc(k.rejected || '')) + row('得分', esc((k.score && k.score.text) || '')) + row('不过', mdInline(k.however || '')) +
-      row('如果我错了', mdInline(wrong.text || '') + (alert && num(alert.price) != null ? '<div style="margin-top:6px">' + synthBell(code + ':' + (alert.side || 'down'), DOWN_TXT, '#B9DCC8') + '</div>' : '')) + '</div>';
+      row('如果我错了', mdInline(wrong.text || '') + (alert && num(alert.price) != null ? '<div style="margin-top:6px">' + synthBell(code + ':' + (alert.side || 'down'), DOWN_TXT, '#B9DCC8', alert.price, /收盘/.test(String(alert.condition || '')) ? 'close' : 'touch') + '</div>' : '')) + '</div>';
   }
 
   function msgHTML(m, code) {
@@ -2808,12 +2926,13 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     else if (m.kind === 'opening') body = '<span style="overflow-wrap:anywhere">各位先说自己维度的结论，一人一条，带依据；之后请 ' + atName(ROLE.bull.name) + ' ' + atName(ROLE.bear.name) + ' 各说一轮，最后由我裁决。也可以 @ 任意一位分析师继续追问，不 @ 默认由我回答。</span>';
     else if (m.kind === 'error') body = '<span style="color:#7A4A00">' + esc(r.short) + (m.retry ? '这次没能回答：' : '这次没能发言：') + esc(m.text) + '</span>' +
       '<button type="button" class="mini" data-click="retryChat" data-id="' + m.id + '" style="align-self:flex-start;color:#2457D6">↻ 重试</button>';
+    else if (m.kind === 'nodata') body = '<span style="color:#8A919E">' + esc(m.text) + '</span>';
     else if (m.kind === 'empty') body = '<span style="color:#8A919E">这一块暂时还没有可用的结论。</span>' +
       '<button type="button" class="mini" data-click="retryChat" data-id="' + m.id + '" style="align-self:flex-start;color:#2457D6">↻ 再试一次</button>';
     else if (m.card) body = chiefCardHTML(m, code);
     else if (side) body = quoteHTML(m.quote) + (m.kind === 'reply' ? (m.text ? mdBox(m.text) : '') : pointsHTML(m));
     else body = quoteHTML(m.quote) + mdBox(m.text) + (m.chartHTMLs || []).map(chartFrame).join('');
-    const chip = r.drawer && (m.kind === 'analysis' || m.kind === 'reply' || m.kind === 'empty') ? '<span>' + evBtn('依据 · ' + esc(r.short), r.drawer) + '</span>' : '';
+    const chip = r.drawer && (m.kind === 'analysis' || m.kind === 'reply' || m.kind === 'empty' || m.kind === 'nodata') ? '<span>' + evBtn('依据 · ' + esc(r.short), r.drawer) + '</span>' : '';
     return '<div style="display:flex;gap:10px;align-items:flex-start">' + avatarHTML(m.who, 34) +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
       '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:#5B6372"><span style="font-weight:600;color:#3A4250">' + esc(r.name) + '</span>' +
@@ -2828,7 +2947,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     return '<section aria-label="研判群" style="display:flex;flex-direction:column;gap:14px;padding-top:2px">' +
       '<div style="display:flex;align-items:center;gap:10px;padding:2px 2px 0"><span style="font-size:14px;font-weight:700">研判群</span><span style="display:inline-flex">' + stack + '</span>' +
       '<span style="font-size:12px;color:#5B6372">' + (FULL.length) + ' 位 AI 分析师</span></div>' +
-      divider(pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + WEEK[d.getDay()] + ' ' + clock(d) + (c.restored ? ' · 上次分析' : ' · 开始研判')) +
+      (c.restored ? conclusionBarHTML(c) : divider(pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + WEEK[d.getDay()] + ' ' + clock(d) + ' · 开始研判')) +
       c.msgs.map((m) => msgHTML(m, code)).join('') + '</section>';
   }
 
@@ -3029,7 +3148,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       return '<div style="display:flex;flex-direction:column;gap:6px;border-radius:12px;padding:14px;box-sizing:border-box;background:' + (up ? '#FDF0EF' : '#EDF7F1') + '">' +
         '<span style="display:flex;justify-content:space-between;align-items:center"><span style="' + MONO + ';font-size:22px;font-weight:700;color:' + c + '">' + (up ? '▲ ' : '▼ ') + x.price.toFixed(2) + '</span>' + (dist ? '<span class="pill" style="background:#FFFFFF">' + dist + '</span>' : '') + '</span>' +
         line('依据', x.name) + line('条件', x.condition) + line('结果', x.consequence) + (x.why ? '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(x.why) + '</span>' : '') +
-        synthBell(code + ':' + side, c, up ? '#F0C4C0' : '#B9DCC8') + '</div>';
+        synthBell(code + ':' + side, c, up ? '#F0C4C0' : '#B9DCC8', x.price, /收盘/.test(String(x.condition || '')) ? 'close' : 'touch') + '</div>';
     };
     const prices = card('down', lv.down) + card('up', lv.up);
     const watch = prices ? '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:700">要盯的两个价</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">' + prices + '</div></div>' : '';
@@ -3088,7 +3207,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     return '<div style="display:flex;flex-direction:column;gap:5px;border-radius:12px;padding:12px;background:' + (up ? '#FDF0EF' : '#EDF7F1') + '">' +
       '<span style="display:flex;justify-content:space-between;align-items:center"><span style="' + MONO + ';font-size:20px;font-weight:700;color:' + c + '">' + (up ? '▲ ' : '▼ ') + x.price.toFixed(2) + '</span>' + (dist ? '<span class="pill" style="background:#FFFFFF">' + dist + '</span>' : '') + '</span>' +
       line('依据', x.name) + line('条件', x.condition) + line('结果', x.consequence) + (x.why ? '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(x.why) + '</span>' : '') +
-      synthBell(code + ':' + side, c, up ? '#F0C4C0' : '#B9DCC8') + '</div>';
+      synthBell(code + ':' + side, c, up ? '#F0C4C0' : '#B9DCC8', x.price, /收盘/.test(String(x.condition || '')) ? 'close' : 'touch') + '</div>';
   }
 
   function conclPanelHTML(code) {
@@ -3097,7 +3216,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const wait = (text, partial) => wrap('<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#5B6372"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>' + text + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:2px">' + czTitle('各位分析师的结论') + czStanceRows(partial) + '</div>');
     if (!chief) return wait('主分析师等各位分析师发言完，再给出整体结论…', stanceFromCache(code));
-    if (!e || e.status === 'loading') return wait('主分析师正在整理结论详情，第一次大约要等一分钟…', stanceFromCache(code));
+    if (!e || e.status === 'loading') return wait('正在打开上次的结论详情…', stanceFromCache(code));
     if (e.status === 'error') return wrap('<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#7A4A00">没能取到结论详情：' + esc(e.error) + '<button type="button" class="mini" data-click="retryConcl" style="color:#2457D6">↻ 重试</button></div>');
     const D = e.data || {}, dir = D.direction || {}, pos = D.position || {}, sc = D.score || {};
     const parts = String(dir.verdict || '不明').split(' · '), J = judgeOf(parts[0]);
@@ -3132,6 +3251,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (!root) return;
     const code = curStock().code, c = chats[code], chief = c && c.results && c.results.chief;
     if (chief && !chiefDetail[code]) loadChiefDetail(code);
+    loadAlerts(code);
     const e = chiefDetail[code];
     const alerts = Object.keys(alertsOn).filter((k) => alertsOn[k] && k.indexOf(code + ':') === 0).join(',');
     const dims = STANCE_DIM.map((d) => (dimCache[d[2] + ':' + code] || {}).status || '-').join(',');
@@ -3145,6 +3265,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const root = document.getElementById('conclRoot');
     if (!root) return;
     const code = state.stock, e = chiefDetail[code];
+    if (state.concl) loadAlerts(code);
     const alerts = Object.keys(alertsOn).filter((k) => alertsOn[k] && k.indexOf(code + ':') === 0).join(',');
     const key = state.concl ? [code, e && e.status, e && e.data && e.data.updated_at, alerts].join('|') : '';
     if (root.dataset.key === key) return;
@@ -3153,7 +3274,38 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   }
   const renderSynthAndChrome = () => { renderChat(); renderChrome(); };
   actions.refreshSynth = () => { delete synthCache[curStock().code]; };
-  actions.toggleAlert = (el) => { const k = el.dataset.alert; alertsOn[k] = !alertsOn[k]; };
+  // 到了提醒我：存在本机，盘中每 3 分钟、收盘后各查一次，到价进通知。再点一次撤掉。
+  const alertsBusy = {};
+  actions.toggleAlert = (el) => {
+    const k = el.dataset.alert, i = k.lastIndexOf(':'), code = k.slice(0, i), side = k.slice(i + 1);
+    if (alertsBusy[k]) return;
+    alertsBusy[k] = true;
+    const done = (msg, bad) => { alertsBusy[k] = false; if (msg) toast(msg); renderConcl(); renderConclPanel(); };
+    const on = alertsOn[k];
+    if (on) {
+      fetchStockJSON(HARNESS_ORIGIN + '/api/v1/alerts/' + encodeURIComponent(on.id), undefined, { method: 'DELETE' })
+        .then(() => { delete alertsOn[k]; done('已撤掉这条提醒'); })
+        .catch((err) => done('撤掉失败：' + err.message));
+      return;
+    }
+    const price = Number(el.dataset.price);
+    if (!(price > 0)) { done('这个价位没有数值，设不了提醒'); return; }
+    fetchStockJSON(HARNESS_ORIGIN + '/api/v1/stocks/' + encodeURIComponent(code) + '/alerts', undefined, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ side: side, price: price, confirm: el.dataset.confirm || 'touch' }) })
+      .then((body) => { const a = body.alert || {}; alertsOn[k] = { id: a.id, price: a.price }; done('已设提醒：' + (side === 'down' ? '跌到 ' : '涨到 ') + price.toFixed(2) + ' 时通知你'); })
+      .catch((err) => done('设提醒失败：' + err.message));
+  };
+  // 打开结论面板时把这只股票已经设过的提醒读回来，按钮才显示「已设提醒」
+  function loadAlerts(code) {
+    if (alertsLoaded[code]) return;
+    alertsLoaded[code] = true;
+    fetchStockJSON(HARNESS_ORIGIN + '/api/v1/stocks/' + encodeURIComponent(code) + '/alerts')
+      .then((body) => {
+        Object.keys(alertsOn).forEach((k) => { if (k.indexOf(code + ':') === 0) delete alertsOn[k]; });
+        (body.items || []).forEach((a) => { alertsOn[code + ':' + a.side] = { id: a.id, price: a.price }; });
+        renderConcl(); renderConclPanel();
+      })
+      .catch(() => { alertsLoaded[code] = false; });
+  }
 
   // ===== 自选股：列表、当前股票、问问、标签、搜索 =====
   // GET /api/v1/watchlist  -> { items: [{ ts_code, name, price, change, change_pct, subtitle: { text, tone }, computing, ... }] }
@@ -3169,7 +3321,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const dirMain = (D) => (D.headline && D.headline.status_text) || '不明';
 
   function loadWatch() {
-    const url = API_BASE + '/api/v1/watchlist';
+    const url = HARNESS_ORIGIN + '/api/v1/watchlist';
     fetchStockJSON(url)
       .then((body) => {
         watchState.status = 'done';
@@ -3190,7 +3342,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   actions.retryWatch = () => { watchState.status = 'loading'; loadWatch(); };
 
   function addWatch(code) {
-    return fetchStockJSON(API_BASE + '/api/v1/watchlist', undefined, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q: code }) })
+    return fetchStockJSON(HARNESS_ORIGIN + '/api/v1/watchlist', undefined, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q: code }) })
       .then((body) => {
         if (body.item && !watchItem(body.item.ts_code)) watchState.items.unshift(body.item);
         toast(body.added === false ? '已经在自选里了' : '已加入自选');
@@ -3225,7 +3377,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const it = watchItem(code);
     rediag[code] = { since: Date.now(), judged: it && it.judged_at, seen: false };
     render();
-    fetchStockJSON(API_BASE + '/api/v1/stocks/' + encodeURIComponent(code) + '/synthesis/refresh', undefined, { method: 'POST' })
+    fetchStockJSON(conclUrl(code, '/refresh'), undefined, { method: 'POST' })
       .then(() => { clearTimeout(watchTimer); setTimeout(loadWatch, 800); })
       .catch((err) => { delete rediag[code]; toast('重新诊断失败：' + err.message); render(); });
   }
@@ -3236,7 +3388,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   }
   function removeWatch(code) {
     const it = watchItem(code);
-    fetchStockJSON(API_BASE + '/api/v1/watchlist/' + encodeURIComponent(code), undefined, { method: 'DELETE' })
+    fetchStockJSON(HARNESS_ORIGIN + '/api/v1/watchlist/' + encodeURIComponent(code), undefined, { method: 'DELETE' })
       .then(() => {
         if (it) opened[code] = { name: it.name, code: code };
         watchState.items = watchState.items.filter((i) => i.ts_code !== code);
@@ -3418,8 +3570,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         (verdict ? '<span style="flex:none;font-size:17px;font-weight:700;color:' + verdict.color + '">' + esc(verdict.label) + '</span>' +
           '<span title="' + esc(verdict.text) + '" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:600">' + esc(verdict.text) + '</span>' +
           '<button type="button" class="mini" data-click="toggleConcl" style="flex:none;height:28px;color:#2457D6">' + '结论详情 →' + '</button>'
-          : phase === 'failed' ? '<span style="flex:1;min-width:0;font-size:13px;color:#8A919E">主分析师这次没能给出裁决，群里点“重试”再试一次</span>'
-          : '<span style="flex:1;min-width:0;display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#8A919E"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>主分析师等各位发言完，正在裁决…</span>')
+          : phase === 'failed' ? '<span style="flex:1;min-width:0;font-size:13px;color:#8A919E">主分析师这次没有给出裁决，点“重新分析”再试一次</span>'
+          : '<span style="flex:1;min-width:0;display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#8A919E"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>结论正在生成…</span>')
         : '<span style="flex:1"></span>') +
       '<button type="button" class="mini" data-click="reanalyze" style="flex:none;height:28px;color:#2457D6">重新分析</button>' +
       '<a href="Record.dc.html" title="在战绩中心查看这只股票的全部研判" style="flex:none;display:flex;align-items:baseline;gap:6px;font-size:13px;text-decoration:none;color:#5B6372">战绩<span style="color:#2457D6">→</span></a></div>';

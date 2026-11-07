@@ -78,7 +78,7 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 <div style="flex:1 1 auto;display:flex;flex-wrap:nowrap;align-items:stretch;min-width:0;min-height:0;overflow:hidden">
 <nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#FFFFFF;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0">
 <a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
-<a class="nav-a" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 9h8M8 13h8M8 17h5"></path></svg>扫描</a>
+<a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 9h8M8 13h8M8 17h5"></path></svg>扫描</a>
 <a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>诊断</a>
 <a class="nav-a on" href="/holdings.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>持仓</a>
 <a class="nav-a" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>问问</a>
@@ -134,7 +134,7 @@ const diagnoseHref = (code) => '/?stock=' + encodeURIComponent(code);
 
 /* ---------- 请求 ---------- */
 async function api(path, method, body) {
-  const res = await fetch(API + '/api/v1/holdings' + path, { method: method || 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch('/api/v1/holdings' + path, { method: method || 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
   let json = {};
   try { json = await res.json(); } catch (e) { /* 没有正文 */ }
   if (!res.ok) throw new Error(json.error || '请求失败（' + res.status + '）');
@@ -223,7 +223,7 @@ function wishCard(w) {
   const st = TONE_STYLE[{ good: 'blue', warn: 'blue', bad: 'warn', flat: 'flat' }[w.status.tone] || 'flat'];
   const sector = w.sector && w.sector.name ? '<span class="pl" style="background:' + (VERDICT_STYLE[w.sector.verdict] || TONE_STYLE.flat)[0] + ';color:' + (VERDICT_STYLE[w.sector.verdict] || TONE_STYLE.flat)[1] + '">' + esc(w.sector.name) + (w.sector.verdict ? ' · ' + esc(w.sector.verdict) : '') + '</span>' : '';
   const note = impactText(w.impact);
-  return '<div class="card"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">' + esc(w.name) + '</b><span ' + MONO + ' style="font-size:11px;color:#8A919E">' + codeOnly(w.ts_code) + ' · ' + px(w.price) + '</span>' + sector +
+  return '<div class="card" role="button" tabindex="0" data-act="sel" data-code="' + esc(w.ts_code) + '" style="cursor:pointer"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">' + esc(w.name) + '</b><span ' + MONO + ' style="font-size:11px;color:#8A919E">' + codeOnly(w.ts_code) + ' · ' + px(w.price) + '</span>' + sector +
     '<span class="sub">' + esc(w.source) + '</span><span style="margin-left:auto">' + pill(w.status.text, st) + '</span></div>' +
     '<div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:16px">' +
     '<span style="display:flex;flex-direction:column;gap:4px"><span class="lbl">为什么想买</span><span style="font-size:13px;line-height:1.5">「' + esc(w.reason) + '」</span></span>' +
@@ -290,7 +290,7 @@ function alertRow(a) {
 }
 function renderDetail() {
   const code = S.sel, d = code ? S.detail[code] : null;
-  if (!code) return '<div style="padding:24px 20px;color:#8A919E;font-size:13px">点一只持仓，这里显示你的成本、买入理由、提醒、买卖记录和 AI 的研判记录。</div>';
+  if (!code) return '<div style="padding:24px 20px;color:#8A919E;font-size:13px">点一只持仓或想买的票，这里显示你的成本、买入理由、提醒、买卖记录和 AI 的研判记录。</div>';
   if (!d) return '<div class="skeleton" style="padding:24px 20px">正在取这只票的详情…</div>';
   const h = d.held, r = d.reason;
   const top = '<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:18px">' + esc(d.name) + '</b><span ' + MONO + ' style="font-size:12px;color:#8A919E">' + codeOnly(d.ts_code) + '</span><a class="mini" style="margin-left:auto" href="' + diagnoseHref(d.ts_code) + '">诊断 →</a></div>' +
@@ -300,13 +300,17 @@ function renderDetail() {
     '<span style="font-size:14px;line-height:1.6">' + (r.text ? '「' + esc(r.text) + '」' : '<span class="sub">没写理由，只设了「什么情况算我错」</span>') + '</span>' +
     (r.invalid.length ? '<span class="sub">什么情况说明我错了：' + r.invalid.map(invalidText).map(esc).join('；') + '</span>' : '') +
     '<span style="font-size:12px;color:#5B6372">' + esc(r.line) + '</span><button type="button" class="mini" style="align-self:flex-start" data-act="reason" data-code="' + esc(d.ts_code) + '">改一下理由</button></div>' : '';
+  const view = (d.ai || (d.sector && d.sector.name)) ? '<div class="kv">' + (d.ai ? '<span>AI 现在怎么看</span><b>' + esc(d.ai.label) + '</b>' : '') + '</div>' + (d.sector && d.sector.name ? '<div class="kv"><span>所在板块</span><b>' + esc(d.sector.name) + (d.sector.verdict ? ' · ' + esc(d.sector.verdict) : '') + '</b></div>' : '') : '';
+  const wish = d.wish ? '<div class="note" style="gap:8px;padding:12px"><b style="font-size:13px">我想买</b><span style="font-size:14px;line-height:1.6">「' + esc(d.wish.reason) + '」</span>' +
+    d.wish.conditions.map((c) => '<div style="display:flex;gap:8px;font-size:12px;align-items:baseline"><span>' + (c.met === true ? '✓' : c.met === false ? '○' : '·') + '</span><span>' + esc(c.label) + '</span><span class="sub" style="margin-left:auto">' + esc(c.detail || '') + '</span></div>').join('') +
+    '<span class="sub">' + esc(d.wish.status.text) + (d.wish.plan_pct ? ' · 计划 ' + d.wish.plan_pct + '%' : '') + '</span></div>' : '';
   const flip = d.flip ? '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span style="display:flex;flex-direction:column;gap:1px"><span>AI 改判时通知我</span><span class="sub">' + esc(d.flip) + (d.flip_items.length ? '：' + esc(d.flip_items.join('、')) : '') + '</span></span></div>' : (d.ai ? '<div style="display:flex;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span>AI 改判时通知我</span></div>' : '');
   const reminders = h ? '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">我设的提醒</b>' + d.alerts.map(alertRow).join('') + d.rules.map((x) => '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span style="display:flex;flex-direction:column;gap:1px"><span>' + esc(x.text) + '</span><span class="sub">' + esc(x.detail) + '</span></span><button type="button" class="x" style="margin-left:auto" data-act="ruledel" data-id="' + x.id + '">×</button></div>').join('') + flip +
     (d.needs_price ? '<div class="warnbox" style="margin-top:4px"><span><b style="color:#7A4A00">还没设「理由不成立」的价格</b>：现在跌多少都不会提醒你。</span><button type="button" class="mini" style="align-self:flex-start" data-act="priceline" data-code="' + esc(d.ts_code) + '">设一个价格</button></div>' : '') + '</div>' : '';
   const trades = d.trades.length ? '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">买卖记录</b>' + d.trades.map((t) => '<div style="display:grid;grid-template-columns:42px 36px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span ' + MONO + ' style="color:#5B6372">' + day5(t.date) + '</span><b>' + esc(t.label) + '</b><span style="display:flex;flex-direction:column;gap:2px"><span ' + MONO + '>' + px(t.price) + ' × ' + t.qty + ' 股' + (t.imported ? ' <span class="sub">（导入）</span>' : '') + '</span>' +
     ((t.market_text || t.ai_label) ? '<span class="sub">当时大盘 ' + esc(t.market_text || '—') + (t.ai_label ? ' · AI ' + esc(t.ai_label) : '') + (t.conflict ? '　<span style="color:#7A4A00">⚠ 和大盘结论不一致</span>' : '') + '</span>' : '') + (t.note ? '<span style="font-size:12px;color:#5B6372">复盘：' + esc(t.note) + '</span>' : '') + '</span><button type="button" class="x" title="删除这笔记录" data-act="tradedel" data-id="' + t.id + '">×</button></div>').join('') + '</div>' : '';
   const entries = '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">这只票的研判记录</b>' + (d.entries.length ? d.entries.map((e) => '<div style="display:grid;grid-template-columns:42px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span ' + MONO + ' style="color:#5B6372">' + day5(e.date) + '</span><span>' + esc(e.text) + '</span><span class="pl" style="height:18px;font-size:11px;background:' + (e.outcome.state === 'hit' ? '#EDF7F1' : e.outcome.state === 'miss' ? '#FFF1D6' : '#F1F2F4') + ';color:' + (e.outcome.state === 'hit' ? '#1E6B44' : e.outcome.state === 'miss' ? '#7A4A00' : '#5B6372') + '">' + esc(e.outcome.text) + '</span></div>').join('') : '<span class="sub">还没有记录。AI 的判断每个交易日盘前更新，买入时和之后每次改判都会记在这里。</span>') + '<span class="sub" style="padding-top:4px">单只票样本太少，只列逐条记录，不算胜率。</span></div>';
-  return '<div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px">' + top + mine + reason + reminders + trades + entries + '</div>';
+  return '<div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px">' + top + wish + view + mine + reason + reminders + trades + entries + '</div>';
 }
 function invalidText(i) {
   return i.kind === 'close_below' ? '收盘跌破 ' + Number(i.value).toFixed(2) : i.kind === 'sector_out' ? '板块转为在流出' : i.kind === 'flow_out' ? '大资金连续 ' + i.days + ' 天流出' : i.text;
@@ -600,7 +604,7 @@ const ACT = {
   nsave: saveNote,
   recheck: async () => { try { S.tabs.chk = await api('/checkup', 'POST', {}); toast('已重新体检并存了一份快照'); renderBody(); } catch (e) { toast(e.message, true); } },
   tradedel: async (el) => { if (!confirm('删掉这笔记录？持仓会按剩下的流水重算。')) return; try { await api('/trades/' + el.dataset.id, 'DELETE'); S.tabs = {}; S.detail = {}; await refreshAll(); } catch (e) { toast(e.message, true); } },
-  alertdel: async (el) => { try { const res = await fetch(API + '/api/v1/alerts/' + el.dataset.id, { method: 'DELETE' }); if (!res.ok) throw new Error('删除失败'); delete S.detail[S.sel]; S.tabs = {}; await refreshAll(); } catch (e) { toast(e.message, true); } },
+  alertdel: async (el) => { try { const res = await fetch('/api/v1/alerts/' + el.dataset.id, { method: 'DELETE' }); if (!res.ok) throw new Error('删除失败'); delete S.detail[S.sel]; S.tabs = {}; await refreshAll(); } catch (e) { toast(e.message, true); } },
   ruledel: async (el) => { try { await api('/rules/' + el.dataset.id, 'DELETE'); delete S.detail[S.sel]; await loadDetail(S.sel); } catch (e) { toast(e.message, true); } },
 };
 document.addEventListener('click', (e) => {
@@ -644,7 +648,7 @@ async function refreshAll() {
   try {
     S.summary = await api('/summary');
     setStatus(true, '已连接 · 现价约 10 秒缓存');
-  } catch (e) { setStatus(false, '后端没连上：' + e.message); $('body').innerHTML = '<div class="card"><b>持仓接口没有响应</b><span class="sub">' + esc(e.message) + '。后端在 ' + esc(API) + '，可以用 ?stockApi=http://127.0.0.1:8090 指定。</span></div>'; return; }
+  } catch (e) { setStatus(false, '后端没连上：' + e.message); $('body').innerHTML = '<div class="card"><b>持仓接口没有响应</b><span class="sub">' + esc(e.message) + '。持仓在本机的 Go 服务里算，市场数据来自 ' + esc(API) + '（可以用 ?stockApi= 指定）。</span></div>'; return; }
   if (S.sel && !S.summary.rows.some((r) => r.ts_code === S.sel)) S.sel = null;
   if (!S.sel && S.summary.rows.length) S.sel = S.summary.rows[0].ts_code;
   renderHead(); renderTabs();

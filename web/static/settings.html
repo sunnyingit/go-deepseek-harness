@@ -257,6 +257,30 @@
                     <button type="submit" class="btn btn-primary" id="saveBtn">保存到 config.yaml</button>
                 </div>
             </form>
+            <section class="card" id="notifyCard">
+                <h3><i class="fas fa-bell"></i> 通知</h3>
+                <div class="banner" id="notifyBanner"></div>
+                <div class="grid">
+                    <div class="field"><label>免打扰开始</label><input id="nq_from" placeholder="22:00" /></div>
+                    <div class="field"><label>免打扰结束</label><input id="nq_to" placeholder="08:00" /></div>
+                    <label class="check"><input id="nq_urgent" type="checkbox" /> 免打扰时到价提醒照样弹出</label>
+                    <div class="field"><label>折叠窗口 <span class="hint">同一只股票同一类通知，窗口内只弹一次（秒）</span></label><input id="n_collapse" type="number" min="0" /></div>
+                    <label class="check span-2"><input id="n_digest" type="checkbox" /> 把普通通知攒成摘要（早 08:35、盘后 15:40），不再逐条弹出；到价提醒不受影响</label>
+                    <label class="check span-2"><input id="n_enabled" type="checkbox" /> 总开关：关掉后只进收件箱，不弹出也不外发</label>
+                </div>
+                <div style="margin-top:14px;font-size:13px;color:#3c4a5e;font-weight:600">渠道</div>
+                <div id="notifyChannels" style="margin:8px 0"></div>
+                <div class="grid">
+                    <div class="field"><label>新增渠道</label>
+                        <select id="nc_type"><option value="wecom_webhook">企业微信群机器人</option><option value="bark">Bark（iOS）</option><option value="serverchan">Server酱</option></select></div>
+                    <div class="field"><label>名称</label><input id="nc_name" placeholder="例如 手机" /></div>
+                    <div class="field span-2"><label>地址或密钥 <span class="hint">只存在本机，不显示出来</span></label><input id="nc_secret" type="password" autocomplete="off" /></div>
+                    <label class="check span-2"><input id="nc_relay" type="checkbox" /> 电脑关机时也由服务端推到这个渠道（会把这个密钥上传给服务端）</label>
+                </div>
+                <div class="actions" style="margin-top:10px"><button type="button" class="btn btn-ghost" id="ncAdd">添加渠道</button></div>
+                <details class="advanced" style="margin-top:12px"><summary>每一类通知单独开关</summary><div id="notifyTypes" style="margin-top:10px"></div></details>
+                <div class="actions" style="margin-top:12px"><button type="button" class="btn btn-primary" id="notifySave">保存通知设置</button></div>
+            </section>
             </div>
             <div class="view view-logs" id="viewLogs">
                 <div class="page-head">
@@ -524,6 +548,69 @@
         showBanner('saveBanner', '无法读取配置: ' + err.message, 'err');
     });
     showView(location.hash === '#logs' ? 'logs' : 'settings');
+})();
+
+(function () {
+    const q = (id) => document.getElementById(id);
+    const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const TYPE_NAME = { 'judgment.changed': '判断变了', 'price.alert.fired': '到价提醒', 'price.move': '涨跌异动', 'market.brief': '市场简报', 'task.failed': '定时任务出错',
+        'task.completed': '定时任务回执', 'digest.summary': '摘要', 'limit.hit': '涨跌停', 'price.extreme': '新高新低', 'flow.streak': '资金连续流出',
+        'announcement.published': '公告', 'news.item': '新闻', 'calendar.upcoming': '日历提醒', 'outcome.settled': '战绩结算',
+        'reason.status_changed': '买入理由变化', 'wish.condition_met': '想买条件到了' };
+    const CH_NAME = { desktop: '桌面通知', wecom_webhook: '企业微信', bark: 'Bark', serverchan: 'Server酱' };
+    function banner(text, kind) { const b = q('notifyBanner'); b.textContent = text || ''; b.className = 'banner' + (text ? ' show ' + (kind || '') : ''); }
+    async function call(method, path, body) {
+        const res = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || ('请求失败 ' + res.status));
+        return json;
+    }
+    let types = {};
+    function render(s) {
+        q('nq_from').value = s.quiet_hours.from || ''; q('nq_to').value = s.quiet_hours.to || '';
+        q('nq_urgent').checked = !!s.quiet_hours.urgent; q('n_collapse').value = s.collapse_s;
+        q('n_digest').checked = !!(s.digest && s.digest.Enabled); q('n_enabled').checked = !!s.enabled;
+        q('notifyChannels').innerHTML = s.channels.map((c) => '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #eef1f6;font-size:13px">' +
+            '<label class="check" style="margin:0"><input type="checkbox" data-ch="' + esc(c.channel_id) + '" ' + (c.enabled ? 'checked' : '') + ' /></label>' +
+            '<span style="font-weight:600">' + esc(c.name) + '</span><span style="color:#8a94a6">' + esc(CH_NAME[c.type] || c.type) + (c.has_secret ? ' · 已配置' : '') + (c.relay ? ' · 关机也推' : '') + '</span>' +
+            (c.type === 'desktop' ? '' : '<button type="button" class="btn btn-ghost" style="margin-left:auto;padding:4px 10px" data-test="' + esc(c.channel_id) + '">发测试消息</button><button type="button" class="btn btn-ghost" style="padding:4px 10px" data-del="' + esc(c.channel_id) + '">删除</button>') + '</div>').join('');
+        types = {};
+        s.types.forEach((t) => { types[t.type] = t; });
+        q('notifyTypes').innerHTML = s.types.map((t) => '<label class="check" style="display:flex;gap:8px;margin:4px 0"><input type="checkbox" data-type="' + esc(t.type) + '" ' +
+            ((t.setting && t.setting.enabled === false) ? '' : 'checked') + ' /> ' + esc(TYPE_NAME[t.type] || t.type) + ' <span class="hint">' + esc(t.severity === 'urgent' ? '紧急' : t.severity === 'normal' ? '普通' : '只进收件箱') + '</span></label>').join('');
+    }
+    async function load() { try { render(await call('GET', '/notify/settings')); } catch (e) { banner('通知设置读不出来：' + e.message, 'err'); } }
+    q('notifySave').addEventListener('click', async () => {
+        const typesPatch = {};
+        document.querySelectorAll('#notifyTypes input[data-type]').forEach((el) => { typesPatch[el.dataset.type] = { enabled: el.checked }; });
+        try {
+            for (const el of document.querySelectorAll('#notifyChannels input[data-ch]')) {
+                const ch = (await call('GET', '/notify/settings')).channels.find((c) => c.channel_id === el.dataset.ch);
+                if (ch && ch.enabled !== el.checked) await call('PUT', '/notify/channels/' + encodeURIComponent(ch.channel_id), { type: ch.type, name: ch.name, enabled: el.checked, min_severity: ch.min_severity, config: ch.config, relay: ch.relay, quiet_hours: ch.quiet_hours });
+            }
+            render(await call('PUT', '/notify/settings', { enabled: q('n_enabled').checked, quiet_hours: { from: q('nq_from').value.trim(), to: q('nq_to').value.trim(), urgent: q('nq_urgent').checked },
+                collapse_s: Number(q('n_collapse').value || 0), digest: { Enabled: q('n_digest').checked }, types: typesPatch }));
+            banner('通知设置已保存', 'ok');
+        } catch (e) { banner(e.message, 'err'); }
+    });
+    q('ncAdd').addEventListener('click', async () => {
+        const type = q('nc_type').value, secret = q('nc_secret').value.trim();
+        if (!secret) { banner('先填地址或密钥', 'err'); return; }
+        const id = type.split('_')[0] + '-' + Date.now().toString(36);
+        try {
+            await call('PUT', '/notify/channels/' + id, { type, name: q('nc_name').value.trim() || CH_NAME[type], enabled: true, min_severity: 'normal', secret, relay: q('nc_relay').checked });
+            q('nc_secret').value = ''; q('nc_name').value = ''; q('nc_relay').checked = false;
+            await load(); banner('渠道已添加，可以点「发测试消息」确认', 'ok');
+        } catch (e) { banner(e.message, 'err'); }
+    });
+    q('notifyChannels').addEventListener('click', async (ev) => {
+        const t = ev.target.closest('button'); if (!t) return;
+        try {
+            if (t.dataset.test) { await call('POST', '/notify/channels/' + encodeURIComponent(t.dataset.test) + '/test'); banner('测试消息已发出', 'ok'); }
+            if (t.dataset.del && confirm('删除这个渠道？')) { await call('DELETE', '/notify/channels/' + encodeURIComponent(t.dataset.del)); await load(); }
+        } catch (e) { banner('没发出去：' + e.message, 'err'); }
+    });
+    load();
 })();
 </script>
 </body>

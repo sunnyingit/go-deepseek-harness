@@ -379,10 +379,10 @@ function createWindow() {
   loadPage(PAGES.index);
 }
 
-// 股票后端（Python，8090）里跑着调度器和通知。已经有人起了就不管；开发时从旁边的 stock_agent_assitant 目录起。
+// 股票数据服务（Python，8090）只提供数据（各维度详情、市场页），不跑定时任务。已经有人起了就不管；开发时从旁边的 stock_agent_assitant 目录起。
 function stockApiHealthy() {
   return new Promise((resolve) => {
-    const req = http.get(`${host.stockBase()}/sched/health`, (res) => { resolve(res.statusCode === 200); res.resume(); });
+    const req = http.get(`${host.stockBase()}/healthz`, (res) => { resolve(res.statusCode === 200); res.resume(); });
     req.on('error', () => resolve(false));
     req.setTimeout(1500, () => { req.destroy(); resolve(false); });
   });
