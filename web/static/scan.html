@@ -67,7 +67,7 @@ a.row:hover,div.row:hover{background:#F7F8FA}
 const MONO_F = "font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace";
 const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 const API = (new URLSearchParams(location.search).get('stockApi') || (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
-const S = { tab: 'today', sum: null, up: null, panel: null, data: {}, notif: false, nData: null, nTab: 'all', open: {}, shown: { today: 12, track: 30, done: 4 },
+const S = { tab: 'today', sum: null, up: null, panel: null, data: {}, notif: false, nData: null, nTab: 'all', open: {}, openG: {}, shown: { today: 12, track: 15, done: 4 },
   f: { today: 'all', track: { due: 'all', who: 'all' }, done: { src: 'all', h: 5, wrong: false, range: 'month', q: '' }, acc: 5 } };
 const TABS = [['today', '今日扫描'], ['track', '跟踪中'], ['done', '已结算'], ['acc', '准不准']];
 
@@ -195,32 +195,68 @@ function settleText(r) {
   const rel = r.settle_day === tm ? ' 今天' : (next && r.settle_day === next) ? ' 明天' : '';
   return day5(r.settle_day) + rel + ' 结算';
 }
-function trackRow(r) {
-  const now = r.now ? NOW[r.now] : null;
+const TROW = 'grid-template-columns: 112px 128px 110px 200px 96px minmax(0, 1fr)';
+// 一条预测要结算两次（5 天、20 天）：合成一行，进度和结算日各写一行
+function predRow(p, nested) {
+  const r = p.rows[0], now = r.now ? NOW[r.now] : null;
   const note = r.close_call ? '差距很小，可能翻' : '';
-  return '<a class="row" href="' + diagnoseHref(r.ts_code) + '" style="display: grid; grid-template-columns: 112px 128px 110px 200px 96px minmax(0, 1fr); gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid #F1F2F4; font-size: 13px; text-decoration: none; color: #14171F">' +
+  const prog = p.rows.map((x) => '<span style="display: flex; flex-direction: column; gap: 3px"><span style="' + MONO_F + '; font-size: 11px; color: #5B6372">' + x.horizon + ' 天 · 第 ' + Math.min(x.day, x.horizon) + ' / ' + x.horizon + '</span><span style="display: grid; grid-template-columns: repeat(' + x.horizon + ', 1fr); gap: ' + (x.horizon === 5 ? 2 : 1) + 'px; width: 90px">' + Array.from({ length: x.horizon }, (_, i) => '<span style="height: 4px; border-radius: 1px; background: ' + (i < x.day ? '#2457D6' : '#E3E6EB') + '"></span>').join('') + '</span></span>').join('');
+  return '<a class="row" href="' + diagnoseHref(r.ts_code) + '" style="display: grid; ' + TROW + '; gap: 12px; align-items: center; padding: 11px 16px' + (nested ? ' 11px 32px; background: #FBFBFD' : '') + '; border-top: 1px solid #F1F2F4; font-size: 13px; text-decoration: none; color: #14171F">' +
     '<span style="display: flex; flex-direction: column; gap: 3px"><b style="font-size: 14px">' + esc(r.name || r.ts_code) + '</b><span style="display: flex; gap: 4px; align-items: center">' + srcPill(r, true) + '<span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + day5(r.base_day) + '</span></span></span>' +
-    '<span style="display: flex; flex-direction: column; gap: 3px"><span>' + dirPill(r) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(r.sector || '') + '</span></span>' + squares(r.day, r.horizon) + versus(r) +
-    '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + (now ? pl(now[0], now[1], now[2]) : '<span style="font-size: 11px; color: #8A919E">还没有数据</span>') + '</span><span style="font-size: 11px; color: #8A919E">' + esc(settleText(r)) + (r.horizon === 20 ? ' · 20 天' : '') + '</span></span>' +
+    '<span style="display: flex; flex-direction: column; gap: 3px"><span>' + dirPill(r) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(r.sector || '') + '</span></span><span style="display: flex; flex-direction: column; gap: 6px">' + prog + '</span>' + versus(r) +
+    '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + (now ? pl(now[0], now[1], now[2]) : '<span style="font-size: 11px; color: #8A919E">还没有数据</span>') + '</span>' + p.rows.map((x) => '<span style="font-size: 11px; color: #8A919E">' + x.horizon + ' 天 · ' + esc(settleText(x)) + '</span>').join('') + '</span>' +
     '<span style="font-size: 12px; color: #7A4A00">' + note + '</span></a>';
+}
+// 同一只股票的预测合成一组：夜间任务每天一条，再加你诊断的，不合起来会一只票占好几屏
+function groupTrack(rows) {
+  const by = new Map();
+  rows.forEach((r) => {
+    if (!by.has(r.ts_code)) by.set(r.ts_code, { code: r.ts_code, name: r.name, sector: r.sector, preds: new Map() });
+    const g = by.get(r.ts_code);
+    if (!g.preds.has(r.id)) g.preds.set(r.id, { id: r.id, rows: [] });
+    g.preds.get(r.id).rows.push(r);
+  });
+  const cmp = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+  const groups = [...by.values()].map((g) => {
+    g.preds = [...g.preds.values()].map((p) => { p.rows.sort((a, b) => a.horizon - b.horizon); p.settle = p.rows[0].settle_day; p.base = p.rows[0].base_day; return p; }).sort((a, b) => cmp(a.settle, b.settle));
+    g.settle = g.preds[0].settle;
+    return g;
+  });
+  return groups.sort((a, b) => cmp(a.settle, b.settle));
+}
+function groupRow(g) {
+  if (g.preds.length === 1) return predRow(g.preds[0]);
+  const open = !!S.openG[g.code];
+  const latest = g.preds.slice().sort((a, b) => b.base < a.base ? -1 : b.base > a.base ? 1 : 0)[0].rows[0];
+  const dirs = new Set(g.preds.map((p) => p.rows[0].direction).filter((d) => d !== 'unclear'));
+  const tally = { hit: 0, miss: 0, flat: 0 };
+  g.preds.forEach((p) => { const k = p.rows[0].now; if (k) tally[k]++; });
+  const tallyText = ['hit', 'miss', 'flat'].filter((k) => tally[k]).map((k) => '<span style="color: ' + (k === 'hit' ? '#1E6B44' : k === 'miss' ? '#B42318' : '#5B6372') + '">' + NOW[k][2] + ' ' + tally[k] + '</span>').join(' · ');
+  const head = '<div data-act="tgroup" data-k="' + esc(g.code) + '" style="display: grid; ' + TROW + '; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid #F1F2F4; font-size: 13px; cursor: pointer; background: ' + (open ? '#F7FAFF' : '#FFFFFF') + '">' +
+    '<span style="display: flex; flex-direction: column; gap: 3px"><span style="display: flex; align-items: center; gap: 6px"><span style="color: #8A919E; font-size: 12px">' + (open ? '▾' : '▸') + '</span><b style="font-size: 14px">' + esc(g.name || g.code) + '</b></span><span style="font-size: 11px; color: #8A919E; padding-left: 18px">' + g.preds.length + ' 条预测在跟踪</span></span>' +
+    '<span style="display: flex; flex-direction: column; gap: 3px"><span>' + dirPill(latest) + '</span><span style="font-size: 11px; color: #8A919E">最近一条 · ' + esc(g.sector || '') + '</span></span>' +
+    '<span style="' + MONO_F + '; font-size: 12px; color: #5B6372">最近 ' + day5(g.settle) + ' 结算</span><span style="font-size: 12px">' + (tallyText || '<span style="color: #8A919E">还没有数据</span>') + '</span><span></span>' +
+    '<span style="font-size: 12px; color: #7A4A00">' + (dirs.size > 1 ? '这几条方向不一致，别只看一条' : '') + '</span></div>';
+  return head + (open ? g.preds.map((p) => predRow(p, true)).join('') : '');
 }
 function renderTrack() {
   const d = S.data.track, s = S.sum;
   if (s.empty) return '<div style="display: flex; flex-direction: column; gap: 14px">' + emptyCard() + '</div>';
   const steps = [['发出', '记下方向和起点价，不能改。起点价是发出那一刻最近的一个收盘价，本股和板块用同一天', '#5B6372'], ['跟踪', '每天收盘后算：从起点到今天，这只票比同板块多涨（少跌）了多少', '#2457D6'],
     ['5 天结算', '看第 5 个交易日的收盘价，不是第二天。偏多跑赢板块算对，偏空跑输算对；差不到 0.5 个点算持平，不计', '#1E6B44'], ['20 天再结算', '同一条预测看第 20 个交易日收盘，两次分开算命中率', '#1E6B44']];
-  const rows = d ? d.rows : [];
-  const shown = rows.slice(0, S.shown.track);
+  const groups = d ? groupTrack(d.rows) : [];
+  const shown = groups.slice(0, S.shown.track);
+  const nPreds = groups.reduce((n, g) => n + g.preds.length, 0);
   return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 12px 14px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E3E6EB">' +
     steps.map((x, i) => '<div style="display: flex; gap: 8px; align-items: flex-start; padding-right: 12px' + (i ? '; border-left: 1px dashed #DDE1E7; padding-left: 12px' : '') + '"><span style="flex: none; width: 22px; height: 22px; border-radius: 50%; background: ' + x[2] + '; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">' + (i + 1) + '</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="font-size: 13px">' + x[0] + '</b><span style="font-size: 11px; color: #5B6372; line-height: 1.5">' + x[1] + '</span></span></div>').join('') + '</div>' +
     '<div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 10px; background: #F7F8FA; font-size: 12px; color: #3A4250; line-height: 1.7"><b style="flex: none">「稍微」「比较明显」怎么算：</b><span>强度不改变对错，只看方向。强度单独检验：「比较明显」的平均跑赢幅度应该明显大于「稍微」，命中率也应该更高；如果两者差不多，说明强度没意义，会在「准不准」里标出来。「位置偏高」只结算方向，位置另算。</span></div>' +
     (d ? '<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">' + bigBox('跟踪中', d.total + ' 条', '5 天 ' + d.by_horizon['5'] + ' 条 · 20 天 ' + d.by_horizon['20'] + ' 条') + bigBox('目前算对', d.now_right + ' 条', d.total ? Math.round(d.now_right / d.total * 100) + '%，到期前还会变' : '—') +
       bigBox('明天结算', d.tomorrow + ' 条', '5 天预测') + bigBox('和你有关', d.mine + ' 条', '你持有、想买或诊断过的', '#2457D6') + '</div>' : '') +
-    '<div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">还没到期的预测</b><span style="font-size: 12px; color: #8A919E">快到期的在前 · 每天收盘后更新</span><span style="margin-left: auto; display: flex; gap: 8px">' +
+    '<div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">还没到期的预测</b><span style="font-size: 12px; color: #8A919E">快到期的在前 · 每天收盘后更新' + (d ? ' · 共 ' + groups.length + ' 只股票、' + nPreds + ' 条预测' : '') + '</span><span style="margin-left: auto; display: flex; gap: 8px">' +
     segs([['all', '全部到期日'], ['tomorrow', '明天'], ['week', '本周'], ['next', '下周']], S.f.track.due, 'tdue') + segs([['all', '全部'], ['mine', '和我有关'], ['diagnose', '你诊断的']], S.f.track.who, 'twho') + '</span></div>' +
     '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: 112px 128px 110px 200px 96px minmax(0, 1fr); gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>股票 · 发出</span><span>AI 说</span><span>进度</span><span>发出后：本股 vs 板块</span><span>现在</span><span></span></div>' +
-    (d ? (shown.length ? shown.map(trackRow).join('') : '<div class="empty" style="padding: 24px">没有符合条件的预测</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
-    (rows.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="track" style="' + LINKBTN + '">再加载 ' + Math.min(20, rows.length - shown.length) + ' 条</button><span style="margin-left: 10px; font-size: 11px; color: #A1A7B2">已显示 ' + shown.length + ' / ' + rows.length + ' 条</span></div>' : '') + '</div></div>' +
+    (d ? (shown.length ? shown.map(groupRow).join('') : '<div class="empty" style="padding: 24px">没有符合条件的预测</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
+    (groups.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="track" style="' + LINKBTN + '">再加载 ' + Math.min(15, groups.length - shown.length) + ' 只股票</button><span style="margin-left: 10px; font-size: 11px; color: #A1A7B2">已显示 ' + shown.length + ' / ' + groups.length + ' 只</span></div>' : '') + '</div></div>' +
     '<span style="font-size: 11px; color: #A1A7B2">「目前算对 / 算错」只是到今天为止的情况，到期那天收盘才算数。</span></div>';
 }
 
@@ -435,7 +471,8 @@ const ACT = {
   dwrong: () => { S.f.done.wrong = !S.f.done.wrong; reload(); },
   drange: (el) => { S.f.done.range = el.dataset.k; reload(); },
   day: (el) => { const k = el.dataset.k; const i = (S.data.done.days || []).findIndex((x) => x.day === k); const cur = S.open[k] !== undefined ? S.open[k] : i === 0; S.open[k] = !cur; renderBody(); },
-  more: (el) => { const k = el.dataset.k; S.shown[k] += k === 'done' ? 4 : k === 'track' ? 20 : 20; renderBody(); },
+  tgroup: (el) => { const k = el.dataset.k; S.openG[k] = !S.openG[k]; renderBody(); },
+  more: (el) => { const k = el.dataset.k; S.shown[k] += k === 'done' ? 4 : k === 'track' ? 15 : 20; renderBody(); },
   ah: (el) => { S.f.acc = Number(el.dataset.k); reload(); },
   rules: openRules,
   scope: openScope,
@@ -493,7 +530,7 @@ async function loadTab(t, force) {
     try {
       const f = S.f;
       if (t === 'today') S.data[t] = await api('/today?source=' + f.today);
-      else if (t === 'track') { S.data[t] = await api('/tracking?due=' + f.track.due + '&source=' + (f.track.who === 'diagnose' ? 'diagnose' : 'all') + (f.track.who === 'mine' ? '&mine=1' : '')); S.shown.track = 30; }
+      else if (t === 'track') { S.data[t] = await api('/tracking?due=' + f.track.due + '&source=' + (f.track.who === 'diagnose' ? 'diagnose' : 'all') + (f.track.who === 'mine' ? '&mine=1' : '')); S.shown.track = 15; }
       else if (t === 'done') { S.data[t] = await api('/settled' + doneQuery()); S.shown.done = 4; }
       else if (t === 'acc') S.data[t] = await api('/accuracy?horizon=' + f.acc);
     } catch (e) { $('body').innerHTML = '<div style="' + CARD + '"><span style="color: #B42318">' + esc(e.message) + '</span></div>'; return; }
@@ -579,11 +616,14 @@ function demoData() {
   ];
   const T = (o) => Object.assign(demoRow({ made_day: '2026-10-27', base_day: '2026-10-27', horizon: 5, have: true }), o);
   const tracking = [
-    T({ name: '贵州茅台', ts_code: '600519.SH', sector: '白酒', direction: 'bullish', verdict: '偏多 · 稍微', day: 4, stock_ret: 0.018, sector_ret: 0.012, excess: 0.006, now: 'hit', close_call: true, settle_day: '2026-11-03', mine: { related: true } }),
+    T({ id: 'k1', name: '贵州茅台', ts_code: '600519.SH', sector: '白酒', direction: 'bullish', verdict: '偏多 · 稍微', day: 4, stock_ret: 0.018, sector_ret: 0.012, excess: 0.006, now: 'hit', close_call: true, settle_day: '2026-11-03', mine: { related: true } }),
     T({ name: '隆基绿能', ts_code: '601012.SH', sector: '光伏', direction: 'bearish', verdict: '偏空 · 比较明显', day: 4, stock_ret: -0.035, sector_ret: -0.02, excess: -0.015, now: 'hit', settle_day: '2026-11-03', mine: { related: true, held: true } }),
     T({ name: '中芯国际', ts_code: '688981.SH', sector: '芯片', direction: 'bearish', verdict: '偏空 · 稍微', day: 3, base_day: '2026-10-28', stock_ret: 0.011, sector_ret: -0.006, excess: 0.017, now: 'miss', settle_day: '2026-11-04', mine: { related: true } }),
     T({ name: '泰晶科技', ts_code: '603738.SH', source: 'diagnose', source_text: '你诊断', sector: '通信元件', direction: 'bullish', verdict: '偏多 · 稍微', day: 2, base_day: '2026-10-29', stock_ret: 0.004, sector_ret: 0.004, excess: 0.0, now: 'flat', settle_day: '2026-11-05', mine: { related: true, held: true } }),
     T({ name: '拓普集团', ts_code: '601689.SH', sector: '汽车零部件', direction: 'bearish', verdict: '偏空 · 位置偏高', day: 1, base_day: '2026-10-30', stock_ret: -0.012, sector_ret: -0.004, excess: -0.008, now: 'hit', settle_day: '2026-11-06', mine: { related: true, wish: true } }),
+    T({ id: 'k1', name: '贵州茅台', ts_code: '600519.SH', sector: '白酒', direction: 'bullish', verdict: '偏多 · 稍微', horizon: 20, day: 4, stock_ret: 0.018, sector_ret: 0.012, excess: 0.006, now: 'hit', close_call: true, settle_day: '2026-11-23', mine: { related: true } }),
+    T({ id: 'k2', name: '贵州茅台', ts_code: '600519.SH', source: 'diagnose', source_text: '你诊断', sector: '白酒', direction: 'bearish', verdict: '偏空 · 位置偏高', day: 2, base_day: '2026-10-29', stock_ret: 0.007, sector_ret: 0.003, excess: 0.004, now: 'miss', settle_day: '2026-11-05', mine: { related: true } }),
+    T({ id: 'k2', name: '贵州茅台', ts_code: '600519.SH', source: 'diagnose', source_text: '你诊断', sector: '白酒', direction: 'bearish', verdict: '偏空 · 位置偏高', horizon: 20, day: 2, base_day: '2026-10-29', stock_ret: 0.007, sector_ret: 0.003, excess: 0.004, now: 'miss', settle_day: '2026-11-25', mine: { related: true } }),
     T({ name: '招商银行', ts_code: '600036.SH', sector: '银行', direction: 'bullish', verdict: '偏多 · 比较明显', horizon: 20, day: 8, base_day: '2026-10-20', stock_ret: 0.031, sector_ret: 0.012, excess: 0.019, now: 'hit', settle_day: '2026-11-23', mine: { related: true } }),
   ];
   const ex = [['招商银行', '银行', 'bullish', '偏多 · 比较明显', 0.032, 0.011, 'hit', ''], ['杭氧股份', '通用设备', 'bullish', '偏多 · 位置偏高', 0.0, -0.012, 'hit', '', 'diagnose'],
