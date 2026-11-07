@@ -46,6 +46,15 @@ a{color:inherit}
 .drow .tg{font-size:12px;color:#5B6372;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qchip{height:26px;padding:0 10px;border:1px solid #DDE1E7;border-radius:999px;background:#FFFFFF;color:#3A4250;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
 .qchip:hover{border-color:#C9CED6;background:#F7F8FA}
+.cp{border:none;background:transparent;color:#8A919E;font:inherit;font-size:12px;cursor:pointer;padding:2px 8px;border-radius:6px;white-space:nowrap}
+.cp:hover{background:#EEF0F3;color:#3A4250}
+.msg .cpm{opacity:0;transition:opacity .12s}
+.msg:hover .cpm,.msg:focus-within .cpm{opacity:1}
+.sq{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:6px 12px;border:1px solid #C9D7F5;border-radius:999px;background:#F5F8FF;color:#2457D6;font:inherit;font-size:13px;line-height:1.45;text-align:left;cursor:pointer}
+.sq:hover{background:#EAF0FD;border-color:#2457D6}
+.sq:disabled{opacity:.5;cursor:default}
+.mdt th,.mdt td{transition:background .1s}
+.mdt tbody tr:hover td{background:#FAFBFD}
 .kbd{flex:none;font-size:11px;color:#8A919E;white-space:nowrap}
 .instar{min-width:76px;text-align:center;font-size:12px;color:#8A919E}
 .dim{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:10px;font-family:inherit;text-align:left}
@@ -589,11 +598,29 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       .replace(/\*\*(.+?)\*\*|__(.+?)__/g, (m, a, b) => '<b>' + (a || b) + '</b>')
       .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?!\*)/g, '$1<i>$2</i>');
   }).join('');
+  // 表格：整体一个圆角框，只留横线；短列、数字列不换行，数字右对齐用等宽字，长文字列留出宽度；右下角能复制成表格数据。
+  const isNumCell = (c) => /^[+\-−–]?\s*\d[\d,]*(\.\d+)?\s*(%|亿元|万元|亿|万|元|倍|个点|股|天|日)?$/.test(String(c).replace(/\*\*|`/g, '').trim());
   const mdTable = (rows) => {
-    const cell = (tag, c) => '<' + tag + ' style="padding:4px 8px;border:1px solid #E3E6EB;text-align:left;vertical-align:top;' + (tag === 'th' ? 'background:#F7F8FA;font-weight:600' : '') + '">' + mdInline(c) + '</' + tag + '>';
-    return '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.5">' +
-      '<thead><tr>' + rows[0].map((c) => cell('th', c)).join('') + '</tr></thead>' +
-      '<tbody>' + rows.slice(1).map((r) => '<tr>' + r.map((c) => cell('td', c)).join('') + '</tr>').join('') + '</tbody></table></div>';
+    const cols = Math.max.apply(null, rows.map((r) => r.length));
+    const info = Array.from({ length: cols }, (_, j) => {
+      const cells = rows.slice(1).map((r) => String(r[j] || '').replace(/\*\*|`/g, ''));
+      const maxLen = Math.max.apply(null, cells.concat([String(rows[0][j] || '')]).map((c) => c.length));
+      const numeric = cells.length > 0 && cells.every((c) => c === '' || c === '—' || c === '-' || isNumCell(c));
+      return { numeric: numeric, short: maxLen <= 10, long: maxLen > 28 };
+    });
+    const cell = (tag, c, j) => {
+      const ci = info[j] || {};
+      const st = 'padding:8px 12px;vertical-align:top;line-height:1.55;text-align:' + (ci.numeric ? 'right' : 'left') + ';' +
+        (ci.short || ci.numeric ? 'white-space:nowrap;' : 'min-width:' + (ci.long ? 260 : 140) + 'px;overflow-wrap:anywhere;') +
+        (tag === 'th' ? 'font-size:12px;font-weight:600;color:#5B6372;background:#F7F8FA;white-space:nowrap;' : 'font-size:13px;color:#14171F;border-top:1px solid #EEF0F3;' + (ci.numeric ? MONO + ';' : ''));
+      return '<' + tag + ' style="' + st + '">' + mdInline(c == null ? '' : c) + '</' + tag + '>';
+    };
+    const fill = (r) => Array.from({ length: cols }, (_, j) => r[j] == null ? '' : r[j]);
+    const tsv = rows.map((r) => fill(r).map((c) => String(c).replace(/\*\*|`/g, '').replace(/[\t\n]/g, ' ')).join('\t')).join('\n');
+    return '<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><div style="border:1px solid #E3E6EB;border-radius:10px;overflow-x:auto;background:#FFFFFF"><table class="mdt" style="width:100%;border-collapse:collapse">' +
+      '<thead><tr>' + fill(rows[0]).map((c, j) => cell('th', c, j)).join('') + '</tr></thead>' +
+      '<tbody>' + rows.slice(1).map((r) => '<tr>' + fill(r).map((c, j) => cell('td', c, j)).join('') + '</tr>').join('') + '</tbody></table></div>' +
+      '<span style="align-self:flex-end"><button type="button" class="cp" data-click="copyTable" data-tsv="' + esc(tsv) + '" title="复制成表格数据，可以直接贴进表格软件">复制表格</button></span></div>';
   };
   const mdHTML = (raw) => {
     const lines = String(raw == null ? '' : raw).replace(/\r\n?/g, '\n').split('\n');
@@ -643,7 +670,34 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     return out.join('');
   };
   // 一段 markdown 放进气泡：块与块之间留 8px。
-  const mdBox = (text) => '<div style="display:flex;flex-direction:column;gap:8px;min-width:0">' + mdHTML(text) + '</div>';
+  // 分析师常在回答末尾写「可以接着问：」加几条列表。把这一段拿出来，做成点一下就能问的小按钮。
+  const SUGG_HEAD = /^\s*(?:#{1,6}\s*)?(?:[*_]{1,2})?\s*(?:可以接着问|可以继续问|可以再问|你还可以问|你可以继续问|可继续追问|推荐问|接着问|追问建议)\s*(?:[*_]{1,2})?\s*[：:]?\s*(?:[*_]{1,2})?\s*$/;
+  const SUGG_ITEM = /^\s*(?:[-*+•]|\d+[.)、])\s+(.+?)\s*$/;
+  const splitSuggestions = (text) => {
+    const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
+    let at = -1;
+    for (let i = lines.length - 1; i >= 0; i--) if (SUGG_HEAD.test(lines[i])) { at = i; break; }
+    if (at < 0) return { body: String(text == null ? '' : text), qs: [] };
+    const qs = [];
+    let j = at + 1;
+    for (; j < lines.length; j++) {
+      const m = SUGG_ITEM.exec(lines[j]);
+      if (m) qs.push(m[1].replace(/\*\*|`/g, '').trim());
+      else if (lines[j].trim()) break;
+    }
+    if (!qs.length) return { body: String(text == null ? '' : text), qs: [] };
+    return { body: lines.slice(0, at).concat(lines.slice(j)).join('\n'), qs: qs };
+  };
+  const suggestChips = (qs) => {
+    const list = (qs || []).map((q) => typeof q === 'string' ? q : (q && (q.question || q.text || q.q)) || '').filter(Boolean).slice(0, 4);
+    if (!list.length) return '';
+    return '<div style="display:flex;flex-direction:column;gap:6px;padding-top:2px"><span style="font-size:12px;color:#8A919E">接着问</span><div style="display:flex;flex-wrap:wrap;gap:6px">' +
+      list.map((q) => '<button type="button" class="sq" data-click="askSuggest" data-q="' + esc(q) + '" title="点一下就问这个"><span style="overflow-wrap:anywhere">' + esc(q) + '</span><span aria-hidden="true">↗</span></button>').join('') + '</div></div>';
+  };
+  const mdBox = (text) => {
+    const sp = splitSuggestions(text);
+    return '<div style="display:flex;flex-direction:column;gap:8px;min-width:0">' + mdHTML(sp.body) + suggestChips(sp.qs) + '</div>';
+  };
   // 流式文本的最后一对加粗可能还没写完，补上闭合再渲染，避免星号露在外面。
   const mdLive = (text) => {
     let src = String(text || '');
@@ -2947,12 +3001,13 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     else if (side) body = quoteHTML(m.quote) + (m.kind === 'reply' ? (m.text ? mdBox(m.text) : '') : pointsHTML(m));
     else body = quoteHTML(m.quote) + mdBox(m.text) + (m.chartHTMLs || []).map(chartFrame).join('');
     const chip = r.drawer && (m.kind === 'analysis' || m.kind === 'reply' || m.kind === 'empty' || m.kind === 'nodata') ? '<span>' + evBtn('依据 · ' + esc(r.short), r.drawer) + '</span>' : '';
-    return '<div style="display:flex;gap:10px;align-items:flex-start">' + avatarHTML(m.who, 34) +
+    const copyBtn = (m.kind === 'analysis' || m.kind === 'reply') && plainOf(m) ? '<button type="button" class="cp cpm" data-click="copyMsg" data-id="' + m.id + '" title="复制这条回答（markdown 原文）" style="margin-left:auto">复制</button>' : '';
+    return '<div class="msg" style="display:flex;gap:10px;align-items:flex-start">' + avatarHTML(m.who, 34) +
       '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">' +
       '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:#5B6372"><span style="font-weight:600;color:#3A4250">' + esc(r.name) + '</span>' +
       (r.tag ? '<span style="color:' + (m.who === 'bull' ? '#B42318' : m.who === 'bear' ? '#1E6B44' : '#5B6372') + '">' + r.tag + '</span>' : '') + (m.kind === 'analysis' || m.kind === 'reply' ? statusPill(m.headline) : '') +
-      (m.kind === 'typing' || m.kind === 'streaming' ? '<span style="color:#A1A7B2">' + esc(m.statusNote || (m.kind === 'streaming' ? '正在写…' : '正在输入…')) + '</span>' : '<span style="' + MONO + ';font-size:11px;color:#A1A7B2">' + clock(m.at) + '</span>') + '</div>' +
-      '<div style="' + BUBBLE + '">' + body + chip + '</div></div></div>';
+      (m.kind === 'typing' || m.kind === 'streaming' ? '<span style="color:#A1A7B2">' + esc(m.statusNote || (m.kind === 'streaming' ? '正在写…' : '正在输入…')) + '</span>' : '<span style="' + MONO + ';font-size:13px;color:#A1A7B2">' + clock(m.at) + '</span>') + copyBtn + '</div>' +
+      '<div style="' + BUBBLE + '">' + body + chip + ((m.kind === 'analysis' || m.kind === 'reply') && m.headline && m.headline.suggested_questions && !/可以接着问|推荐问/.test(m.text || '') ? suggestChips(m.headline.suggested_questions) : '') + '</div></div></div>';
   }
 
   function chatHTML(c, code) {
@@ -3287,6 +3342,42 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     root.innerHTML = state.concl ? conclHTML(code) : '';
   }
   const renderSynthAndChrome = () => { renderChat(); renderChrome(); };
+  // 复制：优先用剪贴板接口，不行就退回临时输入框。
+  function copyText(text) {
+    const done = () => toast('已复制');
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      if (ok) done(); else toast('复制失败，请手动选中文字复制');
+    };
+    if (navigator.clipboard && window.isSecureContext !== false) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  }
+  // 一条发言的纯文字：回答直接用 markdown 原文；看多看空的论据、主分析师的卡片拼成几行。
+  function plainOf(m) {
+    if (!m) return '';
+    if (m.text) return String(m.text);
+    if (m.points && m.points.length) return m.points.map((p, i) => (i + 1) + '. ' + (p.text || '')).join('\n');
+    if (m.card && m.card.text) return String(m.card.verdict || '') + '\n' + String(m.card.text);
+    return '';
+  }
+  actions.copyMsg = (el) => {
+    const c = chats[state.stock];
+    const m = c && c.msgs.find((x) => String(x.id) === String(el.dataset.id));
+    const text = plainOf(m);
+    if (text) copyText(text);
+  };
+  actions.copyTable = (el) => copyText(el.dataset.tsv || '');
+  actions.askSuggest = (el) => {
+    const q = el.dataset.q || '';
+    if (!q) return;
+    if (!askUnlocked(state.stock)) { toast('专家团正在分析中，稍等一下再问'); return; }
+    sendChat(state.stock, q);
+  };
+
   actions.refreshSynth = () => { delete synthCache[curStock().code]; };
   // 到了提醒我：存在本机，盘中每 3 分钟、收盘后各查一次，到价进通知。再点一次撤掉。
   const alertsBusy = {};
