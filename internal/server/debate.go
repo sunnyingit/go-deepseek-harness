@@ -39,6 +39,7 @@ type chiefDecision struct {
 	Rejected []debateReject `json:"rejected"`
 	However  string         `json:"however"`
 	IfWrong  string         `json:"if_wrong"`
+	Actions  chiefActions   `json:"actions"`
 }
 
 type debateFile struct {
@@ -255,9 +256,14 @@ func parseChief(raw string, file *debateFile, forbid []string) (*chiefDecision, 
 		rejected = append(rejected, debateReject{ID: id, Reason: strings.TrimSpace(item.Reason)})
 	}
 	body.Adopted = adopted
+	for i := range rejected {
+		rejected[i].Reason = speakArgIDs(rejected[i].Reason)
+	}
 	body.Rejected = rejected
-	body.However = strings.TrimSpace(body.However)
-	body.IfWrong = strings.TrimSpace(body.IfWrong)
+	body.Text = speakArgIDs(body.Text)
+	body.However = speakArgIDs(strings.TrimSpace(body.However))
+	body.IfWrong = speakArgIDs(strings.TrimSpace(body.IfWrong))
+	body.Actions = body.Actions.clean()
 	return &body, nil
 }
 
@@ -335,6 +341,7 @@ func chiefPayload(cfg agentConfig, decision *chiefDecision, file *debateFile) ma
 			"text":  decision.IfWrong,
 			"alert": nil,
 		},
+		"actions": decision.Actions.payload(),
 	}
 }
 

@@ -124,6 +124,10 @@ func (d holdingsData) AI(code string) holdings.AI {
 	if ai.Lean == "neutral" {
 		ai.Lean = "unclear"
 	}
+	if acts, ok := b.Chief["actions"].(map[string]any); ok {
+		ai.Hold, _ = acts["hold"].(string)
+		ai.Buy, _ = acts["buy"].(string)
+	}
 	hist := d.s.verdictHistory(code)
 	if n := len(hist); n >= 2 {
 		before, after := hist[n-2], hist[n-1]

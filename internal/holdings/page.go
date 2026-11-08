@@ -41,6 +41,9 @@ type AI struct {
 	JudgedAt  string
 	Stale     bool
 	TradeDate string
+	// Hold and Buy are the chief's operation reminders: one line for someone who holds the stock, one for someone who wants to buy it.
+	Hold string
+	Buy  string
 }
 
 // SectorInfo is the sector a stock sits in and its money/heat verdict.
@@ -258,7 +261,14 @@ func aiBlock(a AI) any {
 	if (a.Position == "偏高" || a.Position == "偏低") && a.Lean != "bullish" {
 		label += " · 位置" + a.Position
 	}
-	return Map{"lean": a.Lean, "level": a.Level, "label": label, "change": a.Change, "stale": a.Stale, "judged_at": nz(a.JudgedAt)}
+	actions := Map{}
+	if a.Hold != "" {
+		actions["hold"] = a.Hold
+	}
+	if a.Buy != "" {
+		actions["buy"] = a.Buy
+	}
+	return Map{"lean": a.Lean, "level": a.Level, "label": label, "change": a.Change, "stale": a.Stale, "judged_at": nz(a.JudgedAt), "actions": actions}
 }
 
 func flipText(a AI) string {
