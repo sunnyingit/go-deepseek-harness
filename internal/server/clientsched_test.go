@@ -109,7 +109,7 @@ func TestNightlyMakesOneBundlePerStockAndLeavesAReceipt(t *testing.T) {
 		t.Fatalf("run = %+v", run)
 	}
 	b := s.readBundle("600036.SH")
-	if b == nil || b.TradeDate != "2026-11-05" || b.Source != "agent" || len(b.Analysts) != 5 || b.Chief["verdict"] != "偏多 · 稍微" {
+	if b == nil || b.TradeDate != "2026-11-05" || b.Source != "agent" || len(b.Analysts) != 6 || b.Chief["verdict"] != "偏多 · 稍微" {
 		t.Fatalf("bundle = %+v", b)
 	}
 	for _, a := range b.Analysts {

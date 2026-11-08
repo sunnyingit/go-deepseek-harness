@@ -28,6 +28,11 @@ const AlertTag = "理由不成立"
 var conditionKinds = map[string]bool{"price_below": true, "etf_inflow": true, "flow_in_days": true, "ai_bullish": true, "market_ok": true, "custom": true}
 var invalidKinds = map[string]bool{"close_below": true, "sector_out": true, "flow_out": true, "custom": true}
 
+// AnalystVoice is one dimension analyst's latest take inside a conclusion bundle.
+type AnalystVoice struct {
+	ID, Name, Short, State, Lean, Label, Text string
+}
+
 // AI is what the latest conclusion says about a stock.
 type AI struct {
 	Has       bool
@@ -41,6 +46,7 @@ type AI struct {
 	JudgedAt  string
 	Stale     bool
 	TradeDate string
+	Analysts  []AnalystVoice
 	// Hold and Buy are the chief's operation reminders: one line for someone who holds the stock, one for someone who wants to buy it.
 	Hold string
 	Buy  string
@@ -261,6 +267,13 @@ func aiBlock(a AI) any {
 	if (a.Position == "偏高" || a.Position == "偏低") && a.Lean != "bullish" {
 		label += " · 位置" + a.Position
 	}
+	analysts := make([]Map, 0, len(a.Analysts))
+	for _, v := range a.Analysts {
+		analysts = append(analysts, Map{
+			"id": v.ID, "name": v.Name, "short": orDefault(v.Short, v.Name),
+			"state": v.State, "lean": v.Lean, "label": orDefault(v.Label, "—"), "text": v.Text,
+		})
+	}
 	actions := Map{}
 	if a.Hold != "" {
 		actions["hold"] = a.Hold
@@ -268,7 +281,10 @@ func aiBlock(a AI) any {
 	if a.Buy != "" {
 		actions["buy"] = a.Buy
 	}
-	return Map{"lean": a.Lean, "level": a.Level, "label": label, "change": a.Change, "stale": a.Stale, "judged_at": nz(a.JudgedAt), "actions": actions}
+	return Map{
+		"lean": a.Lean, "level": a.Level, "label": label, "headline": nz(a.Headline),
+		"change": a.Change, "stale": a.Stale, "judged_at": nz(a.JudgedAt), "analysts": analysts, "actions": actions,
+	}
 }
 
 func flipText(a AI) string {
@@ -850,10 +866,13 @@ func (c *Ctx) attention() int {
 		return 0
 	}
 	conc, _ := c.structure(false)
+	// the page lists the things to deal with, one per kind (crowded, shaky reasons, out of step with the
+	// market), so the badge counts the same kinds
 	n := 0
 	for _, f := range conc.Flags {
 		if f["level"] == "注意" {
 			n++
+			break
 		}
 	}
 	reasons, _ := c.reasons()

@@ -310,7 +310,7 @@ func TestCheckStructureReasonsStressAndFit(t *testing.T) {
 	if fit["known"] != true || title != "10-26 之后你买入了 1 次" || !strings.Contains(text, "10-28 加仓三花智控（浮亏时加仓）") || !strings.Contains(text, "越跌越买") {
 		t.Fatalf("fit = %v", fit)
 	}
-	if out["attention"].(int) < 3 {
+	if out["attention"].(int) != 3 { // one each: crowded, shaky reasons, out of step with the market
 		t.Fatalf("attention = %v", out["attention"])
 	}
 }

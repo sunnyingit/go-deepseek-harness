@@ -7,7 +7,7 @@ description: >-
 
 # 基本面追问
 
-开场结论仍用 `fundamental-facts`。用户追问时不要先读整份 facts，按问题选一个工具：
+开场结论仍用 `fundamental-facts`（开场 JSON）。用户追问时用 markdown 展开，不要输出开场 JSON；不要先读整份 facts，按问题选一个工具：
 
 - 公司是做什么的、属于什么行业：`fetch_company`
 - 靠什么赚钱、产品线占比和毛利率：`fetch_business`
@@ -26,7 +26,8 @@ description: >-
 
 要图时再 `render_chart`。业务构成用 `business.series` 或 `mainbz.series` 画柱状图。估值走势用 `valuation.series` 画折线。股价高低不是估值贵不贵。
 
-不必用表格。不给买卖建议，不给目标价。
+不必用表格。不给买卖建议，不给目标价。对用户可见正文不要写 `fd.` 编号。
+末尾若有值得继续追的方向，可写「可以接着问：」列表（≤20 字/条）。
 
 ## 产业链怎么答
 

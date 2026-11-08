@@ -9,11 +9,14 @@ import (
 	"time"
 )
 
-// diagnosisOrder 是页面点诊断和每晚任务共用的顺序：五位分析师，然后看多、看空，最后主分析师。
-var diagnosisOrder = []string{"volume_flow", "sector", "news", "finance", "fundamental", "bull", "bear", "chief"}
+// diagnosisDims 是维度分析师（不含看多/看空/主分析师）。
+var diagnosisDims = []string{"volume_flow", "market", "sector", "news", "finance", "fundamental"}
+
+// diagnosisOrder 是页面点诊断和每晚任务共用的顺序：维度分析师，然后看多、看空，最后主分析师。
+var diagnosisOrder = append(append([]string{}, diagnosisDims...), "bull", "bear", "chief")
 
 var diagnosisLabel = map[string]string{
-	"volume_flow": "资金流", "sector": "板块", "news": "新闻", "finance": "财报", "fundamental": "基本面",
+	"volume_flow": "资金流", "market": "大盘", "sector": "板块", "news": "新闻", "finance": "财报", "fundamental": "基本面",
 }
 
 func diagnosisDay(now time.Time) string {
@@ -70,7 +73,7 @@ func (s *Server) bullBearJudgedToday(code, day string) bool {
 	return lastBull > prev && lastBear > prev && lastChief > lastBull && lastChief > lastBear
 }
 
-// roundFresh 今天五位分析师和主分析师都说过，并且看多、看空也在这场裁决之前。
+// roundFresh 今天各位维度分析师和主分析师都说过，并且看多、看空也在这场裁决之前。
 func (s *Server) roundFresh(code, day string) bool {
 	if !s.bullBearJudgedToday(code, day) {
 		return false
@@ -81,7 +84,7 @@ func (s *Server) roundFresh(code, day string) bool {
 			have[line.Agent] = true
 		}
 	}
-	for _, id := range diagnosisOrder[:5] {
+	for _, id := range diagnosisDims {
 		if !have[id] {
 			return false
 		}
@@ -230,8 +233,8 @@ func (s *Server) stance(code string) []map[string]any {
 			spoken[line.Agent] = line
 		}
 	}
-	out := make([]map[string]any, 0, 5)
-	for _, id := range diagnosisOrder[:5] {
+	out := make([]map[string]any, 0, len(diagnosisDims))
+	for _, id := range diagnosisDims {
 		line := spoken[id]
 		direction := strings.TrimSpace(line.StatusText)
 		out = append(out, map[string]any{

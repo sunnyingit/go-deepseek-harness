@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read one sector reply slice from the stock service. Does not call Tushare.
 
-Usage: fetch_part.py <ts_code> <membership|tape|position|rank|heat|dc|sw>
+Usage: fetch_part.py <ts_code> <membership|tape|position|rank|heat|dc|sw> [days]
 """
 
 from __future__ import annotations
@@ -17,12 +17,15 @@ PARTS = ("membership", "tape", "position", "rank", "heat", "dc", "sw")
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3 or argv[2] not in PARTS or not argv[1].strip():
-        sys.stderr.write("usage: fetch_part.py <ts_code> <membership|tape|position|rank|heat|dc|sw>\n")
+    if len(argv) not in (3, 4) or argv[2] not in PARTS or not argv[1].strip():
+        sys.stderr.write("usage: fetch_part.py <ts_code> <membership|tape|position|rank|heat|dc|sw> [days]\n")
         return 2
     base = os.environ.get("STOCK_API_BASE", "http://127.0.0.1:8090").rstrip("/")
     code = urllib.parse.quote(argv[1].strip(), safe="")
-    url = f"{base}/api/v1/stocks/{code}/dimensions/sector/reply?part={argv[2]}"
+    query = urllib.parse.urlencode({"part": argv[2]})
+    if len(argv) == 4 and str(argv[3]).strip():
+        query += "&" + urllib.parse.urlencode({"days": str(argv[3]).strip()})
+    url = f"{base}/api/v1/stocks/{code}/dimensions/sector/reply?{query}"
     request = urllib.request.Request(url, headers={"Accept": "application/json"})
     try:
         with urllib.request.urlopen(request, timeout=110) as response:

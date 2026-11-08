@@ -1,0 +1,15 @@
+id: market
+name: 大盘分析师
+dimension: market
+skills:
+  - market-facts
+  - market-reply
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+fact_prefix: "mk."
+max_steps: 8
+opening: 请给出今天的市场结论。只 load market-facts 再 fetch_facts，不要调分片追问工具。输出 stance/strength/text（≤100字，正文禁用英文引号）/fact_ids/suggested_questions；取到事实后立刻结束。

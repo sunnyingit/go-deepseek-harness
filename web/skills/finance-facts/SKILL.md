@@ -1,8 +1,8 @@
 ---
 name: finance-facts
 description: >-
-  财报分析师开场必用。调用 fetch_facts 读取最新财报 detail。
-  数字只用 facts[].text。单季同比不是三年复合增速。不要谈资金流、新闻、估值分位、板块。
+  财报分析师开场与追问共用。调用 fetch_facts 读取最新财报 detail。
+  数字只用 facts[].text。单季同比不是三年复合增速。不要谈资金流、新闻、估值分位、板块交易阶段。
 ---
 
 # 财报事实
@@ -15,5 +15,6 @@ description: >-
 - 单季同比不要说成三年复合增速。
 - 扭亏为盈不要说成仍在亏损。由盈转亏要说明现在是亏损。
 - 披露后的涨跌按事实里的交易日说，不要改成自然日。
-- 开场只写 100 字以内的一段结论，不要表格。追问也不必用表格。数字只抄 `text`。
+- 开场输出 stance/strength/text（≤100 字）/fact_ids/suggested_questions；text 禁用英文双引号 `"`（改用「」）。不要表格。
+- 追问用 markdown 展开，不要再输出开场 JSON；对用户可见正文不要写 `ff.` 编号。
 - `review_state` 为 computing 时，事实还在整理，不要写成没有取到或返回为空。

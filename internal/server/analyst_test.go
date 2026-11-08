@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,8 +22,64 @@ func TestParseSpeakAcceptsFencedJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	broken := `{"stance":"偏多","strength":"弱","text":"媒体称"算力金属"业绩大涨","fact_ids":["e1"],"suggested_questions":[]}`
+	fixed, err := parseSpeak(broken)
+	if err != nil || fixed.Text != `媒体称"算力金属"业绩大涨` || fixed.Status != "support" {
+		t.Fatalf("should repair bare quotes in text, got %+v err=%v", fixed, err)
+	}
 	if speak.Text != "近5日大单净流入 1.2 亿元" || speak.Status != "support" || len(speak.FactIDs) != 1 {
 		t.Fatalf("speak = %+v", speak)
+	}
+	// 顶层 text 完好时，不得因 suggested_questions[].text 再修一遍而弄破 JSON
+	nested := `{"stance":"偏多","strength":"弱","text":"近3日有公告利好，尚未明显消化。","fact_ids":["e1"],"suggested_questions":[{"text":"后续有无补充公告","tool":"fetch_news","focus":"进展"}]}`
+	okNested, err := parseSpeak(nested)
+	if err != nil || okNested.Text != "近3日有公告利好，尚未明显消化。" || len(okNested.SuggestedQuestions) != 1 {
+		t.Fatalf("nested suggested_questions text must stay intact, got %+v err=%v", okNested, err)
+	}
+	// 顶层 text 有裸引号 + 后面还有 SQ.text，只应修好顶层
+	both := `{"stance":"中性","strength":"弱","text":"热搜称"某某概念"升温","fact_ids":["e2"],"suggested_questions":[{"text":"热搜后续","tool":"fetch_baidu_board","focus":"情绪"}]}`
+	okBoth, err := parseSpeak(both)
+	if err != nil || okBoth.Text != `热搜称"某某概念"升温` || len(okBoth.SuggestedQuestions) != 1 {
+		t.Fatalf("repair top-level text without breaking SQ, got %+v err=%v", okBoth, err)
+	}
+	// SQ.text 本身带裸引号时，旧逻辑不解；必须整段修好
+	sqBroken := `{"stance":"偏多","strength":"弱","text":"近3日回购进展，尚未明显消化。","fact_ids":["e1"],"suggested_questions":[{"text":"后续有无"补充公告"","tool":"fetch_news","focus":"进展"}]}`
+	okSQ, err := parseSpeak(sqBroken)
+	if err != nil || okSQ.Text != "近3日回购进展，尚未明显消化。" || len(okSQ.SuggestedQuestions) != 1 {
+		t.Fatalf("repair suggested_questions text quotes, got %+v err=%v", okSQ, err)
+	}
+	if got, _ := okSQ.SuggestedQuestions[0]["text"].(string); got != `后续有无"补充公告"` {
+		t.Fatalf("SQ text = %q", got)
+	}
+	// 弯引号当分隔符
+	curly := "{“stance”:“偏空”,“strength”:“弱”,“text”:“单季扣非转负。”,“fact_ids”:[“ff.growth.q_ded_yoy”],“suggested_questions”:[]}"
+	okCurly, err := parseSpeak(curly)
+	if err != nil || okCurly.Status != "warn" || okCurly.Text != "单季扣非转负。" {
+		t.Fatalf("curly quotes speak = %+v err=%v", okCurly, err)
+	}
+}
+
+func TestOpeningSkillsNewsTrimsReplyOnly(t *testing.T) {
+	cfg := agentConfig{ID: "news", Skills: []string{"news-facts", "news-raw", "baidu-board", "stock-basic", "d3js-visualization"}}
+	got := cfg.openingSkills()
+	if strings.Join(got, ",") != "news-facts,stock-basic" {
+		t.Fatalf("openingSkills = %v", got)
+	}
+	fund := agentConfig{ID: "fundamental", Skills: []string{"fundamental-facts", "fundamental-reply", "stock-basic", "d3js-visualization"}}
+	if got := fund.openingSkills(); strings.Join(got, ",") != "fundamental-facts,stock-basic" {
+		t.Fatalf("fundamental openingSkills = %v", got)
+	}
+	fin := agentConfig{ID: "finance", Skills: []string{"finance-facts", "answer-outline", "d3js-visualization", "stock-basic"}}
+	if got := fin.openingSkills(); strings.Join(got, ",") != "finance-facts,stock-basic" {
+		t.Fatalf("finance openingSkills = %v", got)
+	}
+	mkt := agentConfig{ID: "market", Skills: []string{"market-facts", "market-reply", "d3js-visualization", "stock-basic"}}
+	if got := mkt.openingSkills(); strings.Join(got, ",") != "market-facts,stock-basic" {
+		t.Fatalf("market openingSkills = %v", got)
+	}
+	flow := agentConfig{ID: "volume_flow", Skills: []string{"flow-facts", "d3js-visualization"}}
+	if got := flow.openingSkills(); strings.Join(got, ",") != strings.Join(flow.Skills, ",") {
+		t.Fatalf("non-news openingSkills should be unchanged, got %v", got)
 	}
 }
 
@@ -177,6 +234,7 @@ func TestForbidAndFactPrefix(t *testing.T) {
 func TestAgentConfigsKeepTheirOwnSkills(t *testing.T) {
 	want := map[string]string{
 		"volume_flow": "flow-facts",
+		"market":      "market-facts",
 		"news":        "news-facts",
 		"fundamental": "fundamental-facts",
 		"finance":     "finance-facts",
@@ -218,7 +276,7 @@ func TestAgentConfigsKeepTheirOwnSkills(t *testing.T) {
 	if flow.Prompt == news.Prompt || flow.Rules == news.Rules || flow.Skills[0] == news.Skills[0] {
 		t.Fatal("agents share prompt, rules, or skills")
 	}
-	if news.DetailQuery["days"] != "3" || flow.DetailQuery["window"] != "5" {
+	if news.DetailQuery["days"] != "3" || flow.DetailQuery["window"] != "3" {
 		t.Fatalf("queries flow=%v news=%v", flow.DetailQuery, news.DetailQuery)
 	}
 }
@@ -232,8 +290,61 @@ func TestParseChiefPlanKeepsOnlyDimensionAnalysts(t *testing.T) {
 		t.Fatalf("note = %q", note)
 	}
 	empty, self := parseChiefPlan("不是 json")
-	if len(empty) != 0 || self != "这个问题我来回答" {
+	if len(empty) != 0 || self != "" {
 		t.Fatalf("fallback = %#v %q", empty, self)
+	}
+}
+
+func TestApplyStickyPlanKeepsPreviousUnlessClearSwitch(t *testing.T) {
+	prev := []string{"volume_flow"}
+	got := applyStickyPlan(prev, []string{"news"}, "那单日流出有多异常")
+	if strings.Join(got, ",") != "volume_flow" {
+		t.Fatalf("follow-up should stick, got %#v", got)
+	}
+	got = applyStickyPlan(prev, []string{"news"}, "公司刚发的公告怎么看")
+	if strings.Join(got, ",") != "news" {
+		t.Fatalf("clear news switch = %#v", got)
+	}
+	got = applyStickyPlan(prev, nil, "再展开说说")
+	if strings.Join(got, ",") != "volume_flow" {
+		t.Fatalf("empty plan should stick, got %#v", got)
+	}
+	got = applyStickyPlan(nil, []string{"sector"}, "这板块怎么样")
+	if strings.Join(got, ",") != "sector" {
+		t.Fatalf("no previous keeps plan, got %#v", got)
+	}
+	got = applyStickyPlan(prev, []string{"market"}, "市场资金怎么走")
+	if strings.Join(got, ",") != "market" {
+		t.Fatalf("市场资金 should switch to market not stick volume_flow, got %#v", got)
+	}
+	got = applyStickyPlan([]string{"sector"}, []string{"market"}, "市场板块谁在轮动")
+	if strings.Join(got, ",") != "market" {
+		t.Fatalf("市场板块 should prefer market over sector, got %#v", got)
+	}
+}
+
+func TestApplyStickyPlanTrustsTheModelWhenNothingContradictsIt(t *testing.T) {
+	prev := []string{"volume_flow"}
+	join := func(ids []string) string { return strings.Join(ids, ",") }
+	// 没有任何关键词：模型换了人就听模型的，不再一直停在资金流
+	if got := applyStickyPlan(prev, []string{"fundamental"}, "它的竞争对手有谁"); join(got) != "fundamental" {
+		t.Fatalf("model switch without contradicting words = %#v", got)
+	}
+	// 模型想加人：保留上一轮、再加一位
+	if got := applyStickyPlan(prev, []string{"volume_flow", "news"}, "资金和消息面一起看看"); join(got) != "volume_flow,news" {
+		t.Fatalf("model adds = %#v", got)
+	}
+	// 题目里的词指向上一轮、没有词指向模型选的人：拦下来
+	if got := applyStickyPlan(prev, []string{"sector"}, "大单净流入多少"); join(got) != "volume_flow" {
+		t.Fatalf("words point at previous = %#v", got)
+	}
+	// 题目里的词指向模型选的人：放行
+	if got := applyStickyPlan(prev, []string{"sector"}, "大单之外这个行业怎么样"); join(got) != "sector" {
+		t.Fatalf("words point at the model's pick = %#v", got)
+	}
+	// 模型没选出人（解析失败、空数组）：沿用上一轮
+	if got := applyStickyPlan(prev, nil, "那它呢"); join(got) != "volume_flow" {
+		t.Fatalf("empty plan = %#v", got)
 	}
 }
 
@@ -255,22 +366,41 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 		t.Fatal(err)
 	}
 	user := analystUserPrompt(cfg, "603986.SH", "查看下最新的和内存相关的新闻", nil, nil)
-	if !strings.Contains(user, "fetch_news") || !strings.Contains(user, "分析时间") || strings.Contains(user, "问题涉及主题") {
+	if !strings.Contains(user, "查看下最新的和内存相关的新闻") || !strings.Contains(user, "追问任务") || !strings.Contains(user, "当前时间：") {
 		t.Fatalf("reply user prompt = %s", user)
 	}
-	if !strings.Contains(user, "查看下最新的和内存相关的新闻") {
-		t.Fatalf("question missing: %s", user)
-	}
 	reply := cfg.replyPrompt()
-	if strings.Contains(reply, "fact_ids") || strings.Contains(reply, "立刻结束") || !strings.Contains(reply, "fetch_news") || strings.Contains(reply, "先 load_skill 事实技能") {
-		t.Fatalf("reply system prompt = %s", reply)
+	sys := cfg.systemPrompt()
+	if !strings.Contains(sys, "fact_ids") || !strings.Contains(sys, "立刻结束") || !strings.Contains(sys, "stance") || !strings.Contains(sys, "suggested_questions") {
+		t.Fatal("news config prompt lost output/tool contract")
 	}
-	if !strings.Contains(cfg.systemPrompt(), "fact_ids") || !strings.Contains(cfg.systemPrompt(), "立刻结束") {
-		t.Fatal("opening prompt lost the fact contract")
+	if !strings.Contains(sys, "48 小时～3 日") || !strings.Contains(sys, "news-facts") {
+		t.Fatal("news prompt should clarify mid bucket and opening tool")
 	}
-	got := replyAnswer("近几日没有标题写内存的新闻。\n\n| 时间 | 标题 |\n| --- | --- |\n| 11-02 | 主力资金监控 |")
-	if !strings.Contains(got, "内存") || !strings.Contains(got, "主力资金监控") {
-		t.Fatalf("reply answer = %s", got)
+	if !strings.Contains(sys, "事件去重") || !strings.Contains(sys, "消化判断") || !strings.Contains(sys, "证据不足") {
+		t.Fatal("news prompt should include the three hard rules")
+	}
+	if !strings.Contains(sys, "有条件生成") || !strings.Contains(sys, "不代表上涨空间") {
+		t.Fatal("news prompt should constrain SQ and strength meaning")
+	}
+	if !strings.Contains(sys, "抖音热榜") || !strings.Contains(sys, "百度热搜") || !strings.Contains(sys, "情绪") {
+		t.Fatal("news prompt should prioritize douyin/baidu hot lists as sentiment")
+	}
+	if strings.Contains(sys, "先 load_skill 事实技能") {
+		t.Fatal("harness must not inject legacy skill boilerplate")
+	}
+	if strings.TrimSpace(cfg.Reply) == "" || !strings.Contains(reply, "fetch_news") || !strings.Contains(reply, "可以接着问") {
+		t.Fatal("news reply.md should list fetch_news and 可以接着问")
+	}
+	if strings.Contains(reply, "## 开场输出") || strings.Contains(reply, "开场工具") {
+		t.Fatal("news reply.md must not drag opening sections")
+	}
+	if cfg.MaxSteps < 5 || cfg.MaxSteps > 10 {
+		t.Fatalf("news max_steps should stay lean but allow fetch+json, got %d", cfg.MaxSteps)
+	}
+	got, err := replyAnswer("近几日没有标题写内存的新闻。\n\n| 时间 | 标题 |\n| --- | --- |\n| 11-02 | 主力资金监控 |")
+	if err != nil || !strings.Contains(got, "内存") || !strings.Contains(got, "主力资金监控") {
+		t.Fatalf("reply answer = %s err=%v", got, err)
 	}
 	bull, err := loadAgent("bull")
 	if err != nil {
@@ -281,23 +411,74 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 		t.Fatalf("bull reply user prompt = %s", ask)
 	}
 	side := bull.oneShotReplyPrompt()
-	if strings.Contains(side, "points") || strings.Contains(side, "只从群里") || !strings.Contains(side, "fetch_basic") {
-		t.Fatalf("bull reply prompt = %s", side)
+	if !strings.Contains(side, "stock-basic") || !strings.Contains(side, "fetch_basic") || strings.Contains(side, "只从群里") {
+		t.Fatalf("bull config prompt = %s", side)
+	}
+	if strings.TrimSpace(bull.Reply) == "" || strings.Contains(bull.replyPrompt(), "## 开场输出") {
+		t.Fatal("bull reply.md should exist and not drag opening sections")
+	}
+	bullSys := bull.systemPrompt()
+	if !strings.Contains(bullSys, `"points"`) || !strings.Contains(bullSys, "weight=1") || !strings.Contains(bullSys, "长文论据模板") {
+		t.Fatal("bull opening should require points JSON with weight demotion, not legacy long-form")
+	}
+	bear, err := loadAgent("bear")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bearSys := bear.systemPrompt()
+	if !strings.Contains(bearSys, `"points"`) || !strings.Contains(bearSys, "weight=1") || !strings.Contains(bearSys, "长文论据模板") {
+		t.Fatal("bear opening should require points JSON with weight demotion, not legacy long-form")
+	}
+	if strings.TrimSpace(bear.Reply) == "" || !strings.Contains(bear.replyPrompt(), "fetch_basic") || strings.Contains(bear.replyPrompt(), "## 开场输出") {
+		t.Fatal("bear reply.md should exist and mention fetch_basic without opening sections")
 	}
 	flow, err := loadAgent("volume_flow")
 	if err != nil {
 		t.Fatal(err)
 	}
 	open := analystUserPrompt(flow, "603738.SH", "", nil, nil)
-	if !strings.Contains(open, "背离") || !strings.Contains(open, "单日") {
+	if !strings.Contains(open, "开场任务") || !strings.Contains(open, flow.Opening) {
 		t.Fatalf("flow opening = %s", open)
 	}
 	askFlow := analystUserPrompt(flow, "603738.SH", "分析下资金流", nil, nil)
-	if !strings.Contains(askFlow, "flow-reply") || !strings.Contains(flow.replyPrompt(), "fetch_flow_dc") || !strings.Contains(flow.replyPrompt(), "fetch_flow_margin") {
-		t.Fatalf("flow reply = %s", flow.replyPrompt())
+	if !strings.Contains(askFlow, "分析下资金流") || !strings.Contains(askFlow, "追问任务") {
+		t.Fatalf("flow reply user = %s", askFlow)
 	}
-	if !strings.Contains(flow.systemPrompt(), "资金在流入") || strings.Contains(flow.Rules, "主力进场") {
-		t.Fatal("flow rules missing the desk checks")
+	flowReply := flow.replyPrompt()
+	if strings.TrimSpace(flow.Reply) == "" {
+		t.Fatal("volume_flow must have reply.md")
+	}
+	if strings.Contains(flowReply, "## 一、你是谁") || !strings.Contains(flowReply, strings.TrimSpace(flow.Reply)) {
+		t.Fatal("volume_flow reply must use reply.md, not full prompt.md")
+	}
+	if !strings.Contains(flowReply, "fetch_flow_dc") || !strings.Contains(flowReply, "禁止输出开场 JSON") {
+		t.Fatal("flow reply.md should list tools and forbid opening JSON")
+	}
+	if !strings.Contains(flow.systemPrompt(), "stance") || !strings.Contains(flow.systemPrompt(), `"text"`) {
+		t.Fatal("flow opening contract missing from config")
+	}
+	if !strings.Contains(flow.systemPrompt(), "80～120") || strings.Contains(flow.systemPrompt(), "开场只给结论，不展开") {
+		t.Fatal("flow opening should analyze fully then compress to ~80–120字 text")
+	}
+	if !strings.Contains(flow.systemPrompt(), "0～2") {
+		t.Fatal("flow opening tools should allow limited gap fill like sector")
+	}
+	if _, err := replyAnswer(`{"stance":"中性","strength":"弱","text":"资金面无明显信号"}`); !errors.Is(err, errOpeningJSONOnReply) {
+		t.Fatalf("opening JSON on reply should be rejected, err=%v", err)
+	}
+	if strings.Contains(flow.Rules, "主力进场") {
+		t.Fatal("flow rules must not revive banned-phrase desk copy")
+	}
+	legacy := compactFlowReply("前言\n\n## 资金流分析：测试\n### 一、价格与成交底色\n很长\n### 八、结论\n尾巴")
+	if strings.Contains(legacy, "### 一、") || !strings.Contains(legacy, "前言") {
+		t.Fatalf("compactFlowReply should strip nine-step body: %q", legacy)
+	}
+	polluted := analystUserPrompt(flow, "603738.SH", "还在流出吗", []groupLine{{
+		Agent: "volume_flow", Name: "资金流分析师", Kind: "reply", Quote: "分析下",
+		Text: "## 资金流分析\n### 一、价格与成交底色\n旧长文范例不应原样进追问上下文\n**结论**：其实有结论",
+	}}, nil)
+	if strings.Contains(polluted, "旧长文范例") || strings.Contains(polluted, "### 一、价格") {
+		t.Fatalf("reply context must sanitize prior long flow text: %s", polluted)
 	}
 	sector, err := loadAgent("sector")
 	if err != nil {
@@ -307,11 +488,17 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 		t.Fatal("sector prompt missing the industry frame")
 	}
 	askSector := analystUserPrompt(sector, "601689.SH", "这个板块今天是不是主线", nil, nil)
-	if !strings.Contains(askSector, "sector-reply") || strings.Contains(askSector, "整份 facts") == false {
+	if !strings.Contains(askSector, "这个板块今天是不是主线") || !strings.Contains(askSector, "追问任务") {
 		t.Fatalf("sector reply user = %s", askSector)
 	}
-	if !strings.Contains(sector.replyPrompt(), "fetch_theme_heat") || !strings.Contains(sector.replyPrompt(), "fetch_sector_rank") || !strings.Contains(sector.replyPrompt(), "fetch_sector_sw") || !strings.Contains(sector.replyPrompt(), "fetch_sector_dc") || strings.Contains(sector.replyPrompt(), "先 load_skill 事实技能") {
-		t.Fatal("sector reply prompt missing the five tools")
+	if !strings.Contains(sector.replyPrompt(), "fetch_theme_heat") || !strings.Contains(sector.replyPrompt(), "fetch_sector_dc") || strings.Contains(sector.replyPrompt(), "先 load_skill 事实技能") {
+		t.Fatal("sector config prompt missing tools")
+	}
+	if !strings.Contains(sector.systemPrompt(), "stance") || !strings.Contains(sector.systemPrompt(), "strength") || !strings.Contains(sector.systemPrompt(), "suggested_questions") {
+		t.Fatal("sector opening should use stance/strength/suggested_questions like volume_flow")
+	}
+	if !strings.Contains(sector.replyPrompt(), "可以接着问") {
+		t.Fatal("sector reply should end with 可以接着问 like volume_flow")
 	}
 	fund, err := loadAgent("fundamental")
 	if err != nil {
@@ -320,12 +507,115 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 	if !containsSkill(fund.Skills, "fundamental-reply") {
 		t.Fatalf("fundamental skills = %v", fund.Skills)
 	}
+	if strings.TrimSpace(fund.Reply) == "" || !strings.Contains(fund.replyPrompt(), "fetch_business") || !strings.Contains(fund.replyPrompt(), "可以接着问") {
+		t.Fatal("fundamental reply.md should list tools and 可以接着问")
+	}
+	if !strings.Contains(fund.systemPrompt(), "stance") || !strings.Contains(fund.systemPrompt(), "strength") || !strings.Contains(fund.systemPrompt(), "suggested_questions") {
+		t.Fatal("fundamental opening should use stance/strength/suggested_questions")
+	}
+	if !strings.Contains(fund.Rules, "不要写 status / status_text") {
+		t.Fatal("fundamental rules should ban status/status_text like news")
+	}
 	askFund := analystUserPrompt(fund, "601689.SH", "业务构成是什么", nil, nil)
-	if strings.Contains(askFund, "整份 facts") == false || !strings.Contains(askFund, "fetch_business") || !strings.Contains(askFund, "fetch_share_float") {
+	if !strings.Contains(askFund, "业务构成是什么") {
 		t.Fatalf("fundamental reply = %s", askFund)
 	}
-	if strings.Contains(fund.replyPrompt(), "先 load_skill 事实技能") || !strings.Contains(fund.replyPrompt(), "fetch_forecast") || !strings.Contains(fund.replyPrompt(), "fetch_dividend") {
-		t.Fatal("fundamental reply still starts from the fact sheet")
+	if strings.Contains(fund.replyPrompt(), "先 load_skill 事实技能") || !strings.Contains(fund.replyPrompt(), "fetch_chain") {
+		t.Fatal("fundamental config prompt missing tools")
+	}
+	speakRaw := `{"stance":"偏多","strength":"弱","text":"主要靠白酒赚钱，估值五年分位不高，近窗无明显解禁。","fact_ids":["fd.biz_top"],"suggested_questions":[{"text":"业务构成怎么拆","tool":"fetch_business","focus":"产品线"}]}`
+	fundSpeak, err := parseSpeak(speakRaw)
+	if err != nil || fundSpeak.Status != "support" || fundSpeak.Strength != "弱" {
+		t.Fatalf("fundamental stance speak = %+v err=%v", fundSpeak, err)
+	}
+	finance, err := loadAgent("finance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(finance.Reply) == "" || !strings.Contains(finance.replyPrompt(), "fetch_facts") || !strings.Contains(finance.replyPrompt(), "可以接着问") {
+		t.Fatal("finance reply.md should list fetch_facts and 可以接着问")
+	}
+	if !strings.Contains(finance.systemPrompt(), "stance") || !strings.Contains(finance.systemPrompt(), "strength") || !strings.Contains(finance.systemPrompt(), "suggested_questions") {
+		t.Fatal("finance opening should use stance/strength/suggested_questions")
+	}
+	if !strings.Contains(finance.Rules, "不要写 status / status_text") {
+		t.Fatal("finance rules should ban status/status_text like news")
+	}
+	finSpeak, err := parseSpeak(`{"stance":"偏空","strength":"弱","text":"单季扣非转负，经营现金流弱于利润。","fact_ids":["ff.growth.q_ded_yoy"],"suggested_questions":[{"text":"经营现金流和利润匹配吗","tool":"fetch_facts","focus":"现金流"}]}`)
+	if err != nil || finSpeak.Status != "warn" || finSpeak.Strength != "弱" {
+		t.Fatalf("finance stance speak = %+v err=%v", finSpeak, err)
+	}
+	market, err := loadAgent("market")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsSkill(market.Skills, "market-reply") || strings.TrimSpace(market.Reply) == "" {
+		t.Fatalf("market skills/reply = %v", market.Skills)
+	}
+	if !strings.Contains(market.systemPrompt(), "stance") || !strings.Contains(market.replyPrompt(), "fetch_market_fund") || !strings.Contains(market.replyPrompt(), "可以接着问") {
+		t.Fatal("market should use stance JSON opening and market-reply tools")
+	}
+	if !strings.Contains(market.Rules, "不要写 status / status_text") {
+		t.Fatal("market rules should ban status/status_text")
+	}
+	mSpeak, err := parseSpeak(`{"stance":"偏多","strength":"弱","text":"市场总档偏顺风，钱在进。","fact_ids":["mk.conclusion.level"],"suggested_questions":[{"text":"市场资金怎么走","tool":"fetch_market_fund","focus":"成交与宽基"}]}`)
+	if err != nil || mSpeak.Status != "support" {
+		t.Fatalf("market stance speak = %+v err=%v", mSpeak, err)
+	}
+}
+
+func TestVolumeFlowStanceSpeakNormalizes(t *testing.T) {
+	raw := `{"stance":"偏空","strength":"弱","text":"资金流出集中在一天，力度常态内","fact_ids":["fr.path"],"suggested_questions":[{"text":"那天有多异常","tool":"fetch_flow_dc"}]}`
+	speak, err := parseSpeak(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if speak.Status != "warn" || speak.Text != "资金流出集中在一天，力度常态内" || speak.Strength != "弱" {
+		t.Fatalf("speak = %+v", speak)
+	}
+	catalog := map[string]factRow{"fr.path": {ID: "fr.path", Label: "路径", Text: "转出"}}
+	out, ok := headlineFromSpeak(speak, catalog, agentConfig{ID: "volume_flow", FactPrefix: "fr."})
+	if !ok {
+		t.Fatal("headline rejected")
+	}
+	if out["text"] != speak.Text || out["status"] != "warn" || out["strength"] != "弱" {
+		t.Fatalf("headline = %#v", out)
+	}
+	if qs, _ := out["suggested_questions"].([]map[string]any); len(qs) != 1 {
+		t.Fatalf("suggested_questions = %#v", out["suggested_questions"])
+	}
+	// 旧字段 summary 仍兼容
+	legacy, err := parseSpeak(`{"stance":"偏多","strength":"强","summary":"近3日净流入明显","fact_ids":["fr.path"]}`)
+	if err != nil || legacy.Text != "近3日净流入明显" || legacy.Status != "support" {
+		t.Fatalf("summary alias = %+v err=%v", legacy, err)
+	}
+	long := "主信号偏多但把握弱：近5日净流入明显。" + strings.Repeat("续", 100) + "大单-0.49亿元独撑而且没有句号"
+	if n := len([]rune(long)); n <= 120 {
+		t.Fatalf("fixture should exceed 120 runes, got %d", n)
+	}
+	longSpeak, err := parseSpeak(`{"stance":"中性","strength":"弱","text":"` + long + `","fact_ids":["fr.path"]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	longOut, ok := headlineFromSpeak(longSpeak, catalog, agentConfig{ID: "volume_flow", FactPrefix: "fr."})
+	if !ok {
+		t.Fatal("long headline rejected")
+	}
+	got := fmt.Sprint(longOut["text"])
+	if n := len([]rune(got)); n > 120 {
+		t.Fatalf("volume_flow text soft cap should be ≤120 runes, got %d", n)
+	}
+	if got != "主信号偏多但把握弱：近5日净流入明显。" || strings.Contains(got, "大单-0.49") {
+		t.Fatalf("should soft-trim at first sentence end, got %q", got)
+	}
+	secSpeak, err := parseSpeak(`{"stance":"中性","strength":"弱","text":"板块偏弱阶段不清，对个股暂不构成支撑。","fact_ids":["sp.p.name"],"suggested_questions":[{"text":"相对板块差在哪","tool":"fetch_sector_tape"}]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secCat := map[string]factRow{"sp.p.name": {ID: "sp.p.name", Label: "主归属", Text: "汽车零部件"}}
+	secOut, ok := headlineFromSpeak(secSpeak, secCat, agentConfig{ID: "sector", FactPrefix: "sp."})
+	if !ok || secOut["status"] != "neutral" || secOut["strength"] != "弱" {
+		t.Fatalf("sector stance headline = %#v ok=%v", secOut, ok)
 	}
 }
 
@@ -356,6 +646,15 @@ func TestDebateAgentsDoNotFetchFacts(t *testing.T) {
 		}
 		if strings.Contains(cfg.systemPrompt(), "fetch_facts") {
 			t.Fatalf("%s prompt still asks to fetch facts", id)
+		}
+		if id == "chief" && (!strings.Contains(cfg.systemPrompt(), "板块 vs 资金流") || !strings.Contains(cfg.Rules, "禁止把两维平均")) {
+			t.Fatal("chief must include sector×volume_flow conflict rule")
+		}
+		if id == "chief" && (!strings.Contains(cfg.systemPrompt(), "新闻默认只解释短冲击") || !strings.Contains(cfg.Rules, "新闻权重")) {
+			t.Fatal("chief must include news short-impact weight rule")
+		}
+		if id == "chief" && (!strings.Contains(cfg.systemPrompt(), "裁决一定要看大盘") || !strings.Contains(cfg.systemPrompt(), "直接决定大多数股票") || !strings.Contains(cfg.systemPrompt(), "投资计划必须先对齐大盘") || !strings.Contains(cfg.Rules, "裁决一定要看大盘") || !strings.Contains(cfg.Rules, "必须先对齐大盘总档")) {
+			t.Fatal("chief must require market-led verdict and investment plan (0d)")
 		}
 	}
 }
@@ -400,7 +699,7 @@ func TestReadQuestionKeepsLongQuestionsAndSaysSoWhenTooLong(t *testing.T) {
 		raw, _ := json.Marshal(map[string]string{"question": question})
 		return httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/x", bytes.NewReader(raw))
 	}
-	// 主分析师「合说」会带上几位分析师的整段回答：1 万多个字节，原来 8KB 的上限会把它截断，读出来是空的，报「缺少 question」。
+	// 追问正文可能较长（多位分析师串联时尤甚）：1 万多个字节，原来 8KB 的上限会把它截断，读出来是空的，报「缺少 question」。
 	long := strings.Repeat("资金流比自己平时偏流入。", 900)
 	if len(long) <= 8192 {
 		t.Fatalf("fixture must exceed the old 8KB limit, got %d", len(long))

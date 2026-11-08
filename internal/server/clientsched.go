@@ -212,7 +212,7 @@ func (s *Server) nightly(c *sched.JobCtx) (any, error) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	var errs []string
-	for _, id := range diagnosisOrder[:5] {
+	for _, id := range diagnosisDims {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()

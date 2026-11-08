@@ -149,7 +149,9 @@ type Server struct {
 	hidden   *hiddenStocks
 	custom   *custom.Store
 	// askFn replaces the question to the chief analyst in custom tasks, tests use it.
-	askFn       func(ctx context.Context, code, analyst, question string) (string, error)
+	askFn func(ctx context.Context, code, analyst, question string) (string, error)
+	// portfolioFn replaces the one model call of the portfolio analyst, tests use it.
+	portfolioFn func(ctx context.Context, system, user string) (string, error)
 	sharedMu    sync.Mutex
 	sharedCache map[string]cachedBody
 	// stepFn 替换夜间任务里每一步调模型的那一下，测试用。

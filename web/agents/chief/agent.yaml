@@ -7,8 +7,4 @@ skills:
   - answer-table
   - stock-basic
 max_steps: 4
-opening: 请根据五位分析师的发言，以及看多、看空列出的论据，做本轮裁决。
-forbid:
-  - 建议买入
-  - 建议卖出
-  - 目标价
+opening: 请根据六位分析师的发言（大盘总档必须先读）与看多/看空论据做本轮裁决。text 先写大盘再写个股，≤180字，不要把证据取舍/校准长文塞进 text；actions 对齐大盘。

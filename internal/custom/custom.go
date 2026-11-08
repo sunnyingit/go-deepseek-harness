@@ -17,11 +17,11 @@ import (
 	"time"
 )
 
-// Dimensions are the five analysts that each look at one side of a stock; the chief weighs them.
-var Dimensions = []string{"volume_flow", "sector", "news", "finance", "fundamental"}
+// Dimensions are the dimension analysts that each look at one side; the chief weighs them.
+var Dimensions = []string{"volume_flow", "market", "sector", "news", "finance", "fundamental"}
 
 // AnalystLabel is how an analyst is named in the lists.
-var AnalystLabel = map[string]string{"volume_flow": "资金流", "sector": "板块", "news": "新闻", "finance": "财报", "fundamental": "基本面", "chief": "主分析师"}
+var AnalystLabel = map[string]string{"volume_flow": "资金流", "market": "大盘", "sector": "板块", "news": "新闻", "finance": "财报", "fundamental": "基本面", "chief": "主分析师"}
 
 func inList(list []string, v string) bool {
 	for _, x := range list {

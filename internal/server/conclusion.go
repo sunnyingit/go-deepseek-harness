@@ -103,13 +103,85 @@ func sessionOf(cal *sched.Calendar, now time.Time) string {
 	return "close"
 }
 
+// outcomesFromGroup rebuilds step outcomes from the latest analysis lines in the 研判群.
+// Used after a live streamed diagnosis so the conclusion drawer can update without re-calling the model.
+func (s *Server) outcomesFromGroup(code string) map[string]stepOutcome {
+	out := map[string]stepOutcome{}
+	for _, id := range diagnosisOrder {
+		cfg, err := loadAgent(id)
+		name := id
+		if err == nil {
+			name = cfg.Name
+		}
+		out[id] = stepOutcome{ID: id, Name: name, Label: diagnosisLabel[id], State: "missing", Reason: "还没有发言"}
+	}
+	for _, line := range latestGroupView(s.groupLines(code)) {
+		if line.Kind != "analysis" || strings.TrimSpace(line.Text) == "" {
+			continue
+		}
+		o, ok := out[line.Agent]
+		if !ok {
+			continue
+		}
+		o.State, o.Reason = "ok", ""
+		if line.Name != "" {
+			o.Name = line.Name
+		}
+		switch line.Agent {
+		case "bull", "bear", "chief":
+			// debate / chief payloads come from the debate file in buildBundle
+		default:
+			h := map[string]any{"text": line.Text}
+			if line.Status != "" {
+				h["status"] = line.Status
+			}
+			if line.StatusText != "" {
+				h["status_text"] = line.StatusText
+			}
+			if len(line.SuggestedQuestions) > 0 {
+				h["suggested_questions"] = line.SuggestedQuestions
+			}
+			o.Headline = h
+		}
+		out[line.Agent] = o
+	}
+	return out
+}
+
+// commitBundleFromGroup writes a conclusion bundle from the live group record (no new model calls).
+func (s *Server) commitBundleFromGroup(code, trigger string) (*conclusionBundle, error) {
+	outcomes := s.outcomesFromGroup(code)
+	chief := outcomes["chief"]
+	if chief.State != "ok" {
+		return nil, fmt.Errorf("主分析师还没有裁决，无法落结论包")
+	}
+	missing := 0
+	for _, id := range diagnosisDims {
+		if outcomes[id].State != "ok" {
+			missing++
+		}
+	}
+	if missing == 5 {
+		return nil, fmt.Errorf("还没有维度分析师结论")
+	}
+	now := s.now()
+	b := s.buildBundle(code, now, outcomes, s.fetchLevels(code))
+	if trigger != "" {
+		b.Trigger = trigger
+	} else {
+		b.Trigger = "live"
+	}
+	s.writeBundle(b)
+	return b, nil
+}
+
 // buildBundle assembles the bundle from what the steps said and what the debate file holds.
 func (s *Server) buildBundle(code string, now time.Time, outcomes map[string]stepOutcome, levels map[string]any) *conclusionBundle {
 	b := &conclusionBundle{
 		ID: now.UnixMilli(), Code: code, TradeDate: sched.Day(s.cal.LastClose(now)), Session: sessionOf(s.cal, now),
 		GeneratedAt: now.In(sched.Zone).Format("2006-01-02 15:04"), GeneratedDay: sched.Day(now), Model: s.cfg.Model, Source: "agent",
 	}
-	for _, id := range diagnosisOrder[:5] {
+	for _, id := range diagnosisDims {
 		o := outcomes[id]
 		row := bundleRow{Dimension: id, Name: o.Name, Label: diagnosisLabel[id], State: o.State, Reason: o.Reason, Headline: o.Headline}
 		if row.State == "" {

@@ -11,9 +11,5 @@ skills:
 tools:
   - fetch_facts
 fact_prefix: "sp."
-max_steps: 9
-opening: 请给出这只股票所属板块和板块阶段的结论。
-forbid:
-  - 建议买入
-  - 建议卖出
-  - 目标价
+max_steps: 10
+opening: 请给出这只股票的板块初始结论。输出 stance/strength/text（≤150字）/fact_ids/suggested_questions：先人话说明偏多/偏空/不明以及板块对个股是否构成支撑，再补一句关键事实。少写行话。关键证据不足时再补追问工具，不要机械全开。

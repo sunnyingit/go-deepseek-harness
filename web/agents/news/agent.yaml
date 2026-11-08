@@ -13,10 +13,5 @@ tools:
   - fetch_facts
 detail_query:
   days: "3"
-max_steps: 11
-opening: 请给出这只股票近几日新闻的结论。
-forbid:
-  - 内幕
-  - 建议买入
-  - 建议卖出
-  - 目标价
+max_steps: 8
+opening: 请给出这只股票近 3 日新闻的结论。只 load news-facts 再 fetch_facts，不要调 baidu-board/news-raw。输出 stance/strength/text（≤100字，正文禁用英文引号）/fact_ids/suggested_questions；取到事实后立刻结束。

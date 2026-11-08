@@ -23,6 +23,7 @@ func (s *Server) registerScanTasks() {
 		Trigger: sched.Trigger{Kind: "daily", At: "17:30", WindowMin: 240, Days: "trading"}, MaxAttempts: 3, Backoff: []time.Duration{10 * time.Minute, 30 * time.Minute, time.Hour},
 		CatchupTTL: 20 * time.Hour, Timeout: 5 * time.Minute, Handler: s.settleScan,
 	})
+	s.registerQualityTask()
 }
 
 // triggerOf says what asked for a conclusion: the schedule, or the reason a run was queued for.
@@ -291,7 +292,7 @@ func (s *Server) dueDay(base string, n int, bars []scan.Bar) string {
 	return sched.Day(d)
 }
 
-var dimLabel = map[string]string{"volume_flow": "资金流", "sector": "板块", "news": "新闻", "finance": "财报", "fundamental": "基本面"}
+var dimLabel = map[string]string{"volume_flow": "资金流", "market": "大盘", "sector": "板块", "news": "新闻", "finance": "财报", "fundamental": "基本面"}
 
 // ---- views
 

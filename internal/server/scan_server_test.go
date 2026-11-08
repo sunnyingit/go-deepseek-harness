@@ -37,7 +37,7 @@ func TestEveryConclusionBecomesOnePredictionAndAskedOnesAreMarked(t *testing.T) 
 		t.Fatalf("predictions = %+v", all)
 	}
 	p := all[0]
-	if p.Source != "scan" || p.Code != "600036.SH" || p.Direction != scan.Bullish || p.Verdict != "偏多 · 稍微" || p.Sector != "银行" || len(p.Analysts) != 5 {
+	if p.Source != "scan" || p.Code != "600036.SH" || p.Direction != scan.Bullish || p.Verdict != "偏多 · 稍微" || p.Sector != "银行" || len(p.Analysts) != 6 {
 		t.Fatalf("prediction = %+v", p)
 	}
 	if p.BaseDay != "2026-11-05" || p.BaseClose < 10.79 || p.BaseClose > 10.81 || p.Evidence == "" || p.BundleID == 0 {

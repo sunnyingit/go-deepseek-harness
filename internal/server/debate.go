@@ -14,6 +14,7 @@ import (
 
 var debateDimensions = map[string]string{
 	"volume_flow": "资金流分析师",
+	"market":      "大盘分析师",
 	"news":        "新闻分析师",
 	"finance":     "财报分析师",
 	"fundamental": "基本面分析师",
@@ -50,7 +51,10 @@ type debateFile struct {
 
 func (s *Server) finishOneShot(cfg agentConfig, code, kind, question, raw, turnErr string) (map[string]any, error) {
 	if kind == "reply" {
-		text := replyAnswer(raw)
+		text, err := replyAnswer(raw)
+		if err != nil {
+			return nil, err
+		}
 		if text == "" || forbiddenHit(text, cfg.Forbid) {
 			if text == "" && turnErr != "" {
 				return nil, errors.New(turnErr)
@@ -261,6 +265,8 @@ func parseChief(raw string, file *debateFile, forbid []string) (*chiefDecision, 
 	}
 	body.Rejected = rejected
 	body.Text = speakArgIDs(body.Text)
+	// 开场裁决正文保持短结论；模型若把取舍/校准整段塞进 text，软截到约 180 字
+	body.Text = trimSummaryRunes(body.Text, 180)
 	body.However = speakArgIDs(strings.TrimSpace(body.However))
 	body.IfWrong = speakArgIDs(strings.TrimSpace(body.IfWrong))
 	body.Actions = body.Actions.clean()

@@ -7,8 +7,4 @@ skills:
   - answer-table
   - stock-basic
 max_steps: 4
-opening: 请根据群里五位分析师已经说过的话，向主分析师给出看空论据。
-forbid:
-  - 建议买入
-  - 建议卖出
-  - 目标价
+opening: 请根据群里五位分析师已经说过的话，向主分析师给出看空论据。只输出 points JSON（1～3 条或空数组），不要长文。

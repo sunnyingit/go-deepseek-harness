@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -48,6 +49,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("POST /sessions", s.handleCreateSession)
 	mux.HandleFunc("GET /sessions", s.handleListSessions)
 	mux.HandleFunc("GET /sessions/{id}", s.handleGetSession)
+	mux.HandleFunc("DELETE /sessions/{id}", s.handleDeleteSession)
 	mux.HandleFunc("GET /sessions/{id}/messages", s.handleGetMessages)
 	mux.HandleFunc("POST /sessions/{id}/messages", s.handlePostMessage)
 	mux.HandleFunc("GET /sessions/{id}/stream", s.handleStreamSession)
@@ -68,6 +70,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/stocks/{code}/agents/{agent}/stream", s.handleAnalystStream)
 	mux.HandleFunc("POST /api/stocks/{code}/agents/{agent}/reply", s.handleAnalystReply)
 	mux.HandleFunc("POST /api/stocks/{code}/agents/chief/plan", s.handleChiefPlan)
+	mux.HandleFunc("POST /api/ask/intent", s.handleAskIntent)
 	s.registerClientRoutes(mux)
 	return mux
 }
@@ -120,6 +123,29 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s.sessionDTOFromHandle(id, ag))
+}
+
+func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	ag, ok := s.agents.Get(id)
+	if !ok {
+		writeError(w, http.StatusNotFound, fmt.Errorf("no such session %q", id))
+		return
+	}
+	ag.Cancel(agentloop.CancelCause{Kind: "user", Reason: "session deleted"}, false)
+	sess := ag.Session()
+	cwd := ""
+	if sess != nil {
+		cwd = sess.Header().CWD
+		if s.persistence != nil {
+			_ = s.persistence.Delete(sess.ID(), cwd)
+		}
+		s.store.Remove(sess.ID())
+	}
+	s.agents.Unregister(id)
+	// Per-session sandbox under data_dir/sessions/<id>. Shared workspace_dir is left alone.
+	_ = os.RemoveAll(s.sessionDataDir(id))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleGetMessages(w http.ResponseWriter, r *http.Request) {

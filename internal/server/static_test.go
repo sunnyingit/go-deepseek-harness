@@ -18,8 +18,8 @@ func TestUIPages(t *testing.T) {
 		want string
 	}{
 		{"/", "在群里提问"},
-		{"/dialog.html", "PABuddy AI"},
-		{"/dailog.html", "PABuddy AI"},
+		{"/dialog.html", "问问"},
+		{"/dailog.html", "问问"},
 		{"/space.html", "资料都在这儿，我来帮你。"},
 		{"/settings.html", "运行日志"},
 		{"/market.html", "A 股市场"},

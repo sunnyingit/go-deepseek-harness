@@ -10,10 +10,5 @@ skills:
 tools:
   - fetch_facts
 fact_prefix: "ff."
-max_steps: 9
-opening: 请给出这只股票最新财报的结论。
-forbid:
-  - 财务造假
-  - 建议买入
-  - 建议卖出
-  - 目标价
+max_steps: 8
+opening: 请给出这只股票最新财报的结论。只 load finance-facts 再 fetch_facts。输出 stance/strength/text（≤100字，正文禁用英文引号）/fact_ids/suggested_questions；取到事实后立刻结束。

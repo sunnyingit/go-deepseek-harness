@@ -38,9 +38,12 @@ func (s *Server) registerClientRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /sched/tick", s.handleSchedTick)
 	mux.HandleFunc("GET /api/stocks/{code}/conclusion", s.handleConclusion)
 	mux.HandleFunc("GET /api/stocks/{code}/chart", s.handleStockChart)
+	mux.HandleFunc("GET /api/v1/holdings/quality", s.handleQuality)
+	s.registerPortfolioRoutes(mux)
 	mux.HandleFunc("GET /api/stocks/{code}/trade-plan", s.handleTradePlan)
 	mux.HandleFunc("POST /api/stocks/{code}/trade-plan", s.handleTradePlan)
 	mux.HandleFunc("POST /api/stocks/{code}/conclusion/refresh", s.handleConclusionRefresh)
+	mux.HandleFunc("POST /api/stocks/{code}/conclusion/commit", s.handleConclusionCommit)
 	mux.HandleFunc("GET /api/v1/watchlist", s.handleWatchList)
 	mux.HandleFunc("POST /api/v1/watchlist", s.handleWatchAdd)
 	mux.HandleFunc("DELETE /api/v1/watchlist/{code}", s.handleWatchRemove)
@@ -167,6 +170,25 @@ func (s *Server) handleConclusionRefresh(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusAccepted, out)
+}
+
+// handleConclusionCommit turns a finished live 研判群 into the conclusion bundle without re-running models.
+func (s *Server) handleConclusionCommit(w http.ResponseWriter, r *http.Request) {
+	code, ok := pathCode(r)
+	if !ok {
+		writeError(w, http.StatusBadRequest, errBadCode(code))
+		return
+	}
+	unlock := s.lockCode(code)
+	defer unlock()
+	b, err := s.commitBundleFromGroup(code, "live")
+	if err != nil {
+		writeError(w, http.StatusConflict, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok": true, "id": b.ID, "generated_at": b.GeneratedAt, "ts_code": code,
+	})
 }
 
 // ---- watchlist and alerts

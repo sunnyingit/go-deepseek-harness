@@ -32,20 +32,23 @@ const (
 
 var (
 	tsCodePattern = regexp.MustCompile(`^([0-9]{6}\.(SH|SZ|BJ)|[0-9]{5}\.HK)$`)
-	statusTextOf  = map[string]string{"support": "偏多", "warn": "偏空", "neutral": "不明"}
+	// neutral 展示为「中性」，与主分析师裁决「不明」区分开，避免详情里大盘中性被看成整单不明。
+	statusTextOf = map[string]string{"support": "偏多", "warn": "偏空", "neutral": "中性"}
 )
 
 // groupLine is one spoken turn in a stock's shared 研判群. Fact sheets stay
 // out of this log; the next analyst only sees what was actually said.
 type groupLine struct {
-	Agent      string `json:"agent"`
-	Name       string `json:"name"`
-	Kind       string `json:"kind"`
-	Quote      string `json:"quote,omitempty"`
-	Text       string `json:"text"`
-	Status     string `json:"status,omitempty"`
-	StatusText string `json:"status_text,omitempty"`
-	Day        string `json:"day,omitempty"`
+	Agent              string           `json:"agent"`
+	Name               string           `json:"name"`
+	Kind               string           `json:"kind"`
+	Quote              string           `json:"quote,omitempty"`
+	Text               string           `json:"text"`
+	Status             string           `json:"status,omitempty"`
+	StatusText         string           `json:"status_text,omitempty"`
+	SuggestedQuestions []map[string]any `json:"suggested_questions,omitempty"`
+	Tools              []map[string]string `json:"tools,omitempty"`
+	Day                string              `json:"day,omitempty"`
 }
 
 type analystSpeak struct {
@@ -53,6 +56,11 @@ type analystSpeak struct {
 	Status     string   `json:"status"`
 	StatusText string   `json:"status_text"`
 	FactIDs    []string `json:"fact_ids"`
+	// 开场契约：stance/strength + text（板块/资金流统一）；summary 兼容旧输出
+	Stance             string           `json:"stance"`
+	Strength           string           `json:"strength"`
+	Summary            string           `json:"summary"`
+	SuggestedQuestions []map[string]any `json:"suggested_questions"`
 }
 
 type factRow struct {
@@ -65,7 +73,7 @@ func (s *Server) handleAnalystStream(w http.ResponseWriter, r *http.Request) {
 	s.handleAnalyst(w, r, "analysis", "")
 }
 
-// maxQuestionBytes 追问正文的上限。主分析师「合说」那一问会把几位分析师的回答整段带上，
+// maxQuestionBytes 追问正文的上限。多分析师串联回答时，正文可能较长，
 // 中文一个字三个字节，几位加起来很容易超过原来的 8KB，被截断后读不出 question。
 const maxQuestionBytes = 256 << 10
 
@@ -146,7 +154,7 @@ func visibleDraft(buf string) string {
 	if trimmed == "" {
 		return ""
 	}
-	if strings.HasPrefix(trimmed, "{") || strings.Contains(trimmed, `"text"`) {
+	if strings.HasPrefix(trimmed, "{") || strings.Contains(trimmed, `"text"`) || strings.Contains(trimmed, `"summary"`) {
 		parts := jsonTextFields(buf)
 		if len(parts) == 0 {
 			return ""
@@ -156,17 +164,29 @@ func visibleDraft(buf string) string {
 	return buf
 }
 
-// jsonTextFields pulls every JSON "text" string out of a partial object.
+// jsonTextFields pulls every JSON "text"/"summary" string out of a partial object.
 // The last one may still be unfinished; it is shown as far as it has arrived.
 func jsonTextFields(buf string) []string {
 	var out []string
 	rest := buf
 	for {
-		i := strings.Index(rest, `"text"`)
-		if i < 0 {
-			break
+		iText := strings.Index(rest, `"text"`)
+		iSum := strings.Index(rest, `"summary"`)
+		i := -1
+		keyLen := 0
+		switch {
+		case iText < 0 && iSum < 0:
+			return out
+		case iText < 0:
+			i, keyLen = iSum, len(`"summary"`)
+		case iSum < 0:
+			i, keyLen = iText, len(`"text"`)
+		case iText < iSum:
+			i, keyLen = iText, len(`"text"`)
+		default:
+			i, keyLen = iSum, len(`"summary"`)
 		}
-		rest = strings.TrimLeft(rest[i+len(`"text"`):], " \t\r\n")
+		rest = strings.TrimLeft(rest[i+keyLen:], " \t\r\n")
 		if !strings.HasPrefix(rest, ":") {
 			continue
 		}
@@ -219,56 +239,132 @@ func readJSONString(s string) (string, string, bool) {
 }
 
 func analystToolStatus(name string) string {
+	label := analystToolLabel(name)
+	if label == "" {
+		return ""
+	}
+	return "正在" + label
+}
+
+// analystToolLabel is the short Chinese description shown in the bubble's
+// collapsed「调用了 N 个工具」list (and reused by the live status note).
+func analystToolLabel(name string) string {
 	switch name {
 	case "fetch_facts":
-		return "正在读取事实"
+		return "读取事实"
 	case "fetch_basic":
-		return "正在查行情"
+		return "查行情"
 	case "load_skill", "list_skills":
-		return "正在加载技能"
+		return "加载技能"
 	case "render_chart":
-		return "正在画图"
+		return "画图"
 	case "fetch_news":
-		return "正在搜索新闻"
+		return "搜索新闻"
+	case "fetch_baidu_board":
+		return "看百度财经榜"
 	case "fetch_sector_membership":
-		return "正在查板块归属"
+		return "查板块归属"
 	case "fetch_sector_tape":
-		return "正在看板块走势"
+		return "看板块走势"
 	case "fetch_sector_position":
-		return "正在看成分位置"
+		return "看成分位置"
 	case "fetch_sector_rank":
-		return "正在排行业强弱"
+		return "排行业强弱"
 	case "fetch_sector_sw":
-		return "正在读申万日线"
+		return "读申万日线"
 	case "fetch_theme_heat":
-		return "正在看今日题材"
+		return "看今日题材"
 	case "fetch_sector_dc":
-		return "正在读东财板块"
+		return "读东财板块"
 	case "fetch_flow_dc":
-		return "正在读个股资金"
+		return "读个股资金"
 	case "fetch_flow_factor":
-		return "正在读技术指标"
+		return "读技术指标"
 	case "fetch_flow_chip":
-		return "正在读筹码"
+		return "读筹码"
 	case "fetch_flow_bar":
-		return "正在读行情"
+		return "读行情"
 	case "fetch_flow_premarket":
-		return "正在读涨跌停价"
+		return "读涨跌停价"
 	case "fetch_flow_limit":
-		return "正在查涨跌停"
+		return "查涨跌停"
 	case "fetch_flow_toplist":
-		return "正在查龙虎榜"
+		return "查龙虎榜"
 	case "fetch_flow_margin":
-		return "正在读融资"
+		return "读融资"
 	case "fetch_company", "fetch_business", "fetch_valuation", "fetch_quality", "fetch_holders",
 		"fetch_forecast", "fetch_express", "fetch_share_float", "fetch_survey", "fetch_mainbz", "fetch_dividend":
-		return "正在读基本面"
+		return "读基本面"
+	case "fetch_chain":
+		return "看产业链"
+	case "fetch_market_fund":
+		return "读市场资金"
+	case "fetch_market_team":
+		return "读国家队"
+	case "fetch_market_sector":
+		return "读市场板块"
+	case "fetch_market_mood":
+		return "读好不好做"
+	case "fetch_market_cal":
+		return "读市场日历"
+	case "fetch_market_macro":
+		return "读宏观"
 	default:
 		if name == "" {
 			return ""
 		}
-		return "正在查询"
+		return "查询"
 	}
+}
+
+func toolArgsNote(args map[string]any) string {
+	if args == nil {
+		return ""
+	}
+	for _, key := range []string{"part", "focus", "window", "days", "skill", "name"} {
+		v, ok := args[key]
+		if !ok || v == nil {
+			continue
+		}
+		s := strings.TrimSpace(fmt.Sprint(v))
+		if s == "" || s == "<nil>" {
+			continue
+		}
+		if len([]rune(s)) > 24 {
+			s = string([]rune(s)[:24]) + "…"
+		}
+		return s
+	}
+	return ""
+}
+
+func toolsFromMessages(msgs []session.Message) []map[string]string {
+	var out []map[string]string
+	for _, msg := range msgs {
+		for _, block := range msg.Content {
+			if block.Kind != session.BlockToolCall || block.ToolName == "" {
+				continue
+			}
+			label := analystToolLabel(block.ToolName)
+			if label == "" {
+				continue
+			}
+			row := map[string]string{"name": block.ToolName, "label": label}
+			if note := toolArgsNote(block.Args); note != "" {
+				row["note"] = note
+			}
+			out = append(out, row)
+		}
+	}
+	return out
+}
+
+func withTools(msg map[string]any, tools []map[string]string) map[string]any {
+	if msg == nil || len(tools) == 0 {
+		return msg
+	}
+	msg["tools"] = tools
+	return msg
 }
 
 func writeAnalystSSE(w http.ResponseWriter, flusher http.Flusher, event string, data any) {
@@ -302,9 +398,11 @@ type agentConfig struct {
 	Opening     string            `yaml:"opening"`
 	Forbid      []string          `yaml:"forbid"`
 	// Speak is headline for a dimension analyst, points for 看多/看空, chief for 主分析师.
-	Speak  string `yaml:"speak"`
+	Speak string `yaml:"speak"`
 	Prompt string `yaml:"-"`
 	Rules  string `yaml:"-"`
+	// Reply 可选：web/agents/<id>/reply.md；有则追问只用它，避免开场 JSON 示例带节奏。
+	Reply string `yaml:"-"`
 }
 
 func (c agentConfig) oneShot() bool {
@@ -377,8 +475,16 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 	stepText := ""
 	lastDraft := ""
 	lastStatus := ""
+	var draftTools []map[string]string
 	lastActivity := time.Now()
 	started := time.Now()
+	pushDraft := func(text, status string) {
+		payload := map[string]any{"text": text, "status": status}
+		if len(draftTools) > 0 {
+			payload["tools"] = draftTools
+		}
+		writeAnalystSSE(w, flusher, "draft", payload)
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -401,7 +507,7 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 					draft := visibleDraft(stepText)
 					if draft != lastDraft {
 						lastDraft = draft
-						writeAnalystSSE(w, flusher, "draft", map[string]string{"text": draft, "status": lastStatus})
+						pushDraft(draft, lastStatus)
 						lastActivity = time.Now()
 					}
 				case "tool/call":
@@ -409,12 +515,19 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 					if !ok {
 						continue
 					}
-					status := analystToolStatus(call.ToolName)
-					if status != "" && status != lastStatus {
-						lastStatus = status
-						writeAnalystSSE(w, flusher, "draft", map[string]string{"text": lastDraft, "status": status})
-						lastActivity = time.Now()
+					if label := analystToolLabel(call.ToolName); label != "" {
+						row := map[string]string{"name": call.ToolName, "label": label}
+						if note := toolArgsNote(call.Args); note != "" {
+							row["note"] = note
+						}
+						draftTools = append(draftTools, row)
 					}
+					status := analystToolStatus(call.ToolName)
+					if status != "" {
+						lastStatus = status
+					}
+					pushDraft(lastDraft, lastStatus)
+					lastActivity = time.Now()
 				}
 			}
 			if ag.Status() == "idle" && (len(sess.Events()) > 0 || time.Since(started) > 2*time.Second) {
@@ -430,43 +543,69 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 
 func (s *Server) concludeAnalyst(cfg agentConfig, code, kind, question string, sess *session.Session, charts *chartBox) (map[string]any, error) {
 	msgs := sess.DeriveMessages()
+	tools := toolsFromMessages(msgs)
 	if cfg.oneShot() {
 		msg, err := s.finishOneShot(cfg, code, kind, question, lastAssistantText(msgs), lastTurnError(sess))
-		return withChart(msg, charts), err
+		return withChart(withTools(msg, tools), charts), err
 	}
 	if kind == "reply" {
-		text := replyAnswer(lastAssistantText(msgs))
+		text, replyErr := replyAnswer(lastAssistantText(msgs))
+		if replyErr != nil {
+			return nil, replyErr
+		}
+		if cfg.ID == "volume_flow" {
+			text = compactFlowReply(text)
+		}
 		if text == "" || forbiddenHit(text, cfg.Forbid) {
 			if text == "" {
 				if turnErr := lastTurnError(sess); turnErr != "" {
 					return nil, errors.New(turnErr)
 				}
+				if n := len(tools); n > 0 {
+					return nil, fmt.Errorf("调用了 %d 个工具但没有写出正文，请再问一次", n)
+				}
+				return nil, errors.New("没有写出回答正文，请再问一次")
 			}
-			return withChart(emptyAnalystMessage(cfg, kind, question), charts), nil
+			return nil, errors.New("回答触碰了禁止表述，请换个问法")
 		}
 		s.appendGroup(code, groupLine{
-			Agent: cfg.ID, Name: cfg.Name, Kind: kind, Quote: question, Text: text,
+			Agent: cfg.ID, Name: cfg.Name, Kind: kind, Quote: question, Text: text, Tools: tools,
 		})
-		return withChart(analystMessage(cfg, kind, question, text, nil), charts), nil
+		return withChart(withTools(analystMessage(cfg, kind, question, text, nil), tools), charts), nil
 	}
 	catalog := factsFromMessages(msgs)
-	speak, speakErr := parseSpeak(lastAssistantText(msgs))
+	rawSpeak := lastParseableAssistantText(msgs)
+	speak, speakErr := parseSpeak(rawSpeak)
 	if speakErr != nil {
 		if turnErr := lastTurnError(sess); turnErr != "" {
 			return nil, errors.New(turnErr)
 		}
-		return withChart(emptyAnalystMessage(cfg, kind, question), charts), nil
+		if strings.TrimSpace(rawSpeak) == "" {
+			if n := len(tools); n > 0 {
+				return nil, fmt.Errorf("开场调用了 %d 个工具但没有写出 JSON 结论（可能步数用尽还在调工具）", n)
+			}
+			return nil, errors.New("开场没有写出 JSON 结论")
+		}
+		logUnparsedSpeak(cfg.ID, code, rawSpeak)
+		return nil, errors.New("开场没有给出可用的 JSON 结论（常见原因：正文里的英文引号弄破了 JSON，或步数用尽还在调工具）")
 	}
 	headline, ok := headlineFromSpeak(speak, catalog, cfg)
 	if !ok {
-		return withChart(emptyAnalystMessage(cfg, kind, question), charts), nil
+		if turnErr := lastTurnError(sess); turnErr != "" {
+			return nil, errors.New(turnErr)
+		}
+		return nil, errors.New("开场结论未通过校验（status/fact_ids 或事实表对不上）")
 	}
 	text, _ := headline["text"].(string)
-	s.appendGroup(code, groupLine{
+	line := groupLine{
 		Agent: cfg.ID, Name: cfg.Name, Kind: kind, Quote: question,
-		Text: text, Status: speak.Status, StatusText: statusTextOf[speak.Status],
-	})
-	return withChart(analystMessage(cfg, kind, question, text, headline), charts), nil
+		Text: text, Status: speak.Status, StatusText: statusTextOf[speak.Status], Tools: tools,
+	}
+	if qs, _ := headline["suggested_questions"].([]map[string]any); len(qs) > 0 {
+		line.SuggestedQuestions = qs
+	}
+	s.appendGroup(code, line)
+	return withChart(withTools(analystMessage(cfg, kind, question, text, headline), tools), charts), nil
 }
 
 func emptyAnalystMessage(cfg agentConfig, kind, quote string) map[string]any {
@@ -488,34 +627,17 @@ func analystMessage(cfg agentConfig, kind, quote, text string, headline map[stri
 func analystUserPrompt(cfg agentConfig, code, question string, lines []groupLine, debate *debateFile) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "股票代码：%s\n", code)
+	fmt.Fprintf(&b, "当前时间：%s\n", time.Now().Format("2006-01-02 15:04"))
 	if strings.TrimSpace(question) == "" {
 		opening := strings.TrimSpace(cfg.Opening)
 		if opening == "" {
 			opening = "请给出结论。"
 		}
 		b.WriteString(opening + "\n")
-		if cfg.ID == "news" {
-			fmt.Fprintf(&b, "分析时间：%s。\n", time.Now().Format("2006-01-02 15:04"))
-			b.WriteString("用 100 字以内写一段结论：方向和信号强度，哪些在 48 小时内，哪些当日已反映，哪些只是背景。不要表格，不要标题，不要清单。\n")
-		} else if cfg.ID == "volume_flow" {
-			b.WriteString("用 100 字以内写一段结论：近 5 日价和资金是同向还是背离、是连续还是单日脉冲，以及命中的位置预警。不要表格，不要标题，不要清单。\n")
-		} else if cfg.ID == "sector" {
-			b.WriteString("用 100 字以内写一段结论：主板块和这一轮阶段，成分里是核心还是跟风。行业和概念分开。不要表格，不要标题，不要清单。\n")
-		} else if !cfg.oneShot() {
-			b.WriteString("用 100 字以内写一段结论，覆盖这次读到的要点。不要表格，不要标题，不要清单。\n")
-		}
-	} else if cfg.oneShot() {
-		fmt.Fprintf(&b, "用户提问：%s\n按这个问题回答。\n", strings.TrimSpace(question))
-	} else if cfg.ID == "news" {
-		fmt.Fprintf(&b, "用户提问：%s\n分析时间：%s。\n先 load_skill news-raw，再调用 fetch_news。keyword 传用户要搜的原话，不要加上股票名称，也不要留空。这是按这句话搜索新闻，不限于这只股票。不要只复述近几日 detail。用户是在分析这条新闻本身时，按新闻写谁、发生了什么、冲击和时效；不要改写成对当前股票有没有影响。只有用户问到这只股票，或新闻写到这家公司，才补一句关系。\n", strings.TrimSpace(question), time.Now().Format("2006-01-02 15:04"))
-	} else if cfg.ID == "fundamental" {
-		fmt.Fprintf(&b, "用户提问：%s\n按这个问题回答。公司用 fetch_company，业务构成用 fetch_business 或 fetch_mainbz，估值用 fetch_valuation，质地用 fetch_quality，股东用 fetch_holders，业绩预告用 fetch_forecast，业绩快报用 fetch_express，解禁用 fetch_share_float，机构调研用 fetch_survey，分红用 fetch_dividend。不要先拿整份 facts 来框住回答。\n", strings.TrimSpace(question))
-	} else if cfg.ID == "sector" {
-		fmt.Fprintf(&b, "用户提问：%s\n先 load_skill sector-reply，再按问题调用对应工具。不要先拿整份 facts 来框住回答。\n", strings.TrimSpace(question))
-	} else if cfg.ID == "volume_flow" {
-		fmt.Fprintf(&b, "用户提问：%s\n先 load_skill flow-reply，再按问题调用对应工具。不要先拿整份 facts 来框住回答。\n", strings.TrimSpace(question))
+		b.WriteString("（开场任务；输出格式以系统提示 / rules 为准）\n")
 	} else {
-		fmt.Fprintf(&b, "用户提问：%s\n先调用 fetch_facts 读取 detail，回答里带上这些事实。这个问题还需要其他数据时，再调用已安装的工具。\n", strings.TrimSpace(question))
+		fmt.Fprintf(&b, "用户提问：%s\n", strings.TrimSpace(question))
+		b.WriteString("（追问任务；按系统提示回答）\n")
 	}
 	if cfg.oneShot() && strings.TrimSpace(question) == "" {
 		b.WriteString("群里已经说过的话是唯一材料，不要调用综合判断接口，不要新编数字：\n")
@@ -526,6 +648,7 @@ func analystUserPrompt(cfg agentConfig, code, question string, lines []groupLine
 	} else {
 		b.WriteString("群里已经说过的话只作上下文，数字以这次工具返回的为准：\n")
 	}
+	lines = sanitizeFlowGroupContext(cfg, question, lines)
 	if len(lines) == 0 {
 		b.WriteString("（还没有人说过）\n")
 	} else {
@@ -550,119 +673,72 @@ func analystUserPrompt(cfg agentConfig, code, question string, lines []groupLine
 	return b.String()
 }
 
-func (c agentConfig) systemPrompt() string {
+// configPrompt 只拼配置文件。body 为 prompt.md 或 reply.md。
+func (c agentConfig) configPrompt(body string) string {
 	var b strings.Builder
-	b.WriteString(strings.TrimSpace(c.Prompt))
-	b.WriteString("\n\n")
-	b.WriteString(strings.TrimSpace(c.Rules))
-	if c.oneShot() {
-		fmt.Fprintf(&b, "\n\n已安装技能：%s。先 load_skill 加载这些技能。问现价、涨跌、市值时再调用 fetch_basic。写 text 时按 answer-outline 和 answer-table 排版。不要读取维度 detail，也不要调用综合判断接口。\n", strings.Join(c.Skills, "、"))
-		b.WriteString(c.oneShotContract())
-		return b.String()
+	b.WriteString(strings.TrimSpace(body))
+	if rules := strings.TrimSpace(c.Rules); rules != "" {
+		b.WriteString("\n\n")
+		b.WriteString(rules)
 	}
-	b.WriteString("\n\n已安装技能：")
-	b.WriteString(strings.Join(c.Skills, "、"))
-	b.WriteString("。先 load_skill 把事实技能、answer-outline、answer-table 加载。需要图时再 load_skill d3js-visualization：分类对比用柱状图，随时间变化用折线图，然后调用 render_chart。不要自己写 HTML，不要下载 D3。\n")
-	b.WriteString("需要事实时只调用配置里的工具，参数只有股票代码。维度已绑定，不能改。不要调用 Tushare，不要把没有的数写成 0。\n")
-	if containsSkill(c.Skills, "stock-basic") {
-		b.WriteString("问现价、涨跌、市值、PE、PB、ROE 时，先 load_skill stock-basic，再调用 fetch_basic。数字只用返回的 data，null 不要写成 0。\n")
+	if len(c.Skills) > 0 {
+		fmt.Fprintf(&b, "\n\n已安装技能：%s。先 load_skill 加载需要的技能，再调用工具。\n", strings.Join(c.Skills, "、"))
 	}
-	b.WriteString("拿到事实后立刻结束，不要再调工具。\n")
-	b.WriteString("最后一条回复只能是一个 JSON 对象，不要用代码围栏包住它。\n")
-	b.WriteString("text 是给用户看的正文。开场只写 100 字以内的一段结论，不要表格，不要标题，不要清单。\n")
-	b.WriteString("追问按问题展开，也不必用表格。\n")
-	b.WriteString("单元格只抄 facts 的 text，或新闻 rows 里的字段。不要编没有的行，不要把没有的数写成 0。\n")
-	b.WriteString("{\"text\":\"结论\\n\\n| 项目 | 内容 |\\n| --- | --- |\\n| ... | ... |\",\"status\":\"support|warn|neutral\",\"status_text\":\"偏多|偏空|不明\",\"fact_ids\":[\"id\"]}\n")
-	if c.FactPrefix != "" {
-		fmt.Fprintf(&b, "fact_ids 必须以 %s 开头，并且出现在本次 facts 里。\n", c.FactPrefix)
-	} else {
-		b.WriteString("fact_ids 只能填本次 facts 里的 id。\n")
-	}
-	b.WriteString("没有事实时 text 说明这次没有取到，status 用 neutral，fact_ids 用空数组。\n")
 	return b.String()
 }
 
-// replyPrompt is the follow-up system prompt. Opening rules stay in systemPrompt.
+func (c agentConfig) systemPrompt() string { return c.configPrompt(c.Prompt) }
+
+// replyPrompt：若有 reply.md 则只用追问配置，避免开场 JSON 示例带节奏。
 func (c agentConfig) replyPrompt() string {
-	var b strings.Builder
-	b.WriteString(strings.TrimSpace(c.Prompt))
-	b.WriteString("\n\n已安装技能：")
-	b.WriteString(strings.Join(c.Skills, "、"))
-	if containsSkill(c.Skills, "fundamental-reply") {
-		b.WriteString("。追问按用户的问题选工具，不要先读整份 facts，也不要一次调完。公司用 fetch_company，业务构成用 fetch_business 或 fetch_mainbz，估值用 fetch_valuation，质地用 fetch_quality，股东用 fetch_holders，业绩预告用 fetch_forecast，业绩快报用 fetch_express，未来三个月解禁用 fetch_share_float，机构调研用 fetch_survey，现金分红用 fetch_dividend。要图时用返回的 series 调用 render_chart。解禁占比达到 1% 先说供给。调研不是买卖信号。没有分红不要写成 0。\n")
-	} else if containsSkill(c.Skills, "sector-reply") {
-		b.WriteString("。追问先 load_skill sector-reply，再按问题选一到两个工具，不要一次调完所有工具，也不要先读整份 facts。归属用 fetch_sector_membership，走势和板块资金用 fetch_sector_tape，成分位置和个股资金用 fetch_sector_position，行业前后名用 fetch_sector_rank，申万日线用 fetch_sector_sw，今天的涨停、连板和龙虎榜用 fetch_theme_heat，东财板块和人气榜用 fetch_sector_dc。\n")
-	} else if containsSkill(c.Skills, "flow-reply") {
-		b.WriteString("。追问先 load_skill flow-reply，再按问题选一到两个工具，不要一次调完。个股资金用 fetch_flow_dc，技术指标用 fetch_flow_factor，筹码用 fetch_flow_chip，前复权行情用 fetch_flow_bar，涨跌停价用 fetch_flow_premarket，涨跌停记录用 fetch_flow_limit，龙虎榜用 fetch_flow_toplist，融资余额和融资净买入用 fetch_flow_margin。不要把大单叫做主力。\n")
-	} else if containsSkill(c.Skills, "news-raw") {
-		b.WriteString("。每次追问都要 load_skill news-raw，并调用 fetch_news。keyword 传用户要搜的原话，不要加上股票名称，也不要留空。搜索不限于这只股票。不要只根据近几日 detail 回答。用户没问这只股票时，不要把答案收成「对这只股票没有影响」。\n")
-	} else {
-		b.WriteString("。先 load_skill 事实技能，调用 fetch_facts，把这次 detail 读进来。回答里要带上这些事实。\n")
-		b.WriteString("用户的问题还需要别的数据时，继续 load_skill 并调用对应工具。不要在拿到 detail 后停住。\n")
+	if body := strings.TrimSpace(c.Reply); body != "" {
+		return c.configPrompt(body)
 	}
-	b.WriteString("不要调用 Tushare。数字只用工具返回的内容，没有的数不要写成 0。\n")
-	b.WriteString("用 markdown 直接回答。不必用表格，条目用分段或列表写清楚。不要输出 JSON。\n")
-	return b.String()
+	return c.configPrompt(c.Prompt)
 }
 
-func (c agentConfig) oneShotReplyPrompt() string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "你是%s。这是用户追问，按问题回答。\n\n", c.Name)
-	b.WriteString("已安装技能：")
-	b.WriteString(strings.Join(c.Skills, "、"))
-	b.WriteString("。按问题自己选用，需要时再 load_skill，再调用对应工具。\n")
-	b.WriteString("问现价、涨跌、市值时，先 load_skill stock-basic，再调用 fetch_basic。\n")
-	b.WriteString("不要调用 Tushare，不要调用综合判断接口。数字只用群里已经说过的话和这次工具返回的内容，没有的数不要写成 0。\n")
-	b.WriteString("用 markdown 直接回答。不必用表格，条目用分段或列表写清楚。不要输出 JSON，也不要重贴开场论据。\n")
-	return b.String()
-}
-
-func (c agentConfig) oneShotContract() string {
-	if c.Speak == "chief" {
-		return "最后一条回复只能是一个 JSON 对象，不要用代码围栏包住它。\n" +
-			"{\"verdict\":\"偏多|偏空|不明\",\"text\":\"裁决。追问需要展开时，text 按渲染技能写成结论加表格\",\"adopted\":[\"bull.1\"],\"rejected\":[{\"id\":\"bear.1\",\"reason\":\"证据不足\"}],\"however\":\"\",\"if_wrong\":\"\"}\n" +
-			"adopted 和 rejected 的 id 只能来自上面列出的看多、看空论据。同一条不能又采纳又未采纳。\n"
-	}
-	return "最后一条回复只能是一个 JSON 对象，不要用代码围栏包住它。\n" +
-		"{\"points\":[{\"text\":\"一句话，数字必须来自该分析师已说过的话\",\"dimension\":\"volume_flow\",\"weight\":2}]}\n" +
-		"dimension 只能是 volume_flow、news、finance、fundamental、sector 里这次确实说过结论的。1 到 3 条。weight 只能是 1、2、3。points 里不要放表格。\n"
-}
+func (c agentConfig) oneShotReplyPrompt() string { return c.replyPrompt() }
 
 func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, charts *chartBox, kind string) (*agentloop.Agent, error) {
 	toolRegistry := coretools.NewRegistry()
-	if cfg.oneShot() {
-		if _, err := toolRegistry.Register(listSkillsTool(s.skills, cfg.Skills)); err != nil {
+	work := cfg
+	if kind != "reply" {
+		// 开场收窄技能列表，避免提示里仍列出追问专用技能（新闻尤甚）
+		work.Skills = cfg.openingSkills()
+	}
+	if work.oneShot() {
+		if _, err := toolRegistry.Register(listSkillsTool(s.skills, work.Skills)); err != nil {
 			return nil, err
 		}
-		if _, err := toolRegistry.Register(loadSkillTool(s.skills, cfg.Skills)); err != nil {
+		if _, err := toolRegistry.Register(loadSkillTool(s.skills, work.Skills)); err != nil {
 			return nil, err
 		}
-		if err := s.registerBasicTool(toolRegistry, cfg); err != nil {
+		if err := s.registerBasicTool(toolRegistry, work); err != nil {
 			return nil, err
 		}
-		steps := cfg.MaxSteps
+		steps := work.MaxSteps
 		if steps <= 0 {
 			steps = 3
 		}
-		prompt := cfg.systemPrompt()
+		prompt := work.systemPrompt()
 		if kind == "reply" {
-			prompt = cfg.oneShotReplyPrompt()
+			prompt = work.oneShotReplyPrompt()
 			if steps < 6 {
 				steps = 6
 			}
 		}
 		return s.newAnalyst(sess, toolRegistry, steps, prompt), nil
 	}
-	if _, err := toolRegistry.Register(listSkillsTool(s.skills, cfg.Skills)); err != nil {
+	if _, err := toolRegistry.Register(listSkillsTool(s.skills, work.Skills)); err != nil {
 		return nil, err
 	}
-	if _, err := toolRegistry.Register(loadSkillTool(s.skills, cfg.Skills)); err != nil {
+	if _, err := toolRegistry.Register(loadSkillTool(s.skills, work.Skills)); err != nil {
 		return nil, err
 	}
-	for _, name := range cfg.Tools {
+	for _, name := range work.Tools {
 		switch name {
 		case "fetch_facts":
-			fetch, err := s.fetchFactsTool(cfg)
+			fetch, err := s.fetchFactsTool(work)
 			if err != nil {
 				return nil, err
 			}
@@ -673,7 +749,7 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 			return nil, fmt.Errorf("未知工具 %s", name)
 		}
 	}
-	if containsSkill(cfg.Skills, "d3js-visualization") {
+	if containsSkill(work.Skills, "d3js-visualization") {
 		chartTool, err := s.renderChartTool(charts)
 		if err != nil {
 			return nil, err
@@ -682,36 +758,81 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 			return nil, err
 		}
 	}
-	if err := s.registerBasicTool(toolRegistry, cfg); err != nil {
+	if err := s.registerBasicTool(toolRegistry, work); err != nil {
 		return nil, err
 	}
-	if err := s.registerNewsTool(toolRegistry, cfg); err != nil {
+	// 新闻开场禁止搜新闻/热搜；追问才注册，避免步数被吃光
+	if kind == "reply" {
+		if err := s.registerNewsTool(toolRegistry, work); err != nil {
+			return nil, err
+		}
+		if err := s.registerBaiduBoardTool(toolRegistry, work); err != nil {
+			return nil, err
+		}
+	}
+	if err := s.registerFundamentalTools(toolRegistry, work); err != nil {
 		return nil, err
 	}
-	if err := s.registerBaiduBoardTool(toolRegistry, cfg); err != nil {
+	if err := s.registerSectorTools(toolRegistry, work); err != nil {
 		return nil, err
 	}
-	if err := s.registerFundamentalTools(toolRegistry, cfg); err != nil {
+	if err := s.registerMarketTools(toolRegistry, work); err != nil {
 		return nil, err
 	}
-	if err := s.registerSectorTools(toolRegistry, cfg); err != nil {
+	if err := s.registerFlowTools(toolRegistry, work); err != nil {
 		return nil, err
 	}
-	if err := s.registerFlowTools(toolRegistry, cfg); err != nil {
-		return nil, err
-	}
-	steps := cfg.MaxSteps
+	steps := work.MaxSteps
 	if steps <= 0 {
 		steps = maxAnalystSteps
 	}
-	prompt := cfg.systemPrompt()
+	prompt := work.systemPrompt()
+	maxTokens := 2048
 	if kind == "reply" {
-		prompt = cfg.replyPrompt()
+		prompt = work.replyPrompt()
+		if work.ID == "volume_flow" {
+			// 总览追问需要展开写，不要再卡短输出
+			if steps < 6 {
+				steps = 6
+			}
+			maxTokens = 2048
+		}
 	}
-	return s.newAnalyst(sess, toolRegistry, steps, prompt), nil
+	return s.newAnalyst(sess, toolRegistry, steps, prompt, maxTokens), nil
 }
 
-func (s *Server) newAnalyst(sess *session.Session, toolRegistry *coretools.Registry, steps int, prompt string) *agentloop.Agent {
+// openingSkills 开场可用技能。新闻/基本面/财报去掉展示类技能，避免开场空转调工具。
+func (c agentConfig) openingSkills() []string {
+	var keep map[string]bool
+	switch c.ID {
+	case "news":
+		keep = map[string]bool{"news-facts": true, "stock-basic": true}
+	case "fundamental":
+		keep = map[string]bool{"fundamental-facts": true, "stock-basic": true}
+	case "finance":
+		keep = map[string]bool{"finance-facts": true, "stock-basic": true}
+	case "market":
+		keep = map[string]bool{"market-facts": true, "stock-basic": true}
+	default:
+		return c.Skills
+	}
+	out := make([]string, 0, 2)
+	for _, name := range c.Skills {
+		if keep[name] {
+			out = append(out, name)
+		}
+	}
+	if len(out) == 0 {
+		return c.Skills
+	}
+	return out
+}
+
+func (s *Server) newAnalyst(sess *session.Session, toolRegistry *coretools.Registry, steps int, prompt string, maxTokens ...int) *agentloop.Agent {
+	tok := 2048
+	if len(maxTokens) > 0 && maxTokens[0] > 0 {
+		tok = maxTokens[0]
+	}
 	return agentloop.NewAgent(sess, s.llm, coretools.Bridge{Registry: toolRegistry}, prompt, agentloop.Hooks{
 		PreStep: func(_ context.Context, _ *agentloop.Agent, _, step int, messages []session.Message) (bool, []session.Message) {
 			if step > steps {
@@ -720,7 +841,7 @@ func (s *Server) newAnalyst(sess *session.Session, toolRegistry *coretools.Regis
 			return true, messages
 		},
 		RequestError: llmretry.Hook(s.cfg.Retry),
-	}).WithModel(s.cfg.Model).WithTemperature(0.2).WithMaxTokens(2048)
+	}).WithModel(s.cfg.Model).WithTemperature(0.2).WithMaxTokens(tok)
 }
 
 // fetchFactsTool runs the shared detail script. The model only passes a
@@ -787,6 +908,52 @@ func (s *Server) registerBasicTool(toolRegistry *coretools.Registry, cfg agentCo
 	return err
 }
 
+func (s *Server) registerMarketTools(toolRegistry *coretools.Registry, cfg agentConfig) error {
+	if !containsSkill(cfg.Skills, "market-reply") {
+		return nil
+	}
+	script, err := s.skillScript("market-reply", "scripts/fetch_part.py")
+	if err != nil {
+		return err
+	}
+	pythonBin := ""
+	if s.pythonEnv != nil {
+		pythonBin = s.pythonEnv.PythonPath
+	}
+	if pythonBin == "" {
+		return errors.New("python 还没有准备好")
+	}
+	parts := []struct{ name, text string }{
+		{"fetch_market_fund", "读取市场资金：两市成交、宽基 ETF、两融。追问市场资金时用。不是个股大单。"},
+		{"fetch_market_team", "读取国家队相关：宽基份额托市/异动口径。没取到就如实说，不要编申购金额。"},
+		{"fetch_market_sector", "读取全市场板块轮动与分桶。不是这只股的板块归属。"},
+		{"fetch_market_mood", "读取好不好做：宽度、涨跌停、情绪阶段。"},
+		{"fetch_market_cal", "读取市场日历与近期事件。"},
+		{"fetch_market_macro", "读取宏观摘要。"},
+	}
+	for _, part := range parts {
+		name := strings.TrimPrefix(part.name, "fetch_market_")
+		tool := coretools.ToolDefinition{
+			Name:        part.name,
+			Description: part.text + "走市场服务，不能改走 Tushare。",
+			Parameters: coretools.ParameterSchema{
+				"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，例如 600519.SH（市场级数据与代码无关，但接口需要）"}, Required: true},
+			},
+			Output: coretools.Output{
+				Schema: coretools.ValueSchema{Kind: coretools.KindString},
+				Render: renderStringResult,
+			},
+			TimeoutMs:         120_000,
+			IsConcurrencySafe: func(map[string]any) bool { return true },
+			Execute:           s.runPart(pythonBin, script, name),
+		}
+		if _, err := toolRegistry.Register(tool); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Server) registerFundamentalTools(toolRegistry *coretools.Registry, cfg agentConfig) error {
 	if !containsSkill(cfg.Skills, "fundamental-reply") {
 		return nil
@@ -841,10 +1008,11 @@ func (s *Server) registerFundamentalTools(toolRegistry *coretools.Registry, cfg 
 }
 
 func (s *Server) registerFlowTools(toolRegistry *coretools.Registry, cfg agentConfig) error {
-	if !containsSkill(cfg.Skills, "flow-reply") {
+	// 追问切片脚本挂在 flow-facts 下；有无 flow-reply 技能不影响注册。
+	if cfg.ID != "volume_flow" {
 		return nil
 	}
-	script, err := s.skillScript("flow-reply", "scripts/fetch_part.py")
+	script, err := s.skillScript("flow-facts", "scripts/fetch_part.py")
 	if err != nil {
 		return err
 	}
@@ -856,7 +1024,7 @@ func (s *Server) registerFlowTools(toolRegistry *coretools.Registry, cfg agentCo
 		return errors.New("python 还没有准备好")
 	}
 	parts := []struct{ name, text string }{
-		{"fetch_flow_dc", "读取东财个股资金流：近 1、3、5、10、20、60 日（历史够的才给）的净流入、超大单、大单、中单、小单，以及逐日净流入。默认逐日只给近 5 日；用户问某个天数（比如近 30 日、近 3 个月），就传 days，会多给这个窗口的合计和这么多天的逐日。不要把净流入叫做主力。"},
+		{"fetch_flow_dc", "读取东财个股资金流：近 1、3、5、10、20、60 日分档净流入与逐日，并附带算法层路径/力度/结构摘要（fl.path、fl.level、fl.structure、fl.price_flow；short 主窗 3 日）。用户问具体天数可传 days。不要把净流入叫做主力。"},
 		{"fetch_flow_factor", "读取 MACD、RSI、KDJ、布林带和 CCI。只能传股票代码。只报数字，不要写成金叉、死叉或已经反转。"},
 		{"fetch_flow_chip", "读取筹码加权成本和胜率，以及收盘相对成本的位置。只能传股票代码。"},
 		{"fetch_flow_bar", "读取前复权收盘、涨跌幅、5 日和 20 日均线、换手率，各时间尺度（3、5、10、20、60 日）的累计涨跌，以及逐日涨跌（默认近 5 日，传 days 可以看更长）。"},
@@ -960,24 +1128,30 @@ func (s *Server) registerSectorTools(toolRegistry *coretools.Registry, cfg agent
 		return errors.New("python 还没有准备好")
 	}
 	parts := []struct{ name, text string }{
-		{"fetch_sector_membership", "读取申万一级到三级，以及挂了哪些同花顺概念。追问属于哪个板块时用。只能传股票代码。"},
-		{"fetch_sector_tape", "读取主板块阶段、近 20 日相对沪深300，以及板块近 5 日和近 20 日资金。追问这一轮走到哪、有没有资金配合时用。只能传股票代码。"},
-		{"fetch_sector_position", "读取市值名次、涨幅名次、领涨和垫底的几只，以及个股大资金有没有跟上板块。只能传股票代码。不返回整张成分表。"},
-		{"fetch_sector_rank", "读取申万一级近 20 日涨幅排行和前后几名。追问哪个行业最强、本行业排第几时用。只能传股票代码。"},
-		{"fetch_sector_sw", "读取本股申万一级、二级、三级行业的最新收盘、涨跌幅、市盈率、市净率、成交额和近 5 日、近 20 日走势。只能传股票代码。"},
-		{"fetch_theme_heat", "读取主板块和次板块成分里的今日涨停、炸板、跌停、连板天梯和龙虎榜。追问是不是今天的主线时用。只能传股票代码。"},
-		{"fetch_sector_dc", "读取东财行业和概念板块的今日涨跌、上涨下跌家数、领涨股、近 20 日行情，以及东财人气榜。只能传股票代码。这是东财分类，不要和申万、同花顺并成同一个板块。"},
+		{"fetch_sector_membership", "读取申万一级到三级，以及挂了哪些同花顺概念。追问属于哪个板块时用。"},
+		{"fetch_sector_tape", "读取主板块阶段、相对沪深300，以及板块资金。默认给出近 5/20/60/120 日多窗口；传 days（1～120）可指定单一窗口。"},
+		{"fetch_sector_position", "读取市值名次、涨幅名次、领涨和垫底的几只，以及个股大资金是否跟上。资金默认多窗口（5/20/60/120）；可传 days。不返回整张成分表。"},
+		{"fetch_sector_rank", "读取申万一级涨幅排行和前后几名。默认近 60 日；可传 days（1～120）。"},
+		{"fetch_sector_sw", "读取本股申万一级、二级、三级行业的最新收盘、涨跌、PE/PB、成交额和多窗口走势（默认 20/60/120 日，可传 days）。"},
+		{"fetch_theme_heat", "读取主板块和次板块成分里的今日涨停、炸板、跌停、连板天梯和龙虎榜。追问是不是今天的主线时用。"},
+		{"fetch_sector_dc", "读取东财行业和概念板块的今日涨跌、上涨下跌家数、领涨股、多窗口行情（默认最长 120 日，可传 days），以及东财人气榜。这是东财分类，不要和申万、同花顺并成同一个板块。"},
 	}
 	for _, part := range parts {
 		name := strings.TrimPrefix(part.name, "fetch_")
 		name = strings.TrimPrefix(name, "sector_")
 		name = strings.TrimPrefix(name, "theme_")
+		params := coretools.ParameterSchema{
+			"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，例如 600519.SH"}, Required: true},
+		}
+		if name != "membership" && name != "heat" {
+			params["days"] = coretools.Param{
+				ValueSchema: coretools.ValueSchema{Kind: coretools.KindNumber, Description: "要看多少个交易日，1 到 120。不传则用默认多窗口（含 60/120 日），不要以为最长只有 20 日。"},
+			}
+		}
 		tool := coretools.ToolDefinition{
 			Name:        part.name,
 			Description: part.text + "走板块服务，不能改走 Tushare。",
-			Parameters: coretools.ParameterSchema{
-				"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，例如 600519.SH"}, Required: true},
-			},
+			Parameters:  params,
 			Output: coretools.Output{
 				Schema: coretools.ValueSchema{Kind: coretools.KindString},
 				Render: renderStringResult,
@@ -999,7 +1173,11 @@ func (s *Server) runSectorPart(pythonBin, script, part string) func(context.Cont
 		if !tsCodePattern.MatchString(code) {
 			return "", fmt.Errorf("ts_code 必须是 600519.SH 这种代码")
 		}
-		cmd := exec.CommandContext(ctx, pythonBin, script, code, part)
+		argv := []string{script, code, part}
+		if days := flowDays(args["days"]); days > 0 {
+			argv = append(argv, strconv.Itoa(days))
+		}
+		cmd := exec.CommandContext(ctx, pythonBin, argv...)
 		cmd.Env = basicEnv()
 		var out bytes.Buffer
 		cmd.Stdout = &out
@@ -1311,6 +1489,9 @@ func loadAgent(id string) (agentConfig, error) {
 	}
 	cfg.Prompt = string(prompt)
 	cfg.Rules = string(rules)
+	if reply, err := os.ReadFile(filepath.Join(dir, "reply.md")); err == nil {
+		cfg.Reply = string(reply)
+	}
 	return cfg, nil
 }
 
@@ -1351,19 +1532,196 @@ func stockAPIBase() string {
 	return "http://127.0.0.1:8090"
 }
 
-func replyAnswer(raw string) string {
+var errOpeningJSONOnReply = errors.New("追问请用 markdown 展开分析，不要套开场摘要格式；请再问一次")
+
+func replyAnswer(raw string) (string, error) {
 	text := strings.TrimSpace(raw)
 	if text == "" {
-		return ""
+		return "", nil
 	}
-	if speak, err := parseSpeak(text); err == nil && strings.TrimSpace(speak.Text) != "" {
-		return strings.TrimSpace(speak.Text)
+	// 追问误用开场 JSON → 硬拒，避免再展示「倾向+一句摘要」
+	if speak, err := parseSpeak(text); err == nil {
+		normalizeSpeak(&speak)
+		if speak.Stance != "" || speak.Summary != "" || speak.Strength != "" {
+			return "", errOpeningJSONOnReply
+		}
+		if strings.TrimSpace(speak.Text) != "" {
+			return strings.TrimSpace(speak.Text), nil
+		}
 	}
 	text = strings.TrimPrefix(text, "```markdown")
 	text = strings.TrimPrefix(text, "```md")
 	text = strings.TrimPrefix(text, "```")
 	text = strings.TrimSuffix(strings.TrimSpace(text), "```")
-	return strings.TrimSpace(text)
+	return strings.TrimSpace(text), nil
+}
+
+// sanitizeFlowGroupContext 追问时压缩群里旧资金流长文，避免模型照抄退回九步。
+func sanitizeFlowGroupContext(cfg agentConfig, question string, lines []groupLine) []groupLine {
+	if cfg.ID != "volume_flow" || strings.TrimSpace(question) == "" || len(lines) == 0 {
+		return lines
+	}
+	out := make([]groupLine, len(lines))
+	copy(out, lines)
+	for i := range out {
+		if out[i].Agent != "volume_flow" && !strings.Contains(out[i].Name, "资金流") {
+			continue
+		}
+		out[i].Text = compactFlowReply(out[i].Text)
+		if n := len([]rune(out[i].Text)); n > 280 {
+			out[i].Text = string([]rune(out[i].Text)[:280]) + "…"
+		}
+	}
+	return out
+}
+
+// compactFlowReply 拦住退回旧版九步长文：优先保留「结论/依据」，否则截到第一章之前。
+func compactFlowReply(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" || !flowReplyLooksLikeLegacyReport(text) {
+		return text
+	}
+	if out := extractFlowConclusionBlocks(text); out != "" {
+		return out
+	}
+	for _, mark := range []string{
+		"\n### 一、", "\n## 一、", "\n一、价格", "\n### 二、",
+		"\n## 资金流分析", "\n# 资金流分析",
+	} {
+		if i := strings.Index(text, mark); i > 0 {
+			if head := strings.TrimSpace(text[:i]); head != "" {
+				return head
+			}
+		}
+	}
+	// 全文都是旧骨架且没有结论段：只留开头一段，避免整篇倾泻
+	runes := []rune(text)
+	if len(runes) > 400 {
+		return string(runes[:400]) + "…"
+	}
+	return text
+}
+
+func flowReplyLooksLikeLegacyReport(text string) bool {
+	// 任一强标记即视为旧体检表；弱标记需凑够 2 个
+	for _, c := range []string{
+		"## 资金流分析", "### 一、价格", "一、价格与成交",
+		"### 八、结论", "### 九、纪律", "背离清单",
+	} {
+		if strings.Contains(text, c) {
+			return true
+		}
+	}
+	hits := 0
+	for _, c := range []string{"### 二、技术", "### 三、成交", "### 四、", "### 五、", "### 六、", "### 七、"} {
+		if strings.Contains(text, c) {
+			hits++
+		}
+	}
+	return hits >= 2
+}
+
+func extractFlowConclusionBlocks(text string) string {
+	// 抓 **结论** … **依据** …（到下一个 ** 大标题或文末）
+	type block struct{ title, body string }
+	var parts []block
+	lines := strings.Split(text, "\n")
+	var cur *block
+	flush := func() {
+		if cur == nil {
+			return
+		}
+		cur.body = strings.TrimSpace(cur.body)
+		if cur.body != "" {
+			parts = append(parts, *cur)
+		}
+		cur = nil
+	}
+	for _, line := range lines {
+		trim := strings.TrimSpace(line)
+		name := ""
+		switch {
+		case strings.HasPrefix(trim, "**结论**"), trim == "结论", strings.HasPrefix(trim, "## 结论"), strings.HasPrefix(trim, "### 结论"):
+			name = "结论"
+		case strings.HasPrefix(trim, "**依据**"), trim == "依据", strings.HasPrefix(trim, "## 依据"), strings.HasPrefix(trim, "### 依据"):
+			name = "依据"
+		case strings.HasPrefix(trim, "**还要注意**"), strings.HasPrefix(trim, "## 还要注意"), strings.HasPrefix(trim, "### 还要注意"):
+			name = "还要注意"
+		}
+		if name != "" {
+			flush()
+			cur = &block{title: name}
+			rest := trim
+			for _, p := range []string{"**结论**", "**依据**", "**还要注意**", "## 结论", "### 结论", "## 依据", "### 依据", "## 还要注意", "### 还要注意", "结论", "依据"} {
+				if strings.HasPrefix(rest, p) {
+					rest = strings.TrimSpace(strings.TrimPrefix(rest, p))
+					rest = strings.TrimLeft(rest, "：: ")
+					break
+				}
+			}
+			if rest != "" && rest != name {
+				cur.body = rest + "\n"
+			}
+			continue
+		}
+		if cur != nil {
+			// 碰到旧九步标题则结束
+			if strings.HasPrefix(trim, "### 一") || strings.HasPrefix(trim, "一、价格") || strings.HasPrefix(trim, "## 资金流") {
+				flush()
+				break
+			}
+			cur.body += line + "\n"
+		}
+	}
+	flush()
+	var out strings.Builder
+	want := map[string]bool{"结论": true, "依据": true, "还要注意": true}
+	for _, p := range parts {
+		if !want[p.title] {
+			continue
+		}
+		fmt.Fprintf(&out, "**%s**：%s\n\n", p.title, strings.TrimSpace(p.body))
+	}
+	return strings.TrimSpace(out.String())
+}
+
+func normalizeSpeak(speak *analystSpeak) {
+	if speak == nil {
+		return
+	}
+	if strings.TrimSpace(speak.Text) == "" {
+		speak.Text = strings.TrimSpace(speak.Summary)
+	} else {
+		speak.Text = strings.TrimSpace(speak.Text)
+	}
+	speak.Summary = strings.TrimSpace(speak.Summary)
+	speak.Stance = strings.TrimSpace(speak.Stance)
+	speak.Strength = strings.TrimSpace(speak.Strength)
+	speak.Status = strings.TrimSpace(speak.Status)
+	speak.StatusText = strings.TrimSpace(speak.StatusText)
+	if speak.Status == "" && speak.Stance != "" {
+		speak.Status = stanceToStatus(speak.Stance)
+	}
+	if speak.StatusText == "" {
+		if label, ok := statusTextOf[speak.Status]; ok {
+			speak.StatusText = label
+		} else if speak.Stance != "" {
+			speak.StatusText = speak.Stance
+		}
+	}
+}
+
+func stanceToStatus(stance string) string {
+	switch stance {
+	case "偏多", "support", "bullish":
+		return "support"
+	case "偏空", "warn", "bearish":
+		return "warn"
+	case "中性", "不明", "neutral":
+		return "neutral"
+	default:
+		return ""
+	}
 }
 
 func parseSpeak(raw string) (analystSpeak, error) {
@@ -1372,6 +1730,80 @@ func parseSpeak(raw string) (analystSpeak, error) {
 	text = strings.TrimPrefix(text, "```")
 	text = strings.TrimSuffix(strings.TrimSpace(text), "```")
 	text = strings.TrimSpace(text)
+	candidates := []string{text}
+	if soft := softenSpeakJSONPunctuation(text); soft != text {
+		candidates = append(candidates, soft)
+	}
+	for _, cand := range candidates {
+		if speak, ok := decodeSpeakObject(cand); ok {
+			return speak, nil
+		}
+		// 顶层 text/summary 与 suggested_questions[].text 里的裸引号都会弄破 JSON（新闻/财报尤甚）
+		if fixed := repairSpeakQuotes(cand); fixed != cand {
+			if speak, ok := decodeSpeakObject(fixed); ok {
+				return speak, nil
+			}
+			if trimmed := stripTrailingJSONCommas(fixed); trimmed != fixed {
+				if speak, ok := decodeSpeakObject(trimmed); ok {
+					return speak, nil
+				}
+			}
+		}
+		if trimmed := stripTrailingJSONCommas(cand); trimmed != cand {
+			if speak, ok := decodeSpeakObject(trimmed); ok {
+				return speak, nil
+			}
+		}
+	}
+	for _, cand := range candidates {
+		if speak, ok := looseSpeak(cand); ok {
+			return speak, nil
+		}
+		if fixed := repairSpeakQuotes(cand); fixed != cand {
+			if speak, ok := looseSpeak(fixed); ok {
+				return speak, nil
+			}
+		}
+	}
+	return analystSpeak{}, errors.New("没有 JSON 结论")
+}
+
+// softenSpeakJSONPunctuation 把弯引号/全角引号收成 ASCII，便于再走裸引号修复。
+func softenSpeakJSONPunctuation(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch r {
+		case '“', '”', '„', '‟', '＂':
+			b.WriteByte('"')
+		case '‘', '’', '＇':
+			b.WriteByte('\'')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func stripTrailingJSONCommas(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == ',' {
+			j := i + 1
+			for j < len(s) && (s[j] == ' ' || s[j] == '\t' || s[j] == '\n' || s[j] == '\r') {
+				j++
+			}
+			if j < len(s) && (s[j] == '}' || s[j] == ']') {
+				continue
+			}
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func decodeSpeakObject(text string) (analystSpeak, bool) {
 	var speak analystSpeak
 	for i := 0; i < len(text); i++ {
 		if text[i] != '{' {
@@ -1382,16 +1814,127 @@ func parseSpeak(raw string) (analystSpeak, error) {
 		if err := dec.Decode(&speak); err != nil {
 			continue
 		}
-		if strings.TrimSpace(speak.Text) != "" || speak.FactIDs != nil || speak.Status != "" {
-			speak.Text = strings.TrimSpace(speak.Text)
-			speak.Status = strings.TrimSpace(speak.Status)
-			return speak, nil
+		normalizeSpeak(&speak)
+		if !looksLikeSpeak(speak) {
+			continue
+		}
+		return speak, true
+	}
+	return analystSpeak{}, false
+}
+
+// looksLikeSpeak 区分开场结论与 suggested_questions 条目（后者常只有 text）。
+func looksLikeSpeak(speak analystSpeak) bool {
+	return speak.Stance != "" || speak.Status != "" || speak.Summary != "" || speak.FactIDs != nil
+}
+
+// repairSpeakQuotes 把开场 JSON 字符串字段里未转义的 " 改成合法 JSON。
+// 顶层 text/summary 与 suggested_questions 里的 text/focus/question 都要修，否则整段解不开。
+func repairSpeakQuotes(raw string) string {
+	out := raw
+	for round := 0; round < 8; round++ {
+		prev := out
+		for _, key := range []string{`"text"`, `"summary"`, `"focus"`, `"question"`} {
+			out = repairJSONStringFieldAll(out, key)
+		}
+		if out == prev {
+			break
 		}
 	}
-	return analystSpeak{}, errors.New("没有 JSON 结论")
+	return out
+}
+
+func repairJSONStringFieldAll(raw, key string) string {
+	searchFrom := 0
+	for {
+		rel := strings.Index(raw[searchFrom:], key)
+		if rel < 0 {
+			return raw
+		}
+		keyAt := searchFrom + rel
+		rest := strings.TrimLeft(raw[keyAt+len(key):], " \t\r\n")
+		if !strings.HasPrefix(rest, ":") {
+			searchFrom = keyAt + len(key)
+			continue
+		}
+		afterColon := strings.TrimLeft(rest[1:], " \t\r\n")
+		if !strings.HasPrefix(afterColon, `"`) {
+			searchFrom = keyAt + len(key)
+			continue
+		}
+		valueStart := len(raw) - len(afterColon) // position of opening quote in raw
+		body, end, ok := scanBrokenJSONString(raw[valueStart:])
+		if !ok {
+			searchFrom = keyAt + len(key)
+			continue
+		}
+		orig := raw[valueStart : valueStart+end]
+		// 字段本身已是合法 JSON 字符串时不要再 Marshal，否则会把 \" 叠成 \\\\
+		var unused string
+		if json.Unmarshal([]byte(orig), &unused) == nil {
+			searchFrom = valueStart + end
+			continue
+		}
+		escaped, _ := json.Marshal(body)
+		raw = raw[:valueStart] + string(escaped) + raw[valueStart+end:]
+		searchFrom = valueStart + len(escaped)
+	}
+}
+
+func scanBrokenJSONString(s string) (body string, end int, ok bool) {
+	if !strings.HasPrefix(s, `"`) {
+		return "", 0, false
+	}
+	var b strings.Builder
+	esc := false
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		if esc {
+			b.WriteByte(c)
+			esc = false
+			continue
+		}
+		if c == '\\' {
+			esc = true
+			b.WriteByte(c)
+			continue
+		}
+		if c == '"' {
+			if speakFieldEnd(s[i+1:]) {
+				return b.String(), i + 1, true
+			}
+			// 正文里的裸引号，先当内容留下，稍后整体 json.Marshal 再转义
+			b.WriteByte(c)
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return "", 0, false
+}
+
+func speakFieldEnd(rest string) bool {
+	rest = strings.TrimLeft(rest, " \t\r\n")
+	if rest == "" || rest[0] == '}' {
+		return true
+	}
+	if rest[0] != ',' {
+		return false
+	}
+	rest = strings.TrimLeft(rest[1:], " \t\r\n")
+	for _, key := range []string{
+		`"fact_ids"`, `"suggested_questions"`, `"stance"`, `"strength"`,
+		`"status"`, `"status_text"`, `"summary"`, `"text"`,
+		`"tool"`, `"focus"`, `"points"`,
+	} {
+		if strings.HasPrefix(rest, key) {
+			return true
+		}
+	}
+	return false
 }
 
 func headlineFromSpeak(speak analystSpeak, catalog map[string]factRow, cfg agentConfig) (map[string]any, bool) {
+	normalizeSpeak(&speak)
 	if speak.Text == "" || forbiddenHit(speak.Text, cfg.Forbid) {
 		return nil, false
 	}
@@ -1399,19 +1942,47 @@ func headlineFromSpeak(speak analystSpeak, catalog map[string]factRow, cfg agent
 	if !known {
 		return nil, false
 	}
+	text := speak.Text
+	// 开场 text 软截：资金流约 120 字、板块约 150 字、新闻约 100 字；优先在句号处截断
+	if cfg.ID == "volume_flow" {
+		text = trimSummaryRunes(text, 120)
+	}
+	if cfg.ID == "sector" {
+		text = trimSummaryRunes(text, 150)
+	}
+	if cfg.ID == "news" {
+		text = trimSummaryRunes(text, 100)
+	}
+	if cfg.ID == "fundamental" {
+		text = trimSummaryRunes(text, 120)
+	}
+	if cfg.ID == "finance" {
+		text = trimSummaryRunes(text, 100)
+	}
+	if cfg.ID == "market" {
+		text = trimSummaryRunes(text, 100)
+	}
+	pack := func(facts []map[string]string) map[string]any {
+		out := map[string]any{
+			"text": text, "status": speak.Status, "status_text": label, "facts": facts,
+		}
+		if speak.Strength != "" {
+			out["strength"] = speak.Strength
+		}
+		if len(speak.SuggestedQuestions) > 0 {
+			out["suggested_questions"] = speak.SuggestedQuestions
+		}
+		return out
+	}
 	if len(catalog) == 0 {
 		if len(speak.FactIDs) != 0 || !missingFactText(speak.Text) {
 			return nil, false
 		}
-		return map[string]any{
-			"text": speak.Text, "status": speak.Status, "status_text": label, "facts": []any{},
-		}, true
+		return pack([]map[string]string{}), true
 	}
 	if len(speak.FactIDs) == 0 {
 		if missingFactText(speak.Text) {
-			return map[string]any{
-				"text": speak.Text, "status": speak.Status, "status_text": label, "facts": []any{},
-			}, true
+			return pack([]map[string]string{}), true
 		}
 		return nil, false
 	}
@@ -1439,9 +2010,48 @@ func headlineFromSpeak(speak analystSpeak, catalog map[string]factRow, cfg agent
 	if len(facts) == 0 {
 		return nil, false
 	}
-	return map[string]any{
-		"text": speak.Text, "status": speak.Status, "status_text": label, "facts": facts,
-	}, true
+	return pack(facts), true
+}
+
+func trimRunes(text string, max int) string {
+	if max <= 0 {
+		return text
+	}
+	runes := []rune(text)
+	if len(runes) <= max {
+		return text
+	}
+	return string(runes[:max])
+}
+
+// trimSummaryRunes 把开场 summary 压到 max 字以内，优先在句末（。！？；）截断，
+// 其次在逗号/顿号处；找不到可切点才硬截。避免「大单-0.49」这种半截。
+func trimSummaryRunes(text string, max int) string {
+	text = strings.TrimSpace(text)
+	if max <= 0 || text == "" {
+		return text
+	}
+	runes := []rune(text)
+	if len(runes) <= max {
+		return text
+	}
+	head := runes[:max]
+	cutAt := func(seps string) int {
+		best := -1
+		for i, r := range head {
+			if strings.ContainsRune(seps, r) {
+				best = i
+			}
+		}
+		return best
+	}
+	if i := cutAt("。！？；"); i >= 12 { // 至少留一句完整结论；太短才放弃软截
+		return strings.TrimSpace(string(head[:i+1]))
+	}
+	if i := cutAt("，、"); i >= 12 {
+		return strings.TrimSpace(string(head[:i+1]))
+	}
+	return string(head)
 }
 
 func forbiddenHit(text string, words []string) bool {
@@ -1497,20 +2107,43 @@ func absorbFacts(dst map[string]factRow, raw string) {
 
 func lastAssistantText(msgs []session.Message) string {
 	for i := len(msgs) - 1; i >= 0; i-- {
-		if msgs[i].Role != session.RoleAssistant {
-			continue
-		}
-		var b strings.Builder
-		for _, block := range msgs[i].Content {
-			if block.Kind == session.BlockText {
-				b.WriteString(block.Text)
-			}
-		}
-		if strings.TrimSpace(b.String()) != "" {
-			return b.String()
+		if text := assistantMessageText(msgs[i]); text != "" {
+			return text
 		}
 	}
 	return ""
+}
+
+func assistantMessageText(msg session.Message) string {
+	if msg.Role != session.RoleAssistant {
+		return ""
+	}
+	var b strings.Builder
+	for _, block := range msg.Content {
+		if block.Kind == session.BlockText {
+			b.WriteString(block.Text)
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
+// lastParseableAssistantText 从后往前找第一条能 parseSpeak 的助手正文；
+// 若都解不开，退回最后一条非空正文（给错误提示用）。
+func lastParseableAssistantText(msgs []session.Message) string {
+	fallback := ""
+	for i := len(msgs) - 1; i >= 0; i-- {
+		text := assistantMessageText(msgs[i])
+		if text == "" {
+			continue
+		}
+		if fallback == "" {
+			fallback = text
+		}
+		if _, err := parseSpeak(text); err == nil {
+			return text
+		}
+	}
+	return fallback
 }
 
 func lastTurnError(sess *session.Session) string {
@@ -1634,7 +2267,7 @@ func latestGroupView(lines []groupLine) []groupLine {
 		}
 	}
 	var out []groupLine
-	for _, id := range []string{"volume_flow", "sector", "news", "finance", "fundamental", "bull", "bear", "chief"} {
+	for _, id := range append(append([]string{}, diagnosisDims...), "bull", "bear", "chief") {
 		if line, ok := picked[id]; ok {
 			out = append(out, line)
 		}

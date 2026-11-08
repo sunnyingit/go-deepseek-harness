@@ -128,6 +128,40 @@ func (d holdingsData) AI(code string) holdings.AI {
 		ai.Hold, _ = acts["hold"].(string)
 		ai.Buy, _ = acts["buy"].(string)
 	}
+	for _, row := range b.Analysts {
+		voice := holdings.AnalystVoice{
+			ID: row.Dimension, Name: row.Name, Short: row.Label, State: row.State,
+		}
+		if h := row.Headline; h != nil {
+			if t, ok := h["text"].(string); ok {
+				voice.Text = strings.TrimSpace(t)
+			}
+			st, _ := h["status_text"].(string)
+			if st == "" {
+				st, _ = h["status"].(string)
+				if mapped := statusTextOf[st]; mapped != "" {
+					st = mapped
+				}
+			}
+			voice.Label = strings.TrimSpace(st)
+			voice.Lean = leanOf(voice.Label)
+			if voice.Lean == "neutral" {
+				voice.Lean = "unclear"
+			}
+		}
+		if voice.Text == "" && row.Reason != "" {
+			voice.Text = row.Reason
+		}
+		if voice.Label == "" {
+			if row.State == "ok" {
+				voice.Label = "—"
+			} else if row.State == "failed" || row.State == "missing" {
+				voice.Label = "暂无"
+				voice.Lean = "unclear"
+			}
+		}
+		ai.Analysts = append(ai.Analysts, voice)
+	}
 	hist := d.s.verdictHistory(code)
 	if n := len(hist); n >= 2 {
 		before, after := hist[n-2], hist[n-1]

@@ -18,7 +18,7 @@ func TestRoundFreshNeedsEveryAnalystOnTheSameDay(t *testing.T) {
 	s.appendGroup("600001.SH", groupLine{Agent: "bull", Kind: "analysis", Text: "旧的看多", Day: "2026-11-06"})
 	s.appendGroup("600001.SH", groupLine{Agent: "bear", Kind: "analysis", Text: "旧的看空", Day: "2026-11-06"})
 	s.appendGroup("600001.SH", groupLine{Agent: "chief", Kind: "analysis", Text: "旧裁决", StatusText: "偏多", Day: "2026-11-06"})
-	for _, id := range diagnosisOrder[:5] {
+	for _, id := range diagnosisDims {
 		s.appendGroup("600001.SH", groupLine{Agent: id, Kind: "analysis", Text: "今天说的", StatusText: "偏空", Day: "2026-11-07"})
 	}
 	s.appendGroup("600001.SH", groupLine{Agent: "chief", Kind: "analysis", Text: "今天的裁决", StatusText: "偏空", Day: "2026-11-07"})

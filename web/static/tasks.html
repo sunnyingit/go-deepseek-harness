@@ -14,7 +14,7 @@ button,input{font:inherit}
 .seg button:last-child{border-right:none}
 .seg button[aria-pressed="true"]{background:#14171F;color:#FFFFFF}
 .pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EEF0F3;color:#4A5260;font-size:11px;white-space:nowrap}
-.nav-a{width:48px;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5B6372;text-decoration:none;font-size:11px}
+.nav-a{width:48px;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5B6372;text-decoration:none;font-size:13px}
 .nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:500}
 .empty{padding:36px 20px;text-align:center;color:#5B6372;display:flex;flex-direction:column;align-items:center;gap:12px}
 .skeleton{color:#8A919E;padding:24px 0}
@@ -39,7 +39,7 @@ a.row:hover,div.row:hover{background:#F7F8FA}
 </div>
 </div>
 <span style="padding: 0 16px; font-weight: 700; font-size: 14px">定时任务</span>
-<div style="margin-left: auto; display: flex; align-items: center; gap: 14px; padding-right: 16px"><span id="session" style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5B6372"></span><button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="position: relative; width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent; color: #3A4250; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position: absolute; top: 2px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #D9483F; color: #FFFFFF; font-size: 10px; font-weight: 600; line-height: 16px; text-align: center"></span></button></div>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 14px; padding-right: 16px"><span id="session" style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #5B6372"></span><button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="position: relative; width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent; color: #3A4250; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position: absolute; top: 2px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #D9483F; color: #FFFFFF; font-size: 10px; font-weight: 600; line-height: 16px; text-align: center"></span></button></div>
 </header>
 
 <div style="flex: 1 1 auto; display: flex; flex-wrap: nowrap; align-items: stretch; min-width: 0; min-height: 0; overflow: hidden">
@@ -62,7 +62,7 @@ a.row:hover,div.row:hover{background:#F7F8FA}
 <aside id="notifAside" aria-label="通知" hidden style="flex: 0 0 400px; width: 400px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; flex-direction: column; font-size: 13px"></aside>
 </div>
 
-<footer style="position: relative; flex: none; height: 26px; display: flex; align-items: center; gap: 18px; padding: 0 12px; border-top: 1px solid #DDE1E7; background: #F7F8FA; font-size: 11px; color: #5B6372; white-space: nowrap; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display: flex; gap: 18px"></span><span style="position: absolute; left: 50%; transform: translateX(-50%); color: #8A919E">研究分析，不构成投资建议</span><span style="margin-left: auto">数据源：行情 · 资金流 · 公告</span><span>v0.1</span></footer>
+<footer style="flex: none; height: 26px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 0 12px; border-top: 1px solid #DDE1E7; background: #FFFFFF; font-size: 13px; color: #5B6372; white-space: nowrap; overflow: hidden"><div style="display: flex; align-items: center; gap: 18px; min-width: 0; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display: flex; gap: 18px"></span></div><span role="note" style="text-align: center">研究分析，不构成投资建议</span><div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px; min-width: 0; overflow: hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div></footer>
 </div>
 <div id="modal"></div>
 <script>
@@ -323,7 +323,7 @@ function cuAutoTitle(f) {
   const scope = (CU_SCOPE.find((x) => x[0] === f.scope) || ['', ''])[1].replace('…', '');
   if (f.kind === 'ask') return '问：' + (f.question.trim().slice(0, 12) || '一个问题');
   if (f.kind === 'scan') { const r = f.rules[0]; return r ? RULE_SHORT(r) + ' 扫描' : '条件扫描'; }
-  return (f.analysts.length ? '看' + f.analysts.map((a) => ({ volume_flow: '资金', sector: '板块', news: '新闻', finance: '财报', fundamental: '基本面' }[a])).join('、') : '分析') + scope;
+  return (f.analysts.length ? '看' + f.analysts.map((a) => ({ volume_flow: '资金', market: '大盘', sector: '板块', news: '新闻', finance: '财报', fundamental: '基本面' }[a])).join('、') : '分析') + scope;
 }
 function RULE_SHORT(r) { const k = cuKindOf(r.kind); return r.kind === 'sector_is' ? '板块' + (r.text || '') : k.unit ? k.label + (r.value || '') + k.unit : k.label; }
 function cuSentence(f) {
@@ -331,7 +331,7 @@ function cuSentence(f) {
   const when = f.mode === 'every' ? (f.days === 'trading' ? '交易时段' : '全天') + '每隔 ' + f.everyNum + (f.everyUnit === 'hour' ? ' 小时' : ' 分钟') : (f.days === 'trading' ? '每个交易日 ' : '每天 ') + f.at;
   const names = f.codes.map((c) => f.names[c] || c);
   const scope = f.scope === 'codes' ? (names.length ? names.slice(0, 3).join('、') + (names.length > 3 ? ' 等 ' + names.length + ' 只' : '') : '（还没选股票）') : (CU_SCOPE.find((x) => x[0] === f.scope) || ['', ''])[1];
-  const who = (ids, dflt) => ids.length ? ids.map((a) => ({ volume_flow: '资金流', sector: '板块', news: '新闻', finance: '财报', fundamental: '基本面', chief: '主分析师' }[a])).join('、') : dflt;
+  const who = (ids, dflt) => ids.length ? ids.map((a) => ({ volume_flow: '资金流', market: '大盘', sector: '板块', news: '新闻', finance: '财报', fundamental: '基本面', chief: '主分析师' }[a])).join('、') : dflt;
   let what;
   if (f.kind === 'analyze') what = f.analysts.length ? '让 ' + who(f.analysts) + ' 分析师各分析一次，结论放进通知（不出裁决，不记预测）' : '各出一份完整结论（五位分析师、看多看空、主分析师裁决），并记成预测去跟踪';
   else if (f.kind === 'ask') what = '问 ' + who(f.analysts, '主分析师').replace(/(资金流|板块|新闻|财报|基本面)/g, '$1分析师') + '：「' + (f.question.trim() || '……') + '」，回答放进通知';
@@ -366,7 +366,7 @@ function cuRender() {
   const scopeStep = step(2, '对哪些股票', f.scope === 'codes' ? '最多 50 只' : '跟着你的持仓、想买、自选变，新加的票下次就会带上',
     '<div style="display: flex; gap: 8px; flex-wrap: wrap">' + CU_SCOPE.map(([k, n]) => pill('cuscope', k, n, f.scope === k)).join('') + '</div>' + codes);
   // 3 具体怎么做
-  const dimList = [['volume_flow', '资金流'], ['sector', '板块'], ['news', '新闻'], ['finance', '财报'], ['fundamental', '基本面']].concat(f.kind === 'ask' ? [['chief', '主分析师']] : []);
+  const dimList = [['volume_flow', '资金流'], ['market', '大盘'], ['sector', '板块'], ['news', '新闻'], ['finance', '财报'], ['fundamental', '基本面']].concat(f.kind === 'ask' ? [['chief', '主分析师']] : []);
   const who = '<div style="display: flex; gap: 6px; flex-wrap: wrap">' + dimList.map(([k, n]) => pill('cuwho', k, n, f.analysts.includes(k), '; height: 28px; padding: 0 12px; font-size: 12px')).join('') + '</div>';
   const kinds = cuKinds();
   let detail = '';

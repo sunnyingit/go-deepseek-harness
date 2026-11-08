@@ -1,647 +1,692 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WorkBuddy AI · 设置</title>
-    <link rel="stylesheet" href="/static/vendor/fonts/inter.css" />
-    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css" />
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        html, body { height: 100%; overflow: hidden; }
-        body { background: #ffffff; height: 100%; }
-        .dashboard { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
-        .navbar {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 8px 16px; min-height: 44px; border-bottom: 1px solid #eceff3;
-            background: #fff; flex-shrink: 0; -webkit-app-region: drag;
-        }
-        .navbar .brand, .navbar .nav-right, .navbar button { -webkit-app-region: no-drag; }
-        .nav-left { display: flex; align-items: center; gap: 16px; }
-        .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; color: #0b1a33; cursor: pointer; }
-        .brand i { font-size: 15px; color: #f97316; }
-        .nav-right { display: flex; align-items: center; gap: 18px; }
-        .nav-right i { font-size: 18px; color: #4f5b6b; cursor: pointer; padding: 6px; border-radius: 50%; }
-        .main-grid {
-            display: grid; grid-template-columns: 200px 1fr; gap: 24px;
-            flex: 1; min-height: 0; padding: 16px 24px 20px; overflow: hidden;
-        }
-        .sidebar { display: flex; flex-direction: column; gap: 20px; min-height: 0; overflow: hidden; }
-        .quick-item {
-            display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-            border-radius: 12px; font-size: 13px; color: #1c2a44; cursor: pointer;
-        }
-        .quick-item:hover { background: #eef1f6; }
-        .quick-item.active { background: #fff7ed; color: #f97316; font-weight: 500; }
-        .quick-item i { color: #f97316; width: 16px; font-size: 13px; }
-        .user-card {
-            margin-top: auto; display: flex; align-items: center; gap: 10px;
-            padding: 8px; border-radius: 14px; position: relative;
-        }
-        .avatar { width: 32px; height: 32px; border-radius: 50%; background: #f97316; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
-        .user-meta .name { font-size: 13px; font-weight: 600; color: #0b1a33; }
-        .user-meta .email { font-size: 11px; color: #8a95a8; }
-        .content { min-height: 0; overflow: auto; padding-bottom: 28px; display: flex; flex-direction: column; }
-        .content.logs-mode { overflow: hidden; padding-bottom: 8px; }
-        .view { display: none; }
-        .view.active { display: block; }
-        .view-logs.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-        .log-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
-        .log-toolbar .path-chip { margin-top: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .log-meta { font-size: 12px; color: #8a95a8; margin-left: auto; }
-        .log-pre {
-            flex: 1; min-height: 280px; margin: 0; overflow: auto;
-            background: #0f172a; color: #e2e8f0; border-radius: 14px;
-            padding: 14px 16px; font-size: 12px; line-height: 1.55;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            white-space: pre-wrap; word-break: break-word;
-        }
-        .log-pre.empty { color: #94a3b8; }
-        .page-head { margin-bottom: 18px; }
-        .page-head h2 { font-size: 22px; color: #0b1a33; }
-        .page-head p { font-size: 13px; color: #6b778c; margin-top: 6px; }
-        .path-chip {
-            display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
-            font-size: 12px; color: #8a95a8; background: #f4f6fa; border-radius: 999px; padding: 4px 10px;
-        }
-        .page-head a { color: #f97316; font-weight: 600; text-decoration: none; }
-        .page-head a:hover { text-decoration: underline; }
-        .banner {
-            display: none; margin-bottom: 14px; padding: 10px 12px; border-radius: 12px;
-            font-size: 13px; line-height: 1.45;
-        }
-        .banner.show { display: block; }
-        .banner.warn { background: #fff7ed; color: #9a3412; }
-        .banner.ok { background: #ecfdf5; color: #047857; }
-        .banner.err { background: #fef2f2; color: #b91c1c; }
-        .card {
-            background: #fff; border: 1px solid #eef1f6; border-radius: 18px;
-            padding: 18px 20px; margin-bottom: 14px;
-        }
-        .card h3 { font-size: 14px; color: #0b1a33; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-        .card h3 i { color: #f97316; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
-        .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-        .field.span-2 { grid-column: 1 / -1; }
-        label { font-size: 12px; font-weight: 600; color: #5f6c80; }
-        .hint { font-size: 11px; color: #9aa7b9; font-weight: 400; }
-        input, select, textarea {
-            width: 100%; border: 1px solid #e4e9f2; border-radius: 10px;
-            padding: 8px 10px; font-size: 13px; color: #1c2a44; background: #fff;
-        }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: #fdba74; box-shadow: 0 0 0 3px rgba(249,115,22,.12); }
-        textarea { min-height: 88px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-        .check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1c2a44; padding-top: 22px; }
-        .check input { width: auto; }
-        .actions {
-            position: sticky; bottom: 0; display: flex; gap: 10px; justify-content: flex-end;
-            padding: 12px 0 4px; background: linear-gradient(transparent, #fff 30%);
-        }
-        .btn {
-            border: 0; border-radius: 12px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
-        }
-        .btn-primary { background: #f97316; color: #fff; }
-        .btn-primary:hover { background: #ea580c; }
-        .btn-ghost { background: #eef1f6; color: #3c4a5e; }
-        .advanced { margin-top: 8px; }
-        .advanced summary { cursor: pointer; font-size: 13px; color: #f97316; font-weight: 600; }
-        .toast {
-            position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(12px);
-            background: #0b1a33; color: #fff; border-radius: 999px; padding: 10px 16px;
-            font-size: 13px; opacity: 0; transition: .2s; z-index: 20;
-        }
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-        @media (max-width: 900px) {
-            .main-grid { grid-template-columns: 1fr; }
-            .sidebar { display: none; }
-            .grid { grid-template-columns: 1fr; }
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="stock-api-base" content="http://127.0.0.1:8090">
+<title>设置</title>
+<style>
+body{margin:0;background:#EEF0F3}
+a{color:inherit}
+button,input,select,textarea{font:inherit}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.seg{display:flex;flex-wrap:wrap;border:1px solid #DDE1E7;border-radius:8px;overflow:hidden;width:fit-content;max-width:100%}
+.seg button{height:28px;padding:0 10px;border:none;border-right:1px solid #DDE1E7;background:#FFFFFF;color:#3A4250;font-size:12px;cursor:pointer;white-space:nowrap}
+.seg button:last-child{border-right:none}
+.seg button[aria-pressed="true"]{background:#14171F;color:#FFFFFF}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EEF0F3;color:#4A5260;font-size:11px;white-space:nowrap}
+.nav-a{width:48px;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5B6372;text-decoration:none;font-size:13px}
+.nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:500}
+.card{display:flex;flex-direction:column;gap:12px;padding:16px 18px;background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px}
+.row{display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;align-items:center;padding:10px 0;border-top:1px solid #F1F2F4}
+.mrow{display:grid;grid-template-columns:160px 220px minmax(0,1fr);gap:12px;align-items:center;padding:9px 0;border-top:1px solid #F1F2F4}
+.lbl{font-size:13px;font-weight:600;color:#14171F}
+.hint{font-size:11px;color:#8A919E;line-height:1.5;font-weight:400}
+.inp{width:360px;max-width:100%;height:34px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;box-sizing:border-box;font-size:13px;color:#14171F;background:#FFFFFF}
+.inp.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.inp:focus,select.inp:focus,textarea:focus{outline:none;border-color:#2457D6;box-shadow:0 0 0 3px rgba(36,87,214,.12)}
+.btn{height:32px;padding:0 12px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;color:#2457D6;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#2457D6}
+.btn.pri{border:none;background:#2457D6;color:#FFFFFF}
+.btn:disabled{opacity:.5;cursor:default}
+.ok{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:#EDF7F1;color:#1E6B44;font-size:12px;font-weight:600}
+.bad{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:#FDECEA;color:#B42318;font-size:12px;font-weight:600}
+.sw{flex:none;position:relative;width:36px;height:20px;border-radius:999px;background:#C9CED6;border:none;cursor:pointer;padding:0}
+.sw.on{background:#2457D6}
+.sw>i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s}
+.sw.on>i{left:18px}
+.banner{display:none;margin:0;padding:10px 12px;border-radius:10px;font-size:13px;line-height:1.45}
+.banner.show{display:block}
+.banner.warn{background:#FFF8EC;color:#7A4A00}
+.banner.ok{background:#EDF7F1;color:#1E6B44}
+.banner.err{background:#FDECEA;color:#B42318}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field.span-2{grid-column:1/-1}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:#14171F}
+.toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:60;padding:9px 16px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:13px;max-width:80vw;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.log-pre{flex:1;min-height:280px;margin:0;overflow:auto;background:#0f172a;color:#e2e8f0;border-radius:14px;padding:14px 16px;font-size:12px;line-height:1.55;font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
+.log-pre.empty{color:#94a3b8}
+.bar{height:8px;border-radius:4px;background:#EEF0F3;overflow:hidden}
+.bar>i{display:block;height:100%;background:#2457D6}
+.view{display:none}.view.on{display:flex;flex-direction:column;flex:1;min-height:0}
+</style>
 </head>
 <body>
-<div class="dashboard">
-    <header class="navbar">
-        <div class="nav-left">
-            <div class="brand" id="brandBtn"><i class="fas fa-robot"></i> WorkBuddy AI</div>
-        </div>
-        <div class="nav-right">
-            <i class="fas fa-bell" title="通知"></i>
-        </div>
-    </header>
-    <div class="main-grid">
-        <aside class="sidebar">
-            <nav>
-                <div class="quick-item" data-nav="/?new=1"><i class="fas fa-plus"></i> 新建任务</div>
-                <div class="quick-item" data-nav="/space.html"><i class="fas fa-user"></i> 个人工作区</div>
-                <div class="quick-item" data-view="settings" id="navSettings"><i class="fas fa-sliders-h"></i> 设置</div>
-                <div class="quick-item" data-view="logs" id="navLogs"><i class="fas fa-file-alt"></i> 运行日志</div>
-            </nav>
-            <div class="user-card">
-                <div class="avatar">F</div>
-                <div class="user-meta">
-                    <div class="name">Felice</div>
-                    <div class="email">felicex@gmail.com</div>
-                </div>
-            </div>
-        </aside>
-        <main class="content" id="content">
-            <div class="view view-settings active" id="viewSettings">
-            <div class="page-head">
-                <h2>设置</h2>
-                <p>修改会写入 config.yaml。模型、超时和沙箱对之后的新对话立即生效；端口和数据目录需要重启服务。排查问题时可看 <a href="#logs">运行日志</a>。</p>
-                <div class="path-chip" id="configPath"><i class="fas fa-file-code"></i> 加载中…</div>
-            </div>
-            <div class="banner warn" id="envBanner"></div>
-            <div class="banner" id="saveBanner"></div>
-            <form id="settingsForm">
-                <section class="card">
-                    <h3><i class="fas fa-brain"></i> 模型</h3>
-                    <div class="grid">
-                        <div class="field span-2">
-                            <label>API Key <span class="hint" id="keyHint"></span></label>
-                            <input id="api_key" type="password" autocomplete="off" placeholder="留空则保留已保存的密钥" />
-                        </div>
-                        <div class="field">
-                            <label>模型</label>
-                            <input id="model" placeholder="deepseek-v4-pro" />
-                        </div>
-                        <div class="field">
-                            <label>接口地址 <span class="hint">空 = DeepSeek 默认</span></label>
-                            <input id="base_url" placeholder="https://api.deepseek.com" />
-                        </div>
-                        <div class="field">
-                            <label>思考模式</label>
-                            <select id="thinking">
-                                <option value="">默认开启</option>
-                                <option value="disabled">关闭 thinking</option>
-                            </select>
-                        </div>
-                        <div class="field">
-                            <label>温度 temperature <span class="hint">0–2，空 = 不传</span></label>
-                            <input id="temperature" type="number" step="0.1" min="0" max="2" placeholder="例如 0.7" />
-                        </div>
-                        <div class="field">
-                            <label>核采样 top_p <span class="hint">0–1，空 = 不传；一般别和温度一起改</span></label>
-                            <input id="top_p" type="number" step="0.05" min="0" max="1" placeholder="例如 0.95" />
-                        </div>
-                        <div class="field">
-                            <label>max_tokens <span class="hint">0 = 不限制</span></label>
-                            <input id="max_tokens" type="number" min="0" />
-                        </div>
-                    </div>
-                </section>
-                <section class="card">
-                    <h3><i class="fas fa-server"></i> 服务</h3>
-                    <div class="grid">
-                        <div class="field">
-                            <label>端口 <span class="hint">改后需重启</span></label>
-                            <input id="port" type="number" min="1" max="65535" />
-                        </div>
-                        <div class="field">
-                            <label>关闭超时</label>
-                            <input id="shutdown_timeout" placeholder="60s" />
-                        </div>
-                        <div class="field span-2">
-                            <label>数据目录 data_dir <span class="hint">空 = 临时目录；改后需重启</span></label>
-                            <input id="data_dir" />
-                        </div>
-                        <div class="field span-2">
-                            <label>工作目录 workspace_dir <span class="hint">对话里生成和上传的文件都写进这里；空 = 各会话自己的沙箱。新对话生效</span></label>
-                            <input id="workspace_dir" placeholder="例如 /Users/you/Documents" />
-                        </div>
-                    </div>
-                </section>
-                <section class="card">
-                    <h3><i class="fas fa-clock"></i> 超时与工具</h3>
-                    <div class="grid">
-                        <div class="field"><label>流式空闲超时 <span class="hint">如 10m</span></label><input id="stream_idle_timeout" placeholder="10m" /></div>
-                        <div class="field"><label>TCP 建连超时 <span class="hint">如 30s、100s</span></label><input id="connect_timeout" placeholder="30s" /></div>
-                        <div class="field"><label>TLS 握手超时</label><input id="tls_handshake_timeout" placeholder="10s" /></div>
-                        <div class="field"><label>bash 超时</label><input id="bash_timeout" placeholder="2m" /></div>
-                        <div class="field"><label>最大上传 <span class="hint">单位 MB</span></label><input id="max_upload_mb" type="number" min="0" /></div>
-                        <div class="field"><label>并行工具数</label><input id="max_parallel_tool_calls" type="number" min="1" /></div>
-                    </div>
-                </section>
-                <section class="card">
-                    <h3><i class="fas fa-user-astronaut"></i> 助手</h3>
-                    <div class="grid">
-                        <label class="check"><input id="auto_approve_plan" type="checkbox" /> 自动批准计划模式</label>
-                        <div class="field span-2">
-                            <label>system_prompt <span class="hint">空 = 使用内置中文提示</span></label>
-                            <textarea id="system_prompt"></textarea>
-                        </div>
-                    </div>
-                    <details class="advanced">
-                        <summary>高级：重试策略</summary>
-                        <div class="grid" style="margin-top:12px;">
-                            <div class="field">
-                                <label>mode</label>
-                                <select id="retry_mode">
-                                    <option value="normal">normal</option>
-                                    <option value="always">always</option>
-                                </select>
-                            </div>
-                            <div class="field"><label>max_retries</label><input id="max_retries" type="number" min="0" /></div>
-                            <div class="field"><label>initial_delay</label><input id="initial_delay" placeholder="500ms" /></div>
-                            <div class="field"><label>max_delay</label><input id="max_delay" placeholder="10s" /></div>
-                            <div class="field"><label>jitter_ratio</label><input id="jitter_ratio" type="number" step="0.01" min="0" /></div>
-                            <div class="field span-2">
-                                <label>retryable_codes <span class="hint">逗号分隔</span></label>
-                                <input id="retryable_codes" />
-                            </div>
-                        </div>
-                    </details>
-                </section>
-                <div class="actions">
-                    <button type="button" class="btn btn-ghost" id="reloadBtn">重新加载</button>
-                    <button type="submit" class="btn btn-primary" id="saveBtn">保存到 config.yaml</button>
-                </div>
-            </form>
-            <section class="card" id="serviceCard">
-                <h3><i class="fas fa-server"></i> 股票数据服务</h3>
-                <div class="banner" id="serviceBanner"></div>
-                <div style="font-size:13px;color:#3c4a5e;line-height:1.7;margin-bottom:10px">任务、分析师、通知都在这台电脑上跑；这里填的是它们取数据的地方：个股详情（资金流、新闻、板块、财报）、市场页、日线、实时价格都从这个服务取。可以填远程服务器的地址，保存在本机，保存后马上生效，不用再设环境变量。</div>
-                <div class="grid">
-                    <div class="field span-2"><label>服务地址 <span class="hint">留空就用本机 http://127.0.0.1:8090</span></label><input id="svc_url" placeholder="http://127.0.0.1:8090" autocomplete="off" /></div>
-                </div>
-                <div id="svcInfo" style="font-size:12px;color:#8a94a6;margin-top:6px"></div>
-                <div class="actions" style="margin-top:10px"><button type="button" class="btn btn-ghost" id="svcTest">测试连接</button><button type="button" class="btn btn-primary" id="svcSave">保存地址</button></div>
-            </section>
-            <section class="card" id="notifyCard">
-                <h3><i class="fas fa-bell"></i> 通知</h3>
-                <div class="banner" id="notifyBanner"></div>
-                <div class="grid">
-                    <div class="field"><label>免打扰开始</label><input id="nq_from" placeholder="22:00" /></div>
-                    <div class="field"><label>免打扰结束</label><input id="nq_to" placeholder="08:00" /></div>
-                    <label class="check"><input id="nq_urgent" type="checkbox" /> 免打扰时到价提醒照样弹出</label>
-                    <div class="field"><label>折叠窗口 <span class="hint">同一只股票同一类通知，窗口内只弹一次（秒）</span></label><input id="n_collapse" type="number" min="0" /></div>
-                    <label class="check span-2"><input id="n_digest" type="checkbox" /> 把普通通知攒成摘要（早 08:35、盘后 15:40），不再逐条弹出；到价提醒不受影响</label>
-                    <label class="check span-2"><input id="n_enabled" type="checkbox" /> 总开关：关掉后只进收件箱，不弹出也不外发</label>
-                </div>
-                <div style="margin-top:14px;font-size:13px;color:#3c4a5e;font-weight:600">渠道</div>
-                <div id="notifyChannels" style="margin:8px 0"></div>
-                <div class="grid">
-                    <div class="field"><label>新增渠道</label>
-                        <select id="nc_type"><option value="wecom_webhook">企业微信群机器人</option><option value="bark">Bark（iOS）</option><option value="serverchan">Server酱</option></select></div>
-                    <div class="field"><label>名称</label><input id="nc_name" placeholder="例如 手机" /></div>
-                    <div class="field span-2"><label>地址或密钥 <span class="hint">只存在本机，不显示出来</span></label><input id="nc_secret" type="password" autocomplete="off" /></div>
-                    <label class="check span-2"><input id="nc_relay" type="checkbox" /> 电脑关机时也由服务端推到这个渠道（会把这个密钥上传给服务端）</label>
-                </div>
-                <div class="actions" style="margin-top:10px"><button type="button" class="btn btn-ghost" id="ncAdd">添加渠道</button></div>
-                <details class="advanced" style="margin-top:12px"><summary>每一类通知单独开关</summary><div id="notifyTypes" style="margin-top:10px"></div></details>
-                <div class="actions" style="margin-top:12px"><button type="button" class="btn btn-primary" id="notifySave">保存通知设置</button></div>
-            </section>
-            </div>
-            <div class="view view-logs" id="viewLogs">
-                <div class="page-head">
-                    <h2>运行日志</h2>
-                    <p>桌面客户端把内置服务的标准输出写到本机 web.log。这里显示末尾约 256KB。<a href="#settings">返回设置</a></p>
-                </div>
-                <div class="log-toolbar">
-                    <div class="path-chip" id="logPath"><i class="fas fa-file-alt"></i> 加载中…</div>
-                    <button type="button" class="btn btn-ghost" id="refreshLogsBtn">刷新</button>
-                    <button type="button" class="btn btn-ghost" id="copyLogsBtn">复制</button>
-                    <span class="log-meta" id="logMeta"></span>
-                </div>
-                <pre class="log-pre empty" id="logText">加载中…</pre>
-            </div>
-        </main>
-    </div>
+<div style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#EEF0F3;font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;color:#14171F;font-size:13px;line-height:1.55">
+<header style="flex:none;display:flex;align-items:center;height:44px;background:#FFFFFF;border-bottom:1px solid #DDE1E7">
+<div style="flex:0 0 64px;display:flex;align-items:center;justify-content:center;border-right:1px solid #EEF0F3;height:44px">
+<div style="width:28px;height:28px;border-radius:8px;background:#2457D6;display:flex;align-items:center;justify-content:center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"></path><path d="M15 8h5v5"></path></svg>
+</div></div>
+<span style="padding:0 16px;font-weight:700;font-size:14px">设置</span>
+<div style="margin-left:auto;display:flex;align-items:center;gap:14px;padding-right:16px">
+<span id="session" style="display:flex;align-items:center;gap:6px;font-size:14px;color:#5B6372"></span>
+<button type="button" id="bell" aria-label="通知" title="通知" style="position:relative;width:32px;height:32px;border:none;border-radius:8px;background:transparent;color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
+</div>
+</header>
+<div style="flex:1 1 auto;display:flex;flex-wrap:nowrap;align-items:stretch;min-width:0;min-height:0;overflow:hidden">
+<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#FFFFFF;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0">
+<a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
+<a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>诊断</a>
+<a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>持仓</a>
+<a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
+<a class="nav-a" href="/tasks.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>任务</a>
+<a class="nav-a" href="/dialog.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>问问</a>
+<a class="nav-a on" href="/settings.html" aria-current="page" style="margin-top:auto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>设置</a>
+</nav>
+<main style="flex:999 1 640px;min-width:0;display:flex;flex-direction:column;overflow:hidden;position:relative">
+<div style="flex:none;padding:14px 28px;background:#FFFFFF;border-bottom:1px solid #DDE1E7">
+<div style="max-width:1240px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+<h1 style="margin:0;font-size:20px;font-weight:700">设置</h1>
+<span style="font-size:13px;color:#5B6372">配置大模型后，所有 AI 分析师才能工作 · 改完自动保存</span>
+<span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+<button type="button" class="btn" id="tabSettings" aria-pressed="true">模型与连接</button>
+<button type="button" class="btn" id="tabLogs" aria-pressed="false">运行日志</button>
+</span>
+</div></div>
+<div id="viewSettings" class="view on" style="overflow-y:auto;padding:16px 28px 24px;box-sizing:border-box">
+<div style="max-width:920px;display:flex;flex-direction:column;gap:14px">
+<div class="banner" id="envBanner"></div>
+<div class="banner" id="saveBanner"></div>
+<section class="card">
+<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:15px">连接</b><span style="font-size:12px;color:#8A919E">AI 分析师都通过这里访问大模型</span><span id="configPath" class="pill" style="margin-left:auto">config.yaml</span></div>
+<div class="row"><span class="lbl">服务商</span>
+<span class="seg" id="providerSeg">
+<button type="button" data-p="openai" aria-pressed="true">OpenAI 兼容接口</button>
+<button type="button" data-p="anthropic" aria-pressed="false">Anthropic</button>
+<button type="button" data-p="deepseek" aria-pressed="false">DeepSeek</button>
+<button type="button" data-p="qwen" aria-pressed="false">通义千问</button>
+<button type="button" data-p="local" aria-pressed="false">本地模型</button>
+</span></div>
+<div class="row"><span><span class="lbl">接口地址</span><div class="hint">Base URL；本地模型填本机地址</div></span>
+<input class="inp mono" id="base_url" placeholder="https://api.deepseek.com" autocomplete="off"></div>
+<div class="row"><span><span class="lbl">API Key</span><div class="hint">只存在本机，加密保存，不会上传</div></span>
+<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0">
+<input class="inp mono" id="api_key" type="password" autocomplete="off" placeholder="粘贴 API Key">
+<button type="button" class="btn" id="keyClear">更换</button>
+</span></div>
+<div class="row"><span class="lbl">连接测试</span>
+<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0">
+<button type="button" class="btn" id="testConn">测试连接</button>
+<span id="testChip"></span><span id="testMeta" style="font-size:12px;color:#8A919E"></span>
+</span></div>
+<div class="row"><span class="lbl">备用连接</span>
+<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0">
+<button type="button" class="sw" id="fallbackSw" role="switch" aria-checked="false" title="备用连接"><i></i></button>
+<span style="font-size:12px;color:#5B6372;line-height:1.6">主连接失败时自动切换到备用，并在群里标注「本条由备用模型生成」</span>
+<button type="button" class="btn" id="fallbackCfg" hidden>配置备用</button>
+</span></div>
+<div id="fallbackBox" hidden style="display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;background:#F7F8FA;border-top:1px solid #F1F2F4">
+<div class="field"><label class="hint">备用接口地址</label><input class="inp mono" id="fb_url" style="width:100%" placeholder="https://…"></div>
+<div class="field"><label class="hint">备用 API Key</label><input class="inp mono" id="fb_key" type="password" style="width:100%" placeholder="可选"></div>
+</div>
+</section>
+<section class="card">
+<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:15px">模型分配</b><span style="font-size:12px;color:#8A919E">不同角色用不同模型：裁决用强的，批量用快的</span></div>
+<div class="mrow"><span><b class="lbl">主分析师</b><div class="hint">裁决、写结论</div></span><select class="inp" id="m_chief" style="width:220px"></select><span style="font-size:12px;color:#5B6372">要读全部发言再裁决，用最强的</span></div>
+<div class="mrow"><span><b class="lbl">维度分析师 × 6</b><div class="hint">资金流、新闻、板块、财报…</div></span><select class="inp" id="m_dim" style="width:220px"></select><span style="font-size:12px;color:#5B6372">各自只看一块数据，快和便宜更重要</span></div>
+<div class="mrow"><span><b class="lbl">看多 · 看空</b><div class="hint">正反方</div></span><select class="inp" id="m_debate" style="width:220px"></select><span style="font-size:12px;color:#5B6372">两边必须用同一个模型，避免一边强一边弱</span></div>
+<div class="mrow"><span><b class="lbl">市场分析师</b><div class="hint">大盘环境</div></span><select class="inp" id="m_market" style="width:220px"></select><span style="font-size:12px;color:#5B6372">规则已算好结论，只负责说人话</span></div>
+<div class="mrow"><span><b class="lbl">每日扫描</b><div class="hint">批量研判 90+ 只</div></span><select class="inp" id="m_scan" style="width:220px"></select><span style="font-size:12px;color:#5B6372">量大，按只计费，建议用最便宜的</span></div>
+</section>
+<section class="card">
+<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:15px">用量和预算</b><span style="font-size:12px;color:#8A919E">超过预算会自动省着用，不会突然停</span></div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;justify-content:space-between;font-size:13px"><span>本月已用</span><b class="mono" id="usageText">—</b></div>
+<div class="bar"><i id="usageBar" style="width:0%"></i></div>
+<span class="hint" id="usageHint">用量需对接账单后显示 · 估算，以服务商账单为准</span>
+</div>
+<div class="row"><span class="lbl">每月预算</span>
+<span style="display:flex;align-items:center;gap:8px"><input class="inp mono" id="budget" style="width:120px" placeholder="300"><span style="color:#5B6372">元</span></span></div>
+<div class="row"><span><span class="lbl">超过 80% 时</span><div class="hint">你主动诊断不受影响</div></span>
+<span class="seg" id="budgetSeg">
+<button type="button" data-b="remind" aria-pressed="false">只提醒</button>
+<button type="button" data-b="watch" aria-pressed="true">扫描只扫自选和持仓</button>
+<button type="button" data-b="pause" aria-pressed="false">暂停扫描</button>
+</span></div>
+</section>
+<section class="card" id="serviceCard">
+<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:15px">股票数据服务</b><span style="font-size:12px;color:#8A919E">个股详情、市场页、日线都从这里取</span></div>
+<div class="banner" id="serviceBanner"></div>
+<div class="row"><span><span class="lbl">服务地址</span><div class="hint">留空就用本机 http://127.0.0.1:8090</div></span>
+<input class="inp mono" id="svc_url" placeholder="http://127.0.0.1:8090" autocomplete="off" style="width:100%;max-width:420px"></div>
+<div id="svcInfo" class="hint"></div>
+<div style="display:flex;gap:8px"><button type="button" class="btn" id="svcTest">测试连接</button><button type="button" class="btn pri" id="svcSave">保存地址</button></div>
+</section>
+<section class="card" id="notifyCard">
+<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:15px">通知</b><span style="font-size:12px;color:#8A919E">到价、判断变化、战绩结算</span></div>
+<div class="banner" id="notifyBanner"></div>
+<div class="grid2">
+<div class="field"><label class="hint">免打扰开始</label><input class="inp" id="nq_from" style="width:100%" placeholder="22:00"></div>
+<div class="field"><label class="hint">免打扰结束</label><input class="inp" id="nq_to" style="width:100%" placeholder="08:00"></div>
+<label class="check span-2"><input id="nq_urgent" type="checkbox"> 免打扰时到价提醒照样弹出</label>
+<div class="field"><label class="hint">折叠窗口（秒）</label><input class="inp" id="n_collapse" type="number" min="0" style="width:100%"></div>
+<label class="check span-2"><input id="n_digest" type="checkbox"> 把普通通知攒成摘要（早 08:35、盘后 15:40）</label>
+<label class="check span-2"><input id="n_enabled" type="checkbox"> 总开关：关掉后只进收件箱</label>
+</div>
+<div style="margin-top:4px;font-size:13px;font-weight:600">渠道</div>
+<div id="notifyChannels"></div>
+<div class="grid2" style="margin-top:8px">
+<div class="field"><label class="hint">新增渠道</label><select class="inp" id="nc_type" style="width:100%"><option value="wecom_webhook">企业微信群机器人</option><option value="bark">Bark（iOS）</option><option value="serverchan">Server酱</option></select></div>
+<div class="field"><label class="hint">名称</label><input class="inp" id="nc_name" style="width:100%" placeholder="例如 手机"></div>
+<div class="field span-2"><label class="hint">地址或密钥</label><input class="inp" id="nc_secret" type="password" style="width:100%" autocomplete="off"></div>
+<label class="check span-2"><input id="nc_relay" type="checkbox"> 电脑关机时也由服务端推到这个渠道</label>
+</div>
+<div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn" id="ncAdd">添加渠道</button><button type="button" class="btn pri" id="notifySave">保存通知设置</button></div>
+<details style="margin-top:8px"><summary style="cursor:pointer;color:#2457D6;font-size:13px;font-weight:600">每一类通知单独开关</summary><div id="notifyTypes" style="margin-top:10px"></div></details>
+</section>
+<section class="card">
+<details open>
+<summary style="cursor:pointer;font-size:15px;font-weight:700">高级 · 写入 config.yaml</summary>
+<form id="settingsForm" style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
+<div class="grid2">
+<div class="field"><label class="hint">模型</label><input class="inp" id="model" style="width:100%" placeholder="deepseek-v4-flash"></div>
+<div class="field"><label class="hint">思考模式</label><select class="inp" id="thinking" style="width:100%"><option value="">默认开启</option><option value="disabled">关闭 thinking</option></select></div>
+<div class="field"><label class="hint">温度 temperature</label><input class="inp" id="temperature" type="number" step="0.1" min="0" max="2" style="width:100%"></div>
+<div class="field"><label class="hint">核采样 top_p</label><input class="inp" id="top_p" type="number" step="0.05" min="0" max="1" style="width:100%"></div>
+<div class="field"><label class="hint">max_tokens</label><input class="inp" id="max_tokens" type="number" min="0" style="width:100%"></div>
+<div class="field"><label class="hint">端口（改后需重启）</label><input class="inp" id="port" type="number" min="1" max="65535" style="width:100%"></div>
+<div class="field"><label class="hint">关闭超时</label><input class="inp" id="shutdown_timeout" style="width:100%" placeholder="60s"></div>
+<div class="field span-2"><label class="hint">数据目录 data_dir</label><input class="inp" id="data_dir" style="width:100%"></div>
+<div class="field span-2"><label class="hint">工作目录 workspace_dir</label><input class="inp" id="workspace_dir" style="width:100%"></div>
+<div class="field"><label class="hint">流式空闲超时</label><input class="inp" id="stream_idle_timeout" style="width:100%" placeholder="10m"></div>
+<div class="field"><label class="hint">TCP 建连超时</label><input class="inp" id="connect_timeout" style="width:100%" placeholder="30s"></div>
+<div class="field"><label class="hint">TLS 握手超时</label><input class="inp" id="tls_handshake_timeout" style="width:100%" placeholder="10s"></div>
+<div class="field"><label class="hint">bash 超时</label><input class="inp" id="bash_timeout" style="width:100%" placeholder="2m"></div>
+<div class="field"><label class="hint">最大上传（MB）</label><input class="inp" id="max_upload_mb" type="number" min="0" style="width:100%"></div>
+<div class="field"><label class="hint">并行工具数</label><input class="inp" id="max_parallel_tool_calls" type="number" min="1" style="width:100%"></div>
+<label class="check span-2"><input id="auto_approve_plan" type="checkbox"> 自动批准计划模式</label>
+<div class="field span-2"><label class="hint">system_prompt</label><textarea id="system_prompt" class="inp" style="width:100%;height:88px;padding:8px 10px;resize:vertical;font-family:ui-monospace,Menlo,monospace"></textarea></div>
+</div>
+<details><summary style="cursor:pointer;color:#2457D6;font-size:13px;font-weight:600">高级：重试策略</summary>
+<div class="grid2" style="margin-top:12px">
+<div class="field"><label class="hint">mode</label><select class="inp" id="retry_mode" style="width:100%"><option value="normal">normal</option><option value="always">always</option></select></div>
+<div class="field"><label class="hint">max_retries</label><input class="inp" id="max_retries" type="number" min="0" style="width:100%"></div>
+<div class="field"><label class="hint">initial_delay</label><input class="inp" id="initial_delay" style="width:100%" placeholder="500ms"></div>
+<div class="field"><label class="hint">max_delay</label><input class="inp" id="max_delay" style="width:100%" placeholder="10s"></div>
+<div class="field"><label class="hint">jitter_ratio</label><input class="inp" id="jitter_ratio" type="number" step="0.01" min="0" style="width:100%"></div>
+<div class="field span-2"><label class="hint">retryable_codes</label><input class="inp" id="retryable_codes" style="width:100%"></div>
+</div></details>
+<div style="display:flex;gap:8px;justify-content:flex-end">
+<button type="button" class="btn" id="reloadBtn">重新加载</button>
+<button type="submit" class="btn pri" id="saveBtn">保存到 config.yaml</button>
+</div>
+</form>
+</details>
+</section>
+</div></div>
+<div id="viewLogs" class="view" style="overflow:hidden;padding:16px 28px 24px;box-sizing:border-box">
+<div style="max-width:1240px;display:flex;flex-direction:column;gap:10px;height:100%;min-height:0">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+<span class="pill" id="logPath">加载中…</span>
+<button type="button" class="btn" id="refreshLogsBtn">刷新</button>
+<button type="button" class="btn" id="copyLogsBtn">复制</button>
+<span id="logMeta" style="margin-left:auto;font-size:12px;color:#8A919E"></span>
+</div>
+<pre class="log-pre empty" id="logText">加载中…</pre>
+</div></div>
+</main>
+<aside id="aside" aria-label="模型状态" style="flex:0 0 340px;width:340px;align-self:stretch;overflow-y:auto;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;font-size:13px">
+<div style="display:flex;flex-direction:column;gap:6px;padding:18px 20px">
+<b style="font-size:16px">模型状态</b>
+<div style="display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;align-items:start;padding:10px 0;border-top:1px solid #F1F2F4"><span id="stDot" style="width:8px;height:8px;margin-top:6px;border-radius:50%;background:#A1A7B2"></span><span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:13px">主连接</b><span id="stMain" style="font-size:12px;color:#5B6372">尚未测试</span></span></div>
+<div style="display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;align-items:start;padding:10px 0;border-top:1px solid #F1F2F4"><span id="stFbDot" style="width:8px;height:8px;margin-top:6px;border-radius:50%;background:#A1A7B2"></span><span style="display:flex;flex-direction:column;gap:2px"><b style="font-size:13px">备用连接</b><span id="stFb" style="font-size:12px;color:#5B6372">未开启</span></span></div>
+<div style="display:flex;flex-direction:column;gap:6px;padding:12px;margin-top:8px;border-radius:10px;background:#F7F8FA">
+<div style="display:flex;justify-content:space-between;font-size:13px"><b>本月用量</b><span class="mono" id="stUsage">—</span></div>
+<div class="bar" style="height:6px"><i id="stBar" style="width:0%"></i></div>
+<span class="hint" id="stUsageHint">预算改完后会按比例估算</span>
+</div>
+<div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:#F7F8FA;font-size:12px;color:#3A4250;line-height:1.7">API Key 只存在这台电脑上，加密保存，不会上传。</div>
+</div>
+</aside>
+</div>
+<footer style="flex:none;height:26px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;padding:0 12px;border-top:1px solid #DDE1E7;background:#FFFFFF;font-size:13px;color:#5B6372;white-space:nowrap;overflow:hidden">
+<div style="display:flex;align-items:center;gap:18px;min-width:0;overflow:hidden"><span style="display:flex;align-items:center;gap:6px"><span id="dot" style="width:7px;height:7px;border-radius:50%;background:#A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display:flex;gap:18px"></span></div>
+<span role="note" style="text-align:center">研究分析，不构成投资建议</span>
+<div style="display:flex;align-items:center;justify-content:flex-end;gap:18px;min-width:0;overflow:hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div>
+</footer>
 </div>
 <div class="toast" id="toast"></div>
 <script>
+
 (function () {
-    const toastEl = document.getElementById('toast');
-    let toastTimer = null;
-    function toast(msg) {
-        toastEl.textContent = msg;
-        toastEl.classList.add('show');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
-    }
-    function showBanner(id, text, kind) {
-        const el = document.getElementById(id);
-        el.textContent = text;
-        el.className = 'banner ' + kind + (text ? ' show' : '');
-    }
-    function val(id) { return document.getElementById(id).value; }
-    function setVal(id, v) { document.getElementById(id).value = v == null ? '' : v; }
-    function checked(id) { return document.getElementById(id).checked; }
-    function setChecked(id, v) { document.getElementById(id).checked = !!v; }
-    function num(id) {
-        const n = Number(val(id));
-        return Number.isFinite(n) ? n : 0;
-    }
-    function tempValue() {
-        return optNum('temperature');
-    }
-    function optNum(id) {
-        const raw = val(id).trim();
-        if (!raw) return null;
-        const n = Number(raw);
-        return Number.isFinite(n) ? n : null;
-    }
+  const $ = (id) => document.getElementById(id);
+  const MONO = "font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace";
+  const API = (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090';
+  const LS = {
+    get(k, d) { try { const v = localStorage.getItem('settings.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('settings.' + k, JSON.stringify(v)); } catch {} }
+  };
+  const PROVIDERS = {
+    openai: { label: 'OpenAI 兼容接口', url: '' },
+    anthropic: { label: 'Anthropic', url: 'https://api.anthropic.com' },
+    deepseek: { label: 'DeepSeek', url: 'https://api.deepseek.com' },
+    qwen: { label: '通义千问', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+    local: { label: '本地模型', url: 'http://127.0.0.1:11434/v1' },
+  };
+  const MODEL_OPTS = ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner', 'gpt-4.1', 'gpt-4o-mini', 'claude-sonnet-4', 'qwen-max', 'qwen-plus'];
+  let cfgSnap = null, saveTimer = null, lastLogText = '', logsTimer = null;
 
-    function fill(cfg) {
-        setVal('api_key', '');
-        document.getElementById('api_key').placeholder = cfg.llm.api_key_set
-            ? '已保存 ' + (cfg.llm.api_key || '••••') + '，留空则不修改'
-            : '粘贴 API Key';
-        document.getElementById('keyHint').textContent = cfg.llm.api_key_set ? '已配置' : '尚未配置';
-        setVal('model', cfg.llm.model);
-        setVal('base_url', cfg.llm.base_url);
-        setVal('thinking', cfg.llm.thinking || '');
-        setVal('temperature', cfg.llm.temperature == null ? '' : cfg.llm.temperature);
-        setVal('top_p', cfg.llm.top_p == null ? '' : cfg.llm.top_p);
-        setVal('max_tokens', cfg.llm.max_tokens || 0);
-        setVal('port', cfg.server.port || 8081);
-        setVal('shutdown_timeout', cfg.server.shutdown_timeout);
-        setVal('data_dir', cfg.server.data_dir);
-        setVal('workspace_dir', cfg.server.workspace_dir || '');
-        setVal('stream_idle_timeout', cfg.llm.stream_idle_timeout);
-        setVal('connect_timeout', cfg.llm.connect_timeout);
-        setVal('tls_handshake_timeout', cfg.llm.tls_handshake_timeout);
-        setVal('bash_timeout', cfg.tools.bash_timeout);
-        const uploadBytes = cfg.tools.max_upload_bytes || 0;
-        setVal('max_upload_mb', uploadBytes ? Math.round(uploadBytes / (1024 * 1024)) : 64);
-        setVal('max_parallel_tool_calls', cfg.tools.max_parallel_tool_calls || 10);
-        setChecked('auto_approve_plan', cfg.agent.auto_approve_plan);
-        setVal('system_prompt', cfg.agent.system_prompt);
-        setVal('retry_mode', cfg.llm.retry.mode || 'normal');
-        setVal('max_retries', cfg.llm.retry.max_retries || 0);
-        setVal('initial_delay', cfg.llm.retry.initial_delay);
-        setVal('max_delay', cfg.llm.retry.max_delay);
-        setVal('jitter_ratio', cfg.llm.retry.jitter_ratio || 0);
-        setVal('retryable_codes', (cfg.llm.retry.retryable_codes || []).join(', '));
-    }
+  function toast(msg) {
+    const el = $('toast'); el.textContent = msg; el.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+  function banner(id, text, kind) {
+    const el = $(id); if (!el) return;
+    el.textContent = text || '';
+    el.className = 'banner' + (text ? ' show ' + (kind || '') : '');
+  }
+  function val(id) { return $(id).value; }
+  function setVal(id, v) { $(id).value = v == null ? '' : v; }
+  function checked(id) { return $(id).checked; }
+  function setChecked(id, v) { $(id).checked = !!v; }
+  function num(id) { const n = Number(val(id)); return Number.isFinite(n) ? n : 0; }
+  function optNum(id) { const raw = val(id).trim(); if (!raw) return null; const n = Number(raw); return Number.isFinite(n) ? n : null; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
-    function collect() {
-        const codes = val('retryable_codes').split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
-        return {
-            server: {
-                port: num('port'),
-                data_dir: val('data_dir').trim(),
-                workspace_dir: val('workspace_dir').trim(),
-                shutdown_timeout: val('shutdown_timeout').trim(),
-            },
-            llm: {
-                api_key: val('api_key'),
-                base_url: val('base_url').trim(),
-                model: val('model').trim(),
-                stream_idle_timeout: val('stream_idle_timeout').trim(),
-                connect_timeout: val('connect_timeout').trim(),
-                tls_handshake_timeout: val('tls_handshake_timeout').trim(),
-                thinking: val('thinking'),
-                max_tokens: num('max_tokens'),
-                temperature: tempValue(),
-                top_p: optNum('top_p'),
-                retry: {
-                    mode: val('retry_mode'),
-                    max_retries: num('max_retries'),
-                    initial_delay: val('initial_delay').trim(),
-                    max_delay: val('max_delay').trim(),
-                    jitter_ratio: Number(val('jitter_ratio')) || 0,
-                    retryable_codes: codes,
-                },
-            },
-            tools: {
-                bash_timeout: val('bash_timeout').trim(),
-                max_upload_bytes: Math.max(0, num('max_upload_mb')) * 1024 * 1024,
-                max_parallel_tool_calls: num('max_parallel_tool_calls'),
-            },
-            agent: {
-                auto_approve_plan: checked('auto_approve_plan'),
-                system_prompt: val('system_prompt'),
-            },
-        };
-    }
+  function detectProvider(url) {
+    const u = String(url || '').toLowerCase();
+    if (!u) return 'openai';
+    if (u.includes('deepseek')) return 'deepseek';
+    if (u.includes('anthropic')) return 'anthropic';
+    if (u.includes('dashscope') || u.includes('aliyun') || u.includes('qwen')) return 'qwen';
+    if (u.includes('127.0.0.1') || u.includes('localhost') || u.includes('0.0.0.0')) return 'local';
+    return 'openai';
+  }
+  function setProvider(p, fillUrl) {
+    document.querySelectorAll('#providerSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === p)));
+    if (fillUrl && PROVIDERS[p] && PROVIDERS[p].url) setVal('base_url', PROVIDERS[p].url);
+  }
+  $('providerSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-p]'); if (!b) return;
+    setProvider(b.dataset.p, true);
+    scheduleSave();
+  });
 
-    async function load() {
-        const res = await fetch('/config');
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || res.statusText);
-        document.getElementById('configPath').replaceChildren();
-        const chip = document.getElementById('configPath');
-        const icon = document.createElement('i');
-        icon.className = 'fas fa-file-code';
-        chip.appendChild(icon);
-        chip.appendChild(document.createTextNode(' ' + (data.path || '')));
-        if (data.envOverrides && data.envOverrides.length) {
-            showBanner('envBanner', data.envOverrides.join('；'), 'warn');
-        } else {
-            showBanner('envBanner', '', 'warn');
-        }
-        fill(data.config);
-        return data;
-    }
-
-    document.getElementById('brandBtn').addEventListener('click', () => { window.location.href = '/?new=' + Date.now(); });
-    document.querySelectorAll('.quick-item[data-nav]').forEach((el) => {
-        el.addEventListener('click', () => { window.location.href = el.dataset.nav; });
+  function fillModelSelects(current) {
+    const roles = ['m_chief', 'm_dim', 'm_debate', 'm_market', 'm_scan'];
+    const saved = LS.get('models', {});
+    roles.forEach((id) => {
+      const el = $(id);
+      const prefer = saved[id] || current || MODEL_OPTS[1];
+      const opts = Array.from(new Set([prefer].concat(MODEL_OPTS).concat(current ? [current] : [])));
+      el.innerHTML = opts.map((m) => '<option value="' + esc(m) + '">' + esc(m) + '</option>').join('');
+      el.value = prefer;
     });
+  }
+  function persistModels() {
+    const models = {};
+    ['m_chief', 'm_dim', 'm_debate', 'm_market', 'm_scan'].forEach((id) => { models[id] = val(id); });
+    LS.set('models', models);
+    // 主分析师模型同步到 config 的 llm.model
+    if (cfgSnap && models.m_chief && models.m_chief !== cfgSnap.llm.model) {
+      setVal('model', models.m_chief);
+      scheduleSave();
+    }
+  }
+  ['m_chief', 'm_dim', 'm_debate', 'm_market', 'm_scan'].forEach((id) => $(id).addEventListener('change', persistModels));
 
-    let logsTimer = null;
-    let lastLogText = '';
-    function setLogPath(path) {
-        const chip = document.getElementById('logPath');
-        chip.replaceChildren();
-        const icon = document.createElement('i');
-        icon.className = 'fas fa-file-alt';
-        chip.appendChild(icon);
-        chip.appendChild(document.createTextNode(' ' + (path || '未关联日志文件')));
-        chip.title = path || '';
-    }
-    function formatBytes(n) {
-        if (!n) return '0 B';
-        if (n < 1024) return n + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-        return (n / (1024 * 1024)).toFixed(1) + ' MB';
-    }
-    async function loadLogs() {
-        const pre = document.getElementById('logText');
-        const meta = document.getElementById('logMeta');
+  function renderBudget() {
+    const budget = Number(LS.get('budget', 300)) || 0;
+    const used = Number(LS.get('used', 0)) || 0;
+    const mode = LS.get('budgetMode', 'watch');
+    setVal('budget', budget || '');
+    document.querySelectorAll('#budgetSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.b === mode)));
+    const pct = budget > 0 ? Math.min(100, Math.round(used / budget * 100)) : 0;
+    $('usageText').textContent = budget ? ('¥' + used + ' / ¥' + budget) : '—';
+    $('usageBar').style.width = pct + '%';
+    $('stUsage').textContent = budget ? (pct + '%') : '—';
+    $('stBar').style.width = pct + '%';
+    $('stUsageHint').textContent = budget ? ('按现在的速度，月底约用到 ' + Math.min(100, Math.round(pct * 1.1)) + '%') : '预算改完后会按比例估算';
+    const fb = LS.get('fallback', { on: false, url: '', key: '' });
+    $('fallbackSw').classList.toggle('on', !!fb.on);
+    $('fallbackSw').setAttribute('aria-checked', String(!!fb.on));
+    $('fallbackCfg').hidden = !fb.on;
+    $('fallbackBox').hidden = !fb.on;
+    setVal('fb_url', fb.url || '');
+    setVal('fb_key', fb.key || '');
+    $('stFbDot').style.background = fb.on ? '#2E8B57' : '#A1A7B2';
+    $('stFb').textContent = fb.on ? (fb.url ? '已配置' : '已开启，待填地址') : '未开启';
+  }
+  $('budgetSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-b]'); if (!b) return;
+    LS.set('budgetMode', b.dataset.b); renderBudget(); toast('已保存预算策略');
+  });
+  $('budget').addEventListener('change', () => { LS.set('budget', Number(val('budget')) || 0); renderBudget(); toast('已保存预算'); });
+  $('fallbackSw').addEventListener('click', () => {
+    const fb = LS.get('fallback', { on: false, url: '', key: '' });
+    fb.on = !fb.on; LS.set('fallback', fb); renderBudget();
+  });
+  $('fallbackCfg').addEventListener('click', () => { $('fallbackBox').hidden = !$('fallbackBox').hidden; });
+  ['fb_url', 'fb_key'].forEach((id) => $(id).addEventListener('change', () => {
+    const fb = LS.get('fallback', { on: true, url: '', key: '' });
+    fb.url = val('fb_url').trim(); fb.key = val('fb_key'); LS.set('fallback', fb); renderBudget(); toast('备用连接已保存');
+  }));
+
+  function fill(cfg) {
+    cfgSnap = cfg;
+    setVal('api_key', '');
+    $('api_key').placeholder = cfg.llm.api_key_set
+      ? '已保存 ' + (cfg.llm.api_key || '••••') + '，留空则不修改'
+      : '粘贴 API Key';
+    setVal('model', cfg.llm.model);
+    setVal('base_url', cfg.llm.base_url);
+    setProvider(detectProvider(cfg.llm.base_url), false);
+    setVal('thinking', cfg.llm.thinking || '');
+    setVal('temperature', cfg.llm.temperature == null ? '' : cfg.llm.temperature);
+    setVal('top_p', cfg.llm.top_p == null ? '' : cfg.llm.top_p);
+    setVal('max_tokens', cfg.llm.max_tokens || 0);
+    setVal('port', cfg.server.port || 8081);
+    setVal('shutdown_timeout', cfg.server.shutdown_timeout);
+    setVal('data_dir', cfg.server.data_dir);
+    setVal('workspace_dir', cfg.server.workspace_dir || '');
+    setVal('stream_idle_timeout', cfg.llm.stream_idle_timeout);
+    setVal('connect_timeout', cfg.llm.connect_timeout);
+    setVal('tls_handshake_timeout', cfg.llm.tls_handshake_timeout);
+    setVal('bash_timeout', cfg.tools.bash_timeout);
+    const uploadBytes = cfg.tools.max_upload_bytes || 0;
+    setVal('max_upload_mb', uploadBytes ? Math.round(uploadBytes / (1024 * 1024)) : 64);
+    setVal('max_parallel_tool_calls', cfg.tools.max_parallel_tool_calls || 10);
+    setChecked('auto_approve_plan', cfg.agent.auto_approve_plan);
+    setVal('system_prompt', cfg.agent.system_prompt);
+    setVal('retry_mode', cfg.llm.retry.mode || 'normal');
+    setVal('max_retries', cfg.llm.retry.max_retries || 0);
+    setVal('initial_delay', cfg.llm.retry.initial_delay);
+    setVal('max_delay', cfg.llm.retry.max_delay);
+    setVal('jitter_ratio', cfg.llm.retry.jitter_ratio || 0);
+    setVal('retryable_codes', (cfg.llm.retry.retryable_codes || []).join(', '));
+    fillModelSelects(cfg.llm.model);
+    $('stDot').style.background = cfg.llm.api_key_set ? '#2E8B57' : '#A1A7B2';
+    $('stMain').textContent = cfg.llm.api_key_set
+      ? ('已配置 · ' + (cfg.llm.model || '未选模型') + (cfg.llm.base_url ? ' · ' + cfg.llm.base_url : ''))
+      : '尚未配置 API Key';
+  }
+
+  function collect() {
+    const codes = val('retryable_codes').split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+    return {
+      server: {
+        port: num('port'),
+        data_dir: val('data_dir').trim(),
+        workspace_dir: val('workspace_dir').trim(),
+        shutdown_timeout: val('shutdown_timeout').trim(),
+      },
+      llm: {
+        api_key: val('api_key'),
+        base_url: val('base_url').trim(),
+        model: val('model').trim() || val('m_chief').trim(),
+        stream_idle_timeout: val('stream_idle_timeout').trim(),
+        connect_timeout: val('connect_timeout').trim(),
+        tls_handshake_timeout: val('tls_handshake_timeout').trim(),
+        thinking: val('thinking'),
+        max_tokens: num('max_tokens'),
+        temperature: optNum('temperature'),
+        top_p: optNum('top_p'),
+        retry: {
+          mode: val('retry_mode'),
+          max_retries: num('max_retries'),
+          initial_delay: val('initial_delay').trim(),
+          max_delay: val('max_delay').trim(),
+          jitter_ratio: Number(val('jitter_ratio')) || 0,
+          retryable_codes: codes,
+        },
+      },
+      tools: {
+        bash_timeout: val('bash_timeout').trim(),
+        max_upload_bytes: Math.max(0, num('max_upload_mb')) * 1024 * 1024,
+        max_parallel_tool_calls: num('max_parallel_tool_calls'),
+      },
+      agent: {
+        auto_approve_plan: checked('auto_approve_plan'),
+        system_prompt: val('system_prompt'),
+      },
+    };
+  }
+
+  async function load() {
+    const res = await fetch('/config');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    $('configPath').textContent = data.path || 'config.yaml';
+    $('configPath').title = data.path || '';
+    if (data.envOverrides && data.envOverrides.length) banner('envBanner', data.envOverrides.join('；'), 'warn');
+    else banner('envBanner', '', 'warn');
+    fill(data.config);
+    return data;
+  }
+
+  async function save(quiet) {
+    const res = await fetch('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(collect()) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    fill(data.config);
+    if (data.restartNeeded) banner('saveBanner', data.restartHint || '已保存，部分项需重启后生效。', 'warn');
+    else if (!quiet) banner('saveBanner', '已写入 config.yaml，新对话会使用新设置。', 'ok');
+    if (!quiet) toast('已保存');
+    return data;
+  }
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { save(true).then(() => toast('已自动保存')).catch((e) => banner('saveBanner', e.message, 'err')); }, 800);
+  }
+  ['base_url', 'api_key', 'model'].forEach((id) => {
+    $(id).addEventListener('change', scheduleSave);
+    $(id).addEventListener('blur', scheduleSave);
+  });
+  $('keyClear').addEventListener('click', () => { $('api_key').value = ''; $('api_key').focus(); $('api_key').placeholder = '粘贴新的 API Key'; });
+
+  $('testConn').addEventListener('click', async () => {
+    $('testChip').innerHTML = '';
+    $('testMeta').textContent = '正在测试…';
+    const t0 = Date.now();
+    try {
+      // 先确保配置已写入，再用股票服务探测不合适；用 /config 可读性 + api_key 是否配置作轻量检查，并探测 base_url 可达性
+      await save(true);
+      const base = val('base_url').trim().replace(/\/$/, '');
+      let ok = false, detail = '';
+      if (base) {
         try {
-            const res = await fetch('/logs');
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || res.statusText);
-            setLogPath(data.path || '');
-            lastLogText = data.text || '';
-            if (data.available && lastLogText) {
-                pre.textContent = lastLogText;
-                pre.classList.remove('empty');
-                const bits = [formatBytes(data.size || 0)];
-                if (data.truncated) bits.push('仅显示末尾');
-                if (data.mtime) {
-                    const d = new Date(data.mtime);
-                    if (!Number.isNaN(d.getTime())) bits.push(d.toLocaleString());
-                }
-                meta.textContent = bits.join(' · ');
-                pre.scrollTop = pre.scrollHeight;
-            } else {
-                pre.textContent = data.hint || '暂无日志';
-                pre.classList.add('empty');
-                meta.textContent = '';
-                lastLogText = '';
-            }
-        } catch (err) {
-            pre.textContent = '无法读取日志: ' + (err.message || err);
-            pre.classList.add('empty');
-            meta.textContent = '';
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 8000);
+          const r = await fetch(base + '/models', { signal: ctrl.signal }).catch(() => fetch(base, { signal: ctrl.signal }));
+          clearTimeout(timer);
+          ok = !!r;
+          detail = r ? ('HTTP ' + r.status) : '无响应';
+        } catch (e) {
+          detail = e.name === 'AbortError' ? '超时' : (e.message || '失败');
         }
+      } else {
+        ok = !!(cfgSnap && cfgSnap.llm.api_key_set);
+        detail = ok ? '已配置密钥（未填 Base URL）' : '缺少 Base URL / Key';
+      }
+      const ms = Date.now() - t0;
+      const now = new Date();
+      const stamp = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' +
+        String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      if (ok) {
+        $('testChip').innerHTML = '<span class="ok">✓ 连接正常</span>';
+        $('testMeta').textContent = '延迟 ' + ms + ' ms · ' + stamp;
+        $('stDot').style.background = '#2E8B57';
+        $('stMain').textContent = '正常 · 延迟 ' + ms + ' ms · ' + stamp + ' 测试';
+      } else {
+        $('testChip').innerHTML = '<span class="bad">连接失败</span>';
+        $('testMeta').textContent = detail + ' · ' + ms + ' ms';
+        $('stDot').style.background = '#D9483F';
+        $('stMain').textContent = '失败 · ' + detail;
+      }
+    } catch (e) {
+      $('testChip').innerHTML = '<span class="bad">连接失败</span>';
+      $('testMeta').textContent = e.message || String(e);
     }
-    function showView(name) {
-        const logs = name === 'logs';
-        document.getElementById('viewSettings').classList.toggle('active', !logs);
-        document.getElementById('viewLogs').classList.toggle('active', logs);
-        document.getElementById('navSettings').classList.toggle('active', !logs);
-        document.getElementById('navLogs').classList.toggle('active', logs);
-        document.getElementById('content').classList.toggle('logs-mode', logs);
-        const hash = logs ? '#logs' : '';
-        if (location.hash !== hash) history.replaceState(null, '', location.pathname + hash);
-        clearInterval(logsTimer);
-        logsTimer = null;
-        if (logs) {
-            loadLogs();
-            logsTimer = setInterval(loadLogs, 3000);
-        }
+  });
+
+  $('reloadBtn').addEventListener('click', () => load().then(() => toast('已重新加载')).catch((e) => toast('加载失败: ' + e.message)));
+  $('settingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('saveBtn').disabled = true;
+    try { await save(false); } catch (err) { banner('saveBanner', String(err.message || err), 'err'); toast('保存失败'); }
+    finally { $('saveBtn').disabled = false; }
+  });
+
+  // views
+  function showView(name) {
+    const logs = name === 'logs';
+    $('viewSettings').classList.toggle('on', !logs);
+    $('viewLogs').classList.toggle('on', logs);
+    $('tabSettings').setAttribute('aria-pressed', String(!logs));
+    $('tabLogs').setAttribute('aria-pressed', String(logs));
+    const hash = logs ? '#logs' : '';
+    if (location.hash !== hash) history.replaceState(null, '', location.pathname + hash);
+    clearInterval(logsTimer); logsTimer = null;
+    if (logs) { loadLogs(); logsTimer = setInterval(loadLogs, 3000); }
+  }
+  $('tabSettings').addEventListener('click', () => showView('settings'));
+  $('tabLogs').addEventListener('click', () => showView('logs'));
+  window.addEventListener('hashchange', () => showView(location.hash === '#logs' ? 'logs' : 'settings'));
+
+  async function loadLogs() {
+    const pre = $('logText'), meta = $('logMeta');
+    try {
+      const res = await fetch('/logs');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      $('logPath').textContent = data.path || '未关联日志文件';
+      lastLogText = data.text || '';
+      if (data.available && lastLogText) {
+        pre.textContent = lastLogText; pre.classList.remove('empty');
+        const bits = [];
+        if (data.size) bits.push((data.size / 1024).toFixed(1) + ' KB');
+        if (data.truncated) bits.push('仅显示末尾');
+        meta.textContent = bits.join(' · ');
+        pre.scrollTop = pre.scrollHeight;
+      } else {
+        pre.textContent = data.hint || '暂无日志'; pre.classList.add('empty'); meta.textContent = ''; lastLogText = '';
+      }
+    } catch (err) {
+      pre.textContent = '无法读取日志: ' + (err.message || err); pre.classList.add('empty');
     }
-    document.getElementById('navSettings').addEventListener('click', () => showView('settings'));
-    document.getElementById('navLogs').addEventListener('click', () => showView('logs'));
-    document.getElementById('refreshLogsBtn').addEventListener('click', () => {
-        loadLogs().then(() => toast('已刷新')).catch(() => {});
-    });
-    document.getElementById('copyLogsBtn').addEventListener('click', async () => {
-        const text = lastLogText || document.getElementById('logText').textContent || '';
-        if (!text) { toast('没有可复制的内容'); return; }
-        try {
-            await navigator.clipboard.writeText(text);
-            toast('已复制');
-        } catch {
-            toast('复制失败');
-        }
-    });
-    window.addEventListener('hashchange', () => {
-        showView(location.hash === '#logs' ? 'logs' : 'settings');
-    });
+  }
+  $('refreshLogsBtn').addEventListener('click', () => loadLogs().then(() => toast('已刷新')));
+  $('copyLogsBtn').addEventListener('click', async () => {
+    const text = lastLogText || $('logText').textContent || '';
+    if (!text) { toast('没有可复制的内容'); return; }
+    try { await navigator.clipboard.writeText(text); toast('已复制'); } catch { toast('复制失败'); }
+  });
 
-    document.getElementById('reloadBtn').addEventListener('click', () => {
-        load().then(() => toast('已重新加载')).catch((err) => toast('加载失败: ' + err.message));
-    });
-    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('saveBtn');
-        btn.disabled = true;
-        try {
-            const res = await fetch('/config', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(collect()),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || res.statusText);
-            fill(data.config);
-            if (data.restartNeeded) {
-                showBanner('saveBanner', data.restartHint || '已保存，部分项需重启后生效。', 'warn');
-            } else {
-                showBanner('saveBanner', '已写入 config.yaml，新对话会使用新设置。', 'ok');
-            }
-            toast('已保存');
-        } catch (err) {
-            showBanner('saveBanner', String(err.message || err), 'err');
-            toast('保存失败');
-        } finally {
-            btn.disabled = false;
-        }
-    });
+  // chrome clock + indexes
+  function tickClock() {
+    const d = new Date(), t = d.getHours() * 60 + d.getMinutes(), wk = d.getDay() > 0 && d.getDay() < 6;
+    const live = wk && ((t >= 570 && t <= 690) || (t >= 780 && t <= 900));
+    const clock = [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+    $('session').innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:' + (live ? '#2E8B57' : '#A1A7B2') + '"></span>' +
+      (live ? '交易中' : wk ? '已休市' : '休市日') + ' · 行情 <span style="' + MONO + '">' + clock + '</span>';
+  }
+  async function loadIndexes() {
+    try {
+      const j = await (await fetch(API.replace(/\/$/, '') + '/api/v1/market/summary')).json();
+      const want = ['上证', '深成', '创业板'];
+      const rows = j.indexes || [];
+      const pick = want.map((w) => rows.find((r) => String(r.name).indexOf(w) >= 0)).filter(Boolean);
+      $('footIndexes').innerHTML = (pick.length ? pick : rows.slice(0, 3)).map((r) => {
+        const pct = r.pct, color = pct > 0 ? '#B42318' : pct < 0 ? '#1E6B44' : '#5B6372';
+        const sign = pct > 0 ? '+' : pct < 0 ? '−' : '';
+        return '<span>' + esc(r.name) + ' <span style="' + MONO + ';color:' + color + '">' + Number(r.close).toFixed(2) + ' ' + (pct == null ? '' : sign + Math.abs(pct).toFixed(2) + '%') + '</span></span>';
+      }).join('');
+      $('dot').style.background = '#2E8B57';
+      $('status').textContent = j.generated_at ? ('数据时间 ' + j.generated_at) : '已连接';
+    } catch (e) {
+      $('dot').style.background = '#D9483F';
+      $('status').textContent = '没有连上行情服务';
+    }
+  }
+  setInterval(tickClock, 1000); tickClock();
+  loadIndexes(); setInterval(() => { if (!document.hidden) loadIndexes(); }, 60000);
 
-    load().catch((err) => {
-        showBanner('saveBanner', '无法读取配置: ' + err.message, 'err');
-    });
-    showView(location.hash === '#logs' ? 'logs' : 'settings');
+  renderBudget();
+  load().catch((err) => banner('saveBanner', '无法读取配置: ' + err.message, 'err'));
+  showView(location.hash === '#logs' ? 'logs' : 'settings');
 })();
 
 (function () {
-    const q = (id) => document.getElementById(id);
-    const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const TYPE_NAME = { 'judgment.changed': '判断变了', 'price.alert.fired': '到价提醒', 'price.move': '涨跌异动', 'market.brief': '市场简报', 'task.failed': '定时任务出错',
-        'task.completed': '定时任务回执', 'digest.summary': '摘要', 'limit.hit': '涨跌停', 'price.extreme': '新高新低', 'flow.streak': '资金连续流出',
-        'announcement.published': '公告', 'news.item': '新闻', 'calendar.upcoming': '日历提醒', 'outcome.settled': '战绩结算',
-        'reason.status_changed': '买入理由变化', 'wish.condition_met': '想买条件到了' };
-    const CH_NAME = { desktop: '桌面通知', wecom_webhook: '企业微信', bark: 'Bark', serverchan: 'Server酱' };
-    function banner(text, kind) { const b = q('notifyBanner'); b.textContent = text || ''; b.className = 'banner' + (text ? ' show ' + (kind || '') : ''); }
-    async function call(method, path, body) {
-        const res = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json.error || ('请求失败 ' + res.status));
-        return json;
-    }
-    let types = {};
-    function render(s) {
-        q('nq_from').value = s.quiet_hours.from || ''; q('nq_to').value = s.quiet_hours.to || '';
-        q('nq_urgent').checked = !!s.quiet_hours.urgent; q('n_collapse').value = s.collapse_s;
-        q('n_digest').checked = !!(s.digest && s.digest.Enabled); q('n_enabled').checked = !!s.enabled;
-        q('notifyChannels').innerHTML = s.channels.map((c) => '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #eef1f6;font-size:13px">' +
-            '<label class="check" style="margin:0"><input type="checkbox" data-ch="' + esc(c.channel_id) + '" ' + (c.enabled ? 'checked' : '') + ' /></label>' +
-            '<span style="font-weight:600">' + esc(c.name) + '</span><span style="color:#8a94a6">' + esc(CH_NAME[c.type] || c.type) + (c.has_secret ? ' · 已配置' : '') + (c.relay ? ' · 关机也推' : '') + '</span>' +
-            (c.type === 'desktop' ? '' : '<button type="button" class="btn btn-ghost" style="margin-left:auto;padding:4px 10px" data-test="' + esc(c.channel_id) + '">发测试消息</button><button type="button" class="btn btn-ghost" style="padding:4px 10px" data-del="' + esc(c.channel_id) + '">删除</button>') + '</div>').join('');
-        types = {};
-        s.types.forEach((t) => { types[t.type] = t; });
-        q('notifyTypes').innerHTML = s.types.map((t) => '<label class="check" style="display:flex;gap:8px;margin:4px 0"><input type="checkbox" data-type="' + esc(t.type) + '" ' +
-            ((t.setting && t.setting.enabled === false) ? '' : 'checked') + ' /> ' + esc(TYPE_NAME[t.type] || t.type) + ' <span class="hint">' + esc(t.severity === 'urgent' ? '紧急' : t.severity === 'normal' ? '普通' : '只进收件箱') + '</span></label>').join('');
-    }
-    async function load() { try { render(await call('GET', '/notify/settings')); } catch (e) { banner('通知设置读不出来：' + e.message, 'err'); } }
-    q('notifySave').addEventListener('click', async () => {
-        const typesPatch = {};
-        document.querySelectorAll('#notifyTypes input[data-type]').forEach((el) => { typesPatch[el.dataset.type] = { enabled: el.checked }; });
-        try {
-            for (const el of document.querySelectorAll('#notifyChannels input[data-ch]')) {
-                const ch = (await call('GET', '/notify/settings')).channels.find((c) => c.channel_id === el.dataset.ch);
-                if (ch && ch.enabled !== el.checked) await call('PUT', '/notify/channels/' + encodeURIComponent(ch.channel_id), { type: ch.type, name: ch.name, enabled: el.checked, min_severity: ch.min_severity, config: ch.config, relay: ch.relay, quiet_hours: ch.quiet_hours });
-            }
-            render(await call('PUT', '/notify/settings', { enabled: q('n_enabled').checked, quiet_hours: { from: q('nq_from').value.trim(), to: q('nq_to').value.trim(), urgent: q('nq_urgent').checked },
-                collapse_s: Number(q('n_collapse').value || 0), digest: { Enabled: q('n_digest').checked }, types: typesPatch }));
-            banner('通知设置已保存', 'ok');
-        } catch (e) { banner(e.message, 'err'); }
-    });
-    q('ncAdd').addEventListener('click', async () => {
-        const type = q('nc_type').value, secret = q('nc_secret').value.trim();
-        if (!secret) { banner('先填地址或密钥', 'err'); return; }
-        const id = type.split('_')[0] + '-' + Date.now().toString(36);
-        try {
-            await call('PUT', '/notify/channels/' + id, { type, name: q('nc_name').value.trim() || CH_NAME[type], enabled: true, min_severity: 'normal', secret, relay: q('nc_relay').checked });
-            q('nc_secret').value = ''; q('nc_name').value = ''; q('nc_relay').checked = false;
-            await load(); banner('渠道已添加，可以点「发测试消息」确认', 'ok');
-        } catch (e) { banner(e.message, 'err'); }
-    });
-    q('notifyChannels').addEventListener('click', async (ev) => {
-        const t = ev.target.closest('button'); if (!t) return;
-        try {
-            if (t.dataset.test) { await call('POST', '/notify/channels/' + encodeURIComponent(t.dataset.test) + '/test'); banner('测试消息已发出', 'ok'); }
-            if (t.dataset.del && confirm('删除这个渠道？')) { await call('DELETE', '/notify/channels/' + encodeURIComponent(t.dataset.del)); await load(); }
-        } catch (e) { banner('没发出去：' + e.message, 'err'); }
-    });
-    // ---- 股票数据服务地址
-    const SVC_SRC = { saved: '已保存的地址', env: '环境变量 STOCK_API_BASE', default: '默认（本机）' };
-    function svcBanner(text, kind) { const b = q('serviceBanner'); b.textContent = text || ''; b.className = 'banner' + (text ? ' show ' + (kind || '') : ''); }
-    function svcRender(v) {
-        q('svc_url').value = v.base_url || '';
-        q('svcInfo').textContent = '现在在用：' + v.effective + '（' + (SVC_SRC[v.source] || v.source) + '）。页面要刷新一下才会换到新地址。';
-    }
-    async function svcLoad() { try { svcRender(await call('GET', '/api/v1/settings/service')); } catch (e) { svcBanner('读不出来：' + e.message, 'err'); } }
-    q('svcSave').addEventListener('click', async () => {
-        try { svcRender(await call('PUT', '/api/v1/settings/service', { base_url: q('svc_url').value })); svcBanner('已保存。分析师和定时任务马上用新地址；打开着的页面刷新一下。', 'ok'); }
-        catch (e) { svcBanner(e.message, 'err'); }
-    });
-    q('svcTest').addEventListener('click', async () => {
-        svcBanner('正在连接…');
-        try {
-            const r = await call('POST', '/api/v1/settings/service/test', { base_url: q('svc_url').value });
-            if (r.ok) svcBanner('连得上：' + r.base + '，' + r.ms + ' 毫秒。' + (r.has_quotes === false ? '这个服务没有实时行情接口，价格会改从行情源直接取。' : '实时价格也从它取。'), 'ok');
-            else svcBanner(r.base + ' 连不上：' + (r.error || '没有回应'), 'err');
-        } catch (e) { svcBanner(e.message, 'err'); }
-    });
-    svcLoad();
-    load();
+  const q = (id) => document.getElementById(id);
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const TYPE_NAME = { 'judgment.changed': '判断变了', 'price.alert.fired': '到价提醒', 'price.move': '涨跌异动', 'market.brief': '市场简报', 'task.failed': '定时任务出错',
+    'task.completed': '定时任务回执', 'digest.summary': '摘要', 'limit.hit': '涨跌停', 'price.extreme': '新高新低', 'flow.streak': '资金连续流出',
+    'announcement.published': '公告', 'news.item': '新闻', 'calendar.upcoming': '日历提醒', 'outcome.settled': '战绩结算',
+    'reason.status_changed': '买入理由变化', 'wish.condition_met': '想买条件到了' };
+  const CH_NAME = { desktop: '桌面通知', wecom_webhook: '企业微信', bark: 'Bark', serverchan: 'Server酱' };
+  function banner(text, kind) { const b = q('notifyBanner'); b.textContent = text || ''; b.className = 'banner' + (text ? ' show ' + (kind || '') : ''); }
+  async function call(method, path, body) {
+    const res = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || ('请求失败 ' + res.status));
+    return json;
+  }
+  function render(s) {
+    q('nq_from').value = s.quiet_hours.from || ''; q('nq_to').value = s.quiet_hours.to || '';
+    q('nq_urgent').checked = !!s.quiet_hours.urgent; q('n_collapse').value = s.collapse_s;
+    q('n_digest').checked = !!(s.digest && s.digest.Enabled); q('n_enabled').checked = !!s.enabled;
+    q('notifyChannels').innerHTML = s.channels.map((c) => '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #F1F2F4;font-size:13px">' +
+      '<label class="check" style="margin:0"><input type="checkbox" data-ch="' + esc(c.channel_id) + '" ' + (c.enabled ? 'checked' : '') + ' /></label>' +
+      '<span style="font-weight:600">' + esc(c.name) + '</span><span style="color:#8A919E">' + esc(CH_NAME[c.type] || c.type) + (c.has_secret ? ' · 已配置' : '') + (c.relay ? ' · 关机也推' : '') + '</span>' +
+      (c.type === 'desktop' ? '' : '<button type="button" class="btn" style="margin-left:auto" data-test="' + esc(c.channel_id) + '">发测试消息</button><button type="button" class="btn" data-del="' + esc(c.channel_id) + '">删除</button>') + '</div>').join('');
+    q('notifyTypes').innerHTML = s.types.map((t) => '<label class="check" style="display:flex;gap:8px;margin:4px 0"><input type="checkbox" data-type="' + esc(t.type) + '" ' +
+      ((t.setting && t.setting.enabled === false) ? '' : 'checked') + ' /> ' + esc(TYPE_NAME[t.type] || t.type) + ' <span class="hint">' + esc(t.severity === 'urgent' ? '紧急' : t.severity === 'normal' ? '普通' : '只进收件箱') + '</span></label>').join('');
+  }
+  async function load() { try { render(await call('GET', '/notify/settings')); } catch (e) { banner('通知设置读不出来：' + e.message, 'err'); } }
+  q('notifySave').addEventListener('click', async () => {
+    const typesPatch = {};
+    document.querySelectorAll('#notifyTypes input[data-type]').forEach((el) => { typesPatch[el.dataset.type] = { enabled: el.checked }; });
+    try {
+      for (const el of document.querySelectorAll('#notifyChannels input[data-ch]')) {
+        const ch = (await call('GET', '/notify/settings')).channels.find((c) => c.channel_id === el.dataset.ch);
+        if (ch && ch.enabled !== el.checked) await call('PUT', '/notify/channels/' + encodeURIComponent(ch.channel_id), { type: ch.type, name: ch.name, enabled: el.checked, min_severity: ch.min_severity, config: ch.config, relay: ch.relay, quiet_hours: ch.quiet_hours });
+      }
+      render(await call('PUT', '/notify/settings', { enabled: q('n_enabled').checked, quiet_hours: { from: q('nq_from').value.trim(), to: q('nq_to').value.trim(), urgent: q('nq_urgent').checked },
+        collapse_s: Number(q('n_collapse').value || 0), digest: { Enabled: q('n_digest').checked }, types: typesPatch }));
+      banner('通知设置已保存', 'ok');
+    } catch (e) { banner(e.message, 'err'); }
+  });
+  q('ncAdd').addEventListener('click', async () => {
+    const type = q('nc_type').value, secret = q('nc_secret').value.trim();
+    if (!secret) { banner('先填地址或密钥', 'err'); return; }
+    const id = type.split('_')[0] + '-' + Date.now().toString(36);
+    try {
+      await call('PUT', '/notify/channels/' + id, { type, name: q('nc_name').value.trim() || CH_NAME[type], enabled: true, min_severity: 'normal', secret, relay: q('nc_relay').checked });
+      q('nc_secret').value = ''; q('nc_name').value = ''; q('nc_relay').checked = false;
+      await load(); banner('渠道已添加', 'ok');
+    } catch (e) { banner(e.message, 'err'); }
+  });
+  q('notifyChannels').addEventListener('click', async (ev) => {
+    const t = ev.target.closest('button'); if (!t) return;
+    try {
+      if (t.dataset.test) { await call('POST', '/notify/channels/' + encodeURIComponent(t.dataset.test) + '/test'); banner('测试消息已发出', 'ok'); }
+      if (t.dataset.del && confirm('删除这个渠道？')) { await call('DELETE', '/notify/channels/' + encodeURIComponent(t.dataset.del)); await load(); }
+    } catch (e) { banner('没发出去：' + e.message, 'err'); }
+  });
+  const SVC_SRC = { saved: '已保存的地址', env: '环境变量 STOCK_API_BASE', default: '默认（本机）' };
+  function svcBanner(text, kind) { const b = q('serviceBanner'); b.textContent = text || ''; b.className = 'banner' + (text ? ' show ' + (kind || '') : ''); }
+  function svcRender(v) {
+    q('svc_url').value = v.base_url || '';
+    q('svcInfo').textContent = '现在在用：' + v.effective + '（' + (SVC_SRC[v.source] || v.source) + '）。页面要刷新一下才会换到新地址。';
+  }
+  async function svcLoad() { try { svcRender(await call('GET', '/api/v1/settings/service')); } catch (e) { svcBanner('读不出来：' + e.message, 'err'); } }
+  q('svcSave').addEventListener('click', async () => {
+    try { svcRender(await call('PUT', '/api/v1/settings/service', { base_url: q('svc_url').value })); svcBanner('已保存。分析师和定时任务马上用新地址；打开着的页面刷新一下。', 'ok'); }
+    catch (e) { svcBanner(e.message, 'err'); }
+  });
+  q('svcTest').addEventListener('click', async () => {
+    svcBanner('正在连接…');
+    try {
+      const r = await call('POST', '/api/v1/settings/service/test', { base_url: q('svc_url').value });
+      if (r.ok) svcBanner('连得上：' + r.base + '，' + r.ms + ' 毫秒。' + (r.has_quotes === false ? '这个服务没有实时行情接口。' : '实时价格也从它取。'), 'ok');
+      else svcBanner(r.base + ' 连不上：' + (r.error || '没有回应'), 'err');
+    } catch (e) { svcBanner(e.message, 'err'); }
+  });
+  svcLoad();
+  load();
 })();
 </script>
 </body>
