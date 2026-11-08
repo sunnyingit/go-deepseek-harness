@@ -53,6 +53,8 @@ func (s *Server) initClientTasks(ctx context.Context) {
 	s.relay = newRelayClient(file("relay.json"), time.Now)
 	s.scan = scan.Open(file("predictions.json"), nil)
 	s.custom = custom.Open(file("custom_tasks.json"), nil)
+	loadServiceSetting(file("service.json"))
+	s.quotes.Via = s.backendQuotes
 	s.registerTasks()
 	s.sch.Listeners = append(s.sch.Listeners, s.onRunFinished)
 	go s.sch.Run(ctx, 15*time.Second)
@@ -277,7 +279,12 @@ func (s *Server) publishChange(c *sched.JobCtx, code string) (bool, error) {
 // ---- market brief
 
 func (s *Server) stockGetJSON(path string, out any) error {
-	client := &http.Client{Timeout: 60 * time.Second}
+	return stockGetJSONWithin(path, out, 60*time.Second)
+}
+
+// stockGetJSONWithin is stockGetJSON with the time the data service has to answer.
+func stockGetJSONWithin(path string, out any, within time.Duration) error {
+	client := &http.Client{Timeout: within}
 	resp, err := client.Get(stockAPIBase() + path)
 	if err != nil {
 		return err

@@ -69,6 +69,9 @@ func Parse(text string) map[string]Quote {
 // that polls does not hammer the endpoint.
 type Client struct {
 	Get func(url string) (string, error)
+	// Via asks the data service for the quotes first. What it does not return, or all of it when it fails, is
+	// fetched straight from the quote source, so a service without the endpoint still works.
+	Via func(codes []string) (map[string]Quote, error)
 	TTL time.Duration
 	now func() time.Time
 
@@ -120,6 +123,29 @@ func (c *Client) Fetch(codes []string) (map[string]Quote, error) {
 	c.mu.Unlock()
 	if len(wanted) == 0 {
 		return out, nil
+	}
+	if c.Via != nil {
+		var asked []string
+		for _, sym := range wanted {
+			asked = append(asked, symbolOf[sym])
+		}
+		if got, _ := c.Via(asked); len(got) > 0 {
+			var rest []string
+			c.mu.Lock()
+			for _, sym := range wanted {
+				if q, ok := got[symbolOf[sym]]; ok && q.Price > 0 {
+					c.cache[sym] = cached{at: c.now(), q: q, ok: true}
+					out[symbolOf[sym]] = q
+				} else {
+					rest = append(rest, sym)
+				}
+			}
+			c.mu.Unlock()
+			wanted = rest
+		}
+		if len(wanted) == 0 {
+			return out, nil
+		}
 	}
 	text, err := c.Get("http://qt.gtimg.cn/q=" + strings.Join(wanted, ","))
 	if err != nil {

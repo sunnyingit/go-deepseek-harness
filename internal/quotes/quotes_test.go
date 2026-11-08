@@ -1,6 +1,7 @@
 package quotes
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -39,5 +40,37 @@ func TestFetchBatchesAndCachesIncludingMisses(t *testing.T) {
 	c.Fetch([]string{"600036.SH", "000001.SZ"})
 	if len(urls) != 1 {
 		t.Fatal("second call was not served from the cache")
+	}
+}
+
+func TestQuotesAreAskedOfTheServiceFirstAndTheSourceFillsTheGaps(t *testing.T) {
+	c := New()
+	direct := 0
+	c.Get = func(url string) (string, error) {
+		direct++
+		if !strings.Contains(url, "sz000001") || strings.Contains(url, "sh600036") {
+			t.Fatalf("the source was asked for %s", url)
+		}
+		return `v_sz000001="1~平安银行~000001~11.00~10.50~1";`, nil
+	}
+	asked := 0
+	c.Via = func(codes []string) (map[string]Quote, error) {
+		asked++
+		return map[string]Quote{"600036.SH": {Price: 39.5, Prev: 39.2, Change: 0.3, ChangePct: 0.77}}, nil
+	}
+	got, err := c.Fetch([]string{"600036.SH", "000001.SZ"})
+	if err != nil || got["600036.SH"].Price != 39.5 || got["000001.SZ"].Price != 11 || asked != 1 || direct != 1 {
+		t.Fatalf("got %v err %v asked %d direct %d", got, err, asked, direct)
+	}
+	// both are cached now: nobody is asked again
+	if _, err := c.Fetch([]string{"600036.SH", "000001.SZ"}); err != nil || asked != 1 || direct != 1 {
+		t.Fatalf("asked again: %d %d", asked, direct)
+	}
+	// a service that fails or does not have the endpoint costs nothing but a detour
+	c2 := New()
+	c2.Get = func(string) (string, error) { return `v_sh600036="1~招商银行~600036~39.50~39.20~1";`, nil }
+	c2.Via = func([]string) (map[string]Quote, error) { return nil, errors.New("down") }
+	if got, err := c2.Fetch([]string{"600036.SH"}); err != nil || got["600036.SH"].Price != 39.5 {
+		t.Fatalf("fallback = %v %v", got, err)
 	}
 }

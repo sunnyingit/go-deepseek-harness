@@ -104,5 +104,5 @@ func serveStaticFile(w http.ResponseWriter, name string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(data)
+	w.Write(withServiceBase(data))
 }

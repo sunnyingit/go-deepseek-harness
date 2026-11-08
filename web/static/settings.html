@@ -257,6 +257,16 @@
                     <button type="submit" class="btn btn-primary" id="saveBtn">保存到 config.yaml</button>
                 </div>
             </form>
+            <section class="card" id="serviceCard">
+                <h3><i class="fas fa-server"></i> 股票数据服务</h3>
+                <div class="banner" id="serviceBanner"></div>
+                <div style="font-size:13px;color:#3c4a5e;line-height:1.7;margin-bottom:10px">任务、分析师、通知都在这台电脑上跑；这里填的是它们取数据的地方：个股详情（资金流、新闻、板块、财报）、市场页、日线、实时价格都从这个服务取。可以填远程服务器的地址，保存在本机，保存后马上生效，不用再设环境变量。</div>
+                <div class="grid">
+                    <div class="field span-2"><label>服务地址 <span class="hint">留空就用本机 http://127.0.0.1:8090</span></label><input id="svc_url" placeholder="http://127.0.0.1:8090" autocomplete="off" /></div>
+                </div>
+                <div id="svcInfo" style="font-size:12px;color:#8a94a6;margin-top:6px"></div>
+                <div class="actions" style="margin-top:10px"><button type="button" class="btn btn-ghost" id="svcTest">测试连接</button><button type="button" class="btn btn-primary" id="svcSave">保存地址</button></div>
+            </section>
             <section class="card" id="notifyCard">
                 <h3><i class="fas fa-bell"></i> 通知</h3>
                 <div class="banner" id="notifyBanner"></div>
@@ -610,6 +620,27 @@
             if (t.dataset.del && confirm('删除这个渠道？')) { await call('DELETE', '/notify/channels/' + encodeURIComponent(t.dataset.del)); await load(); }
         } catch (e) { banner('没发出去：' + e.message, 'err'); }
     });
+    // ---- 股票数据服务地址
+    const SVC_SRC = { saved: '已保存的地址', env: '环境变量 STOCK_API_BASE', default: '默认（本机）' };
+    function svcBanner(text, kind) { const b = q('serviceBanner'); b.textContent = text || ''; b.className = 'banner' + (text ? ' show ' + (kind || '') : ''); }
+    function svcRender(v) {
+        q('svc_url').value = v.base_url || '';
+        q('svcInfo').textContent = '现在在用：' + v.effective + '（' + (SVC_SRC[v.source] || v.source) + '）。页面要刷新一下才会换到新地址。';
+    }
+    async function svcLoad() { try { svcRender(await call('GET', '/api/v1/settings/service')); } catch (e) { svcBanner('读不出来：' + e.message, 'err'); } }
+    q('svcSave').addEventListener('click', async () => {
+        try { svcRender(await call('PUT', '/api/v1/settings/service', { base_url: q('svc_url').value })); svcBanner('已保存。分析师和定时任务马上用新地址；打开着的页面刷新一下。', 'ok'); }
+        catch (e) { svcBanner(e.message, 'err'); }
+    });
+    q('svcTest').addEventListener('click', async () => {
+        svcBanner('正在连接…');
+        try {
+            const r = await call('POST', '/api/v1/settings/service/test', { base_url: q('svc_url').value });
+            if (r.ok) svcBanner('连得上：' + r.base + '，' + r.ms + ' 毫秒。' + (r.has_quotes === false ? '这个服务没有实时行情接口，价格会改从行情源直接取。' : '实时价格也从它取。'), 'ok');
+            else svcBanner(r.base + ' 连不上：' + (r.error || '没有回应'), 'err');
+        } catch (e) { svcBanner(e.message, 'err'); }
+    });
+    svcLoad();
     load();
 })();
 </script>
