@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"go-harness/internal/appconfig"
+	"go-harness/internal/custom"
 	"go-harness/internal/inbox"
 	"go-harness/internal/personal"
 	"go-harness/internal/quotes"
@@ -45,6 +46,7 @@ func newClientServer(t *testing.T, start time.Time) (*Server, *testClock) {
 	s.personal = personal.Open(dir+"/personal.json", clock.now)
 	s.quotes = quotes.New()
 	s.scan = scan.Open(dir+"/predictions.json", clock.now)
+	s.custom = custom.Open(dir+"/custom.json", clock.now)
 	s.sch = sched.New(sched.OpenStore(""), s.cal, clock.now)
 	s.registerTasks()
 	s.sch.Listeners = append(s.sch.Listeners, s.onRunFinished)

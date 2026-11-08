@@ -102,6 +102,22 @@ func (s *Scheduler) Register(spec *Spec) {
 	s.specs[spec.ID] = spec
 }
 
+// Unregister removes a task. Its past runs stay in the history.
+func (s *Scheduler) Unregister(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.specs[id]; !ok {
+		return
+	}
+	delete(s.specs, id)
+	for i, x := range s.order {
+		if x == id {
+			s.order = append(s.order[:i], s.order[i+1:]...)
+			break
+		}
+	}
+}
+
 func (s *Scheduler) AddGate(name string, g Gate) {
 	s.mu.Lock()
 	s.gates[name] = g

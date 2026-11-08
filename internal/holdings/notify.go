@@ -13,7 +13,7 @@ import (
 var inboxKinds = map[string]string{
 	"price.alert.fired": "alert", "price.move": "move", "limit.hit": "move", "price.extreme": "move", "flow.streak": "move",
 	"judgment.changed": "change", "reason.status_changed": "change", "wish.condition_met": "change",
-	"announcement.published": "ann", "news.item": "ann", "calendar.upcoming": "upcoming", "outcome.settled": "settle", "scan.settled": "settle",
+	"announcement.published": "ann", "news.item": "ann", "calendar.upcoming": "upcoming", "outcome.settled": "settle", "scan.settled": "settle", "custom.hit": "alert", "custom.answer": "ann",
 	"task.failed": "system", "task.overdue": "system", "task.completed": "system", "digest.summary": "system",
 }
 

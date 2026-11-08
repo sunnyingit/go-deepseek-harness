@@ -204,6 +204,14 @@ func init() {
 			lines := list(p, "lines")
 			return title, strings.Join(lines, "\n")
 		}}
+	Registry["custom.hit"] = Type{TTL: 24 * time.Hour, Severity: "normal", Tone: "blue", Group: "stock", Link: stockLink("diagnose", ""),
+		Render: func(p map[string]any) (string, string) {
+			return str(p, "task") + " · " + str(p, "name") + " 符合条件", strings.Join(list(p, "why"), "\n")
+		}}
+	Registry["custom.answer"] = Type{TTL: 24 * time.Hour, Severity: "normal", Tone: "flat", Group: "stock", Link: stockLink("diagnose", ""),
+		Render: func(p map[string]any) (string, string) {
+			return str(p, "task") + " · " + str(p, "name"), str(p, "text")
+		}}
 	day := 24 * time.Hour
 	Registry["announcement.published"] = Type{TTL: 3 * day, Severity: "normal", Tone: "warn", Group: "stock", Link: stockLink("holdings", "now"),
 		Render: func(p map[string]any) (string, string) {

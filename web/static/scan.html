@@ -69,7 +69,7 @@ const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 const API = (new URLSearchParams(location.search).get('stockApi') || (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
 const S = { tab: 'today', sum: null, up: null, panel: null, data: {}, notif: false, nData: null, nTab: 'all', open: {}, openG: {}, shown: { today: 12, track: 15, done: 4 },
   f: { today: 'all', track: { due: 'all', who: 'all' }, done: { src: 'all', h: 5, wrong: false, range: 'month', q: '' }, acc: 5 } };
-const TABS = [['today', '今日扫描'], ['track', '跟踪中'], ['done', '已结算'], ['acc', '准不准']];
+const TABS = [['today', '今日扫描'], ['track', '跟踪中'], ['done', '已结算'], ['acc', '准不准'], ['custom', '自定义任务']];
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -143,6 +143,7 @@ function renderTabs() {
   const s = S.sum;
   const on = (k) => S.tab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : '';
   const badge = {
+    custom: S.cuCount != null ? '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + S.cuCount + '</span>' : '',
     today: s ? '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + s.made + '</span>' : '',
     track: s ? '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + s.tracking + '</span>' : '',
     done: s && s.settled_today.n ? '<span style="height: 18px; padding: 0 6px; border-radius: 999px; background: #EDF7F1; color: #1E6B44; font-size: 11px; font-weight: 600; line-height: 18px">今天 ' + s.settled_today.hit + '/' + s.settled_today.n + '</span>' : '',
@@ -357,7 +358,7 @@ function renderAcc() {
 /* ---------- 右侧：今天结算 ---------- */
 function renderPanel() {
   const p = S.panel;
-  if (S.notif || !p || !S.sum || S.sum.empty && !DEMO) { $('aside').hidden = true; return; }
+  if (S.notif || S.tab === 'custom' || !p || !S.sum || S.sum.empty && !DEMO) { $('aside').hidden = true; return; }
   $('aside').hidden = false;
   const tm = p.tomorrow || {};
   const tomorrowBox = '<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px; border: 1px solid #E3E6EB"><span style="display: flex; justify-content: space-between; font-size: 13px"><b>明天结算</b><span style="' + MONO_F + '">' + (tm.count || 0) + ' 条</span></span>' +
@@ -462,7 +463,7 @@ function pollAfterRun() {
   pollTimer = setInterval(tick, 5000); setTimeout(tick, 1500);
 }
 const ACT = {
-  tab: (el) => { S.tab = el.dataset.k; renderTabs(); loadTab(S.tab); },
+  tab: (el) => { S.tab = el.dataset.k; renderTabs(); renderPanel(); loadTab(S.tab); },
   tsrc: (el) => { S.f.today = el.dataset.k; reload(); },
   tdue: (el) => { S.f.track.due = el.dataset.k; reload(); },
   twho: (el) => { S.f.track.who = el.dataset.k; reload(); },
@@ -518,10 +519,177 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target && e.target.id === 'dq') { S.f.done.q = e.target.value.trim(); reload('done'); }
 });
 
+
+/* ---------- 自定义任务：自己定时间、定范围、定做什么 ---------- */
+const CU_KIND = {
+  analyze: ['定时分析', '#EAF0FD', '#2457D6', '到点让分析师给这些股票重新出一份结论，记成预测去跟踪', '用你的模型'],
+  ask: ['定时提问', '#FFF1D6', '#7A4A00', '到点把你写的问题问主分析师，回答放进通知', '用你的模型'],
+  scan: ['条件扫描', '#EDF7F1', '#1E6B44', '到点检查这些股票满不满足你设的条件，满足的才通知你', '不用模型'],
+};
+const CU_SCOPE = [['all', '我的全部标的'], ['hold', '我的持仓'], ['wish', '我想买的'], ['watch', '我的自选'], ['codes', '指定股票…']];
+const CU_TEMPLATES = {
+  hold: { title: '收盘后再分析持仓', kind: 'analyze', scope: 'hold', at: '15:40', days: 'trading', desc: '每个交易日收盘后，把持仓的票各重新分析一遍' },
+  ma: { title: '跌破 20 日线提醒', kind: 'scan', scope: 'all', at: '15:40', days: 'trading', match: 'all', rules: [{ kind: 'below_ma', value: 20 }], desc: '收盘后看哪些标的收盘跌破了 20 日线' },
+  ask: { title: '午前看有没有新消息', kind: 'ask', scope: 'hold', at: '11:00', days: 'trading', question: '今天有没有新公告、新闻或者资金异动，对这只票是利好还是利空？', desc: '午休前问主分析师一句，回答直接进通知' },
+};
+const cuKinds = () => (S.data.custom && S.data.custom.kinds) || [];
+const cuKindOf = (k) => cuKinds().find((x) => x.kind === k) || { kind: k, label: k, unit: '' };
+const cuPill = (kind) => pl(CU_KIND[kind][1], CU_KIND[kind][2], CU_KIND[kind][0]);
+
+function cuRow(t) {
+  const sub = t.kind === 'ask' ? '「' + esc(t.question) + '」' : t.kind === 'scan' ? esc(t.rules_text) : '给每只股票重新出一份结论，记成预测';
+  const last = t.last ? '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + pl((STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[t.last.state] || t.last.state) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(t.last.at) + (t.last.trigger === 'manual' ? ' · 手动' : '') + '</span></span>' : '<span style="font-size: 11px; color: #8A919E">还没跑过</span>';
+  const running = t.last && (t.last.state === 'running' || t.last.state === 'waiting' || t.last.state === 'planned');
+  const btn = (act, text, extra) => '<button type="button" data-act="' + act + '" data-id="' + esc(t.id) + '" style="height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: ' + ((extra && extra.color) || '#2457D6') + '; cursor: pointer; white-space: nowrap">' + text + '</button>';
+  return '<div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 150px 120px auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #F1F2F4' + (t.enabled ? '' : '; background: #FAFAFB') + '">' +
+    '<span style="display: flex; flex-direction: column; gap: 4px; min-width: 0"><span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap"><b style="font-size: 14px' + (t.enabled ? '' : '; color: #8A919E') + '">' + esc(t.title) + '</b>' + cuPill(t.kind) + (t.enabled ? '' : pl('#F1F2F4', '#5B6372', '已停用')) + '</span><span style="font-size: 12px; color: #5B6372; line-height: 1.5; overflow-wrap: anywhere">' + sub + '</span></span>' +
+    '<span style="display: flex; flex-direction: column; gap: 2px; font-size: 12px"><span>' + esc(t.scope_text) + '</span><span style="font-size: 11px; color: #8A919E">' + (t.count ? '现在 ' + t.count + ' 只' : '现在没有股票') + '</span></span>' +
+    '<span style="display: flex; flex-direction: column; gap: 2px"><b style="' + MONO_F + '; font-size: 12px">' + esc(t.schedule_text) + '</b><span style="font-size: 11px; color: #8A919E">' + (t.enabled ? (t.when_text ? '下次 ' + esc(t.when_text) : '') : '不会自动跑') + '</span></span>' + last +
+    '<span style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end">' + btn('curun', running ? '正在跑…' : '现在跑') + btn('cuedit', '编辑') + btn('cutoggle', t.enabled ? '停用' : '启用', { color: '#5B6372' }) + btn('cudel', '删除', { color: '#B42318' }) + '</span></div>';
+}
+function renderCustom() {
+  const d = S.data.custom;
+  const typeCards = ['analyze', 'ask', 'scan'].map((k) => '<div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: #F7F8FA"><span style="display: flex; align-items: center; gap: 6px">' + cuPill(k) + '<span style="font-size: 11px; color: #8A919E">' + CU_KIND[k][4] + '</span></span><span style="font-size: 12px; color: #5B6372; line-height: 1.6">' + CU_KIND[k][3] + '</span></div>').join('');
+  const head = '<div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">自定义任务</b><span style="font-size: 12px; color: #8A919E">自己定时间、定范围、定做什么' + (d ? ' · 最多 ' + d.limit + ' 个' : '') + '</span><button type="button" data-act="cunew" style="margin-left: auto; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">＋ 新建任务</button></div>' +
+    '<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">' + typeCards + '</div>';
+  if (!d) return '<div style="' + CARD + '">' + head + '<div class="skeleton" style="padding: 16px">读取中…</div></div>';
+  const note = d.model ? '' : '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF8EC; font-size: 12px; color: #7A4A00">没有配置模型密钥：「定时分析」和「定时提问」要用到你的模型，先到设置里配好；「条件扫描」不受影响。</div>';
+  const list = d.tasks.length ? '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 150px 120px auto; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>任务</span><span>范围</span><span>什么时候跑</span><span>上次</span><span></span></div>' + d.tasks.map(cuRow).join('') + '</div>'
+    : '<div class="empty" style="padding: 24px 12px 14px"><b style="font-size: 15px">还没有自定义任务</b><span style="max-width: 520px; line-height: 1.7">点「新建任务」自己设一个，或者从下面选一个常用的改一改：</span><span style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center">' +
+      Object.keys(CU_TEMPLATES).map((k) => '<button type="button" data-act="cutpl" data-k="' + k + '" title="' + esc(CU_TEMPLATES[k].desc) + '" style="' + LINKBTN + '">' + esc(CU_TEMPLATES[k].title) + '</button>').join('') + '</span></div>';
+  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="' + CARD + '">' + head + note + list + '</div>' +
+    '<span style="font-size: 11px; color: #A1A7B2; line-height: 1.7">每个任务都是调度器里的一个独立任务：到点自动跑，睡眠错过了会补，跑完在收件箱留回执；条件扫描同一天同一只票只通知一次。关掉的任务不会自动跑，但还可以手动「现在跑」。</span></div>';
+}
+
+// ---- 表单
+const cuDefault = () => ({ id: '', title: '', kind: 'analyze', scope: 'hold', codes: [], names: {}, at: '15:40', days: 'trading', question: '', rules: [], match: 'all', hits: null, err: '' });
+function cuOpen(t) {
+  S.cf = Object.assign(cuDefault(), t ? { id: t.id || '', title: t.title, kind: t.kind, scope: t.scope, codes: (t.codes || []).slice(), at: t.at, days: t.days || 'trading', question: t.question || '', rules: (t.rules || []).map((r) => Object.assign({}, r)), match: t.match || 'all' } : {});
+  if (S.cf.kind === 'scan' && !S.cf.rules.length) S.cf.rules = [cuNewRule()];
+  cuRender();
+}
+function cuNewRule() { const k = cuKinds().find((x) => x.kind === 'below_ma') || cuKinds()[0] || { kind: 'below_ma', default: '20' }; return { kind: k.kind, value: Number(k.default) || 0, text: '' }; }
+function cuRender() {
+  const f = S.cf;
+  const seg = (items, cur, act) => '<span class="seg">' + items.map(([k, n]) => '<button type="button" data-act="' + act + '" data-k="' + k + '" aria-pressed="' + (String(cur) === String(k)) + '">' + n + '</button>').join('') + '</span>';
+  const field = (label, inner, hint) => '<div style="display: flex; flex-direction: column; gap: 5px"><span style="font-size: 12px; font-weight: 600">' + label + '</span>' + inner + (hint ? '<span style="font-size: 11px; color: #8A919E; line-height: 1.6">' + hint + '</span>' : '') + '</div>';
+  const inp = 'width: 100%; min-height: 34px; padding: 7px 10px; border: 1px solid #DDE1E7; border-radius: 8px; box-sizing: border-box; font-size: 13px; color: #14171F; background: #FFFFFF';
+  const chips = f.codes.map((c) => '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: #EAF0FD; color: #1F3F8A; font-size: 12px">' + esc(f.names[c] || c) + '<button type="button" data-act="cudelcode" data-code="' + esc(c) + '" aria-label="去掉" style="border: none; background: transparent; color: #5B6372; cursor: pointer; font-size: 14px; line-height: 1">×</button></span>').join('');
+  const codes = f.scope === 'codes' ? '<div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; flex-wrap: wrap; gap: 6px">' + (chips || '<span style="font-size: 12px; color: #8A919E">还没选股票</span>') + '</div><input id="cfSearch" data-f="search" placeholder="输入代码、名称或拼音首字母，搜到后点一下加上" autocomplete="off" style="' + inp + '"><div id="cfHits" style="display: flex; flex-direction: column"></div></div>' : '';
+  const kinds = cuKinds();
+  const rules = f.kind !== 'scan' ? '' : field('条件 <span class="seg" style="display: inline-flex; margin-left: 6px"><button type="button" data-act="cumatch" data-k="all" aria-pressed="' + (f.match === 'all') + '">全部满足</button><button type="button" data-act="cumatch" data-k="any" aria-pressed="' + (f.match === 'any') + '">任一满足</button></span>',
+    '<div style="display: flex; flex-direction: column; gap: 8px">' + f.rules.map((r, i) => {
+      const k = cuKindOf(r.kind);
+      const val = r.kind === 'sector_is' ? '<select data-f="r:' + i + ':text" style="' + inp + '; width: 150px">' + ((S.data.custom && S.data.custom.sector_verdicts) || []).map((v) => '<option' + (r.text === v ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select>'
+        : k.unit ? '<input data-f="r:' + i + ':value" inputmode="decimal" value="' + (r.value || '') + '" style="' + inp + '; width: 90px"><span style="font-size: 12px; color: #5B6372">' + esc(k.unit) + '</span>' : '';
+      return '<div style="display: flex; align-items: center; gap: 8px"><select data-f="r:' + i + ':kind" style="' + inp + '; flex: 1; min-width: 0">' + kinds.map((x) => '<option value="' + x.kind + '"' + (x.kind === r.kind ? ' selected' : '') + '>' + esc(x.label) + '</option>').join('') + '</select>' + val +
+        '<button type="button" data-act="curuledel" data-i="' + i + '" aria-label="删掉这个条件" style="border: none; background: transparent; color: #8A919E; cursor: pointer; font-size: 16px">×</button></div>' + (k.hint ? '<span style="font-size: 11px; color: #8A919E; margin-top: -4px">' + esc(k.hint) + '</span>' : '');
+    }).join('') + (f.rules.length < 6 ? '<button type="button" data-act="curuleadd" style="align-self: flex-start; ' + 'height: 28px; padding: 0 10px; border: 1px dashed #C9CED6; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: #2457D6; cursor: pointer">＋ 加一个条件</button>' : '') + '</div>',
+    '没有数据的条件算「不满足」；比如还没有 AI 结论时，「AI 结论偏多」不会命中。');
+  const ask = f.kind !== 'ask' ? '' : field('要问的问题', '<textarea data-f="question" rows="3" maxlength="300" placeholder="写一句话，每只股票都会被问一遍；比如：今天有没有新公告和资金异动？" style="' + inp + '; line-height: 1.6; resize: vertical">' + esc(f.question) + '</textarea>', '问的是主分析师；回答会放进通知，也会出现在这只票的诊断页里。');
+  const noModel = (f.kind !== 'scan' && S.data.custom && !S.data.custom.model) ? '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF8EC; font-size: 12px; color: #7A4A00">没有配置模型密钥，这类任务跑起来会失败；先到设置里配好。</div>' : '';
+  $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1" style="width: 620px; gap: 14px"><div style="display: flex; align-items: center"><b style="font-size: 16px">' + (f.id ? '编辑任务' : '新建任务') + '</b><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 18px">×</button></div>' +
+    field('名称', '<input data-f="title" maxlength="30" value="' + esc(f.title) + '" placeholder="比如：收盘后再分析持仓" style="' + inp + '">') +
+    field('做什么', seg([['analyze', '定时分析'], ['ask', '定时提问'], ['scan', '条件扫描']], f.kind, 'cukind'), esc(CU_KIND[f.kind][3]) + '（' + CU_KIND[f.kind][4] + '）') + noModel + ask + rules +
+    field('范围', '<select data-f="scope" style="' + inp + '">' + CU_SCOPE.map(([k, n]) => '<option value="' + k + '"' + (f.scope === k ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' + codes, f.scope === 'codes' ? '' : '范围跟着你的持仓、想买、自选变，新加的票下次就会带上。') +
+    '<div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap">' + field('几点', '<input type="time" data-f="at" value="' + esc(f.at) + '" style="' + inp + '; width: 120px">') + field('重复', seg([['trading', '每个交易日'], ['any', '每天']], f.days, 'cudays')) + '</div>' +
+    '<div id="cfErr" style="font-size: 12px; color: #B42318; min-height: 16px">' + esc(f.err) + '</div>' +
+    '<div style="display: flex; justify-content: flex-end; gap: 8px"><button type="button" data-act="close" style="height: 32px; padding: 0 14px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">取消</button><button type="button" id="cfSave" data-act="cusave" style="height: 32px; padding: 0 16px; border: none; border-radius: 8px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">保存</button></div></div></div>';
+}
+function cuPayload() {
+  const f = S.cf;
+  return { title: f.title, kind: f.kind, scope: f.scope, codes: f.scope === 'codes' ? f.codes : [], at: f.at, days: f.days, question: f.question, match: f.match,
+    rules: f.kind === 'scan' ? f.rules.map((r) => r.kind === 'sector_is' ? { kind: r.kind, text: r.text || ((S.data.custom.sector_verdicts || [])[0] || '') } : { kind: r.kind, value: Number(r.value) || 0 }) : [] };
+}
+async function cuReload() {
+  S.data.custom = await api('/custom');
+  S.cuCount = S.data.custom.tasks.filter((x) => x.enabled).length;
+  renderTabs(); if (S.tab === 'custom') renderBody();
+  api('/upcoming').then((u) => { S.up = u; if (S.tab === 'today') renderBody(); }).catch(() => {});
+}
+async function cuCall(method, path, body) {
+  const res = await fetch('/api/scan/custom' + path, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+  let json = {};
+  try { json = await res.json(); } catch (e) { /* 没有正文 */ }
+  if (!res.ok) throw new Error(json.error || '请求失败（' + res.status + '）');
+  return json;
+}
+let cuSearchTimer = null;
+function cuSetField(f, el) {
+  const c = S.cf; if (!c) return;
+  if (f === 'title') c.title = el.value;
+  else if (f === 'question') c.question = el.value;
+  else if (f === 'at') c.at = el.value;
+  else if (f === 'scope') { c.scope = el.value; cuRender(); }
+  else if (f === 'search') {
+    clearTimeout(cuSearchTimer);
+    const q = el.value.trim();
+    cuSearchTimer = setTimeout(async () => {
+      const box = $('cfHits'); if (!box) return;
+      if (!q) { box.innerHTML = ''; return; }
+      try {
+        const j = await (await fetch(API + '/api/v1/stocks/search?q=' + encodeURIComponent(q))).json();
+        box.innerHTML = (j.items || []).slice(0, 6).map((x) => '<button type="button" data-act="cuaddcode" data-code="' + esc(x.ts_code) + '" data-name="' + esc(x.name) + '" style="display: flex; gap: 8px; align-items: baseline; text-align: left; border: none; border-top: 1px solid #F4F5F7; background: #FFFFFF; padding: 7px 4px; cursor: pointer; font: inherit; font-size: 13px"><b>' + esc(x.name) + '</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(x.ts_code) + '</span></button>').join('') || '<span style="font-size: 12px; color: #8A919E; padding: 6px 0">没搜到</span>';
+      } catch (e) { box.innerHTML = '<span style="font-size: 12px; color: #B42318; padding: 6px 0">搜索失败：股票数据服务没有响应</span>'; }
+    }, 250);
+  } else if (f.indexOf('r:') === 0) {
+    const [, i, what] = f.split(':'); const r = c.rules[Number(i)]; if (!r) return;
+    if (what === 'kind') { r.kind = el.value; const k = cuKindOf(r.kind); r.value = k.unit ? (Number(k.default) || r.value || 0) : 0; r.text = r.kind === 'sector_is' ? ((S.data.custom.sector_verdicts || [])[0] || '') : ''; cuRender(); }
+    else if (what === 'value') r.value = el.value;
+    else if (what === 'text') r.text = el.value;
+  }
+}
+document.addEventListener('input', (e) => { const el = e.target; if (el && el.dataset && el.dataset.f && el.tagName !== 'SELECT') cuSetField(el.dataset.f, el); });
+document.addEventListener('change', (e) => { const el = e.target; if (el && el.dataset && el.dataset.f) cuSetField(el.dataset.f, el); });
+Object.assign(ACT, {
+  cunew: () => cuOpen(null),
+  cutpl: (el) => cuOpen(CU_TEMPLATES[el.dataset.k]),
+  cuedit: (el) => { const t = S.data.custom.tasks.find((x) => x.id === el.dataset.id); if (t) cuOpen(t); },
+  cukind: (el) => { S.cf.kind = el.dataset.k; if (S.cf.kind === 'scan' && !S.cf.rules.length) S.cf.rules = [cuNewRule()]; cuRender(); },
+  cudays: (el) => { S.cf.days = el.dataset.k; cuRender(); },
+  cumatch: (el) => { S.cf.match = el.dataset.k; cuRender(); },
+  curuleadd: () => { S.cf.rules.push(cuNewRule()); cuRender(); },
+  curuledel: (el) => { S.cf.rules.splice(Number(el.dataset.i), 1); cuRender(); },
+  cuaddcode: (el) => { const c = el.dataset.code; if (!S.cf.codes.includes(c)) { S.cf.codes.push(c); S.cf.names[c] = el.dataset.name; } cuRender(); const s = $('cfSearch'); if (s) s.focus(); },
+  cudelcode: (el) => { S.cf.codes = S.cf.codes.filter((c) => c !== el.dataset.code); cuRender(); },
+  cusave: async () => {
+    if (DEMO) { toast('示例数据里不能保存'); return; }
+    const btn = $('cfSave'); btn.disabled = true;
+    try {
+      const body = cuPayload();
+      if (S.cf.id) await cuCall('PUT', '/' + encodeURIComponent(S.cf.id), body); else await cuCall('POST', '', body);
+      toast(S.cf.id ? '已保存修改' : '已创建任务');
+      S.cf = null; $('modal').innerHTML = ''; await cuReload();
+    } catch (e) { S.cf.err = e.message; const el = $('cfErr'); if (el) el.textContent = e.message; btn.disabled = false; }
+  },
+  cutoggle: async (el) => {
+    if (DEMO) return;
+    const t = S.data.custom.tasks.find((x) => x.id === el.dataset.id); if (!t) return;
+    try { await cuCall('POST', '/' + encodeURIComponent(t.id) + '/toggle', { enabled: !t.enabled }); await cuReload(); toast(t.enabled ? '已停用' : '已启用'); } catch (e) { toast(e.message, true); }
+  },
+  cudel: async (el) => {
+    if (DEMO) return;
+    const t = S.data.custom.tasks.find((x) => x.id === el.dataset.id); if (!t) return;
+    if (!confirm('删掉任务「' + t.title + '」？它不会再自动跑；已经发出的通知不受影响。')) return;
+    try { await cuCall('DELETE', '/' + encodeURIComponent(t.id)); await cuReload(); toast('已删掉'); } catch (e) { toast(e.message, true); }
+  },
+  curun: async (el) => {
+    if (DEMO) { toast('示例数据里不能运行'); return; }
+    const t = S.data.custom.tasks.find((x) => x.id === el.dataset.id); if (!t) return;
+    if (t.kind !== 'scan' && !confirm('现在给 ' + t.count + ' 只股票各跑一遍「' + t.title + '」？会调用你的模型。')) return;
+    try {
+      const j = await cuCall('POST', '/' + encodeURIComponent(t.id) + '/run');
+      toast('已开始，共 ' + j.queued + ' 只');
+      [2500, 8000, 20000, 45000].forEach((ms) => setTimeout(() => { if (S.tab === 'custom') cuReload().catch(() => {}); }, ms));
+      setTimeout(() => cuReload().catch(() => {}), 1200);
+    } catch (e) { toast(e.message, true); }
+  },
+});
+
 /* ---------- 加载与渲染 ---------- */
 function renderBody() {
   if (!S.sum) return;
-  $('body').innerHTML = { today: renderToday, track: renderTrack, done: renderDone, acc: renderAcc }[S.tab]();
+  $('body').innerHTML = { today: renderToday, track: renderTrack, done: renderDone, acc: renderAcc, custom: renderCustom }[S.tab]();
 }
 async function loadTab(t, force) {
   if (!S.sum) return;
@@ -533,6 +701,7 @@ async function loadTab(t, force) {
       else if (t === 'track') { S.data[t] = await api('/tracking?due=' + f.track.due + '&source=' + (f.track.who === 'diagnose' ? 'diagnose' : 'all') + (f.track.who === 'mine' ? '&mine=1' : '')); S.shown.track = 15; }
       else if (t === 'done') { S.data[t] = await api('/settled' + doneQuery()); S.shown.done = 4; }
       else if (t === 'acc') S.data[t] = await api('/accuracy?horizon=' + f.acc);
+      else if (t === 'custom') { S.data[t] = await api('/custom'); S.cuCount = S.data[t].tasks.filter((x) => x.enabled).length; renderTabs(); }
     } catch (e) { $('body').innerHTML = '<div style="' + CARD + '"><span style="color: #B42318">' + esc(e.message) + '</span></div>'; return; }
   }
   if (S.tab === t) renderBody();
@@ -544,6 +713,7 @@ async function refreshAll() {
   S.data = {};
   api('/panel').then((p) => { S.panel = p; renderPanel(); }).catch(() => {});
   api('/upcoming').then((u) => { S.up = u; if (S.tab === 'today') renderBody(); }).catch(() => {});
+  api('/custom').then((c) => { S.cuCount = c.tasks.filter((x) => x.enabled).length; renderTabs(); }).catch(() => {});
   await loadTab(S.tab, true);
   loadNotif();
 }
@@ -589,6 +759,7 @@ function demoApi(path) {
   if (q === '/accuracy') return ds.accuracy(Number(params.get('horizon')) || 5);
   if (q === '/panel') return ds.panel;
   if (q === '/upcoming') return null;
+  if (q === '/custom') return ds.custom;
   return {};
 }
 function demoNotif() {
@@ -655,6 +826,14 @@ function demoData() {
       mine: [{ name: '杭氧股份', source_text: '你诊断', direction_text: '偏多', excess: 0.012, outcome: 'hit' }], held_other: 3, wrong_reasons: [{ label: '资金流信号被少数超大单误导', count: 4 }, { label: '估值类「涨多了」理由 5 天内不灵', count: 3 }, { label: '其他', count: 2 }],
       tomorrow: { day: '2026-11-03', count: 22, made_text: '10-27', now_right: 13, mine: 0 }, notify_text: '这份摘要结算后会推送到你设置的渠道。' },
   };
+
+  _demo.custom = { limit: 30, model: true, sector_verdicts: ['三层同向', '有钱没热度', '只热不增', '在流出'],
+    kinds: [['change_up', '日涨幅达到', '%', '5', '今天涨幅不低于这个数'], ['change_down', '日跌幅达到', '%', '5', '今天跌幅不低于这个数'], ['price_below', '现价低于', '元', '', '现价不高于这个价'], ['price_above', '现价高于', '元', '', '现价不低于这个价'], ['below_ma', '收盘跌破均线', '日', '20', '最近一个收盘价低于 N 日均线'], ['above_ma', '收盘站上均线', '日', '20', '最近一个收盘价高于 N 日均线'], ['new_high', '收盘创新高', '日', '60', '最近一个收盘价是近 N 日最高'], ['new_low', '收盘创新低', '日', '60', '最近一个收盘价是近 N 日最低'], ['flow_in_days', '大资金连续净流入', '日', '3', '大资金连续 N 天净流入'], ['flow_out_days', '大资金连续净流出', '日', '3', '大资金连续 N 天净流出'], ['ai_bullish', 'AI 结论偏多', '', '', '主分析师最新结论是偏多'], ['ai_bearish', 'AI 结论偏空', '', '', '主分析师最新结论是偏空'], ['sector_is', '板块结论是', '', '', '所在板块的结论等于所选']].map((k) => ({ kind: k[0], label: k[1], unit: k[2], default: k[3], hint: k[4] })),
+    tasks: [
+      { id: 'c1', title: '收盘后再分析持仓', kind: 'analyze', kind_text: '定时分析', scope: 'hold', codes: [], scope_text: '我的持仓', count: 4, at: '15:40', days: 'trading', schedule_text: '每个交易日 15:40', enabled: true, when_text: '周二 11-03 15:40 · 明天', last: { state: 'succeeded', at: '11-02 15:41', counts: { jobs: 4, succeeded: 4 } } },
+      { id: 'c2', title: '跌破 20 日线提醒', kind: 'scan', kind_text: '条件扫描', scope: 'all', codes: [], scope_text: '我的全部标的', count: 27, at: '15:40', days: 'trading', schedule_text: '每个交易日 15:40', rules: [{ kind: 'below_ma', value: 20 }, { kind: 'flow_out_days', value: 3 }], match: 'all', rules_text: '收盘跌破 20 日均线，且 大资金连续净流出 3 日', enabled: true, when_text: '周二 11-03 15:40 · 明天', last: { state: 'succeeded', at: '11-02 15:40', counts: { jobs: 27, succeeded: 27 } } },
+      { id: 'c3', title: '午前看有没有新消息', kind: 'ask', kind_text: '定时提问', scope: 'codes', codes: ['600036.SH', '600519.SH'], scope_text: '招商银行、贵州茅台', count: 2, at: '11:00', days: 'trading', schedule_text: '每个交易日 11:00', question: '今天有没有新公告、新闻或者资金异动，对这只票是利好还是利空？', enabled: false, last: { state: 'succeeded', at: '10-30 11:01', counts: { jobs: 2, succeeded: 2 } } },
+    ] };
   return _demo;
 }
 refreshAll().then(loadIndexes);

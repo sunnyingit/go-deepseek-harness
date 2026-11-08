@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"go-harness/internal/custom"
 	"go-harness/internal/inbox"
 	"go-harness/internal/personal"
 	"go-harness/internal/quotes"
@@ -51,6 +52,7 @@ func (s *Server) initClientTasks(ctx context.Context) {
 	s.sch = sched.New(sched.OpenStore(file("sched.json")), s.cal, nil)
 	s.relay = newRelayClient(file("relay.json"), time.Now)
 	s.scan = scan.Open(file("predictions.json"), nil)
+	s.custom = custom.Open(file("custom_tasks.json"), nil)
 	s.registerTasks()
 	s.sch.Listeners = append(s.sch.Listeners, s.onRunFinished)
 	go s.sch.Run(ctx, 15*time.Second)
@@ -91,6 +93,7 @@ func (s *Server) registerTasks() {
 	})
 	s.registerWatchTasks()
 	s.registerScanTasks()
+	s.registerCustomTasks()
 	s.sch.Register(&sched.Spec{
 		ID: "notify.dispatch", Title: "通知投递", Queue: "light", Frequent: true, Trigger: sched.Trigger{Kind: "every", EveryMin: 1, Days: "any"},
 		MaxAttempts: 1, Timeout: 60 * time.Second, Handler: func(c *sched.JobCtx) (any, error) { return s.inbox.Dispatch(), nil },

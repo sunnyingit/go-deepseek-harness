@@ -26,6 +26,7 @@ func (s *Server) registerClientRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /notify/desktop/ack", s.handleDesktopAck)
 	s.registerHoldingsRoutes(mux)
 	s.registerScanRoutes(mux)
+	s.registerCustomRoutes(mux)
 	s.registerNotifySettingsRoutes(mux)
 	mux.HandleFunc("GET /notify/relay", s.handleRelayStatus)
 	mux.HandleFunc("POST /notify/relay", s.handleRelayEnable)

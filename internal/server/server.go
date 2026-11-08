@@ -26,6 +26,7 @@ import (
 	"go-harness/fs/fssandbox"
 	"go-harness/fs/toolfs"
 	"go-harness/internal/appconfig"
+	"go-harness/internal/custom"
 	"go-harness/internal/inbox"
 	"go-harness/internal/personal"
 	"go-harness/internal/quotes"
@@ -138,13 +139,16 @@ type Server struct {
 	codeMu sync.Mutex
 	codes  map[string]*sync.Mutex
 	// 客户端的定时任务、收件箱和个人数据（自选、提醒、成交）。都只在本机。
-	sch         *sched.Scheduler
-	inbox       *inbox.Inbox
-	personal    *personal.Store
-	quotes      *quotes.Client
-	cal         *sched.Calendar
-	relay       *relayClient
-	scan        *scan.Store
+	sch      *sched.Scheduler
+	inbox    *inbox.Inbox
+	personal *personal.Store
+	quotes   *quotes.Client
+	cal      *sched.Calendar
+	relay    *relayClient
+	scan     *scan.Store
+	custom   *custom.Store
+	// askFn replaces the question to the chief analyst in custom tasks, tests use it.
+	askFn       func(ctx context.Context, code, question string) (string, error)
 	sharedMu    sync.Mutex
 	sharedCache map[string]cachedBody
 	// stepFn 替换夜间任务里每一步调模型的那一下，测试用。
