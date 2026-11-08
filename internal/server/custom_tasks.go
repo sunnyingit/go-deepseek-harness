@@ -34,10 +34,23 @@ func (s *Server) registerCustom(t custom.Task) {
 		queue = "llm"
 	}
 	id := t.ID
+	trigger := sched.Trigger{Kind: "daily", At: t.At, WindowMin: 120, Days: t.Days}
+	attempts, backoff, frequent, budget := 2, []time.Duration{5 * time.Minute, 20 * time.Minute}, false, 0
+	if t.Every > 0 {
+		// every N minutes: inside the market sessions, or around the clock. A slot that failed is not retried, the next one comes soon enough.
+		trigger = sched.Trigger{Kind: "every", EveryMin: t.Every, Days: t.Days}
+		if t.Days == "trading" {
+			trigger.Kind = "interval"
+		}
+		attempts, backoff, frequent = 1, nil, true
+		if t.Kind != custom.Scan {
+			budget = 150 // model calls a day: a task set to run often must not run the bill up
+		}
+	}
 	s.sch.Register(&sched.Spec{
-		ID: customID(id), Title: t.Title, Queue: queue,
-		Trigger:     sched.Trigger{Kind: "daily", At: t.At, WindowMin: 120, Days: t.Days},
-		MaxAttempts: 2, Backoff: []time.Duration{5 * time.Minute, 20 * time.Minute}, CatchupTTL: 6 * time.Hour, Timeout: 10 * time.Minute,
+		ID: customID(id), Title: t.Title, Queue: queue, Frequent: frequent, BudgetCalls: budget,
+		Trigger:     trigger,
+		MaxAttempts: attempts, Backoff: backoff, CatchupTTL: 6 * time.Hour, Timeout: 10 * time.Minute,
 		Fanout: func(*sched.PlanCtx) []sched.Unit {
 			cur, ok := s.custom.Get(id)
 			if !ok {
@@ -87,6 +100,9 @@ func (s *Server) customHandler(c *sched.JobCtx) (any, error) {
 	}
 	switch t.Kind {
 	case custom.Analyze:
+		if len(t.Analysts) > 0 {
+			return s.customDimensions(c, t)
+		}
 		c.Input()["force"] = true // the user asked for a fresh conclusion at this time
 		return s.nightly(c)
 	case custom.Ask:
@@ -97,17 +113,17 @@ func (s *Server) customHandler(c *sched.JobCtx) (any, error) {
 	return nil, sched.Permanent("不认识的任务类型")
 }
 
-// askChief asks the chief analyst one question about a stock. Tests replace it.
-func (s *Server) askChief(ctx context.Context, code, question string) (string, error) {
+// askAnalyst asks one analyst a question about a stock. Tests replace it.
+func (s *Server) askAnalyst(ctx context.Context, code, analyst, question string) (string, error) {
 	if s.askFn != nil {
-		return s.askFn(ctx, code, question)
+		return s.askFn(ctx, code, analyst, question)
 	}
 	if s.llm == nil {
 		return "", sched.Permanent("没有可用的模型：请先配置模型密钥")
 	}
 	unlock := s.lockCode(code)
 	defer unlock()
-	cfg, err := loadAgent("chief")
+	cfg, err := loadAgent(analyst)
 	if err != nil {
 		return "", err
 	}
@@ -117,30 +133,95 @@ func (s *Server) askChief(ctx context.Context, code, question string) (string, e
 	}
 	text, _ := msg["text"].(string)
 	if strings.TrimSpace(text) == "" {
-		return "", sched.Transient("主分析师没有给出回答")
+		return "", sched.Transient(custom.AnalystLabel[analyst] + "没有给出回答")
 	}
 	return text, nil
 }
 
+func clipText(text string, n int) string {
+	body := strings.TrimSpace(text)
+	if r := []rune(body); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return body
+}
+
 func (s *Server) customAsk(c *sched.JobCtx, t custom.Task) (any, error) {
 	code := c.Unit()
-	text, err := sched.Step(c, "ask", func() (string, error) {
-		c.AddCalls(1)
-		return s.askChief(c.Ctx, code, t.Question)
-	})
-	if err != nil {
-		return nil, err
+	who := t.Analysts
+	if len(who) == 0 {
+		who = []string{"chief"}
 	}
-	body := strings.TrimSpace(text)
-	if r := []rune(body); len(r) > 600 {
-		body = string(r[:600]) + "…"
+	var parts []string
+	for _, id := range who {
+		id := id
+		text, err := sched.Step(c, "ask."+id, func() (string, error) {
+			c.AddCalls(1)
+			return s.askAnalyst(c.Ctx, code, id, t.Question)
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(who) == 1 {
+			parts = append(parts, clipText(text, 600))
+		} else {
+			parts = append(parts, "【"+custom.AnalystLabel[id]+"】"+clipText(text, 400))
+		}
 	}
-	_, _, perr := s.inbox.Publish("custom.answer", "stock", code, map[string]any{"task": t.Title, "name": s.stockName(code), "ts_code": code, "text": body, "question": t.Question},
-		fmt.Sprintf("custom.answer:%s:%s:%s", t.ID, code, sched.Day(c.Now())), inbox.Options{})
+	_, _, perr := s.inbox.Publish("custom.answer", "stock", code, map[string]any{"task": t.Title, "name": s.stockName(code), "ts_code": code, "text": strings.Join(parts, "\n\n"), "question": t.Question},
+		fmt.Sprintf("custom.answer:%s:%s:%s", t.ID, code, c.RunID()), inbox.Options{})
 	if perr != nil {
 		return nil, perr
 	}
-	return map[string]any{"ts_code": code, "answered": true}, nil
+	return map[string]any{"ts_code": code, "answered": len(who)}, nil
+}
+
+// customDimensions analyses a stock again from only the chosen sides (money flow, sector, news ...). There is no
+// chief and no verdict, so nothing is written down as a prediction: the headlines go to the inbox.
+func (s *Server) customDimensions(c *sched.JobCtx, t custom.Task) (any, error) {
+	code := c.Unit()
+	if s.llm == nil && s.stepFn == nil {
+		return nil, sched.Permanent("没有可用的模型：请先配置模型密钥")
+	}
+	unlock := s.lockCode(code)
+	defer unlock()
+	var lines []string
+	okCount := 0
+	for _, id := range t.Analysts {
+		id := id
+		o, err := sched.Step(c, "dim."+id, func() (stepOutcome, error) {
+			out := s.speak(c.Ctx, id, code)
+			if out.State == "ok" {
+				c.AddCalls(1)
+			}
+			return out, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		label := custom.AnalystLabel[id]
+		if o.State != "ok" {
+			lines = append(lines, label+"：这次没能发言（"+clipText(o.Reason, 60)+"）")
+			continue
+		}
+		okCount++
+		verdict, _ := o.Headline["status_text"].(string)
+		text, _ := o.Headline["text"].(string)
+		line := label + "："
+		if verdict != "" {
+			line += verdict + " — "
+		}
+		lines = append(lines, line+clipText(text, 160))
+	}
+	if okCount == 0 && !c.LastTry() {
+		return nil, sched.Transient("几位分析师都没能发言")
+	}
+	_, _, err := s.inbox.Publish("custom.analysis", "stock", code, map[string]any{"task": t.Title, "name": s.stockName(code), "ts_code": code, "lines": lines},
+		fmt.Sprintf("custom.analysis:%s:%s:%s", t.ID, code, c.RunID()), inbox.Options{})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"ts_code": code, "analysed": okCount}, nil
 }
 
 // customFacts gathers what one stock looks like, fetching only what the task's conditions need.
@@ -211,10 +292,14 @@ func (s *Server) customView(t custom.Task) map[string]any {
 	v := map[string]any{
 		"id": t.ID, "title": t.Title, "kind": t.Kind, "kind_text": custom.KindText(t.Kind), "scope": t.Scope, "codes": t.Codes, "scope_text": t.ScopeText(names),
 		"at": t.At, "days": t.Days, "schedule_text": t.ScheduleText(), "question": t.Question, "rules": t.Rules, "match": t.Match, "rules_text": t.RulesText(),
-		"enabled": t.Enabled, "count": len(codes),
+		"analysts": t.Analysts, "analysts_text": t.AnalystsText(), "enabled": t.Enabled, "count": len(codes),
 	}
-	if sp, ok := s.sch.Spec(customID(t.ID)); ok {
-		if at, ok := s.nextDaily(sp.Trigger, s.now()); ok && t.Enabled {
+	if sp, ok := s.sch.Spec(customID(t.ID)); ok && t.Enabled {
+		if t.Every > 0 {
+			if text := s.nextIntervalText(sp.Trigger, s.now()); text != "" {
+				v["when_text"] = text
+			}
+		} else if at, ok := s.nextDaily(sp.Trigger, s.now()); ok {
 			v["next"], v["when_text"] = at.Format("2006-01-02 15:04"), whenText(at, s.now())
 		}
 	}
@@ -355,4 +440,28 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux) {
 		s.sch.Tick()
 		writeJSON(w, http.StatusAccepted, map[string]any{"queued": len(units), "run_id": run.ID})
 	})
+}
+
+// nextIntervalText says when an every-N-minutes task runs next. Slots are multiples of N minutes from midnight; a
+// market-session task waits for the next session when the market is closed.
+func (s *Server) nextIntervalText(tr sched.Trigger, now time.Time) string {
+	local := now.In(sched.Zone)
+	mins := local.Hour()*60 + local.Minute()
+	nextSlot := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, sched.Zone).Add(time.Duration((mins/tr.EveryMin+1)*tr.EveryMin) * time.Minute)
+	if tr.Kind != "interval" {
+		return "下一次 " + whenText(nextSlot, now)
+	}
+	if in, start := s.sessionNow(now); !in {
+		if start.IsZero() {
+			return ""
+		}
+		return "下一次 " + whenText(start, now)
+	}
+	if sched.InSession(nextSlot) && nextSlot.Day() == local.Day() {
+		return "下一次 " + whenText(nextSlot, now)
+	}
+	if _, start := s.sessionNow(nextSlot.Add(time.Minute)); !start.IsZero() {
+		return "下一次 " + whenText(start, now)
+	}
+	return "下一次 " + whenText(nextSlot, now)
 }

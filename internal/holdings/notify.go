@@ -13,7 +13,7 @@ import (
 var inboxKinds = map[string]string{
 	"price.alert.fired": "alert", "price.move": "move", "limit.hit": "move", "price.extreme": "move", "flow.streak": "move",
 	"judgment.changed": "change", "reason.status_changed": "change", "wish.condition_met": "change",
-	"announcement.published": "ann", "news.item": "ann", "calendar.upcoming": "upcoming", "outcome.settled": "settle", "scan.settled": "settle", "custom.hit": "alert", "custom.answer": "ann",
+	"announcement.published": "ann", "news.item": "ann", "calendar.upcoming": "upcoming", "outcome.settled": "settle", "scan.settled": "settle", "custom.hit": "alert", "custom.answer": "ann", "custom.analysis": "ann",
 	"task.failed": "system", "task.overdue": "system", "task.completed": "system", "digest.summary": "system",
 }
 
@@ -42,12 +42,18 @@ func (c *Ctx) inboxRows() []inbox.Item {
 		return nil
 	}
 	names := c.Names()
+	for _, w := range c.Store.WatchList() { // a stock that is only on the watchlist is followed too
+		if names[w.Code] == "" {
+			names[w.Code] = w.Name
+		}
+	}
 	var out []inbox.Item
 	for _, it := range c.Inbox.List("", false, 120) {
 		if _, ok := inboxKinds[it.Type]; !ok {
 			continue
 		}
-		if isSystem(it.Type) || (it.Group == "stock" && names[it.SubjectID] != "") {
+		// what the user's own tasks found is always shown, whichever stocks they were told to look at
+		if isSystem(it.Type) || strings.HasPrefix(it.Type, "custom.") || (it.Group == "stock" && names[it.SubjectID] != "") {
 			out = append(out, it)
 		}
 	}

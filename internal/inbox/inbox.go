@@ -208,6 +208,10 @@ func init() {
 		Render: func(p map[string]any) (string, string) {
 			return str(p, "task") + " · " + str(p, "name") + " 符合条件", strings.Join(list(p, "why"), "\n")
 		}}
+	Registry["custom.analysis"] = Type{TTL: 24 * time.Hour, Severity: "normal", Tone: "flat", Group: "stock", Link: stockLink("diagnose", ""),
+		Render: func(p map[string]any) (string, string) {
+			return str(p, "task") + " · " + str(p, "name"), strings.Join(list(p, "lines"), "\n")
+		}}
 	Registry["custom.answer"] = Type{TTL: 24 * time.Hour, Severity: "normal", Tone: "flat", Group: "stock", Link: stockLink("diagnose", ""),
 		Render: func(p map[string]any) (string, string) {
 			return str(p, "task") + " · " + str(p, "name"), str(p, "text")

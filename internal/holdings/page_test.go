@@ -1,6 +1,7 @@
 package holdings
 
 import (
+	"go-harness/internal/inbox"
 	"strings"
 	"testing"
 	"time"
@@ -558,5 +559,36 @@ func TestNotificationsItemsAndReadMarks(t *testing.T) {
 	e.ctx().MarkRead()
 	if e.ctx().Notifications()["unread"] != 0 {
 		t.Fatal("still unread after marking read")
+	}
+}
+
+func TestDrawerShowsWatchlistStocksAndWhatTheUsersOwnTasksFound(t *testing.T) {
+	e := newEnv(t)
+	e.seed()
+	e.store.WatchAdd("000021.SZ", "深科技") // only followed, neither held nor wished for
+	ib := inbox.Open("", func() time.Time { return time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC) })
+	publish := func(typ, code, name string, payload map[string]any) {
+		payload["ts_code"], payload["name"], payload["task"] = code, name, "我的任务"
+		if _, _, err := ib.Publish(typ, "stock", code, payload, typ+code, inbox.Options{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	publish("custom.hit", "000021.SZ", "深科技", map[string]any{"why": []string{"收盘跌破 20 日均线"}})
+	publish("custom.answer", "300750.SZ", "宁德时代", map[string]any{"text": "没有新公告"}) // named in a task, followed nowhere
+	publish("announcement.published", "000021.SZ", "深科技", map[string]any{"title": "年度报告"})
+	publish("announcement.published", "300750.SZ", "宁德时代", map[string]any{"title": "不该出现"})
+	data := NewCtx(e.store, e.data, today, ib).Notifications()
+	var texts []string
+	for _, it := range data["items"].([]Map) {
+		texts = append(texts, it["title"].(string)+"|"+it["text"].(string))
+	}
+	joined := strings.Join(texts, "\n")
+	for _, want := range []string{"我的任务 · 深科技 符合条件", "我的任务 · 宁德时代", "年度报告"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("%q is missing from %v", want, texts)
+		}
+	}
+	if strings.Contains(joined, "不该出现") {
+		t.Errorf("an announcement for a stock nobody follows was shown: %v", texts)
 	}
 }

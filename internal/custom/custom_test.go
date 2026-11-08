@@ -39,6 +39,25 @@ func TestCleanRefusesWhatCannotBeMeant(t *testing.T) {
 			t.Errorf("%q: got %v", want, err)
 		}
 	}
+	// a task that repeats every few minutes needs no time of day, and the gap has limits
+	every := Task{Title: "盘中看", Kind: Scan, Scope: "all", Every: 30, Days: "trading", Rules: []Rule{{Kind: "change_up", Value: 5}}}
+	if got, err := Clean(every); err != nil || got.At != "" || got.ScheduleText() != "交易时段每 30 分钟" {
+		t.Fatalf("interval = %+v %v", got, err)
+	}
+	for want, mutate := range map[string]func(Task) Task{
+		"最短每 5 分钟":   func(x Task) Task { x.Every = 3; return x },
+		"最短每 30 分钟":  func(x Task) Task { x.Kind = Analyze; x.Rules = nil; x.Every = 15; return x },
+		"间隔最长 12 小时": func(x Task) Task { x.Every = 725; return x },
+		"5 分钟的整数倍":   func(x Task) Task { x.Every = 33; return x },
+		"间隔不能是负数":    func(x Task) Task { x.Every = -5; return x },
+	} {
+		if _, err := Clean(mutate(every)); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%q: got %v", want, err)
+		}
+	}
+	if (Task{Every: 120, Days: "any"}).ScheduleText() != "每 2 小时（全天）" {
+		t.Error("hour wording")
+	}
 	got, err := Clean(Task{Title: " 看板块 ", Kind: Scan, Scope: "codes", Codes: []string{"600036.sh", "600036.SH", "02050.HK"}, At: "15:40", Days: "bad",
 		Rules: []Rule{{Kind: "below_ma", Value: 20}, {Kind: "ai_bearish", Value: 9}}})
 	if err != nil || got.Title != "看板块" || len(got.Codes) != 2 || got.Days != "trading" || got.Match != "all" || got.Rules[1].Value != 0 {
@@ -117,5 +136,36 @@ func TestWordsForATask(t *testing.T) {
 	}
 	if task.ScheduleText() != "每天 09:40" || task.RulesText() != "收盘跌破 20 日均线，或 大资金连续净流入 3 日，或 AI 结论偏多" {
 		t.Fatalf("%q | %q", task.ScheduleText(), task.RulesText())
+	}
+}
+
+func TestAnalystsOfATaskAreCheckedAndTidied(t *testing.T) {
+	base := Task{Title: "看资金和新闻", Kind: Analyze, Scope: "hold", At: "14:30", Analysts: []string{"volume_flow", "news", "news"}}
+	got, err := Clean(base)
+	if err != nil || len(got.Analysts) != 2 || got.AnalystsText() != "只分析：资金流、新闻" {
+		t.Fatalf("partial = %+v %v", got, err)
+	}
+	// all five is the whole round; the chief cannot be picked for a bare analysis
+	full := base
+	full.Analysts = append([]string{}, Dimensions...)
+	if got, _ := Clean(full); got.Analysts != nil || !strings.HasPrefix(got.AnalystsText(), "完整一轮") {
+		t.Fatalf("full = %+v", got)
+	}
+	bad := base
+	bad.Analysts = []string{"chief"}
+	if _, err := Clean(bad); err == nil || !strings.Contains(err.Error(), "没有这位分析师") {
+		t.Fatalf("chief in analyze: %v", err)
+	}
+	ask := Task{Title: "问问", Kind: Ask, Scope: "hold", At: "11:00", Question: "有新公告吗", Analysts: []string{"chief"}}
+	if got, err := Clean(ask); err != nil || got.Analysts != nil || got.AnalystsText() != "问：主分析师" {
+		t.Fatalf("ask chief = %+v %v", got, err)
+	}
+	ask.Analysts = []string{"news", "chief"}
+	if got, err := Clean(ask); err != nil || got.AnalystsText() != "问：新闻、主分析师" {
+		t.Fatalf("ask two = %+v %v", got, err)
+	}
+	scan := Task{Title: "扫", Kind: Scan, Scope: "all", At: "15:40", Analysts: []string{"news"}, Rules: []Rule{{Kind: "ai_bullish"}}}
+	if got, _ := Clean(scan); got.Analysts != nil {
+		t.Fatalf("a scan kept analysts: %+v", got)
 	}
 }

@@ -17,6 +17,21 @@ import (
 	"time"
 )
 
+// Dimensions are the five analysts that each look at one side of a stock; the chief weighs them.
+var Dimensions = []string{"volume_flow", "sector", "news", "finance", "fundamental"}
+
+// AnalystLabel is how an analyst is named in the lists.
+var AnalystLabel = map[string]string{"volume_flow": "资金流", "sector": "板块", "news": "新闻", "finance": "财报", "fundamental": "基本面", "chief": "主分析师"}
+
+func inList(list []string, v string) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
 // Task kinds.
 const (
 	Analyze = "analyze" // make a new conclusion for each stock, written down as a prediction
@@ -31,9 +46,11 @@ type Task struct {
 	Kind      string   `json:"kind"`
 	Scope     string   `json:"scope"` // all | hold | wish | watch | codes
 	Codes     []string `json:"codes,omitempty"`
-	At        string   `json:"at"`   // 14:30
-	Days      string   `json:"days"` // trading | any
+	At        string   `json:"at"`              // 14:30; empty when the task repeats every N minutes
+	Every     int      `json:"every,omitempty"` // minutes between runs; 0 = once a day at At
+	Days      string   `json:"days"`            // trading | any: for a daily task the days it runs, for an interval the hours it runs in (trading = market sessions only)
 	Question  string   `json:"question,omitempty"`
+	Analysts  []string `json:"analysts,omitempty"` // analyze: only these dimensions (empty = the whole round); ask: who is asked (empty = the chief)
 	Rules     []Rule   `json:"rules,omitempty"`
 	Match     string   `json:"match,omitempty"` // all | any
 	Enabled   bool     `json:"enabled"`
@@ -92,6 +109,17 @@ func (e InputError) Error() string { return string(e) }
 var clock = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
 var codePattern = regexp.MustCompile(`^([0-9]{6}\.(SH|SZ|BJ)|[0-9]{5}\.HK)$`)
 
+// MaxEvery is the longest gap between two runs of an interval task, in minutes.
+const MaxEvery = 720
+
+// MinEvery is the shortest gap: a scan only reads prices, the other two use the user's model on every stock.
+func MinEvery(kind string) int {
+	if kind == Scan {
+		return 5
+	}
+	return 30
+}
+
 // Clean checks a task and tidies it up. It never keeps what the user cannot have meant.
 func Clean(t Task) (Task, error) {
 	t.Title = strings.TrimSpace(t.Title)
@@ -106,11 +134,27 @@ func Clean(t Task) (Task, error) {
 	default:
 		return t, InputError("任务类型不对")
 	}
-	if !clock.MatchString(t.At) {
-		return t, InputError("时间写成 14:30 这样")
-	}
 	if t.Days != "trading" && t.Days != "any" {
 		t.Days = "trading"
+	}
+	if t.Every < 0 {
+		return t, InputError("间隔不能是负数")
+	}
+	if t.Every == 0 {
+		if !clock.MatchString(t.At) {
+			return t, InputError("时间写成 14:30 这样")
+		}
+	} else {
+		min := MinEvery(t.Kind)
+		switch {
+		case t.Every < min:
+			return t, InputError(fmt.Sprintf("「%s」最短每 %d 分钟跑一次", kindText[t.Kind], min))
+		case t.Every > MaxEvery:
+			return t, InputError("间隔最长 12 小时")
+		case t.Every%5 != 0:
+			return t, InputError("间隔要是 5 分钟的整数倍")
+		}
+		t.At = ""
 	}
 	switch t.Scope {
 	case "all", "hold", "wish", "watch":
@@ -137,6 +181,34 @@ func Clean(t Task) (Task, error) {
 		t.Codes = codes
 	default:
 		return t, InputError("范围不对")
+	}
+	{
+		seen := map[string]bool{}
+		var picked []string
+		for _, a := range t.Analysts {
+			a = strings.TrimSpace(a)
+			if seen[a] || a == "" {
+				continue
+			}
+			seen[a] = true
+			if !inList(Dimensions, a) && !(t.Kind == Ask && a == "chief") {
+				return t, InputError("没有这位分析师：" + a)
+			}
+			picked = append(picked, a)
+		}
+		switch t.Kind {
+		case Scan:
+			picked = nil
+		case Analyze:
+			if len(picked) == len(Dimensions) {
+				picked = nil // all five is the whole round
+			}
+		case Ask:
+			if len(picked) == 1 && picked[0] == "chief" {
+				picked = nil
+			}
+		}
+		t.Analysts = picked
 	}
 	switch t.Kind {
 	case Ask:
@@ -225,7 +297,39 @@ func (t Task) ScopeText(names map[string]string) string {
 	return strings.Join(parts, "、")
 }
 
+// AnalystsText says what an analyze or ask task asks of whom.
+func (t Task) AnalystsText() string {
+	label := func() string {
+		var parts []string
+		for _, a := range t.Analysts {
+			parts = append(parts, AnalystLabel[a])
+		}
+		return strings.Join(parts, "、")
+	}
+	switch {
+	case t.Kind == Analyze && len(t.Analysts) == 0:
+		return "完整一轮：五位分析师、看多看空、主分析师裁决"
+	case t.Kind == Analyze:
+		return "只分析：" + label()
+	case t.Kind == Ask && len(t.Analysts) == 0:
+		return "问：主分析师"
+	case t.Kind == Ask:
+		return "问：" + label()
+	}
+	return ""
+}
+
 func (t Task) ScheduleText() string {
+	if t.Every > 0 {
+		gap := fmt.Sprintf("%d 分钟", t.Every)
+		if t.Every%60 == 0 {
+			gap = fmt.Sprintf("%d 小时", t.Every/60)
+		}
+		if t.Days == "any" {
+			return "每 " + gap + "（全天）"
+		}
+		return "交易时段每 " + gap
+	}
 	if t.Days == "any" {
 		return "每天 " + t.At
 	}

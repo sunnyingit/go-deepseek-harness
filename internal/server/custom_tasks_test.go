@@ -112,8 +112,8 @@ func TestCustomAskPutsTheAnswerInTheInbox(t *testing.T) {
 	s, _ := newClientServer(t, zoneTime("2026-11-09", "10:00"))
 	s.personal.WatchAdd("600036.SH", "招商银行")
 	var asked []string
-	s.askFn = func(_ context.Context, code, q string) (string, error) {
-		asked = append(asked, code+"|"+q)
+	s.askFn = func(_ context.Context, code, analyst, q string) (string, error) {
+		asked = append(asked, code+"|"+analyst+"|"+q)
 		return "今天没有新公告，资金小幅流入。", nil
 	}
 	a := newCustomAPI(t, s)
@@ -122,7 +122,7 @@ func TestCustomAskPutsTheAnswerInTheInbox(t *testing.T) {
 	a.call("POST", "/api/scan/custom/"+id+"/run", "")
 	s.sch.TickSync()
 	got := inboxTypes(s, "custom.answer")
-	if len(asked) != 1 || asked[0] != "600036.SH|今天有没有新公告和资金异动？" || len(got) != 1 || got[0]["body"] != "今天没有新公告，资金小幅流入。" || !strings.Contains(got[0]["title"].(string), "午前看一眼 · 招商银行") {
+	if len(asked) != 1 || asked[0] != "600036.SH|chief|今天有没有新公告和资金异动？" || len(got) != 1 || got[0]["body"] != "今天没有新公告，资金小幅流入。" || !strings.Contains(got[0]["title"].(string), "午前看一眼 · 招商银行") {
 		t.Fatalf("asked %v, inbox %v", asked, got)
 	}
 }
@@ -152,5 +152,78 @@ func TestCustomAnalyzeMakesAFreshConclusionAndWritesItDown(t *testing.T) {
 		if p.Source != "scan" {
 			t.Fatalf("source = %s", p.Source)
 		}
+	}
+}
+
+func TestCustomTasksCanRepeatEveryFewMinutes(t *testing.T) {
+	s, _ := newClientServer(t, zoneTime("2026-11-09", "10:10")) // a Monday, inside the morning session
+	a := newCustomAPI(t, s)
+	code, out := a.call("POST", "/api/scan/custom", `{"title":"盘中异动","kind":"scan","scope":"all","every":30,"days":"trading","match":"any","rules":[{"kind":"change_up","value":5},{"kind":"change_down","value":5}]}`)
+	if code != 201 {
+		t.Fatalf("create = %d %v", code, out)
+	}
+	task := out["task"].(map[string]any)
+	if task["schedule_text"] != "交易时段每 30 分钟" || task["when_text"] != "下一次 周一 11-09 10:30 · 今天" {
+		t.Fatalf("view = %v", task)
+	}
+	sp, _ := s.sch.Spec("custom." + task["id"].(string))
+	if sp.Trigger.Kind != "interval" || sp.Trigger.EveryMin != 30 || !sp.Frequent || sp.MaxAttempts != 1 {
+		t.Fatalf("spec = %+v", sp)
+	}
+	// the whole day, and the model kinds get a daily budget
+	_, out = a.call("POST", "/api/scan/custom", `{"title":"每两小时问一次","kind":"ask","scope":"hold","every":120,"days":"any","question":"有什么新消息"}`)
+	ask := out["task"].(map[string]any)
+	sp, _ = s.sch.Spec("custom." + ask["id"].(string))
+	if ask["schedule_text"] != "每 2 小时（全天）" || sp.Trigger.Kind != "every" || sp.BudgetCalls == 0 {
+		t.Fatalf("ask = %v spec = %+v", ask, sp)
+	}
+	// too often for the model kinds is refused with the reason
+	if code, out := a.call("POST", "/api/scan/custom", `{"title":"太勤","kind":"ask","scope":"hold","every":10,"days":"any","question":"x"}`); code != 400 || !strings.Contains(out["error"].(string), "最短每 30 分钟") {
+		t.Fatalf("too often = %d %v", code, out)
+	}
+	// after the close, the next run of a session task is the next session
+	s2, _ := newClientServer(t, zoneTime("2026-11-09", "16:00"))
+	_, out = newCustomAPI(t, s2).call("POST", "/api/scan/custom", `{"title":"盘中异动","kind":"scan","scope":"all","every":15,"days":"trading","rules":[{"kind":"change_up","value":5}]}`)
+	if w := out["task"].(map[string]any)["when_text"]; w != "下一次 周二 11-10 09:30 · 明天" {
+		t.Fatalf("after close: %v", w)
+	}
+}
+
+func TestCustomAskCanAskSeveralAnalystsAndAnalysisCanBeLimitedToSomeOfThem(t *testing.T) {
+	s, _ := newClientServer(t, zoneTime("2026-11-09", "10:00"))
+	s.personal.WatchAdd("600036.SH", "招商银行")
+	var asked []string
+	s.askFn = func(_ context.Context, code, analyst, q string) (string, error) {
+		asked = append(asked, analyst)
+		return analyst + "的回答", nil
+	}
+	sp := &speaker{}
+	s.stepFn = sp.fn
+	a := newCustomAPI(t, s)
+	_, out := a.call("POST", "/api/scan/custom", `{"title":"问两位","kind":"ask","scope":"watch","at":"11:00","question":"怎么看","analysts":["news","volume_flow"]}`)
+	task := out["task"].(map[string]any)
+	if task["analysts_text"] != "问：新闻、资金流" {
+		t.Fatalf("view = %v", task)
+	}
+	a.call("POST", "/api/scan/custom/"+task["id"].(string)+"/run", "")
+	s.sch.TickSync()
+	answers := inboxTypes(s, "custom.answer")
+	if strings.Join(asked, ",") != "news,volume_flow" || len(answers) != 1 || !strings.Contains(answers[0]["body"].(string), "【新闻】news的回答") || !strings.Contains(answers[0]["body"].(string), "【资金流】volume_flow的回答") {
+		t.Fatalf("asked %v answers %v", asked, answers)
+	}
+	// an analysis of two sides only: each one speaks, nobody weighs them, nothing is written down as a prediction
+	_, out = a.call("POST", "/api/scan/custom", `{"title":"只看资金和板块","kind":"analyze","scope":"watch","at":"14:30","analysts":["volume_flow","sector"]}`)
+	id := out["task"].(map[string]any)["id"].(string)
+	a.call("POST", "/api/scan/custom/"+id+"/run", "")
+	s.sch.TickSync()
+	got := inboxTypes(s, "custom.analysis")
+	if len(got) != 1 || !strings.Contains(got[0]["body"].(string), "资金流：偏多 — volume_flow 的结论") || !strings.Contains(got[0]["body"].(string), "板块：") || strings.Contains(got[0]["body"].(string), "新闻") {
+		t.Fatalf("analysis = %v", got)
+	}
+	if sp.calls["chief"] != 0 || sp.calls["news"] != 0 || len(s.scan.All()) != 0 {
+		t.Fatalf("the others spoke or a prediction was made: %v, %d", sp.calls, len(s.scan.All()))
+	}
+	if code, out := a.call("POST", "/api/scan/custom", `{"title":"x","kind":"analyze","scope":"hold","at":"10:00","analysts":["chief"]}`); code != 400 || !strings.Contains(out["error"].(string), "没有这位分析师") {
+		t.Fatalf("chief for analyze = %d %v", code, out)
 	}
 }

@@ -148,7 +148,7 @@ type Server struct {
 	scan     *scan.Store
 	custom   *custom.Store
 	// askFn replaces the question to the chief analyst in custom tasks, tests use it.
-	askFn       func(ctx context.Context, code, question string) (string, error)
+	askFn       func(ctx context.Context, code, analyst, question string) (string, error)
 	sharedMu    sync.Mutex
 	sharedCache map[string]cachedBody
 	// stepFn 替换夜间任务里每一步调模型的那一下，测试用。

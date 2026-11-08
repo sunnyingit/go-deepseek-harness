@@ -528,6 +528,8 @@ const CU_KIND = {
 };
 const CU_SCOPE = [['all', '我的全部标的'], ['hold', '我的持仓'], ['wish', '我想买的'], ['watch', '我的自选'], ['codes', '指定股票…']];
 const CU_TEMPLATES = {
+  tick: { title: '盘中异动提醒', kind: 'scan', scope: 'all', every: 30, days: 'trading', match: 'any', rules: [{ kind: 'change_up', value: 5 }, { kind: 'change_down', value: 5 }], desc: '交易时段每 30 分钟看一遍，涨或跌超过 5% 的才通知' },
+  dims: { title: '午后看资金、新闻、板块', kind: 'analyze', scope: 'hold', at: '14:00', days: 'trading', analysts: ['volume_flow', 'news', 'sector'], desc: '每个交易日 14:00，只让资金流、新闻、板块三位分析师各说一次，结论进通知' },
   hold: { title: '收盘后再分析持仓', kind: 'analyze', scope: 'hold', at: '15:40', days: 'trading', desc: '每个交易日收盘后，把持仓的票各重新分析一遍' },
   ma: { title: '跌破 20 日线提醒', kind: 'scan', scope: 'all', at: '15:40', days: 'trading', match: 'all', rules: [{ kind: 'below_ma', value: 20 }], desc: '收盘后看哪些标的收盘跌破了 20 日线' },
   ask: { title: '午前看有没有新消息', kind: 'ask', scope: 'hold', at: '11:00', days: 'trading', question: '今天有没有新公告、新闻或者资金异动，对这只票是利好还是利空？', desc: '午休前问主分析师一句，回答直接进通知' },
@@ -537,14 +539,14 @@ const cuKindOf = (k) => cuKinds().find((x) => x.kind === k) || { kind: k, label:
 const cuPill = (kind) => pl(CU_KIND[kind][1], CU_KIND[kind][2], CU_KIND[kind][0]);
 
 function cuRow(t) {
-  const sub = t.kind === 'ask' ? '「' + esc(t.question) + '」' : t.kind === 'scan' ? esc(t.rules_text) : '给每只股票重新出一份结论，记成预测';
-  const last = t.last ? '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + pl((STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[t.last.state] || t.last.state) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(t.last.at) + (t.last.trigger === 'manual' ? ' · 手动' : '') + '</span></span>' : '<span style="font-size: 11px; color: #8A919E">还没跑过</span>';
+  const sub = t.kind === 'ask' ? '「' + esc(t.question) + '」' + (t.analysts_text && t.analysts_text !== '问：主分析师' ? ' · ' + esc(t.analysts_text) : '') : t.kind === 'scan' ? esc(t.rules_text) : esc(t.analysts_text || '给每只股票重新出一份结论，记成预测');
+  const last = t.last ? '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + pl((STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[t.last.state] || t.last.state) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(t.last.at) + (t.last.trigger === 'manual' ? ' · 手动' : '') + '</span><span role="button" tabindex="0" data-act="notif" style="font-size: 11px; color: #2457D6; cursor: pointer">看结果 →</span></span>' : '<span style="font-size: 11px; color: #8A919E">还没跑过</span>';
   const running = t.last && (t.last.state === 'running' || t.last.state === 'waiting' || t.last.state === 'planned');
   const btn = (act, text, extra) => '<button type="button" data-act="' + act + '" data-id="' + esc(t.id) + '" style="height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: ' + ((extra && extra.color) || '#2457D6') + '; cursor: pointer; white-space: nowrap">' + text + '</button>';
   return '<div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 150px 120px auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #F1F2F4' + (t.enabled ? '' : '; background: #FAFAFB') + '">' +
     '<span style="display: flex; flex-direction: column; gap: 4px; min-width: 0"><span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap"><b style="font-size: 14px' + (t.enabled ? '' : '; color: #8A919E') + '">' + esc(t.title) + '</b>' + cuPill(t.kind) + (t.enabled ? '' : pl('#F1F2F4', '#5B6372', '已停用')) + '</span><span style="font-size: 12px; color: #5B6372; line-height: 1.5; overflow-wrap: anywhere">' + sub + '</span></span>' +
     '<span style="display: flex; flex-direction: column; gap: 2px; font-size: 12px"><span>' + esc(t.scope_text) + '</span><span style="font-size: 11px; color: #8A919E">' + (t.count ? '现在 ' + t.count + ' 只' : '现在没有股票') + '</span></span>' +
-    '<span style="display: flex; flex-direction: column; gap: 2px"><b style="' + MONO_F + '; font-size: 12px">' + esc(t.schedule_text) + '</b><span style="font-size: 11px; color: #8A919E">' + (t.enabled ? (t.when_text ? '下次 ' + esc(t.when_text) : '') : '不会自动跑') + '</span></span>' + last +
+    '<span style="display: flex; flex-direction: column; gap: 2px"><b style="' + MONO_F + '; font-size: 12px">' + esc(t.schedule_text) + '</b><span style="font-size: 11px; color: #8A919E">' + (t.enabled ? (t.when_text ? (t.when_text.indexOf('下一次') === 0 ? '' : '下次 ') + esc(t.when_text) : '') : '不会自动跑') + '</span></span>' + last +
     '<span style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end">' + btn('curun', running ? '正在跑…' : '现在跑') + btn('cuedit', '编辑') + btn('cutoggle', t.enabled ? '停用' : '启用', { color: '#5B6372' }) + btn('cudel', '删除', { color: '#B42318' }) + '</span></div>';
 }
 function renderCustom() {
@@ -558,13 +560,19 @@ function renderCustom() {
     : '<div class="empty" style="padding: 24px 12px 14px"><b style="font-size: 15px">还没有自定义任务</b><span style="max-width: 520px; line-height: 1.7">点「新建任务」自己设一个，或者从下面选一个常用的改一改：</span><span style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center">' +
       Object.keys(CU_TEMPLATES).map((k) => '<button type="button" data-act="cutpl" data-k="' + k + '" title="' + esc(CU_TEMPLATES[k].desc) + '" style="' + LINKBTN + '">' + esc(CU_TEMPLATES[k].title) + '</button>').join('') + '</span></div>';
   return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="' + CARD + '">' + head + note + list + '</div>' +
+    '<div style="padding: 10px 14px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E3E6EB; font-size: 12px; color: #3A4250; line-height: 1.8"><b>结果在哪看：</b>' +
+    '<br>· <b>通知</b>：右上角的 🔔，条件扫描的命中、提问的回答、只分析几个方面的结论都在这里（「全部」页签；命中的还在「提醒」里）；每次跑完另有一条「定时任务成功」的回执。' +
+    '<br>· <b>完整一轮的分析结论</b>：这只票的诊断页（结论详情）；同时记成一条预测，在本页的「今日扫描」「跟踪中」，到期后在「已结算」「准不准」。' +
+    '<br>· <b>提问的回答</b>：除了通知，也会出现在这只票诊断页的研判群里，接着问就行。</div>' +
     '<span style="font-size: 11px; color: #A1A7B2; line-height: 1.7">每个任务都是调度器里的一个独立任务：到点自动跑，睡眠错过了会补，跑完在收件箱留回执；条件扫描同一天同一只票只通知一次。关掉的任务不会自动跑，但还可以手动「现在跑」。</span></div>';
 }
 
 // ---- 表单
-const cuDefault = () => ({ id: '', title: '', kind: 'analyze', scope: 'hold', codes: [], names: {}, at: '15:40', days: 'trading', question: '', rules: [], match: 'all', hits: null, err: '' });
+const cuDefault = () => ({ id: '', title: '', kind: 'analyze', scope: 'hold', codes: [], names: {}, at: '15:40', days: 'trading', mode: 'daily', everyNum: '30', everyUnit: 'min', analysts: [], question: '', rules: [], match: 'all', hits: null, err: '' });
 function cuOpen(t) {
-  S.cf = Object.assign(cuDefault(), t ? { id: t.id || '', title: t.title, kind: t.kind, scope: t.scope, codes: (t.codes || []).slice(), at: t.at, days: t.days || 'trading', question: t.question || '', rules: (t.rules || []).map((r) => Object.assign({}, r)), match: t.match || 'all' } : {});
+  S.cf = Object.assign(cuDefault(), t ? { id: t.id || '', title: t.title, kind: t.kind, scope: t.scope, codes: (t.codes || []).slice(), at: t.at, days: t.days || 'trading', question: t.question || '', analysts: (t.analysts || []).slice(), rules: (t.rules || []).map((r) => Object.assign({}, r)), match: t.match || 'all',
+    mode: t.every > 0 ? 'every' : 'daily', everyNum: String(t.every > 0 ? (t.every % 60 === 0 ? t.every / 60 : t.every) : 30), everyUnit: t.every > 0 && t.every % 60 === 0 ? 'hour' : 'min' } : {});
+  if (!S.cf.at) S.cf.at = '15:40';
   if (S.cf.kind === 'scan' && !S.cf.rules.length) S.cf.rules = [cuNewRule()];
   cuRender();
 }
@@ -586,19 +594,34 @@ function cuRender() {
         '<button type="button" data-act="curuledel" data-i="' + i + '" aria-label="删掉这个条件" style="border: none; background: transparent; color: #8A919E; cursor: pointer; font-size: 16px">×</button></div>' + (k.hint ? '<span style="font-size: 11px; color: #8A919E; margin-top: -4px">' + esc(k.hint) + '</span>' : '');
     }).join('') + (f.rules.length < 6 ? '<button type="button" data-act="curuleadd" style="align-self: flex-start; ' + 'height: 28px; padding: 0 10px; border: 1px dashed #C9CED6; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: #2457D6; cursor: pointer">＋ 加一个条件</button>' : '') + '</div>',
     '没有数据的条件算「不满足」；比如还没有 AI 结论时，「AI 结论偏多」不会命中。');
+  const dimList = [['volume_flow', '资金流'], ['sector', '板块'], ['news', '新闻'], ['finance', '财报'], ['fundamental', '基本面']].concat(f.kind === 'ask' ? [['chief', '主分析师']] : []);
+  const who = (f.kind !== 'analyze' && f.kind !== 'ask') ? '' : field(f.kind === 'ask' ? '问谁' : '分析哪几个方面',
+    '<div style="display: flex; gap: 6px; flex-wrap: wrap">' + dimList.map(([k, n]) => '<button type="button" data-act="cuwho" data-k="' + k + '" aria-pressed="' + f.analysts.includes(k) + '" style="height: 28px; padding: 0 12px; border: 1px solid ' + (f.analysts.includes(k) ? '#2457D6' : '#DDE1E7') + '; border-radius: 999px; background: ' + (f.analysts.includes(k) ? '#EAF0FD' : '#FFFFFF') + '; color: ' + (f.analysts.includes(k) ? '#1F3F8A' : '#3A4250') + '; font: inherit; font-size: 12px; cursor: pointer">' + n + '</button>').join('') + '</div>',
+    f.kind === 'ask' ? '不选就问主分析师；选了几位，每位各回答一遍，合成一条通知。' : '不选就是完整一轮（五位分析师、看多看空、主分析师裁决，结果记成预测）；只选几个，就只让这几位各说一次，结论放进通知，不出裁决、不记预测。');
   const ask = f.kind !== 'ask' ? '' : field('要问的问题', '<textarea data-f="question" rows="3" maxlength="300" placeholder="写一句话，每只股票都会被问一遍；比如：今天有没有新公告和资金异动？" style="' + inp + '; line-height: 1.6; resize: vertical">' + esc(f.question) + '</textarea>', '问的是主分析师；回答会放进通知，也会出现在这只票的诊断页里。');
+  const minE = f.kind === 'scan' ? 5 : 30;
+  const presets = [[5, 'min'], [15, 'min'], [30, 'min'], [60, 'min'], [2, 'hour']].filter((x) => (x[1] === 'hour' ? x[0] * 60 : x[0]) >= minE).map((x) => '<button type="button" data-act="cuevery" data-n="' + x[0] + '" data-u="' + x[1] + '" aria-pressed="' + (String(f.everyNum) === String(x[0]) && f.everyUnit === x[1]) + '" style="height: 26px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 999px; background: ' + (String(f.everyNum) === String(x[0]) && f.everyUnit === x[1] ? '#EAF0FD' : '#FFFFFF') + '; color: #3A4250; font: inherit; font-size: 12px; cursor: pointer">' + x[0] + (x[1] === 'hour' ? ' 小时' : ' 分钟') + '</button>').join('');
+  const when = '<div style="display: flex; flex-direction: column; gap: 10px">' + field('怎么重复', seg([['daily', '每天定点'], ['every', '每隔一段时间']], f.mode, 'cumode')) +
+    (f.mode === 'daily'
+      ? '<div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap">' + field('几点', '<input type="time" data-f="at" value="' + esc(f.at) + '" style="' + inp + '; width: 120px">') + field('哪几天', seg([['trading', '每个交易日'], ['any', '每天']], f.days, 'cudays')) + '</div>'
+      : '<div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap">' + field('每隔', '<span style="display: flex; gap: 6px; align-items: center"><input data-f="everyNum" inputmode="numeric" value="' + esc(f.everyNum) + '" style="' + inp + '; width: 80px"><select data-f="everyUnit" style="' + inp + '; width: 84px"><option value="min"' + (f.everyUnit === 'min' ? ' selected' : '') + '>分钟</option><option value="hour"' + (f.everyUnit === 'hour' ? ' selected' : '') + '>小时</option></select></span>') + field('什么时候跑', seg([['trading', '只在交易时段'], ['any', '全天']], f.days, 'cudays')) + '</div>' +
+        '<div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center"><span style="font-size: 11px; color: #8A919E">常用：</span>' + presets + '</div>') +
+    '<span style="font-size: 11px; color: #8A919E; line-height: 1.7">' + (f.mode === 'daily'
+      ? '任务在这台电脑的客户端里跑。到点时客户端没开着或电脑睡眠，醒来后会补跑（超过几小时就不补了）。'
+      : '每隔一段时间的任务按整点对齐（每 30 分钟就是 :00、:30），' + (f.days === 'trading' ? '只在 9:30–11:30、13:00–15:00 的交易日里跑' : '全天跑，休市也跑') + '；最短每 ' + minE + ' 分钟，最长 12 小时。任务在这台电脑的客户端里跑：客户端没开着、电脑睡眠或关机的时候不跑，错过的不补。' + (f.kind === 'scan' ? '同一只票同一天只通知一次。' : '每次都会调用你的模型，一天最多 150 次；每次的回答都会通知。')) + '</span></div>';
   const noModel = (f.kind !== 'scan' && S.data.custom && !S.data.custom.model) ? '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF8EC; font-size: 12px; color: #7A4A00">没有配置模型密钥，这类任务跑起来会失败；先到设置里配好。</div>' : '';
   $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1" style="width: 620px; gap: 14px"><div style="display: flex; align-items: center"><b style="font-size: 16px">' + (f.id ? '编辑任务' : '新建任务') + '</b><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 18px">×</button></div>' +
     field('名称', '<input data-f="title" maxlength="30" value="' + esc(f.title) + '" placeholder="比如：收盘后再分析持仓" style="' + inp + '">') +
-    field('做什么', seg([['analyze', '定时分析'], ['ask', '定时提问'], ['scan', '条件扫描']], f.kind, 'cukind'), esc(CU_KIND[f.kind][3]) + '（' + CU_KIND[f.kind][4] + '）') + noModel + ask + rules +
+    field('做什么', seg([['analyze', '定时分析'], ['ask', '定时提问'], ['scan', '条件扫描']], f.kind, 'cukind'), esc(CU_KIND[f.kind][3]) + '（' + CU_KIND[f.kind][4] + '）') + noModel + who + ask + rules +
     field('范围', '<select data-f="scope" style="' + inp + '">' + CU_SCOPE.map(([k, n]) => '<option value="' + k + '"' + (f.scope === k ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' + codes, f.scope === 'codes' ? '' : '范围跟着你的持仓、想买、自选变，新加的票下次就会带上。') +
-    '<div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap">' + field('几点', '<input type="time" data-f="at" value="' + esc(f.at) + '" style="' + inp + '; width: 120px">') + field('重复', seg([['trading', '每个交易日'], ['any', '每天']], f.days, 'cudays')) + '</div>' +
+    when +
     '<div id="cfErr" style="font-size: 12px; color: #B42318; min-height: 16px">' + esc(f.err) + '</div>' +
     '<div style="display: flex; justify-content: flex-end; gap: 8px"><button type="button" data-act="close" style="height: 32px; padding: 0 14px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">取消</button><button type="button" id="cfSave" data-act="cusave" style="height: 32px; padding: 0 16px; border: none; border-radius: 8px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">保存</button></div></div></div>';
 }
 function cuPayload() {
   const f = S.cf;
-  return { title: f.title, kind: f.kind, scope: f.scope, codes: f.scope === 'codes' ? f.codes : [], at: f.at, days: f.days, question: f.question, match: f.match,
+  const gap = Math.round(Number(f.everyNum) || 0) * (f.everyUnit === 'hour' ? 60 : 1);
+  return { title: f.title, kind: f.kind, scope: f.scope, codes: f.scope === 'codes' ? f.codes : [], at: f.mode === 'every' ? '' : f.at, every: f.mode === 'every' ? (gap > 0 ? gap : 1) : 0, days: f.days, question: f.question, analysts: f.kind === 'scan' ? [] : f.analysts, match: f.match,
     rules: f.kind === 'scan' ? f.rules.map((r) => r.kind === 'sector_is' ? { kind: r.kind, text: r.text || ((S.data.custom.sector_verdicts || [])[0] || '') } : { kind: r.kind, value: Number(r.value) || 0 }) : [] };
 }
 async function cuReload() {
@@ -620,6 +643,8 @@ function cuSetField(f, el) {
   if (f === 'title') c.title = el.value;
   else if (f === 'question') c.question = el.value;
   else if (f === 'at') c.at = el.value;
+  else if (f === 'everyNum') c.everyNum = el.value;
+  else if (f === 'everyUnit') { c.everyUnit = el.value; cuRender(); }
   else if (f === 'scope') { c.scope = el.value; cuRender(); }
   else if (f === 'search') {
     clearTimeout(cuSearchTimer);
@@ -645,8 +670,11 @@ Object.assign(ACT, {
   cunew: () => cuOpen(null),
   cutpl: (el) => cuOpen(CU_TEMPLATES[el.dataset.k]),
   cuedit: (el) => { const t = S.data.custom.tasks.find((x) => x.id === el.dataset.id); if (t) cuOpen(t); },
-  cukind: (el) => { S.cf.kind = el.dataset.k; if (S.cf.kind === 'scan' && !S.cf.rules.length) S.cf.rules = [cuNewRule()]; cuRender(); },
+  cukind: (el) => { S.cf.kind = el.dataset.k; if (S.cf.kind === 'analyze') S.cf.analysts = S.cf.analysts.filter((x) => x !== 'chief'); if (S.cf.kind !== 'scan' && S.cf.mode === 'every' && (Number(S.cf.everyNum) || 0) * (S.cf.everyUnit === 'hour' ? 60 : 1) < 30) { S.cf.everyNum = '30'; S.cf.everyUnit = 'min'; } if (S.cf.kind === 'scan' && !S.cf.rules.length) S.cf.rules = [cuNewRule()]; cuRender(); },
   cudays: (el) => { S.cf.days = el.dataset.k; cuRender(); },
+  cuwho: (el) => { const k = el.dataset.k, a = S.cf.analysts; S.cf.analysts = a.includes(k) ? a.filter((x) => x !== k) : a.concat([k]); cuRender(); },
+  cumode: (el) => { S.cf.mode = el.dataset.k; cuRender(); },
+  cuevery: (el) => { S.cf.everyNum = el.dataset.n; S.cf.everyUnit = el.dataset.u; cuRender(); },
   cumatch: (el) => { S.cf.match = el.dataset.k; cuRender(); },
   curuleadd: () => { S.cf.rules.push(cuNewRule()); cuRender(); },
   curuledel: (el) => { S.cf.rules.splice(Number(el.dataset.i), 1); cuRender(); },
@@ -832,6 +860,7 @@ function demoData() {
     tasks: [
       { id: 'c1', title: '收盘后再分析持仓', kind: 'analyze', kind_text: '定时分析', scope: 'hold', codes: [], scope_text: '我的持仓', count: 4, at: '15:40', days: 'trading', schedule_text: '每个交易日 15:40', enabled: true, when_text: '周二 11-03 15:40 · 明天', last: { state: 'succeeded', at: '11-02 15:41', counts: { jobs: 4, succeeded: 4 } } },
       { id: 'c2', title: '跌破 20 日线提醒', kind: 'scan', kind_text: '条件扫描', scope: 'all', codes: [], scope_text: '我的全部标的', count: 27, at: '15:40', days: 'trading', schedule_text: '每个交易日 15:40', rules: [{ kind: 'below_ma', value: 20 }, { kind: 'flow_out_days', value: 3 }], match: 'all', rules_text: '收盘跌破 20 日均线，且 大资金连续净流出 3 日', enabled: true, when_text: '周二 11-03 15:40 · 明天', last: { state: 'succeeded', at: '11-02 15:40', counts: { jobs: 27, succeeded: 27 } } },
+      { id: 'c4', title: '盘中异动提醒', kind: 'scan', kind_text: '条件扫描', scope: 'all', codes: [], scope_text: '我的全部标的', count: 27, at: '', every: 30, days: 'trading', schedule_text: '交易时段每 30 分钟', rules: [{ kind: 'change_up', value: 5 }, { kind: 'change_down', value: 5 }], match: 'any', rules_text: '日涨幅达到 5%，或 日跌幅达到 5%', enabled: true, when_text: '下一次 周一 11-02 10:30 · 今天', last: { state: 'succeeded', at: '11-02 10:00', counts: { jobs: 27, succeeded: 27 } } },
       { id: 'c3', title: '午前看有没有新消息', kind: 'ask', kind_text: '定时提问', scope: 'codes', codes: ['600036.SH', '600519.SH'], scope_text: '招商银行、贵州茅台', count: 2, at: '11:00', days: 'trading', schedule_text: '每个交易日 11:00', question: '今天有没有新公告、新闻或者资金异动，对这只票是利好还是利空？', enabled: false, last: { state: 'succeeded', at: '10-30 11:01', counts: { jobs: 2, succeeded: 2 } } },
     ] };
   return _demo;
