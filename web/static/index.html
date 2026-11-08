@@ -273,7 +273,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* ignore */ }
   }
   const state = {
-    stock: urlStock || keep.get('diag.stock') || '002430.SZ', drawer: 'concl', fold: true, notif: false, srch: '', concl: false, replyTo: 'chief',
+    stock: urlStock || keep.get('diag.stock') || '002430.SZ', drawer: 'sector', fold: true, notif: false, srch: '', concl: false, replyTo: 'chief',
   };
   function curStock() {
     const code = state.stock, it = watchItem(code);
@@ -3066,11 +3066,71 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       .finally(() => { clearTimeout(timer); renderConcl(); renderConclPanel(); });
   }
   actions.toggleConcl = () => {
-    state.concl = false;
-    set({ drawer: 'concl', notif: false, fold: false });
-    if (!chiefDetail[state.stock]) loadChiefDetail(state.stock);
+    const open = !state.concl;
+    set({ concl: open, notif: false });
+    if (open) openConclData(state.stock);
   };
+  actions.openConcl = () => { set({ concl: true, notif: false }); openConclData(state.stock); };
+  actions.closeConcl = () => set({ concl: false });
+  // 在结论详情里点某位分析师：先收起弹框，再打开右侧那位分析师
+  DRAWERS.filter((d) => d[0] !== 'concl').forEach(([, K]) => { const orig = actions['open' + K]; actions['open' + K] = (el) => { state.concl = false; orig(el); }; });
   actions.retryConcl = () => loadChiefDetail(state.stock);
+
+  // 近一年的日线、7/20/60 日均线和结论里的上下两条价格线：GET /api/stocks/{code}/chart
+  const chartCache = {}, planCache = {};
+  function loadChart(code) {
+    const e = (chartCache[code] = { status: 'loading', trend: null, error: '' });
+    fetchStockJSON(HARNESS_ORIGIN + '/api/stocks/' + encodeURIComponent(code) + '/chart')
+      .then((d) => { if (d && d.status === 'ok') { e.status = 'done'; e.trend = d.trend; } else { e.status = 'error'; e.error = (d && d.error) || '没有取到日线'; } })
+      .catch((err) => { e.status = 'error'; e.error = errText(err); })
+      .finally(() => renderConcl());
+  }
+  // 交易计划：打开结论详情时自动取；有更新的结论时服务端会自动重新生成
+  function loadPlan(code, make) {
+    const prev = planCache[code];
+    const e = (planCache[code] = { status: 'loading', plan: make && prev ? prev.plan : null, error: '' });
+    fetchStockJSON(HARNESS_ORIGIN + '/api/stocks/' + encodeURIComponent(code) + '/trade-plan', undefined, make ? { method: 'POST' } : undefined)
+      .then((d) => { if (d && d.status === 'ok') { e.status = 'done'; e.plan = d.plan; } else { e.status = 'empty'; e.error = (d && d.error) || '还没有结论'; } })
+      .catch((err) => { e.status = 'error'; e.error = errText(err); })
+      .finally(() => { if (make) toast('已生成交易计划'); renderConcl(); });
+  }
+  function openConclData(code) {
+    if (!chiefDetail[code]) loadChiefDetail(code);
+    loadChart(code);
+    loadPlan(code, false);
+  }
+  const opsHTML = (act) => (act && (act.hold || act.buy)) ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:12px;background:#F1F5FE"><span style="font-size:15px;font-weight:700">操作提醒</span>' +
+    [['已持有', act.hold], ['想买的', act.buy]].filter((x) => x[1]).map((x) => '<div style="display:grid;grid-template-columns:60px minmax(0,1fr);gap:8px;font-size:15px;line-height:1.65"><span style="color:#2457D6;font-weight:600">' + x[0] + '</span><span style="color:#14171F;overflow-wrap:anywhere">' + mdInline(x[1]) + '</span></div>').join('') +
+    '<span style="font-size:13px;color:#8A919E">条件式提醒，依据本轮裁决；条件变了做法就变，不是确定的买卖指令</span></div>' : '';
+  function chartHTML(code) {
+    const c = chartCache[code];
+    if (!c || c.status === 'loading') return '<div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#8A919E"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>正在取近一年的日线…</div>';
+    if (c.status === 'error') return '<div style="font-size:14px;color:#7A4A00">近一年走势没取到：' + esc(c.error) + '</div>';
+    return synthTrendHTML({ trend: c.trend });
+  }
+  function planText(p) {
+    return p.name + ' 交易计划（' + p.generated_at + ' 生成，依据：' + p.basis + '）\n' + p.sections.map((sec) => '【' + sec.title + '】\n' + sec.lines.map((l, i) => (i + 1) + '. ' + l.text).join('\n')).join('\n') + '\n' + p.note;
+  }
+  function tradePlanHTML(code) {
+    const e = planCache[code], p = e && e.plan;
+    const title = '<span style="font-size:15px;font-weight:700">交易计划</span>';
+    const btn = (act, text) => '<button type="button" class="mini" data-click="' + act + '" style="height:28px;color:#2457D6">' + text + '</button>';
+    if (!e || (e.status === 'loading' && !p)) return '<div style="display:flex;align-items:center;gap:8px">' + title + '<span style="font-size:14px;color:#8A919E">正在生成…</span></div>';
+    if (!p) return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' + title + '<span style="font-size:14px;color:#7A4A00">' + esc(e.error || '还没有生成') + '</span>' + btn('makePlan', '生成交易计划') + '</div>';
+    const card = (sec) => {
+      const mine = (sec.key === 'hold' && p.held) || (sec.key === 'buy' && p.wish && !p.held);
+      const lines = sec.lines.map((l) => {
+        const mark = l.side === 'down' ? '<span style="color:' + DOWN_TXT + ';font-weight:700">▼</span>' : l.side === 'up' ? '<span style="color:' + UP_TXT + ';font-weight:700">▲</span>' : l.kind === 'now' ? '<span style="color:#2457D6;font-weight:700">●</span>' : '<span style="color:#A1A7B2">·</span>';
+        return '<div style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:6px;font-size:14px;line-height:1.7;color:' + (l.kind === 'now' ? '#14171F' : '#3A4250') + ';' + (l.kind === 'now' ? 'font-weight:600' : '') + '">' + mark + '<span style="overflow-wrap:anywhere">' + esc(l.text) + '</span></div>';
+      }).join('');
+      return '<div style="display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:12px;border:1.5px solid ' + (mine ? '#2457D6' : '#E3E6EB') + ';background:' + (mine ? '#F7FAFF' : '#FFFFFF') + '"><span style="display:flex;align-items:center;gap:8px"><b style="font-size:15px">' + esc(sec.title) + '</b>' + (mine ? '<span class="pill" style="background:#EAF0FD;color:#2457D6">' + (sec.key === 'hold' ? '你持有' : '你想买') + '</span>' : '') + '</span>' + lines + '</div>';
+    };
+    return '<div style="display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">' + title + '<span style="font-size:13px;color:#8A919E">' + esc(p.generated_at) + ' 生成 · 依据 ' + esc(p.basis) + '</span><span style="margin-left:auto;display:flex;gap:6px">' + btn('copyPlan', '复制') + btn('makePlan', e.status === 'loading' ? '生成中…' : '重新生成') + '</span></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">' + p.sections.map(card).join('') + '</div>' +
+      '<span style="font-size:13px;color:#8A919E;line-height:1.7">' + esc(p.note) + '</span></div>';
+  }
+  actions.makePlan = () => loadPlan(state.stock, true);
+  actions.copyPlan = () => { const e = planCache[state.stock]; if (e && e.plan) copyText(planText(e.plan)); };
 
   const DETAIL_TAG = { 利好: 'background:#FDF0EF;color:#B42318', 利空: 'background:#EDF7F1;color:#1E6B44', 风险: 'background:#FFF4E0;color:#7A4A00', 已反应: 'background:#F4F5F7;color:#5B6372', 中性: 'background:#F4F5F7;color:#5B6372' };
   const DIM_DRAWER = { volume_flow: 'openFlow', sector: 'openSector', news: 'openNews', finance: 'openFin', fundamental: 'openFund' };
@@ -3089,6 +3149,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const T = D.trend;
     const bars = ((T && T.bars) || []).filter((b) => num(b.close) != null);
     if (bars.length < 2) return '';
+    const long = bars.length > 90; // 近一年：不画每日判断条
     const n = bars.length, X0 = 6, X1 = 664, XR = 668, TOP = 26, BASE = 166, step = (X1 - X0) / (n - 1);
     const x = (i) => X0 + i * step;
     const lines = [['up', (T.lines || {}).up], ['down', (T.lines || {}).down]].filter((l) => l[1] && num(l[1].price) != null);
@@ -3137,12 +3198,14 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#14171F" stroke-width="1.8" stroke-linejoin="round"></polyline>' +
       '<circle cx="' + X1 + '" cy="' + y(bars[n - 1].close).toFixed(1) + '" r="3.5" fill="#14171F"></circle>';
 
-    // 每日判断 strip
-    const sw = (X1 - X0 - 10) / (n - 1);
-    svg += '<text x="674" y="191" font-size="10" fill="#5B6372">每日判断</text>';
-    bars.forEach((b, i) => {
-      svg += '<rect x="' + (X0 + i * sw).toFixed(1) + '" y="182" width="10.0" height="10" rx="1" fill="' + (b.judgment ? judgeOf(b.judgment).fill : '#F1F2F4') + '"></rect>';
-    });
+    // 每日判断 strip（只在短图上画）
+    if (!long) {
+      const sw = (X1 - X0 - 10) / (n - 1);
+      svg += '<text x="674" y="191" font-size="10" fill="#5B6372">每日判断</text>';
+      bars.forEach((b, i) => {
+        svg += '<rect x="' + (X0 + i * sw).toFixed(1) + '" y="182" width="10.0" height="10" rx="1" fill="' + (b.judgment ? judgeOf(b.judgment).fill : '#F1F2F4') + '"></rect>';
+      });
+    }
 
     // date ticks
     const idx = {};
@@ -3178,61 +3241,36 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     }
     const first0 = bars[0], last = bars[n - 1];
     const alt = '近 ' + n + ' 个交易日股价从 ' + first0.close.toFixed(2) + ' 到 ' + last.close.toFixed(2) + (run.text ? '；' + run.text : '');
-    const legend = [['偏多', '#D9483F'], ['偏空', '#2E8B57'], ['不明', '#D5D9DF']].map((l) =>
+    const legend = long ? '' : [['偏多', '#D9483F'], ['偏空', '#2E8B57'], ['不明', '#D5D9DF']].map((l) =>
       '<span><span style="display:inline-block;width:10px;height:8px;border-radius:1px;background:' + l[1] + ';margin-right:4px"></span>' + l[0] + '</span>').join('');
     return '<section aria-label="走势与判断" style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;padding:18px 24px;display:flex;flex-direction:column;gap:12px">' +
-      '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px"><h2 style="margin:0;font-size:16px;font-weight:700">走势与判断</h2>' +
-      '<span style="font-size:12px;color:#5B6372">近 ' + (T.window || n) + ' 个交易日 · ' + esc(T.unit || '日线') + '</span><span style="margin-left:auto"></span>' +
-      '<span style="display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:#5B6372">' + legend + '</span></div>' +
-      (T.ma && maPts.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:#5B6372">' + MA_LINES.map((l) => '<span><span style="display:inline-block;width:12px;height:2px;background:' + l[2] + ';margin-right:5px;vertical-align:middle"></span>' + l[1] + ' <b style="' + MONO + ';color:#14171F">' + (num(T.ma[l[0]]) != null ? T.ma[l[0]].toFixed(2) : '—') + '</b></span>').join('') + '</div>' : '') +
+      '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px"><h2 style="margin:0;font-size:16px;font-weight:700">' + (long ? '近一年走势' : '走势与判断') + '</h2>' +
+      '<span style="font-size:12px;color:#5B6372">' + (long ? '近一年（' + (T.window || n) + ' 个交易日）' : '近 ' + (T.window || n) + ' 个交易日') + ' · ' + esc(T.unit || '日线') + '</span><span style="margin-left:auto"></span>' +
+      '<span style="display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:#5B6372">' + legend + '</span></div>' +
+      (T.ma && maPts.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;color:#5B6372">' + MA_LINES.map((l) => '<span><span style="display:inline-block;width:12px;height:2px;background:' + l[2] + ';margin-right:5px;vertical-align:middle"></span>' + l[1] + ' <b style="' + MONO + ';color:#14171F">' + (num(T.ma[l[0]]) != null ? T.ma[l[0]].toFixed(2) : '—') + '</b></span>').join('') + '</div>' : '') +
       '<div class="chart-wrap" style="position:relative" data-kind="synth" data-xh-bottom="172" data-bars="' + esc(JSON.stringify(data)) + '">' +
       '<svg viewBox="0 0 760 214" role="img" aria-label="' + esc(alt) + '" style="width:100%;height:auto;display:block">' + svg + '</svg>' +
       '<div class="chart-tip" role="tooltip" hidden></div></div>' +
-      '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px"><span style="color:#5B6372">判断记录</span>' + record + '</div></section>';
+      (long ? '' : '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:15px"><span style="color:#5B6372">判断记录</span>' + record + '</div>') + '</section>';
   }
 
 
 
+  // 结论详情：弹框，不和基本面、资金流这些挤在右侧
   function conclHTML(code) {
-    const e = chiefDetail[code];
-    const shell = (inner, updated) => '<div role="dialog" aria-label="结论详情" style="position:absolute;left:28px;right:28px;top:calc(100% - 2px);max-width:1120px;max-height:76vh;overflow-y:auto;box-sizing:border-box;padding:16px 18px;background:#FFFFFF;border:1px solid #C9CED6;border-radius:14px;box-shadow:0 16px 40px rgba(20,23,31,.18);display:flex;flex-direction:column;gap:16px;z-index:10">' +
-      '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:15px;font-weight:700">结论详情</span>' + (updated ? '<span style="font-size:12px;color:#8A919E">主分析师 · ' + esc(updated) + ' 更新</span>' : '') +
-      '<button type="button" aria-label="关闭" data-click="toggleConcl" style="margin-left:auto;width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font-size:18px;cursor:pointer">×</button></div>' + inner + '</div>';
-    if (!e || e.status === 'loading') return shell('<div style="display:flex;align-items:center;gap:8px;color:#5B6372"><span class="dc-spin" style="color:#2457D6">⟳</span>主分析师正在整理结论详情，第一次大约要等一分钟…</div>');
-    if (e.status === 'error') return shell('<div style="display:flex;align-items:center;gap:10px;color:#7A4A00">没能取到结论详情：' + esc(e.error) + '<button type="button" class="mini" data-click="retryConcl" style="color:#2457D6">↻ 重试</button></div>');
-    const D = e.data || {};
-    const dir = D.direction || {}, pos = D.position || {};
-    const row = (k, v) => '<div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:baseline"><span style="font-size:12px;color:#8A919E">' + k + '</span><span style="font-size:13px;line-height:1.7;color:#3A4250">' + v + '</span></div>';
-    const summary = '<div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:10px;background:#F7F8FA">' +
-      row('方向', '<b style="color:' + DIRECTION_COLOR(dir.verdict) + ';font-size:14px">' + esc(dir.verdict || '不明') + '</b>' + (dir.text ? '　' + esc(dir.text) : '')) +
-      (pos.label ? row('位置', '<b style="color:#14171F">' + esc(pos.label) + '</b>' + (pos.text ? ' · ' + esc(pos.text) : '')) : '') +
-      (D.invalidate ? row('出现这些就要改判', esc(D.invalidate)) : '') +
-      ((D.basis || []).length ? row('依据', (D.basis || []).map((b) => '<button type="button" class="ev" data-click="' + (DIM_DRAWER[b.dimension] || '') + '" title="' + esc(b.text || '') + '"><span>' + esc(b.label) + '</span><span aria-hidden="true">→</span></button>').join(' ')) : '') + '</div>';
-
-    const notices = (D.notices || []).length ? '<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;font-weight:700">值得注意的事</span><div style="display:flex;flex-direction:column">' +
-      D.notices.map((n) => '<button type="button" data-click="' + (DIM_DRAWER[n.dimension] || '') + '" style="display:grid;grid-template-columns:46px 56px minmax(0,1fr) auto 14px;gap:8px;align-items:baseline;padding:9px 0;border:none;border-top:1px solid #F1F2F4;background:transparent;font:inherit;text-align:left;cursor:pointer;color:#14171F">' +
-        '<span class="pill" style="' + (DETAIL_TAG[n.tag] || DETAIL_TAG['中性']) + ';justify-self:start">' + esc(n.tag || '中性') + '</span><span style="font-weight:600">' + esc(n.label) + '</span>' +
-        '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(n.text) + '</span><span title="' + esc(n.value_text || '') + '" style="' + MONO + ';font-size:12px;color:#3A4250;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis">' + esc(n.value_text || '') + '</span><span style="color:#A1A7B2">→</span></button>').join('') + '</div></div>' : '';
-
-    const lv = D.levels || {};
-    const card = (side, x) => {
-      if (!x || num(x.price) == null) return '';
-      const up = side === 'up', c = up ? UP_TXT : DOWN_TXT, dist = num(x.dist) != null ? (up ? '现价上方 ' : '现价下方 ') + (Math.abs(x.dist) * 100).toFixed(1) + '%' : '';
-      const line = (k, v) => v ? '<div style="display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px;font-size:12px;line-height:1.6"><span style="color:#8A919E">' + k + '</span><span style="color:#3A4250">' + esc(v) + '</span></div>' : '';
-      return '<div style="display:flex;flex-direction:column;gap:6px;border-radius:12px;padding:14px;box-sizing:border-box;background:' + (up ? '#FDF0EF' : '#EDF7F1') + '">' +
-        '<span style="display:flex;justify-content:space-between;align-items:center"><span style="' + MONO + ';font-size:22px;font-weight:700;color:' + c + '">' + (up ? '▲ ' : '▼ ') + x.price.toFixed(2) + '</span>' + (dist ? '<span class="pill" style="background:#FFFFFF">' + dist + '</span>' : '') + '</span>' +
-        line('依据', x.name) + line('条件', x.condition) + line('结果', x.consequence) + (x.why ? '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(x.why) + '</span>' : '') +
-        synthBell(code + ':' + side, c, up ? '#F0C4C0' : '#B9DCC8', x.price, /收盘/.test(String(x.condition || '')) ? 'close' : 'touch') + '</div>';
-    };
-    const prices = card('down', lv.down) + card('up', lv.up);
-    const watch = prices ? '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:13px;font-weight:700">要盯的两个价</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">' + prices + '</div></div>' : '';
-    return shell(summary + notices + watch + synthTrendHTML({ trend: D.trend }), D.updated_at ? mmdd(D.updated_at) + ' ' + hhmm(D.updated_at) : '');
+    const st = curStock(), e = chiefDetail[code], D = (e && e.data) || {};
+    const upd = D.updated_at ? mmdd(D.updated_at) + ' ' + hhmm(D.updated_at) + ' 更新' : '';
+    return '<div data-click="closeConcl" style="position:fixed;inset:0;background:rgba(20,23,31,.38);z-index:40"></div>' +
+      '<div role="dialog" aria-modal="true" aria-label="结论详情" style="position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1000px,calc(100vw - 48px));max-height:calc(100vh - 56px);overflow-y:auto;box-sizing:border-box;padding:20px 26px 24px;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 64px rgba(20,23,31,.30)">' +
+      '<div style="display:flex;align-items:baseline;gap:10px;padding-bottom:14px"><span style="font-size:18px;font-weight:700">结论详情</span><span style="font-size:15px;font-weight:600">' + esc(st.name || code) + '</span><span style="' + MONO + ';font-size:13px;color:#8A919E">' + esc(code) + '</span>' +
+      (upd ? '<span style="font-size:13px;color:#8A919E">主分析师 · ' + esc(upd) + '</span>' : '') +
+      '<button type="button" aria-label="关闭（Esc）" data-click="closeConcl" style="margin-left:auto;width:30px;height:30px;border:none;border-radius:8px;background:transparent;color:#5B6372;font-size:20px;cursor:pointer">×</button></div>' +
+      conclPanelHTML(code) + '</div>';
   }
 
-
-  // ---- 右侧「结论」页：主分析师的裁决 + 五位分析师的立场 + 正反方论据 + 要盯的价 ----
-  const STANCE_LINK = { sector: 'openSector', volume_flow: 'openFlow', news: 'openNews', finance: 'openFin', fundamental: 'openFund' };
-  const STANCE_DIM = [['sector', '板块', 'sector'], ['volume_flow', '资金流', 'flow'], ['news', '新闻', 'news'], ['finance', '财报', 'fin'], ['fundamental', '基本面', 'fund']];
+  // ---- 右侧「结论」页：主分析师的裁决 + 六位分析师的立场 + 正反方论据 + 要盯的价 ----
+  const STANCE_LINK = { market: 'openMarket', sector: 'openSector', volume_flow: 'openFlow', news: 'openNews', finance: 'openFin', fundamental: 'openFund' };
+  const STANCE_DIM = [['market', '大盘', 'market'], ['sector', '板块', 'sector'], ['volume_flow', '资金流', 'flow'], ['news', '新闻', 'news'], ['finance', '财报', 'fin'], ['fundamental', '基本面', 'fund']];
   const CZ_STATUS = { support: JUDGE.bullish, warn: JUDGE.bearish, neutral: JUDGE.unclear };
   const czClean = (t) => String(t == null ? '' : t).replace(/\*\*|__|`/g, '').replace(/\s*\n+\s*/g, ' ').trim();
   const czTitle = (t, right) => '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:13px;font-weight:700;color:#14171F">' + t + '</span>' + (right ? '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + right + '</span>' : '') + '</div>';
@@ -3341,7 +3379,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const code = state.stock, e = chiefDetail[code];
     if (state.concl) loadAlerts(code);
     const alerts = Object.keys(alertsOn).filter((k) => alertsOn[k] && k.indexOf(code + ':') === 0).join(',');
-    const key = state.concl ? [code, e && e.status, e && e.data && e.data.updated_at, alerts].join('|') : '';
+    const ce = chartCache[code], pe = planCache[code];
+    const key = state.concl ? [code, e && e.status, e && e.data && e.data.updated_at, alerts, ce && ce.status, pe && pe.status, pe && pe.plan && pe.plan.generated_at].join('|') : '';
     if (root.dataset.key === key) return;
     root.dataset.key = key;
     root.innerHTML = state.concl ? conclHTML(code) : '';
@@ -3699,7 +3738,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   }
 
   // ---- 右侧 6 个方面的标签 / 折叠栏 ----
-  const DIM5 = [['concl', 'Concl', '结论', '__concl', '结'], ['fund', 'Fund', '基本面', 'fundamental', '基'], ['fin', 'Fin', '财报', 'finance', '财'], ['flow', 'Flow', '资金流', 'volume_flow', '资'],
+  const DIM5 = [['fund', 'Fund', '基本面', 'fundamental', '基'], ['fin', 'Fin', '财报', 'finance', '财'], ['flow', 'Flow', '资金流', 'volume_flow', '资'],
     ['news', 'News', '新闻', 'news', '新'], ['sector', 'Sector', '板块', 'sector', '板'], ['over', 'Over', '海外', null, '海']];
   const LEAN_DOT = { bullish: '#D9483F', bearish: '#2E8B57' };
   const HEAD_TONE_DOT = { support: LEAN_DOT.bullish, warn: LEAN_DOT.bearish, neutral: '#A1A7B2' };
