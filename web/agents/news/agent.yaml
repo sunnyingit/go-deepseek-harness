@@ -4,6 +4,7 @@ dimension: news
 skills:
   - news-facts
   - news-raw
+  - baidu-board
   - answer-outline
   - answer-table
   - d3js-visualization

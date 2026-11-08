@@ -688,6 +688,9 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 	if err := s.registerNewsTool(toolRegistry, cfg); err != nil {
 		return nil, err
 	}
+	if err := s.registerBaiduBoardTool(toolRegistry, cfg); err != nil {
+		return nil, err
+	}
 	if err := s.registerFundamentalTools(toolRegistry, cfg); err != nil {
 		return nil, err
 	}
@@ -811,6 +814,7 @@ func (s *Server) registerFundamentalTools(toolRegistry *coretools.Registry, cfg 
 		{"fetch_survey", "读取近 90 日机构调研：日期、接待人员、参与机构和方式。密集调研只是需要再看的提示，不是买卖信号。只能传股票代码。", "走基本面追问接口，不能改走 Tushare。"},
 		{"fetch_mainbz", "读取最新一期主营构成，按产品和地区拆收入、成本和毛利率。用来核对公司说的业务和钱从哪来是否一致。只能传股票代码。", "走基本面追问接口，不能改走 Tushare。"},
 		{"fetch_dividend", "读取近年现金分红和送转：每股派现、进度、近 5 年有没有真金白银回报。只能传股票代码。没有分红不要写成 0。", "走基本面追问接口，不能改走 Tushare。"},
+		{"fetch_chain", "读取产业链位置：所处行业层级、概念、主营按产品的占比和毛利率、销售区域、公司披露的下游客户和上游原料、下游景气、同业可比公司。追问上下游、在产业链哪一环、行业景气时用。只能传股票代码。上下游只是公司自己披露的原文，没写的就是没披露；同业不是上下游。", "走基本面追问接口，不能改走 Tushare。"},
 	}
 	for _, part := range parts {
 		name := strings.TrimPrefix(part.name, "fetch_")

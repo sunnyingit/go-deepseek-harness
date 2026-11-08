@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read one slice of the fundamental reply. Does not call Tushare.
 
-Usage: fetch_part.py <ts_code> <company|business|valuation|quality|holders|forecast|express|share_float|survey|mainbz|dividend>
+Usage: fetch_part.py <ts_code> <company|business|valuation|quality|holders|forecast|express|share_float|survey|mainbz|dividend|chain>
 """
 
 from __future__ import annotations
@@ -14,13 +14,13 @@ import urllib.parse
 import urllib.request
 
 DETAIL_PARTS = ("company", "business", "valuation", "quality", "holders")
-REPLY_PARTS = ("forecast", "express", "share_float", "survey", "mainbz", "dividend")
+REPLY_PARTS = ("forecast", "express", "share_float", "survey", "mainbz", "dividend", "chain")
 PARTS = DETAIL_PARTS + REPLY_PARTS
 
 
 def main(argv: list[str]) -> int:
     if len(argv) != 3 or argv[2] not in PARTS or not argv[1].strip():
-        sys.stderr.write("usage: fetch_part.py <ts_code> <company|business|valuation|quality|holders|forecast|express|share_float|survey|mainbz|dividend>\n")
+        sys.stderr.write("usage: fetch_part.py <ts_code> <company|business|valuation|quality|holders|forecast|express|share_float|survey|mainbz|dividend|chain>\n")
         return 2
     base = os.environ.get("STOCK_API_BASE", "http://127.0.0.1:8090").rstrip("/")
     code = urllib.parse.quote(argv[1].strip(), safe="")
