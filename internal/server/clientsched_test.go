@@ -47,6 +47,7 @@ func newClientServer(t *testing.T, start time.Time) (*Server, *testClock) {
 	s.quotes = quotes.New()
 	s.scan = scan.Open(dir+"/predictions.json", clock.now)
 	s.custom = custom.Open(dir+"/custom.json", clock.now)
+	s.hidden = openHidden(dir + "/scan_hidden.json")
 	s.sch = sched.New(sched.OpenStore(""), s.cal, clock.now)
 	s.registerTasks()
 	s.sch.Listeners = append(s.sch.Listeners, s.onRunFinished)

@@ -146,6 +146,7 @@ type Server struct {
 	cal      *sched.Calendar
 	relay    *relayClient
 	scan     *scan.Store
+	hidden   *hiddenStocks
 	custom   *custom.Store
 	// askFn replaces the question to the chief analyst in custom tasks, tests use it.
 	askFn       func(ctx context.Context, code, analyst, question string) (string, error)

@@ -328,3 +328,48 @@ func TestAPredictionIsFiledByWhatAskedForTheConclusion(t *testing.T) {
 		t.Fatal("trigger mapping changed")
 	}
 }
+
+func TestTodayPicksOutWhatTheUserShouldReadAndHidingOnlyChangesTheTrackingList(t *testing.T) {
+	ds := &dataService{closes: map[string][][2]any{"600036.SH": series("2026-10-26", 9, 10, 0.1), "000001.SZ": series("2026-10-26", 9, 10, 0.1), "600519.SH": series("2026-10-26", 9, 10, 0.1)}}
+	ds.start(t)
+	s, c := newClientServer(t, zoneTime("2026-11-05", "17:40"))
+	_ = c
+	s.personal.TradeAdd(personal.Trade{Code: "600036.SH", Name: "招商银行", Side: "buy", Price: 10, Qty: 100, Date: "2026-10-01"})
+	s.personal.WatchAdd("000001.SZ", "平安银行")
+	s.personal.WatchAdd("600519.SH", "贵州茅台")
+	add := func(code, source, dir, day string, id int64) {
+		s.scan.Add(scan.Prediction{Code: code, Name: code, Source: source, Direction: dir, Level: 2, Verdict: word(dir), Evidence: "理由。", BaseDay: day, BaseClose: 10, MadeAt: zoneTime(day, "20:40").UnixMilli(), BundleID: id})
+	}
+	add("000001.SZ", "scan", scan.Bullish, "2026-11-03", 1) // yesterday bullish, today bearish: turned round
+	add("600036.SH", "scan", scan.Bearish, "2026-11-04", 2) // held, bearish today: against the user's plan
+	add("000001.SZ", "scan", scan.Bearish, "2026-11-04", 3)
+	add("600519.SH", "scan", scan.Bullish, "2026-11-04", 4) // nothing special
+	focus := s.scanToday("")["focus"].([]map[string]any)
+	if len(focus) != 2 || focus[0]["kind"] != "conflict" || focus[0]["ts_code"] != "600036.SH" || focus[1]["kind"] != "flip" || focus[1]["ts_code"] != "000001.SZ" {
+		t.Fatalf("focus = %+v", focus)
+	}
+	if text := focus[0]["text"].(string); text != "你持有，AI 偏空：理由" && text != "你持有，AI 偏空：理由。" {
+		t.Fatalf("conflict text = %q", text)
+	}
+
+	// hiding a stock takes it out of the tracking list and its count, not out of the record
+	before := s.scanTracking("all", false, "")["total"].(int)
+	a := newCustomAPI(t, s)
+	if code, _ := a.call("POST", "/api/scan/hide", `{"code":"000001.SZ","on":true}`); code != 200 {
+		t.Fatalf("hide = %d", code)
+	}
+	tr := s.scanTracking("all", false, "")
+	if tr["total"].(int) >= before || len(tr["hidden"].([]map[string]any)) != 1 || s.scanSummary()["tracking"].(int) >= before {
+		t.Fatalf("after hiding = %+v (before %d)", tr, before)
+	}
+	if len(s.scan.All()) != 4 {
+		t.Fatal("hiding changed the predictions")
+	}
+	if code, _ := a.call("POST", "/api/scan/hide", `{"code":"","on":true}`); code != 400 {
+		t.Fatalf("hide nothing = %d", code)
+	}
+	a.call("POST", "/api/scan/hide", `{"code":"000001.SZ","on":false}`)
+	if got := s.scanTracking("all", false, "")["total"].(int); got != before {
+		t.Fatalf("after showing again = %d, want %d", got, before)
+	}
+}

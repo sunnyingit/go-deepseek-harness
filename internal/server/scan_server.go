@@ -362,7 +362,7 @@ func (s *Server) scanSummary() map[string]any {
 				diagN++
 			}
 		}
-		if p.Direction != scan.Unclear {
+		if p.Direction != scan.Unclear && !s.hidden.Has(p.Code) {
 			for _, h := range scan.Horizons {
 				if p.Result(h) == nil {
 					tracking++
@@ -386,7 +386,7 @@ func (s *Server) scanSummary() map[string]any {
 		market = map[string]any{"level": m.Level, "tilt": m.Tilt, "text": m.Text}
 	}
 	return map[string]any{
-		"day": shown, "today": today, "market": market, "next_run": s.nextRunText(),
+		"day": shown, "today": today, "running": s.analysingNow(), "market": market, "next_run": s.nextRunText(),
 		"made": made, "tracking": tracking, "settled_today": map[string]any{"hit": hitToday, "n": settledToday}, "accuracy": pct, "accuracy_n": acc.Overall.N,
 		"funnel": map[string]any{"subjects": len(s.personal.Subjects()), "researched": made, "bullish": bull, "bearish": bear, "unclear": unclear, "scan": scanN, "diagnose": diagN},
 		"empty":  len(preds) == 0,
@@ -407,7 +407,85 @@ func (s *Server) scanToday(source string) map[string]any {
 		px := s.pricesOf(p.Code)
 		rows = append(rows, s.predRow(p, &px, related))
 	}
-	return map[string]any{"day": day, "rows": rows, "total": len(rows)}
+	return map[string]any{"day": day, "rows": rows, "total": len(rows), "focus": s.scanFocus(preds, day, related)}
+}
+
+// analysingNow lists the stocks a conclusion is being made for right now, so the page can show it and keep checking.
+func (s *Server) analysingNow() []string {
+	out := []string{}
+	if s.sch == nil {
+		return out
+	}
+	for _, sub := range s.personal.Subjects() {
+		if _, active := s.sch.Store.ActiveJob(nightlyID, sub.Code); active {
+			out = append(out, sub.Code)
+		}
+	}
+	return out
+}
+
+// scanFocus picks the few conclusions of the day the user should read: one that goes against what they
+// hold or want to buy, one that turned round from the last time, and the ones they asked for themselves.
+func (s *Server) scanFocus(preds []scan.Prediction, day string, related map[string]bool) []map[string]any {
+	latest := map[string]scan.Prediction{}
+	var order []string
+	prev := map[string]scan.Prediction{}
+	for _, p := range preds {
+		d := localClock(p.MadeAt).Format("2006-01-02")
+		switch {
+		case d == day:
+			if _, ok := latest[p.Code]; !ok {
+				order = append(order, p.Code)
+			}
+			latest[p.Code] = p
+		case d < day && p.Direction != scan.Unclear:
+			prev[p.Code] = p
+		}
+	}
+	type item struct {
+		rank int
+		row  map[string]any
+	}
+	var items []item
+	for _, code := range order {
+		p := latest[code]
+		m := s.mineOf(code, related)
+		held, wish := m["held"] == true, m["wish"] == true
+		row := map[string]any{"ts_code": code, "name": p.Name, "direction": p.Direction, "verdict": p.Verdict, "held": held, "wish": wish}
+		rank := 2
+		if held {
+			rank = 0
+		} else if wish {
+			rank = 1
+		}
+		old, hadOld := prev[code]
+		switch {
+		case p.Direction == scan.Bearish && (held || wish):
+			who := "想买"
+			if held {
+				who = "持有"
+			}
+			row["kind"], row["tag"], row["text"] = "conflict", "和你的打算冲突", "你"+who+"，AI 偏空："+firstSentence(p.Evidence)
+		case hadOld && p.Direction != scan.Unclear && old.Direction != p.Direction:
+			row["kind"], row["tag"], row["text"] = "flip", "判断反转", shortDay(localClock(old.MadeAt).Format("2006-01-02"))+" "+word(old.Direction)+" → 今天"+word(p.Direction)+"："+firstSentence(p.Evidence)
+			rank += 10
+		case p.Source == "diagnose":
+			row["kind"], row["tag"], row["text"] = "diagnose", "你刚诊断", "你重新分析过："+p.Verdict+"，"+firstSentence(p.Evidence)
+			rank += 20
+		default:
+			continue
+		}
+		items = append(items, item{rank, row})
+	}
+	sort.SliceStable(items, func(a, b int) bool { return items[a].rank < items[b].rank })
+	out := []map[string]any{}
+	for i, it := range items {
+		if i >= 6 {
+			break
+		}
+		out = append(out, it.row)
+	}
+	return out
 }
 
 func (s *Server) trackingRow(p scan.Prediction, h int, px priced, related map[string]bool) map[string]any {
@@ -436,7 +514,7 @@ func (s *Server) scanTracking(due string, mineOnly bool, source string) map[stri
 	today := sched.Day(s.now())
 	tomorrowDay := sched.Day(s.now().AddDate(0, 0, 1))
 	for _, p := range preds {
-		if p.Direction == scan.Unclear {
+		if p.Direction == scan.Unclear || s.hidden.Has(p.Code) {
 			continue
 		}
 		px, ok := cache[p.Code]
@@ -474,7 +552,11 @@ func (s *Server) scanTracking(due string, mineOnly bool, source string) map[stri
 	_ = close5
 	sort.SliceStable(rows, func(a, b int) bool { return rows[a]["settle_day"].(string) < rows[b]["settle_day"].(string) })
 	total := byHorizon[5] + byHorizon[20]
-	return map[string]any{"rows": rows, "total": total, "by_horizon": map[string]int{"5": byHorizon[5], "20": byHorizon[20]}, "now_right": hit, "tomorrow": tomorrow, "mine": mineCount}
+	hidden := []map[string]any{}
+	for _, code := range s.hidden.List() {
+		hidden = append(hidden, map[string]any{"ts_code": code, "name": s.stockName(code)})
+	}
+	return map[string]any{"rows": rows, "total": total, "by_horizon": map[string]int{"5": byHorizon[5], "20": byHorizon[20]}, "now_right": hit, "tomorrow": tomorrow, "mine": mineCount, "hidden": hidden}
 }
 
 // dueMatch filters tracking rows by when they settle.

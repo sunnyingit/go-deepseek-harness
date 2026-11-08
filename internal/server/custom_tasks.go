@@ -291,7 +291,7 @@ func (s *Server) customView(t custom.Task) map[string]any {
 	codes := s.customCodes(t)
 	v := map[string]any{
 		"id": t.ID, "title": t.Title, "kind": t.Kind, "kind_text": custom.KindText(t.Kind), "scope": t.Scope, "codes": t.Codes, "scope_text": t.ScopeText(names),
-		"at": t.At, "days": t.Days, "schedule_text": t.ScheduleText(), "question": t.Question, "rules": t.Rules, "match": t.Match, "rules_text": t.RulesText(),
+		"at": t.At, "every": t.Every, "days": t.Days, "schedule_text": t.ScheduleText(), "question": t.Question, "rules": t.Rules, "match": t.Match, "rules_text": t.RulesText(),
 		"analysts": t.Analysts, "analysts_text": t.AnalystsText(), "enabled": t.Enabled, "count": len(codes),
 	}
 	if sp, ok := s.sch.Spec(customID(t.ID)); ok && t.Enabled {

@@ -24,6 +24,8 @@ button,input{font:inherit}
 .modal>div{width:560px;max-width:calc(100% - 32px);max-height:80vh;overflow:auto;background:#FFFFFF;border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.7}
 .xbtn{border:none;background:transparent;color:#8A919E;cursor:pointer;font-size:12px;padding:0 4px}
 .xbtn:hover{color:#B42318}
+.qmark{flex:none;width:16px;height:16px;padding:0;border:1px solid #C9CED6;border-radius:50%;background:#FFFFFF;color:#5B6372;font-size:11px;font-weight:700;line-height:14px;cursor:pointer}
+.qmark:hover{border-color:#2457D6;color:#2457D6}
 a.row:hover,div.row:hover{background:#F7F8FA}
 </style>
 </head>
@@ -62,14 +64,16 @@ a.row:hover,div.row:hover{background:#F7F8FA}
 
 <footer style="position: relative; flex: none; height: 26px; display: flex; align-items: center; gap: 18px; padding: 0 12px; border-top: 1px solid #DDE1E7; background: #F7F8FA; font-size: 11px; color: #5B6372; white-space: nowrap; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display: flex; gap: 18px"></span><span style="position: absolute; left: 50%; transform: translateX(-50%); color: #8A919E">研究分析，不构成投资建议</span><span style="margin-left: auto">数据源：行情 · 资金流 · 公告</span><span>v0.1</span></footer>
 </div>
+<div id="drawer"></div>
 <div id="modal"></div>
 <script>
 const MONO_F = "font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace";
 const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 const API = (new URLSearchParams(location.search).get('stockApi') || (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
-const S = { tab: 'today', sum: null, up: null, panel: null, data: {}, notif: false, nData: null, nTab: 'all', open: {}, openG: {}, shown: { today: 12, track: 15, done: 4 },
+const S = { tab: 'today', rec: 'acc', drawer: false, sum: null, up: null, panel: null, data: {}, notif: false, nData: null, nTab: 'all', open: {}, openG: {}, shown: { today: 10, track: 15, done: 4 },
   f: { today: 'all', track: { due: 'all', who: 'all' }, done: { src: 'all', h: 5, wrong: false, range: 'month', q: '' }, acc: 5 } };
-const TABS = [['today', '今日扫描'], ['track', '跟踪中'], ['done', '已结算'], ['acc', '准不准'], ['custom', '自定义任务']];
+const TABS = [['today', '今天'], ['track', '进行中'], ['record', '战绩']];
+const cur = () => S.tab === 'record' ? S.rec : S.tab;
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -137,17 +141,18 @@ function renderHead() {
     '<span style="font-size: 13px; color: #5B6372">' + (s ? esc(s.next_run) : '') + '</span>' +
     (m ? '<span style="font-size: 13px; color: #5B6372">市场环境 <b style="color: #7A4A00">' + esc(m.level) + (m.tilt ? ' · ' + esc(m.tilt) : '') + '</b></span>' : '') +
     '<span style="margin-left: auto; display: flex; gap: 8px; align-items: center">' + (DEMO ? '<span class="pill" style="background: #F1F2F4; color: #5B6372">示意数据</span>' : '') +
+    '<button type="button" data-act="drawer" style="height: 32px; padding: 0 12px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">定时任务' + (S.cuCount != null ? ' <span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + S.cuCount + '</span>' : '') + '</button>' +
     '<button type="button" data-act="rules" style="height: 32px; padding: 0 12px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">统计口径</button></span>';
 }
 function renderTabs() {
   const s = S.sum;
   const on = (k) => S.tab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : '';
+  const num12 = (t) => '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + t + '</span>';
+  const chip = (bg, fg, t) => '<span style="height: 18px; padding: 0 6px; border-radius: 999px; background: ' + bg + '; color: ' + fg + '; font-size: 11px; font-weight: 600; line-height: 18px">' + t + '</span>';
   const badge = {
-    custom: S.cuCount != null ? '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + S.cuCount + '</span>' : '',
-    today: s ? '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + s.made + '</span>' : '',
-    track: s ? '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + s.tracking + '</span>' : '',
-    done: s && s.settled_today.n ? '<span style="height: 18px; padding: 0 6px; border-radius: 999px; background: #EDF7F1; color: #1E6B44; font-size: 11px; font-weight: 600; line-height: 18px">今天 ' + s.settled_today.hit + '/' + s.settled_today.n + '</span>' : '',
-    acc: s && s.accuracy != null ? '<span style="height: 18px; padding: 0 6px; border-radius: 999px; background: #EAF0FD; color: #2457D6; font-size: 11px; font-weight: 600; line-height: 18px">' + rate(s.accuracy) + '</span>' : '',
+    today: s ? num12(s.made) : '',
+    track: s ? num12(s.tracking) : '',
+    record: s ? (s.settled_today.n ? chip('#EDF7F1', '#1E6B44', '今天 ' + s.settled_today.hit + '/' + s.settled_today.n) : '') + (s.accuracy != null ? chip('#EAF0FD', '#2457D6', rate(s.accuracy)) : '') : '',
   };
   $('tabs').innerHTML = TABS.map(([k, n]) => '<button type="button" role="tab" data-act="tab" data-k="' + k + '" aria-selected="' + (S.tab === k) + '" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 2px; border: none; background: transparent; font: inherit; font-size: 14px; color: #5B6372; cursor: pointer; ' + on(k) + '">' + n + badge[k] + '</button>').join('');
 }
@@ -157,31 +162,52 @@ function emptyCard() {
   return '<div style="' + CARD + '"><div class="empty"><b style="font-size: 15px">还没有预测</b><span style="max-width: 520px; line-height: 1.7">扫描记的是你自己的自选、持仓和想买：夜间任务（20:30 起）每跑完一只就记一条，不用你操作；在「诊断」页点「重新分析」也会记一条。第一批要等夜间任务跑完才有，之后每天一批，到期后在这里对账。</span>' +
     '<span style="display: flex; gap: 8px"><a href="/" style="' + LINKBTN + '">去诊断页</a><a href="/scan.html?demo=1" style="' + LINKBTN + '">看示例数据</a></span></div></div>';
 }
+const TCOL = 'grid-template-columns: 140px 128px minmax(0, 1fr) 124px 84px 96px';
+const tierPill = (m) => m.held ? pl('#EAF0FD', '#1F3F8A', '持有') : m.wish ? pl('#F1E9FB', '#5B3A8C', '想买') : pl('#F1F2F4', '#5B6372', '自选');
+const analysing = (code) => ((S.sum && S.sum.running) || []).indexOf(code) >= 0;
+// 一行的操作：去诊断，其余收进「⋯」
+function rowActions(r, kind) {
+  return '<span style="display: flex; gap: 6px; align-items: center; justify-content: flex-end"><a href="' + diagnoseHref(r.ts_code) + '" style="' + LINKBTN + '">诊断</a>' +
+    '<button type="button" data-act="menu" data-kind="' + kind + '" data-code="' + esc(r.ts_code) + '" data-name="' + esc(r.name || r.ts_code) + '" aria-label="更多操作" title="更多" style="width: 28px; height: 28px; padding: 0; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; color: #5B6372; font-size: 16px; line-height: 1; cursor: pointer">⋯</button></span>';
+}
+// 先看和你的打算冲突的，再是持有、想买，最后自选；方向不明的排在同类后面
+function todayRank(r) {
+  const m = r.mine || {};
+  return (r.direction === 'bearish' && (m.held || m.wish) ? 0 : m.held ? 1 : m.wish ? 2 : 3) * 2 + (r.direction === 'unclear' ? 1 : 0);
+}
 function todayRow(r) {
-  const unclear = r.direction === 'unclear';
-  return '<a class="row" href="' + diagnoseHref(r.ts_code) + '" style="display: grid; grid-template-columns: 76px 110px 84px 128px minmax(0, 1fr) 70px; gap: 10px; align-items: center; padding: 10px 16px; border-top: 1px solid #F1F2F4; text-decoration: none; color: #14171F">' +
-    '<span>' + srcPill(r) + '</span><span style="display: flex; flex-direction: column"><b style="font-size: 14px">' + esc(r.name || r.ts_code) + '</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(r.made_at) + ' · 存证 ' + (r.base_close ? Number(r.base_close).toFixed(2) : '—') + '</span></span>' +
-    '<span style="font-size: 12px; color: #5B6372">' + esc(r.sector || '—') + '</span><span>' + dirPill(r) + '</span>' +
-    '<span style="font-size: 12px; color: #3A4250; line-height: 1.5">' + esc(r.evidence || '—') + (mineTags(r) ? '<br>' + mineTags(r) : '') + '</span>' +
-    '<span style="' + MONO_F + '; font-size: 11px; color: #8A919E; text-align: right">' + (unclear ? '不结算' : day5(r.due['5']) + '<br>' + day5(r.due['20'])) + '</span></a>';
+  const unclear = r.direction === 'unclear', m = r.mine || {};
+  const conflict = r.direction === 'bearish' && (m.held || m.wish);
+  return '<div class="row" style="display: grid; ' + TCOL + '; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid #F1F2F4">' +
+    '<span style="display: flex; flex-direction: column; min-width: 0"><a href="' + diagnoseHref(r.ts_code) + '" style="text-decoration: none"><b style="font-size: 14px">' + esc(r.name || r.ts_code) + '</b></a><span style="font-size: 11px; color: #8A919E">' + esc(r.sector || '—') + ' · <span style="' + MONO_F + '">' + esc(r.made_at) + '</span></span>' + (analysing(r.ts_code) ? '<span style="font-size: 11px; color: #7A4A00">正在重新分析…</span>' : '') + '</span>' +
+    '<span>' + dirPill(r) + '</span>' +
+    '<span style="font-size: 12px; color: #3A4250; line-height: 1.5">' + esc(r.evidence || '—') + '</span>' +
+    '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span style="display: flex; gap: 4px; flex-wrap: wrap">' + tierPill(m) + (r.source === 'diagnose' ? pl('#EAF0FD', '#2457D6', '你诊断') : '') + '</span>' + (conflict ? '<span style="font-size: 11px; color: #7A4A00">与你的打算相反</span>' : '') + '</span>' +
+    '<span style="' + MONO_F + '; font-size: 11px; color: #8A919E; text-align: right">' + (unclear ? '不结算' : day5(r.due['5']) + '<br>' + day5(r.due['20'])) + '</span>' + rowActions(r, 'today') + '</div>';
+}
+const FOCUS_COLOR = { conflict: ['#FFF1D6', '#7A4A00'], flip: ['#FDECEA', '#B42318'], diagnose: ['#EAF0FD', '#2457D6'] };
+function focusCard(d) {
+  const items = d ? (d.focus || []) : null;
+  const body = items === null ? '<div class="skeleton" style="padding: 8px 0">读取中…</div>' : items.length ?
+    '<div style="margin: 0 -16px -14px">' + items.map((f) => { const c = FOCUS_COLOR[f.kind] || FOCUS_COLOR.diagnose;
+      return '<div style="display: grid; grid-template-columns: 124px 200px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 16px; border-top: 1px solid #F1F2F4"><span>' + pl(c[0], c[1], f.tag) + '</span>' +
+        '<span style="display: flex; align-items: center; gap: 8px"><a href="' + diagnoseHref(f.ts_code) + '" style="text-decoration: none"><b style="font-size: 14px">' + esc(f.name || f.ts_code) + '</b></a>' + dirPill(f) + '</span>' +
+        '<span style="font-size: 12px; color: #3A4250; line-height: 1.5">' + esc(f.text) + '</span><a href="' + diagnoseHref(f.ts_code) + '" style="' + LINKBTN + '">去诊断 →</a></div>'; }).join('') + '</div>'
+    : '<div style="display: flex; align-items: center; gap: 8px; padding: 4px 0 2px; color: #1E6B44"><span style="font-size: 16px">✓</span><span style="font-size: 13px; color: #3A4250">今天没有要你特别留意的：没有和你持仓、想买相反的新结论，方向也没有反转。</span></div>';
+  const n = items ? items.length : 0;
+  return '<div style="' + CARD + '"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">今天要看的' + (n ? ' ' + n + ' 条' : '') + '</b><span style="font-size: 12px; color: #8A919E">和你的持仓、想买相反，或和上次相比反转了</span></div>' + body + '</div>';
 }
 function renderToday() {
   const s = S.sum, d = S.data.today, fn = s.funnel;
-  const up = S.up ? upcomingCard() : '';
-  if (s.empty) return '<div style="display: flex; flex-direction: column; gap: 14px">' + up + emptyCard() + '</div>';
-  const rows = d ? d.rows : [];
+  if (s.empty) return '<div style="display: flex; flex-direction: column; gap: 14px">' + emptyCard() + '</div>';
+  const rows = d ? d.rows.slice().sort((a, b) => todayRank(a) - todayRank(b)) : [];
   const shown = rows.slice(0, S.shown.today);
-  const first = rows[0];
-  const dueTip = first && first.due ? '每条到期两次：5 个交易日（' + day5(first.due['5']) + '）、20 个交易日（' + day5(first.due['20']) + '）' : '每条到期两次：5 个交易日、20 个交易日';
-  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">今日预测</b><span style="font-size: 12px; color: #8A919E">' + esc(s.day) + ' 夜间任务的结论 + 你这天的诊断 · 全部存证，不可删改</span>' +
-    '<button type="button" data-act="scope" style="margin-left: auto; height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: #2457D6; cursor: pointer">设置扫描范围</button></div>' +
-    '<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">' + box('我的标的', num(fn.subjects), '自选 · 持仓 · 想买') + box('已研判', num(fn.researched), esc(day5(s.day)) + ' 的结论') +
-    box('给出方向', num(fn.bullish + fn.bearish), '偏多 ' + fn.bullish + ' · 偏空 ' + fn.bearish, { bg: '#EAF0FD' }) + box('不明', num(fn.unclear), '不计入命中率', { color: '#8A919E' }) + box('跟踪中', num(s.tracking), '还没到期的') + '</div>' +
-    '<div style="display: flex; align-items: center; gap: 8px">' + segs([['all', '全部 ' + s.made], ['scan', '定时扫描 ' + fn.scan], ['diagnose', '你诊断 ' + fn.diagnose]], S.f.today, 'tsrc') +
-    '<span style="margin-left: auto; font-size: 12px; color: #8A919E; text-align: right">同一只被扫描和你诊断各记一条 · ' + dueTip + '</span></div>' +
-    '<div style="margin: 0 -16px -14px; border-top: 1px solid #EEF0F3"><div style="display: grid; grid-template-columns: 76px 110px 84px 128px minmax(0, 1fr) 70px; gap: 10px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA"><span>来源</span><span>股票</span><span>板块</span><span>预测</span><span>主要依据</span><span style="text-align: right">到期</span></div>' +
+  return '<div style="display: flex; flex-direction: column; gap: 14px">' + focusCard(d) +
+    '<div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><b style="font-size: 15px">全部结论</b><span style="font-size: 12px; color: #8A919E">' + esc(day5(s.day)) + ' · 偏多 ' + fn.bullish + ' · 偏空 ' + fn.bearish + ' · 不明 ' + fn.unclear + '</span>' +
+    '<span style="margin-left: auto; display: flex; gap: 8px; align-items: center"><button type="button" class="xbtn" data-act="scope" style="color: #5B6372">扫描范围：' + fn.subjects + ' 只 ›</button>' + segs([['all', '全部 ' + s.made], ['scan', '定时扫描 ' + fn.scan], ['diagnose', '你诊断 ' + fn.diagnose]], S.f.today, 'tsrc') + '</span></div>' +
+    '<div style="margin: 0 -16px -14px; border-top: 1px solid #EEF0F3"><div style="display: grid; ' + TCOL + '; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA"><span>股票</span><span>预测</span><span>主要依据</span><span>和你</span><span style="text-align: right" title="每条预测到期两次：5 个交易日、20 个交易日">到期 5 / 20 天</span><span></span></div>' +
     (d ? (shown.length ? shown.map(todayRow).join('') : '<div class="empty" style="padding: 24px">这一类今天还没有预测</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
-    (rows.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="today" style="' + LINKBTN + '">查看全部 ' + rows.length + ' 条 →</button></div>' : '') + '</div></div>' + up + '</div>';
+    (rows.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="today" style="' + LINKBTN + '">查看全部 ' + rows.length + ' 条 →</button></div>' : '') + '</div></div></div>';
 }
 
 /* ---------- 跟踪中 ---------- */
@@ -196,17 +222,17 @@ function settleText(r) {
   const rel = r.settle_day === tm ? ' 今天' : (next && r.settle_day === next) ? ' 明天' : '';
   return day5(r.settle_day) + rel + ' 结算';
 }
-const TROW = 'grid-template-columns: 112px 128px 110px 200px 96px minmax(0, 1fr)';
+const TROW = 'grid-template-columns: 132px 124px 150px 210px minmax(0, 1fr) 96px';
 // 一条预测要结算两次（5 天、20 天）：合成一行，进度和结算日各写一行
 function predRow(p, nested) {
   const r = p.rows[0], now = r.now ? NOW[r.now] : null;
-  const note = r.close_call ? '差距很小，可能翻' : '';
+  const note = r.close_call ? '<span style="font-size: 11px; color: #7A4A00">差距很小，可能翻</span>' : '';
   const prog = p.rows.map((x) => '<span style="display: flex; flex-direction: column; gap: 3px"><span style="' + MONO_F + '; font-size: 11px; color: #5B6372">' + x.horizon + ' 天 · 第 ' + Math.min(x.day, x.horizon) + ' / ' + x.horizon + '</span><span style="display: grid; grid-template-columns: repeat(' + x.horizon + ', 1fr); gap: ' + (x.horizon === 5 ? 2 : 1) + 'px; width: 90px">' + Array.from({ length: x.horizon }, (_, i) => '<span style="height: 4px; border-radius: 1px; background: ' + (i < x.day ? '#2457D6' : '#E3E6EB') + '"></span>').join('') + '</span></span>').join('');
-  return '<a class="row" href="' + diagnoseHref(r.ts_code) + '" style="display: grid; ' + TROW + '; gap: 12px; align-items: center; padding: 11px 16px' + (nested ? ' 11px 32px; background: #FBFBFD' : '') + '; border-top: 1px solid #F1F2F4; font-size: 13px; text-decoration: none; color: #14171F">' +
-    '<span style="display: flex; flex-direction: column; gap: 3px"><b style="font-size: 14px">' + esc(r.name || r.ts_code) + '</b><span style="display: flex; gap: 4px; align-items: center">' + srcPill(r, true) + '<span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + day5(r.base_day) + '</span></span></span>' +
+  return '<div class="row" style="display: grid; ' + TROW + '; gap: 12px; align-items: center; padding: 11px 16px' + (nested ? ' 11px 32px; background: #FBFBFD' : '') + '; border-top: 1px solid #F1F2F4; font-size: 13px">' +
+    '<span style="display: flex; flex-direction: column; gap: 3px"><a href="' + diagnoseHref(r.ts_code) + '" style="text-decoration: none"><b style="font-size: 14px">' + esc(r.name || r.ts_code) + '</b></a><span style="display: flex; gap: 4px; align-items: center">' + srcPill(r, true) + '<span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + day5(r.base_day) + '</span></span></span>' +
     '<span style="display: flex; flex-direction: column; gap: 3px"><span>' + dirPill(r) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(r.sector || '') + '</span></span><span style="display: flex; flex-direction: column; gap: 6px">' + prog + '</span>' + versus(r) +
-    '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + (now ? pl(now[0], now[1], now[2]) : '<span style="font-size: 11px; color: #8A919E">还没有数据</span>') + '</span>' + p.rows.map((x) => '<span style="font-size: 11px; color: #8A919E">' + x.horizon + ' 天 · ' + esc(settleText(x)) + '</span>').join('') + '</span>' +
-    '<span style="font-size: 12px; color: #7A4A00">' + note + '</span></a>';
+    '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + (now ? pl(now[0], now[1], now[2]) : '<span style="font-size: 11px; color: #8A919E">还没有数据</span>') + '</span>' + note + p.rows.map((x) => '<span style="font-size: 11px; color: #8A919E">' + x.horizon + ' 天 · ' + esc(settleText(x)) + '</span>').join('') + '</span>' +
+    rowActions(r, 'track') + '</div>';
 }
 // 同一只股票的预测合成一组：夜间任务每天一条，再加你诊断的，不合起来会一只票占好几屏
 function groupTrack(rows) {
@@ -236,29 +262,26 @@ function groupRow(g) {
   const head = '<div data-act="tgroup" data-k="' + esc(g.code) + '" style="display: grid; ' + TROW + '; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid #F1F2F4; font-size: 13px; cursor: pointer; background: ' + (open ? '#F7FAFF' : '#FFFFFF') + '">' +
     '<span style="display: flex; flex-direction: column; gap: 3px"><span style="display: flex; align-items: center; gap: 6px"><span style="color: #8A919E; font-size: 12px">' + (open ? '▾' : '▸') + '</span><b style="font-size: 14px">' + esc(g.name || g.code) + '</b></span><span style="font-size: 11px; color: #8A919E; padding-left: 18px">' + g.preds.length + ' 条预测在跟踪</span></span>' +
     '<span style="display: flex; flex-direction: column; gap: 3px"><span>' + dirPill(latest) + '</span><span style="font-size: 11px; color: #8A919E">最近一条 · ' + esc(g.sector || '') + '</span></span>' +
-    '<span style="' + MONO_F + '; font-size: 12px; color: #5B6372">最近 ' + day5(g.settle) + ' 结算</span><span style="font-size: 12px">' + (tallyText || '<span style="color: #8A919E">还没有数据</span>') + '</span><span></span>' +
-    '<span style="font-size: 12px; color: #7A4A00">' + (dirs.size > 1 ? '这几条方向不一致，别只看一条' : '') + '</span></div>';
+    '<span style="' + MONO_F + '; font-size: 12px; color: #5B6372">最近 ' + day5(g.settle) + ' 结算</span><span style="font-size: 12px">' + (tallyText || '<span style="color: #8A919E">还没有数据</span>') + '</span>' +
+    '<span style="font-size: 12px; color: #7A4A00">' + (dirs.size > 1 ? '这几条方向不一致，别只看一条' : '') + '</span>' + rowActions(latest, 'track') + '</div>';
   return head + (open ? g.preds.map((p) => predRow(p, true)).join('') : '');
 }
 function renderTrack() {
   const d = S.data.track, s = S.sum;
   if (s.empty) return '<div style="display: flex; flex-direction: column; gap: 14px">' + emptyCard() + '</div>';
-  const steps = [['发出', '记下方向和起点价，不能改。起点价是发出那一刻最近的一个收盘价，本股和板块用同一天', '#5B6372'], ['跟踪', '每天收盘后算：从起点到今天，这只票比同板块多涨（少跌）了多少', '#2457D6'],
-    ['5 天结算', '看第 5 个交易日的收盘价，不是第二天。偏多跑赢板块算对，偏空跑输算对；差不到 0.5 个点算持平，不计', '#1E6B44'], ['20 天再结算', '同一条预测看第 20 个交易日收盘，两次分开算命中率', '#1E6B44']];
   const groups = d ? groupTrack(d.rows) : [];
   const shown = groups.slice(0, S.shown.track);
   const nPreds = groups.reduce((n, g) => n + g.preds.length, 0);
-  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; padding: 12px 14px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E3E6EB">' +
-    steps.map((x, i) => '<div style="display: flex; gap: 8px; align-items: flex-start; padding-right: 12px' + (i ? '; border-left: 1px dashed #DDE1E7; padding-left: 12px' : '') + '"><span style="flex: none; width: 22px; height: 22px; border-radius: 50%; background: ' + x[2] + '; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">' + (i + 1) + '</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="font-size: 13px">' + x[0] + '</b><span style="font-size: 11px; color: #5B6372; line-height: 1.5">' + x[1] + '</span></span></div>').join('') + '</div>' +
-    '<div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 10px; background: #F7F8FA; font-size: 12px; color: #3A4250; line-height: 1.7"><b style="flex: none">「稍微」「比较明显」怎么算：</b><span>强度不改变对错，只看方向。强度单独检验：「比较明显」的平均跑赢幅度应该明显大于「稍微」，命中率也应该更高；如果两者差不多，说明强度没意义，会在「准不准」里标出来。「位置偏高」只结算方向，位置另算。</span></div>' +
-    (d ? '<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">' + bigBox('跟踪中', d.total + ' 条', '5 天 ' + d.by_horizon['5'] + ' 条 · 20 天 ' + d.by_horizon['20'] + ' 条') + bigBox('目前算对', d.now_right + ' 条', d.total ? Math.round(d.now_right / d.total * 100) + '%，到期前还会变' : '—') +
-      bigBox('明天结算', d.tomorrow + ' 条', '5 天预测') + bigBox('和你有关', d.mine + ' 条', '你持有、想买或诊断过的', '#2457D6') + '</div>' : '') +
-    '<div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">还没到期的预测</b><span style="font-size: 12px; color: #8A919E">快到期的在前 · 每天收盘后更新' + (d ? ' · 共 ' + groups.length + ' 只股票、' + nPreds + ' 条预测' : '') + '</span><span style="margin-left: auto; display: flex; gap: 8px">' +
+  const help = '<button type="button" class="qmark" data-act="trackhelp" title="怎么跟踪、怎么结算" aria-label="怎么跟踪、怎么结算">?</button>';
+  const nh = d && d.hidden ? d.hidden.length : 0;
+  return '<div style="display: flex; flex-direction: column; gap: 14px">' +
+    '<div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><b style="font-size: 15px">还没到期的预测</b>' + help +
+    (d ? '<span style="font-size: 12px; color: #8A919E">' + groups.length + ' 只股票 · ' + nPreds + ' 条 · 目前算对 ' + d.now_right + ' 条 · 明天结算 ' + d.tomorrow + ' 条</span>' : '') + '<span style="margin-left: auto; display: flex; gap: 8px">' +
     segs([['all', '全部到期日'], ['tomorrow', '明天'], ['week', '本周'], ['next', '下周']], S.f.track.due, 'tdue') + segs([['all', '全部'], ['mine', '和我有关'], ['diagnose', '你诊断的']], S.f.track.who, 'twho') + '</span></div>' +
-    '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: 112px 128px 110px 200px 96px minmax(0, 1fr); gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>股票 · 发出</span><span>AI 说</span><span>进度</span><span>发出后：本股 vs 板块</span><span>现在</span><span></span></div>' +
+    '<div style="margin: 0 -16px -14px"><div style="display: grid; ' + TROW + '; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>股票 · 发出</span><span>AI 说</span><span>进度</span><span>发出后：本股 vs 板块</span><span>现在</span><span></span></div>' +
     (d ? (shown.length ? shown.map(groupRow).join('') : '<div class="empty" style="padding: 24px">没有符合条件的预测</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
-    (groups.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="track" style="' + LINKBTN + '">再加载 ' + Math.min(15, groups.length - shown.length) + ' 只股票</button><span style="margin-left: 10px; font-size: 11px; color: #A1A7B2">已显示 ' + shown.length + ' / ' + groups.length + ' 只</span></div>' : '') + '</div></div>' +
-    '<span style="font-size: 11px; color: #A1A7B2">「目前算对 / 算错」只是到今天为止的情况，到期那天收盘才算数。</span></div>';
+    ((groups.length > shown.length || nh) ? '<div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid #F1F2F4">' + (groups.length > shown.length ? '<button type="button" data-act="more" data-k="track" style="' + LINKBTN + '">再加载 ' + Math.min(15, groups.length - shown.length) + ' 只股票</button><span style="font-size: 11px; color: #A1A7B2">已显示 ' + shown.length + ' / ' + groups.length + ' 只</span>' : '') +
+      (nh ? '<button type="button" class="xbtn" data-act="showhidden" style="margin-left: auto; color: #5B6372">已隐藏 ' + nh + ' 只股票 · 查看</button>' : '') + '</div>' : '') + '</div></div></div>';
 }
 
 /* ---------- 已结算 ---------- */
@@ -299,10 +322,10 @@ function renderDone() {
     (t ? '<span style="font-size: 12px; color: #8A919E; white-space: nowrap">这段时间 <b style="color: #14171F">' + d.n_days + ' 个结算日 · ' + t.n + ' 条 · 对 ' + t.hit + '（' + rate(t.pct) + '）· 持平 ' + t.flat + '</b></span>' : '') +
     '<input id="dq" placeholder="搜某只票的全部结算（回车）" value="' + esc(f.q) + '" style="display: inline-flex; align-items: center; gap: 8px; width: 240px; height: 32px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font-size: 12px; color: #14171F; box-sizing: border-box; outline: none">' +
     '<a href="' + (DEMO ? '#' : '/api/scan/export.csv' + doneQuery()) + '" style="' + LINKBTN + '; margin-left: auto">导出 CSV</a></div>' +
-    '<div style="' + CARD + '"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">按结算日</b><span style="font-size: 12px; color: #8A919E">每天收盘后结算一批；错的默认展开原因</span></div><div style="margin: 0 -16px -14px">' +
+    '<div style="' + CARD + '"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">按结算日</b></div><div style="margin: 0 -16px -14px">' +
     (d ? (shown.length ? shown.map(dayBlock).join('') : '<div class="empty" style="padding: 28px">这段时间没有结算。预测满 5 个交易日才第一次结算，所以刚开始用时这里是空的。</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
     (days.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="done" style="' + LINKBTN + '">再加载 4 个结算日</button><span style="margin-left: 10px; font-size: 11px; color: #A1A7B2">已显示 ' + shown.length + ' / ' + days.length + ' 个结算日 · 改上面的时间范围可以一次看更多</span></div>' : '') + '</div></div>' +
-    '<span style="font-size: 11px; color: #A1A7B2">结算后不能改；所有预测在发出时存证，包括没对的。「不明」不结算，但计入不明率。</span></div>';
+    '</div>';
 }
 
 /* ---------- 准不准 ---------- */
@@ -343,7 +366,7 @@ function renderAcc() {
   if (!n) line = '还没有已结算的 ' + h + ' 天预测。' + (S.sum.first_made ? '第一批预测是 ' + day5(S.sum.first_made) + ' 发出的，满 ' + h + ' 个交易日后第一次结算。' : '');
   else line = '近 ' + a.days + ' 天，AI 给出方向的 ' + num(n) + ' 条预测里对了 ' + rate(a.overall.pct) + (a.baseline >= 0 ? '，比「随便选」' + (a.edge >= 0 ? '高 ' : '低 ') + Math.abs(a.edge).toFixed(1) + ' 个百分点。' : '。');
   const sub = (n && n < a.min_n ? '样本只有 ' + n + ' 条，数字还不稳，先当参考。' : '') + (dt.n ? '今天到期 ' + dt.n + ' 条，对了 ' + dt.hit + ' 条（' + rate(dt.pct) + '）；单日数字波动大，看蓝线。' : '');
-  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 14px"><div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">AI 准不准</b><span style="font-size: 12px; color: #8A919E">每天盘后结算到期的预测 · 比的是「跑没跑赢所在板块」</span>' +
+  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 14px"><div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">AI 准不准</b><span style="font-size: 12px; color: #8A919E">比的是「跑没跑赢所在板块」</span>' +
     '<span class="seg" style="margin-left: auto"><button type="button" data-act="ah" data-k="5" aria-pressed="' + (S.f.acc === 5) + '">看 5 天</button><button type="button" data-act="ah" data-k="20" aria-pressed="' + (S.f.acc === 20) + '">看 20 天</button></span></div>' +
     '<div style="padding: 10px 12px; border-radius: 10px; background: #F1F5FE; font-size: 14px; line-height: 1.6"><b>' + esc(line) + '</b>' + (sub ? '<span style="font-size: 12px; color: #5B6372">' + esc(sub) + '</span>' : '') + '</div>' +
     '<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">' + box('近 ' + a.days + ' 天命中率', rate(a.overall.pct), num(n) + ' 条 · ' + h + ' 天到期', { size: 20 }) + box('随便选', rate(a.baseline), '每次都说同一方向', { size: 20, color: '#5B6372' }) +
@@ -355,10 +378,15 @@ function renderAcc() {
     '<span style="font-size: 12px; color: #5B6372; line-height: 1.6; padding-top: 6px">比随便选高不到 3 个点的，说明这一维暂时没有预测力；样本少于 ' + a.min_n + ' 条的不下结论。</span></div></div></div>';
 }
 
+/* ---------- 战绩：准不准 + 每天结算明细 ---------- */
+function renderRecord() {
+  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="display: flex">' + segs([['acc', '准不准'], ['done', '每天结算明细']], S.rec, 'rec') + '</div>' + (S.rec === 'acc' ? renderAcc() : renderDone()) + '</div>';
+}
+
 /* ---------- 右侧：今天结算 ---------- */
 function renderPanel() {
   const p = S.panel;
-  if (S.notif || S.tab === 'custom' || !p || !S.sum || S.sum.empty && !DEMO) { $('aside').hidden = true; return; }
+  if (S.notif || S.tab !== 'today' || !p || !S.sum || S.sum.empty && !DEMO) { $('aside').hidden = true; return; }
   $('aside').hidden = false;
   const tm = p.tomorrow || {};
   const tomorrowBox = '<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px; border: 1px solid #E3E6EB"><span style="display: flex; justify-content: space-between; font-size: 13px"><b>明天结算</b><span style="' + MONO_F + '">' + (tm.count || 0) + ' 条</span></span>' +
@@ -378,7 +406,7 @@ function renderPanel() {
     '<div style="display: grid; grid-template-columns: repeat(' + Math.min(Math.max(p.squares.length, 1), 24) + ', 1fr); gap: 2px">' + sq + '</div>' +
     '<div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 10px; background: #F7F8FA"><b style="font-size: 13px">和你有关的</b>' + mine + (p.held_other ? '<span style="font-size: 11px; color: #8A919E">你持有的其他 ' + p.held_other + ' 只今天没有到期</span>' : '') + '</div>' +
     wrongBlock + tomorrowBox + '<span style="font-size: 11px; color: #8A919E">' + esc(p.notify_text) + '</span>' +
-    '<button type="button" data-act="tab" data-k="done" style="' + LINKBTN + '; align-self: flex-start">看今天全部 ' + n + ' 条 →</button></div>';
+    '<button type="button" data-act="gorecord" style="' + LINKBTN + '; align-self: flex-start">看今天全部 ' + n + ' 条 →</button></div>';
 }
 
 /* ---------- 即将执行的定时任务（设计稿之外，按设计稿的卡片样式放在页面底部） ---------- */
@@ -405,10 +433,21 @@ function upcomingCard() {
   const settle = (u.settle || []).length ? sec('<span style="font-size: 12px; color: #3A4250"><b>接下来到期的预测：</b></span><span style="display: flex; gap: 8px; flex-wrap: wrap">' + u.settle.map((x) => '<span style="padding: 5px 10px; border-radius: 8px; background: #F7F8FA; font-size: 12px"><b style="' + MONO_F + '">' + day5(x.day) + '</b> · ' + x.count + ' 条 <span style="font-size: 11px; color: #8A919E">' + esc(x.names.join('、')) + (x.count > x.names.length ? ' 等' : '') + '</span></span>').join('') + '</span>')
     : sec('<span style="font-size: 12px; color: #8A919E">现在没有在跟踪的预测，所以没有要结算的。</span>');
   const others = (u.others || []).length ? '<details style="padding-top: 10px; border-top: 1px solid #F1F2F4"><summary style="cursor: pointer; font-size: 12px; color: #5B6372">其他定时任务（' + u.others.length + '）</summary>' + u.others.map((t) => taskRow(t)).join('') + '</details>' : '';
-  return '<div style="' + CARD + '"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">即将执行的定时任务</b><span style="font-size: 12px; color: #8A919E">现在 ' + esc(u.now) + ' · 周末和休市日不跑交易日任务</span></div>' + (u.scan_tasks || []).map((t) => taskRow(t, true)).join('') + watch + stocks + settle + others + '</div>';
+  return '<div style="' + CARD + '"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">系统任务</b><span style="font-size: 12px; color: #8A919E">现在 ' + esc(u.now) + ' · 周末和休市日不跑交易日任务</span></div>' + (u.scan_tasks || []).map((t) => taskRow(t, true)).join('') + watch + stocks + settle + others + '</div>';
 }
 
 /* ---------- 口径 ---------- */
+function openTrackHelp() {
+  const steps = [
+    ['1', '发出', '记下方向和起点价，不能改。起点价是发出那一刻最近的一个收盘价，本股和板块用同一天。'],
+    ['2', '跟踪', '每天收盘后算：从起点到今天，这只票比同板块多涨（少跌）了多少。'],
+    ['3', '5 天结算', '看第 5 个交易日的收盘价，不是第二天。偏多跑赢板块算对，偏空跑输算对；差不到 0.5 个点算持平，不计。'],
+    ['4', '20 天再结算', '同一条预测看第 20 个交易日收盘，两次分开算命中率。'],
+  ];
+  $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1"><div style="display: flex; align-items: center"><b style="font-size: 16px">怎么跟踪、怎么结算</b><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 18px" aria-label="关闭">×</button></div>' +
+    steps.map((x) => '<div style="display: flex; gap: 10px; align-items: flex-start"><span style="flex: none; width: 22px; height: 22px; border-radius: 50%; background: #2457D6; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">' + x[0] + '</span><span style="display: flex; flex-direction: column; gap: 2px"><b style="font-size: 13px">' + x[1] + '</b><span style="font-size: 12px; color: #3A4250; line-height: 1.65">' + x[2] + '</span></span></div>').join('') +
+    '<div style="padding: 10px 12px; border-radius: 10px; background: #F7F8FA; font-size: 12px; color: #3A4250; line-height: 1.7"><b>「稍微」「比较明显」怎么算：</b>强度不改变对错，只看方向。强度单独检验：「比较明显」的平均跑赢幅度应该明显大于「稍微」，命中率也应该更高；如果两者差不多，说明强度没意义，会在「准不准」里标出来。「位置偏高」只结算方向，位置另算。</div></div></div>';
+}
 function openRules() {
   $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1"><div style="display: flex; align-items: center"><b style="font-size: 16px">统计口径</b><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 18px">×</button></div>' +
     '<span><b>预测从哪来：</b>你的自选、持仓和想买，每个交易日夜间任务出一份结论就记一条；你在诊断页点「重新分析」也记一条（标成「你诊断」）。同一份结论只记一次。</span>' +
@@ -450,7 +489,7 @@ async function loadNotif() {
 }
 
 /* ---------- 交互 ---------- */
-const reload = (tab) => loadTab(tab || S.tab, true);
+const reload = (tab) => loadTab(tab || cur(), true);
 let pollTimer = null;
 function pollAfterRun() {
   clearInterval(pollTimer);
@@ -463,7 +502,12 @@ function pollAfterRun() {
   pollTimer = setInterval(tick, 5000); setTimeout(tick, 1500);
 }
 const ACT = {
-  tab: (el) => { S.tab = el.dataset.k; renderTabs(); renderPanel(); loadTab(S.tab); },
+  tab: (el) => { S.tab = el.dataset.k; renderTabs(); renderPanel(); loadTab(cur()); },
+  rec: (el) => { S.rec = el.dataset.k; renderBody(); loadTab(S.rec); },
+  gorecord: () => { S.tab = 'record'; S.rec = 'done'; renderTabs(); renderPanel(); loadTab('done'); },
+  drawer: () => { S.drawer = true; renderDrawer(); if (!S.data.custom) loadTab('custom'); api('/upcoming').then((u) => { S.up = u; renderDrawer(); }).catch(() => {}); },
+  drawerx: () => { S.drawer = false; renderDrawer(); },
+  drawerclose: (el, e) => { if (e.target.closest('[data-stop]')) return; S.drawer = false; renderDrawer(); },
   tsrc: (el) => { S.f.today = el.dataset.k; reload(); },
   tdue: (el) => { S.f.track.due = el.dataset.k; reload(); },
   twho: (el) => { S.f.track.who = el.dataset.k; reload(); },
@@ -476,15 +520,19 @@ const ACT = {
   more: (el) => { const k = el.dataset.k; S.shown[k] += k === 'done' ? 4 : k === 'track' ? 15 : 20; renderBody(); },
   ah: (el) => { S.f.acc = Number(el.dataset.k); reload(); },
   rules: openRules,
+  trackhelp: openTrackHelp,
   scope: openScope,
   close: (el, e) => { if (el.classList.contains('modal') && e.target.closest('[data-stop]')) return; $('modal').innerHTML = ''; },
-  notif: async () => { S.notif = !S.notif; renderNotif(); renderPanel(); $('bell').style.background = S.notif ? '#EAF0FD' : 'transparent'; if (S.notif) { await loadNotif(); renderNotif(); } },
+  notif: async () => { if (S.drawer) { S.drawer = false; renderDrawer(); S.notif = false; } S.notif = !S.notif; renderNotif(); renderPanel(); $('bell').style.background = S.notif ? '#EAF0FD' : 'transparent'; if (S.notif) { await loadNotif(); renderNotif(); } },
   ntab: (el) => { S.nTab = el.dataset.k; renderNotif(); },
   notifread: async () => { if (DEMO) return; try { await fetch('/api/v1/holdings/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); await loadNotif(); renderNotif(); } catch (e) { toast('标记失败', true); } },
   nsel: (el) => {
-    S.notif = false; renderNotif(); renderPanel();
-    if (el.dataset.kind === 'settle' && !el.dataset.code) { S.tab = 'done'; renderTabs(); loadTab('done', true); }
-    else if (el.dataset.code) location.href = diagnoseHref(el.dataset.code);
+    clearTimeout(nItemTimer);
+    nItemTimer = setTimeout(() => {
+      S.notif = false; renderNotif(); renderPanel();
+      if (el.dataset.kind === 'settle' && !el.dataset.code) { S.tab = 'record'; S.rec = 'done'; renderTabs(); renderPanel(); loadTab('done', true); }
+      else if (el.dataset.code) location.href = diagnoseHref(el.dataset.code);
+    }, 280);
   },
   runnow: async (el) => {
     const task = el.dataset.k;
@@ -508,14 +556,96 @@ const ACT = {
     } catch (e) { toast(e.message, true); }
   },
 };
+let nItemTimer = 0;
+// 每行右边的「⋯」：重新分析（今天、进行中都有）和不再跟踪（进行中）
+function closeMenu() { const m = $('menu'); if (m) m.remove(); }
+async function postJSON(url, body) {
+  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+  let json = {};
+  try { json = await res.json(); } catch (e) { /* 没有正文 */ }
+  if (!res.ok) throw new Error(json.error || '请求失败（' + res.status + '）');
+  return json;
+}
+let runTimer = null;
+function pollRunning() {
+  clearInterval(runTimer);
+  let left = 60;
+  runTimer = setInterval(async () => {
+    try {
+      S.sum = await api('/summary'); renderHead(); renderTabs();
+      if (!(S.sum.running || []).length) {
+        clearInterval(runTimer); S.data = {};
+        S.panel = await api('/panel'); renderPanel(); await loadTab(cur(), true);
+        toast('重新分析完成，已记成一条新预测');
+        return;
+      }
+      renderBody();
+    } catch (e) { /* 下次再试 */ }
+    if (--left <= 0) clearInterval(runTimer);
+  }, 6000);
+}
+Object.assign(ACT, {
+  menu: (el) => {
+    const code = el.dataset.code, tag = el.dataset.kind + ':' + code, had = $('menu') && $('menu').dataset.for === tag;
+    closeMenu(); if (had) return;
+    const r = el.getBoundingClientRect(), busyNow = analysing(code);
+    const item = (act, text, color, off) => '<button type="button" data-act="' + act + '" data-code="' + esc(code) + '" data-name="' + esc(el.dataset.name) + '"' + (off ? ' disabled' : '') + ' style="display: block; width: 100%; text-align: left; padding: 8px 14px; border: none; background: transparent; font: inherit; font-size: 13px; color: ' + (off ? '#A1A7B2' : color) + '; cursor: ' + (off ? 'default' : 'pointer') + '; white-space: nowrap">' + text + '</button>';
+    const m = document.createElement('div');
+    m.id = 'menu'; m.dataset.for = tag;
+    m.style.cssText = 'position: fixed; z-index: 40; top: ' + Math.round(r.bottom + 4) + 'px; right: ' + Math.round(window.innerWidth - r.right) + 'px; min-width: 190px; padding: 4px 0; background: #FFFFFF; border: 1px solid #DDE1E7; border-radius: 10px; box-shadow: 0 6px 20px rgba(20,23,31,.14)';
+    m.innerHTML = item('reana', busyNow ? '正在重新分析…' : '重新分析', '#14171F', busyNow) +
+      (el.dataset.kind === 'track' ? item('hide', '不再跟踪这只票', '#14171F') + '<div style="padding: 2px 14px 6px; font-size: 11px; color: #8A919E; max-width: 190px; line-height: 1.5">只是不在这个列表里显示，战绩照常统计</div>' : '');
+    document.body.appendChild(m);
+  },
+  reana: async (el) => {
+    closeMenu();
+    const code = el.dataset.code, name = el.dataset.name || code;
+    if (DEMO) { toast('示例数据里不能操作'); return; }
+    if (!confirm('重新分析「' + name + '」？\n\n会调用你的模型，几分钟出结果；出来后记成一条新预测（标成「你诊断」），旧的不动。')) return;
+    try {
+      const j = await postJSON('/api/stocks/' + encodeURIComponent(code) + '/conclusion/refresh');
+      toast(j.queued === false ? (j.reason || '已经在跑') : '已开始重新分析「' + name + '」');
+      S.sum = await api('/summary'); renderBody(); pollRunning();
+    } catch (e) { toast(e.message, true); }
+  },
+  hide: async (el) => {
+    closeMenu();
+    if (DEMO) { toast('示例数据里不能操作'); return; }
+    try {
+      await postJSON('/api/scan/hide', { code: el.dataset.code, on: true });
+      toast('已隐藏「' + (el.dataset.name || el.dataset.code) + '」，战绩照常统计；列表底部可以恢复');
+      S.sum = await api('/summary'); renderHead(); renderTabs(); await loadTab('track', true);
+    } catch (e) { toast(e.message, true); }
+  },
+  showhidden: () => {
+    const list = (S.data.track && S.data.track.hidden) || [];
+    $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1"><div style="display: flex; align-items: center"><b style="font-size: 16px">已隐藏的股票</b><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 18px">×</button></div>' +
+      '<span style="font-size: 12px; color: #5B6372">这些票的预测还在跟踪、照常结算，只是不在「进行中」里显示。</span>' +
+      (list.length ? list.map((x) => '<div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #F1F2F4"><b>' + esc(x.name || x.ts_code) + '</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(x.ts_code) + '</span><button type="button" data-act="unhide" data-code="' + esc(x.ts_code) + '" style="margin-left: auto; ' + LINKBTN.replace('display: inline-flex;', '') + '">恢复显示</button></div>').join('') : '<div class="empty" style="padding: 16px">没有隐藏的股票</div>') + '</div></div>';
+  },
+  unhide: async (el) => {
+    try {
+      await postJSON('/api/scan/hide', { code: el.dataset.code, on: false });
+      S.sum = await api('/summary'); renderHead(); renderTabs(); await loadTab('track', true); if ((S.data.track.hidden || []).length) ACT.showhidden(); else $('modal').innerHTML = '';
+    } catch (e) { toast(e.message, true); }
+  },
+});
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');
   if (!el) return;
   const fn = ACT[el.dataset.act];
   if (fn) fn(el, e);
 });
+document.addEventListener('click', (e) => { if (!e.target.closest('#menu, [data-act="menu"]')) closeMenu(); }, true);
+document.addEventListener('dblclick', (e) => {
+  const el = e.target.closest('[data-act="nsel"]');
+  if (!el || !S.notif) return;
+  clearTimeout(nItemTimer);
+  e.preventDefault();
+  S.notif = false; renderNotif(); renderPanel();
+});
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { if ($('modal').innerHTML) $('modal').innerHTML = ''; else if (S.notif) ACT.notif(); }
+  if (e.key === 'Escape') { if ($('menu')) closeMenu(); else if ($('modal').innerHTML) $('modal').innerHTML = ''; else if (S.drawer) ACT.drawerx(); else if (S.notif) ACT.notif(); }
   if (e.key === 'Enter' && e.target && e.target.id === 'dq') { S.f.done.q = e.target.value.trim(); reload('done'); }
 });
 
@@ -551,20 +681,23 @@ function cuRow(t) {
 }
 function renderCustom() {
   const d = S.data.custom;
-  const typeCards = ['analyze', 'ask', 'scan'].map((k) => '<div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: #F7F8FA"><span style="display: flex; align-items: center; gap: 6px">' + cuPill(k) + '<span style="font-size: 11px; color: #8A919E">' + CU_KIND[k][4] + '</span></span><span style="font-size: 12px; color: #5B6372; line-height: 1.6">' + CU_KIND[k][3] + '</span></div>').join('');
-  const head = '<div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">自定义任务</b><span style="font-size: 12px; color: #8A919E">自己定时间、定范围、定做什么' + (d ? ' · 最多 ' + d.limit + ' 个' : '') + '</span><button type="button" data-act="cunew" style="margin-left: auto; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">＋ 新建任务</button></div>' +
-    '<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">' + typeCards + '</div>';
+  const head = '<div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">我的任务</b><span style="font-size: 12px; color: #8A919E">自己定时间、定范围、定做什么' + (d ? ' · 最多 ' + d.limit + ' 个' : '') + '</span><button type="button" data-act="cunew" style="margin-left: auto; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">＋ 新建任务</button></div>';
   if (!d) return '<div style="' + CARD + '">' + head + '<div class="skeleton" style="padding: 16px">读取中…</div></div>';
   const note = d.model ? '' : '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF8EC; font-size: 12px; color: #7A4A00">没有配置模型密钥：「定时分析」和「定时提问」要用到你的模型，先到设置里配好；「条件扫描」不受影响。</div>';
   const list = d.tasks.length ? '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 150px 120px auto; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>任务</span><span>范围</span><span>什么时候跑</span><span>上次</span><span></span></div>' + d.tasks.map(cuRow).join('') + '</div>'
-    : '<div class="empty" style="padding: 24px 12px 14px"><b style="font-size: 15px">还没有自定义任务</b><span style="max-width: 520px; line-height: 1.7">点「新建任务」自己设一个，或者从下面选一个常用的改一改：</span><span style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center">' +
+    : '<div class="empty" style="padding: 20px 12px 10px"><b style="font-size: 15px">还没有自定义任务</b><span style="max-width: 520px; line-height: 1.7">点「新建任务」，或者从常用的里面选一个改一改：</span><span style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center">' +
       Object.keys(CU_TEMPLATES).map((k) => '<button type="button" data-act="cutpl" data-k="' + k + '" title="' + esc(CU_TEMPLATES[k].desc) + '" style="' + LINKBTN + '">' + esc(CU_TEMPLATES[k].title) + '</button>').join('') + '</span></div>';
-  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="' + CARD + '">' + head + note + list + '</div>' +
-    '<div style="padding: 10px 14px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E3E6EB; font-size: 12px; color: #3A4250; line-height: 1.8"><b>结果在哪看：</b>' +
-    '<br>· <b>通知</b>：右上角的 🔔，条件扫描的命中、提问的回答、只分析几个方面的结论都在这里（「全部」页签；命中的还在「提醒」里）；每次跑完另有一条「定时任务成功」的回执。' +
-    '<br>· <b>完整一轮的分析结论</b>：这只票的诊断页（结论详情）；同时记成一条预测，在本页的「今日扫描」「跟踪中」，到期后在「已结算」「准不准」。' +
-    '<br>· <b>提问的回答</b>：除了通知，也会出现在这只票诊断页的研判群里，接着问就行。</div>' +
-    '<span style="font-size: 11px; color: #A1A7B2; line-height: 1.7">每个任务都是调度器里的一个独立任务：到点自动跑，睡眠错过了会补，跑完在收件箱留回执；条件扫描同一天同一只票只通知一次。关掉的任务不会自动跑，但还可以手动「现在跑」。</span></div>';
+  return '<div style="' + CARD + '">' + head + note + list + '</div>';
+}
+// 定时任务：从右边滑出来，自己的任务和系统任务都在这里，不占扫描页的位置
+function renderDrawer() {
+  const el = $('drawer');
+  if (!S.drawer) { el.innerHTML = ''; return; }
+  const old = $('drBody'), top = old ? old.scrollTop : 0;
+  el.innerHTML = '<div data-act="drawerclose" style="position: fixed; inset: 0; z-index: 25; background: rgba(20,23,31,.28); display: flex; justify-content: flex-end"><div data-stop="1" style="width: 940px; max-width: 100%; height: 100%; background: #EEF0F3; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(20,23,31,.14); font-size: 13px; line-height: 1.55">' +
+    '<div style="flex: none; display: flex; align-items: center; gap: 10px; padding: 16px 20px; background: #FFFFFF; border-bottom: 1px solid #DDE1E7"><b style="font-size: 16px">定时任务</b><span style="font-size: 12px; color: #8A919E">任务在这台电脑的客户端里跑，结果放进通知</span><button type="button" data-act="drawerx" aria-label="关闭" style="margin-left: auto; width: 28px; height: 28px; border: none; background: transparent; color: #5B6372; font-size: 20px; cursor: pointer">×</button></div>' +
+    '<div id="drBody" style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px 20px 24px; display: flex; flex-direction: column; gap: 14px">' + renderCustom() + (S.up ? upcomingCard() : '') + '</div></div></div>';
+  const nb = $('drBody'); if (nb) nb.scrollTop = top;
 }
 
 // ---- 表单
@@ -577,58 +710,120 @@ function cuOpen(t) {
   cuRender();
 }
 function cuNewRule() { const k = cuKinds().find((x) => x.kind === 'below_ma') || cuKinds()[0] || { kind: 'below_ma', default: '20' }; return { kind: k.kind, value: Number(k.default) || 0, text: '' }; }
+// ---- 表单：分步骤的卡片式表单，底部有一句话总结这个任务会做什么
+const CU_ICON = {
+  analyze: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>',
+  ask: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M9 10h6"/></svg>',
+  scan: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>',
+};
+const CU_WORDS = {
+  analyze: ['定时分析', '到点让分析师把这些股票重新分析一遍。不用你写问题，按他们固定的分析流程来。', '例：每天收盘后，把持仓再分析一遍'],
+  ask: ['定时提问', '到点把你写的一个问题问分析师，每只股票各问一遍，回答放进通知。', '例：午休前问「今天有没有新公告和资金异动？」'],
+  scan: ['条件扫描', '到点检查这些股票满不满足你设的条件，满足的才通知你。', '例：收盘跌破 20 日线，且大资金连续流出'],
+};
+function cuAutoTitle(f) {
+  const scope = (CU_SCOPE.find((x) => x[0] === f.scope) || ['', ''])[1].replace('…', '');
+  if (f.kind === 'ask') return '问：' + (f.question.trim().slice(0, 12) || '一个问题');
+  if (f.kind === 'scan') { const r = f.rules[0]; return r ? RULE_SHORT(r) + ' 扫描' : '条件扫描'; }
+  return (f.analysts.length ? '看' + f.analysts.map((a) => ({ volume_flow: '资金', sector: '板块', news: '新闻', finance: '财报', fundamental: '基本面' }[a])).join('、') : '分析') + scope;
+}
+function RULE_SHORT(r) { const k = cuKindOf(r.kind); return r.kind === 'sector_is' ? '板块' + (r.text || '') : k.unit ? k.label + (r.value || '') + k.unit : k.label; }
+function cuSentence(f) {
+  const everyMin = (Number(f.everyNum) || 0) * (f.everyUnit === 'hour' ? 60 : 1);
+  const when = f.mode === 'every' ? (f.days === 'trading' ? '交易时段' : '全天') + '每隔 ' + f.everyNum + (f.everyUnit === 'hour' ? ' 小时' : ' 分钟') : (f.days === 'trading' ? '每个交易日 ' : '每天 ') + f.at;
+  const names = f.codes.map((c) => f.names[c] || c);
+  const scope = f.scope === 'codes' ? (names.length ? names.slice(0, 3).join('、') + (names.length > 3 ? ' 等 ' + names.length + ' 只' : '') : '（还没选股票）') : (CU_SCOPE.find((x) => x[0] === f.scope) || ['', ''])[1];
+  const who = (ids, dflt) => ids.length ? ids.map((a) => ({ volume_flow: '资金流', sector: '板块', news: '新闻', finance: '财报', fundamental: '基本面', chief: '主分析师' }[a])).join('、') : dflt;
+  let what;
+  if (f.kind === 'analyze') what = f.analysts.length ? '让 ' + who(f.analysts) + ' 分析师各分析一次，结论放进通知（不出裁决，不记预测）' : '各出一份完整结论（五位分析师、看多看空、主分析师裁决），并记成预测去跟踪';
+  else if (f.kind === 'ask') what = '问 ' + who(f.analysts, '主分析师').replace(/(资金流|板块|新闻|财报|基本面)/g, '$1分析师') + '：「' + (f.question.trim() || '……') + '」，回答放进通知';
+  else what = '检查是否 ' + f.rules.map((r) => cuRuleWords(r)).join(f.match === 'any' ? ' 或 ' : ' 且 ') + '，符合的才通知你（同一只票一天一次）';
+  return when + '，对 ' + scope + ' ' + what + '。';
+}
+function cuRuleWords(r) {
+  const k = cuKindOf(r.kind);
+  if (r.kind === 'sector_is') return '板块结论是「' + (r.text || '') + '」';
+  if (r.kind === 'below_ma' || r.kind === 'above_ma') return k.label.replace('均线', '') + ' ' + (r.value || '') + ' 日均线';
+  if (r.kind === 'new_high' || r.kind === 'new_low') return k.label + '（近 ' + (r.value || '') + ' 日）';
+  return k.unit ? k.label + ' ' + (r.value || '') + (k.unit === '日' ? ' 日' : k.unit) : k.label;
+}
 function cuRender() {
   const f = S.cf;
-  const seg = (items, cur, act) => '<span class="seg">' + items.map(([k, n]) => '<button type="button" data-act="' + act + '" data-k="' + k + '" aria-pressed="' + (String(cur) === String(k)) + '">' + n + '</button>').join('') + '</span>';
-  const field = (label, inner, hint) => '<div style="display: flex; flex-direction: column; gap: 5px"><span style="font-size: 12px; font-weight: 600">' + label + '</span>' + inner + (hint ? '<span style="font-size: 11px; color: #8A919E; line-height: 1.6">' + hint + '</span>' : '') + '</div>';
-  const inp = 'width: 100%; min-height: 34px; padding: 7px 10px; border: 1px solid #DDE1E7; border-radius: 8px; box-sizing: border-box; font-size: 13px; color: #14171F; background: #FFFFFF';
-  const chips = f.codes.map((c) => '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: #EAF0FD; color: #1F3F8A; font-size: 12px">' + esc(f.names[c] || c) + '<button type="button" data-act="cudelcode" data-code="' + esc(c) + '" aria-label="去掉" style="border: none; background: transparent; color: #5B6372; cursor: pointer; font-size: 14px; line-height: 1">×</button></span>').join('');
-  const codes = f.scope === 'codes' ? '<div style="display: flex; flex-direction: column; gap: 6px"><div style="display: flex; flex-wrap: wrap; gap: 6px">' + (chips || '<span style="font-size: 12px; color: #8A919E">还没选股票</span>') + '</div><input id="cfSearch" data-f="search" placeholder="输入代码、名称或拼音首字母，搜到后点一下加上" autocomplete="off" style="' + inp + '"><div id="cfHits" style="display: flex; flex-direction: column"></div></div>' : '';
+  const body0 = $('cfBody'), keepTop = body0 ? body0.scrollTop : 0;
+  const inp = 'width: 100%; min-height: 36px; padding: 7px 11px; border: 1px solid #DDE1E7; border-radius: 9px; box-sizing: border-box; font-size: 13px; color: #14171F; background: #FFFFFF; outline: none';
+  const pill = (act, k, text, on, extra) => '<button type="button" data-act="' + act + '" data-k="' + k + '" aria-pressed="' + on + '" style="height: 32px; padding: 0 14px; border: 1px solid ' + (on ? '#2457D6' : '#DDE1E7') + '; border-radius: 999px; background: ' + (on ? '#EAF0FD' : '#FFFFFF') + '; color: ' + (on ? '#1F3F8A' : '#3A4250') + '; font: inherit; font-size: 13px; font-weight: ' + (on ? 600 : 400) + '; cursor: pointer; white-space: nowrap' + (extra || '') + '">' + text + '</button>';
+  const step = (n, title, hint, inner) => '<section style="display: flex; gap: 14px; padding: 18px 0; border-top: 1px solid #EEF0F3"><span style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #14171F; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">' + n + '</span>' +
+    '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px"><div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap"><b style="font-size: 14px">' + title + '</b>' + (hint ? '<span style="font-size: 12px; color: #8A919E; line-height: 1.6">' + hint + '</span>' : '') + '</div>' + inner + '</div></section>';
+  // 1 做什么
+  const cards = ['analyze', 'ask', 'scan'].map((k) => {
+    const on = f.kind === k, c = CU_KIND[k];
+    return '<button type="button" data-act="cukind" data-k="' + k + '" aria-pressed="' + on + '" style="display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; text-align: left; border: 1.5px solid ' + (on ? '#2457D6' : '#E3E6EB') + '; border-radius: 12px; background: ' + (on ? '#F5F8FF' : '#FFFFFF') + '; cursor: pointer; font: inherit; color: inherit; box-shadow: ' + (on ? '0 0 0 3px rgba(36,87,214,.10)' : 'none') + '">' +
+      '<span style="display: flex; align-items: center; gap: 8px"><span style="width: 34px; height: 34px; border-radius: 9px; background: ' + c[1] + '; color: ' + c[2] + '; display: flex; align-items: center; justify-content: center">' + CU_ICON[k] + '</span><span style="display: flex; flex-direction: column; gap: 1px"><b style="font-size: 14px">' + CU_WORDS[k][0] + '</b><span style="font-size: 11px; color: ' + (k === 'scan' ? '#1E6B44' : '#7A4A00') + '">' + c[4] + '</span></span></span>' +
+      '<span style="font-size: 12px; color: #5B6372; line-height: 1.6">' + CU_WORDS[k][1] + '</span><span style="font-size: 11px; color: #8A919E; line-height: 1.5">' + CU_WORDS[k][2] + '</span></button>';
+  }).join('');
+  const noModel = (f.kind !== 'scan' && S.data.custom && !S.data.custom.model) ? '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF8EC; font-size: 12px; color: #7A4A00">还没有配置模型密钥：这类任务跑起来会失败，先到设置里配好。</div>' : '';
+  // 2 哪些股票
+  const chips = f.codes.map((c) => '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border-radius: 999px; background: #EAF0FD; color: #1F3F8A; font-size: 12px">' + esc(f.names[c] || c) + '<button type="button" data-act="cudelcode" data-code="' + esc(c) + '" aria-label="去掉" style="border: none; background: transparent; color: #5B6372; cursor: pointer; font-size: 15px; line-height: 1">×</button></span>').join('');
+  const codes = f.scope === 'codes' ? '<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: #F7F8FA"><div style="display: flex; flex-wrap: wrap; gap: 6px">' + (chips || '<span style="font-size: 12px; color: #8A919E">还没选股票，在下面搜一搜</span>') + '</div><input id="cfSearch" data-f="search" placeholder="输入代码、名称或拼音首字母，搜到后点一下加上" autocomplete="off" style="' + inp + '"><div id="cfHits" style="display: flex; flex-direction: column"></div></div>' : '';
+  const scopeStep = step(2, '对哪些股票', f.scope === 'codes' ? '最多 50 只' : '跟着你的持仓、想买、自选变，新加的票下次就会带上',
+    '<div style="display: flex; gap: 8px; flex-wrap: wrap">' + CU_SCOPE.map(([k, n]) => pill('cuscope', k, n, f.scope === k)).join('') + '</div>' + codes);
+  // 3 具体怎么做
+  const dimList = [['volume_flow', '资金流'], ['sector', '板块'], ['news', '新闻'], ['finance', '财报'], ['fundamental', '基本面']].concat(f.kind === 'ask' ? [['chief', '主分析师']] : []);
+  const who = '<div style="display: flex; gap: 6px; flex-wrap: wrap">' + dimList.map(([k, n]) => pill('cuwho', k, n, f.analysts.includes(k), '; height: 28px; padding: 0 12px; font-size: 12px')).join('') + '</div>';
   const kinds = cuKinds();
-  const rules = f.kind !== 'scan' ? '' : field('条件 <span class="seg" style="display: inline-flex; margin-left: 6px"><button type="button" data-act="cumatch" data-k="all" aria-pressed="' + (f.match === 'all') + '">全部满足</button><button type="button" data-act="cumatch" data-k="any" aria-pressed="' + (f.match === 'any') + '">任一满足</button></span>',
-    '<div style="display: flex; flex-direction: column; gap: 8px">' + f.rules.map((r, i) => {
+  let detail = '';
+  if (f.kind === 'analyze') {
+    detail = step(3, '分析哪几个方面', '', who + '<span style="font-size: 12px; color: #5B6372; line-height: 1.7">' + (f.analysts.length ? '只让选中的几位各说一次，结论放进通知；不出裁决，也不记预测。' : '不选就是完整一轮：五位分析师、看多看空、主分析师裁决，结论可以在诊断页看，并记成预测去跟踪。') + '</span>');
+  } else if (f.kind === 'ask') {
+    detail = step(3, '要问什么', '', '<textarea data-f="question" rows="3" maxlength="300" placeholder="写一句话，每只股票都会被问一遍。比如：今天有没有新公告和资金异动？对这只票是利好还是利空？" style="' + inp + '; line-height: 1.6; resize: vertical">' + esc(f.question) + '</textarea>' +
+      '<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><span style="font-size: 12px; font-weight: 600">问谁</span>' + who + '</div><span style="font-size: 12px; color: #5B6372; line-height: 1.7">不选就问主分析师；选了几位，每位各答一遍，合成一条通知。回答也会出现在这只票诊断页的研判群里。</span>');
+  } else {
+    const rows = f.rules.map((r, i) => {
       const k = cuKindOf(r.kind);
       const val = r.kind === 'sector_is' ? '<select data-f="r:' + i + ':text" style="' + inp + '; width: 150px">' + ((S.data.custom && S.data.custom.sector_verdicts) || []).map((v) => '<option' + (r.text === v ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select>'
-        : k.unit ? '<input data-f="r:' + i + ':value" inputmode="decimal" value="' + (r.value || '') + '" style="' + inp + '; width: 90px"><span style="font-size: 12px; color: #5B6372">' + esc(k.unit) + '</span>' : '';
-      return '<div style="display: flex; align-items: center; gap: 8px"><select data-f="r:' + i + ':kind" style="' + inp + '; flex: 1; min-width: 0">' + kinds.map((x) => '<option value="' + x.kind + '"' + (x.kind === r.kind ? ' selected' : '') + '>' + esc(x.label) + '</option>').join('') + '</select>' + val +
-        '<button type="button" data-act="curuledel" data-i="' + i + '" aria-label="删掉这个条件" style="border: none; background: transparent; color: #8A919E; cursor: pointer; font-size: 16px">×</button></div>' + (k.hint ? '<span style="font-size: 11px; color: #8A919E; margin-top: -4px">' + esc(k.hint) + '</span>' : '');
-    }).join('') + (f.rules.length < 6 ? '<button type="button" data-act="curuleadd" style="align-self: flex-start; ' + 'height: 28px; padding: 0 10px; border: 1px dashed #C9CED6; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: #2457D6; cursor: pointer">＋ 加一个条件</button>' : '') + '</div>',
-    '没有数据的条件算「不满足」；比如还没有 AI 结论时，「AI 结论偏多」不会命中。');
-  const dimList = [['volume_flow', '资金流'], ['sector', '板块'], ['news', '新闻'], ['finance', '财报'], ['fundamental', '基本面']].concat(f.kind === 'ask' ? [['chief', '主分析师']] : []);
-  const who = (f.kind !== 'analyze' && f.kind !== 'ask') ? '' : field(f.kind === 'ask' ? '问谁' : '分析哪几个方面',
-    '<div style="display: flex; gap: 6px; flex-wrap: wrap">' + dimList.map(([k, n]) => '<button type="button" data-act="cuwho" data-k="' + k + '" aria-pressed="' + f.analysts.includes(k) + '" style="height: 28px; padding: 0 12px; border: 1px solid ' + (f.analysts.includes(k) ? '#2457D6' : '#DDE1E7') + '; border-radius: 999px; background: ' + (f.analysts.includes(k) ? '#EAF0FD' : '#FFFFFF') + '; color: ' + (f.analysts.includes(k) ? '#1F3F8A' : '#3A4250') + '; font: inherit; font-size: 12px; cursor: pointer">' + n + '</button>').join('') + '</div>',
-    f.kind === 'ask' ? '不选就问主分析师；选了几位，每位各回答一遍，合成一条通知。' : '不选就是完整一轮（五位分析师、看多看空、主分析师裁决，结果记成预测）；只选几个，就只让这几位各说一次，结论放进通知，不出裁决、不记预测。');
-  const ask = f.kind !== 'ask' ? '' : field('要问的问题', '<textarea data-f="question" rows="3" maxlength="300" placeholder="写一句话，每只股票都会被问一遍；比如：今天有没有新公告和资金异动？" style="' + inp + '; line-height: 1.6; resize: vertical">' + esc(f.question) + '</textarea>', '问的是主分析师；回答会放进通知，也会出现在这只票的诊断页里。');
+        : k.unit ? '<input data-f="r:' + i + ':value" inputmode="decimal" value="' + (r.value || '') + '" style="' + inp + '; width: 84px"><span style="font-size: 12px; color: #5B6372; white-space: nowrap">' + esc(k.unit) + '</span>' : '';
+      return '<div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid #E3E6EB; border-radius: 10px; background: #FFFFFF"><div style="display: flex; align-items: center; gap: 8px"><span style="flex: none; font-size: 11px; color: #8A919E; width: 36px">' + (i === 0 ? '当' : f.match === 'any' ? '或' : '且') + '</span><select data-f="r:' + i + ':kind" style="' + inp + '; flex: 1; min-width: 0">' + kinds.map((x) => '<option value="' + x.kind + '"' + (x.kind === r.kind ? ' selected' : '') + '>' + esc(x.label) + '</option>').join('') + '</select>' + val +
+        '<button type="button" data-act="curuledel" data-i="' + i + '" aria-label="删掉这个条件" style="border: none; background: transparent; color: #8A919E; cursor: pointer; font-size: 18px; line-height: 1">×</button></div>' + (k.hint ? '<span style="font-size: 11px; color: #8A919E; padding-left: 44px">' + esc(k.hint) + '</span>' : '') + '</div>';
+    }).join('');
+    detail = step(3, '什么条件', '没有数据的条件算「不满足」，比如还没有 AI 结论时「AI 结论偏多」不会命中',
+      '<div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #5B6372">多个条件时</span><span class="seg"><button type="button" data-act="cumatch" data-k="all" aria-pressed="' + (f.match === 'all') + '">全部满足</button><button type="button" data-act="cumatch" data-k="any" aria-pressed="' + (f.match === 'any') + '">任一满足</button></span></div>' +
+      '<div style="display: flex; flex-direction: column; gap: 8px">' + rows + '</div>' + (f.rules.length < 6 ? '<button type="button" data-act="curuleadd" style="align-self: flex-start; height: 30px; padding: 0 12px; border: 1px dashed #C9CED6; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: #2457D6; cursor: pointer">＋ 加一个条件</button>' : ''));
+  }
+  // 4 什么时候
   const minE = f.kind === 'scan' ? 5 : 30;
-  const presets = [[5, 'min'], [15, 'min'], [30, 'min'], [60, 'min'], [2, 'hour']].filter((x) => (x[1] === 'hour' ? x[0] * 60 : x[0]) >= minE).map((x) => '<button type="button" data-act="cuevery" data-n="' + x[0] + '" data-u="' + x[1] + '" aria-pressed="' + (String(f.everyNum) === String(x[0]) && f.everyUnit === x[1]) + '" style="height: 26px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 999px; background: ' + (String(f.everyNum) === String(x[0]) && f.everyUnit === x[1] ? '#EAF0FD' : '#FFFFFF') + '; color: #3A4250; font: inherit; font-size: 12px; cursor: pointer">' + x[0] + (x[1] === 'hour' ? ' 小时' : ' 分钟') + '</button>').join('');
-  const when = '<div style="display: flex; flex-direction: column; gap: 10px">' + field('怎么重复', seg([['daily', '每天定点'], ['every', '每隔一段时间']], f.mode, 'cumode')) +
+  const presets = [[5, 'min'], [15, 'min'], [30, 'min'], [60, 'min'], [2, 'hour']].filter((x) => (x[1] === 'hour' ? x[0] * 60 : x[0]) >= minE).map((x) => pill('cuevery', x[0], x[0] + (x[1] === 'hour' ? ' 小时' : ' 分钟'), String(f.everyNum) === String(x[0]) && f.everyUnit === x[1], '; height: 26px; padding: 0 10px; font-size: 12px').replace('data-k="' + x[0] + '"', 'data-n="' + x[0] + '" data-u="' + x[1] + '"')).join('');
+  const whenInner = '<span class="seg" style="align-self: flex-start">' + [['daily', '每天定点'], ['every', '每隔一段时间']].map(([k, n]) => '<button type="button" data-act="cumode" data-k="' + k + '" aria-pressed="' + (f.mode === k) + '">' + n + '</button>').join('') + '</span>' +
     (f.mode === 'daily'
-      ? '<div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap">' + field('几点', '<input type="time" data-f="at" value="' + esc(f.at) + '" style="' + inp + '; width: 120px">') + field('哪几天', seg([['trading', '每个交易日'], ['any', '每天']], f.days, 'cudays')) + '</div>'
-      : '<div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap">' + field('每隔', '<span style="display: flex; gap: 6px; align-items: center"><input data-f="everyNum" inputmode="numeric" value="' + esc(f.everyNum) + '" style="' + inp + '; width: 80px"><select data-f="everyUnit" style="' + inp + '; width: 84px"><option value="min"' + (f.everyUnit === 'min' ? ' selected' : '') + '>分钟</option><option value="hour"' + (f.everyUnit === 'hour' ? ' selected' : '') + '>小时</option></select></span>') + field('什么时候跑', seg([['trading', '只在交易时段'], ['any', '全天']], f.days, 'cudays')) + '</div>' +
-        '<div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center"><span style="font-size: 11px; color: #8A919E">常用：</span>' + presets + '</div>') +
-    '<span style="font-size: 11px; color: #8A919E; line-height: 1.7">' + (f.mode === 'daily'
-      ? '任务在这台电脑的客户端里跑。到点时客户端没开着或电脑睡眠，醒来后会补跑（超过几小时就不补了）。'
-      : '每隔一段时间的任务按整点对齐（每 30 分钟就是 :00、:30），' + (f.days === 'trading' ? '只在 9:30–11:30、13:00–15:00 的交易日里跑' : '全天跑，休市也跑') + '；最短每 ' + minE + ' 分钟，最长 12 小时。任务在这台电脑的客户端里跑：客户端没开着、电脑睡眠或关机的时候不跑，错过的不补。' + (f.kind === 'scan' ? '同一只票同一天只通知一次。' : '每次都会调用你的模型，一天最多 150 次；每次的回答都会通知。')) + '</span></div>';
-  const noModel = (f.kind !== 'scan' && S.data.custom && !S.data.custom.model) ? '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF8EC; font-size: 12px; color: #7A4A00">没有配置模型密钥，这类任务跑起来会失败；先到设置里配好。</div>' : '';
-  $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1" style="width: 620px; gap: 14px"><div style="display: flex; align-items: center"><b style="font-size: 16px">' + (f.id ? '编辑任务' : '新建任务') + '</b><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 18px">×</button></div>' +
-    field('名称', '<input data-f="title" maxlength="30" value="' + esc(f.title) + '" placeholder="比如：收盘后再分析持仓" style="' + inp + '">') +
-    field('做什么', seg([['analyze', '定时分析'], ['ask', '定时提问'], ['scan', '条件扫描']], f.kind, 'cukind'), esc(CU_KIND[f.kind][3]) + '（' + CU_KIND[f.kind][4] + '）') + noModel + who + ask + rules +
-    field('范围', '<select data-f="scope" style="' + inp + '">' + CU_SCOPE.map(([k, n]) => '<option value="' + k + '"' + (f.scope === k ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' + codes, f.scope === 'codes' ? '' : '范围跟着你的持仓、想买、自选变，新加的票下次就会带上。') +
-    when +
-    '<div id="cfErr" style="font-size: 12px; color: #B42318; min-height: 16px">' + esc(f.err) + '</div>' +
-    '<div style="display: flex; justify-content: flex-end; gap: 8px"><button type="button" data-act="close" style="height: 32px; padding: 0 14px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">取消</button><button type="button" id="cfSave" data-act="cusave" style="height: 32px; padding: 0 16px; border: none; border-radius: 8px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">保存</button></div></div></div>';
+      ? '<div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap"><input type="time" data-f="at" value="' + esc(f.at) + '" style="' + inp + '; width: 130px"><span class="seg">' + [['trading', '每个交易日'], ['any', '每天']].map(([k, n]) => '<button type="button" data-act="cudays" data-k="' + k + '" aria-pressed="' + (f.days === k) + '">' + n + '</button>').join('') + '</span></div>' +
+        '<span style="font-size: 12px; color: #5B6372; line-height: 1.7">任务在这台电脑的客户端里跑。到点时客户端没开着或电脑睡眠，醒来后会补跑（超过几小时就不补了）。</span>'
+      : '<div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap"><span style="display: flex; align-items: center; gap: 6px"><span style="font-size: 13px">每隔</span><input data-f="everyNum" inputmode="numeric" value="' + esc(f.everyNum) + '" style="' + inp + '; width: 74px"><select data-f="everyUnit" style="' + inp + '; width: 84px"><option value="min"' + (f.everyUnit === 'min' ? ' selected' : '') + '>分钟</option><option value="hour"' + (f.everyUnit === 'hour' ? ' selected' : '') + '>小时</option></select></span><span class="seg">' + [['trading', '只在交易时段'], ['any', '全天']].map(([k, n]) => '<button type="button" data-act="cudays" data-k="' + k + '" aria-pressed="' + (f.days === k) + '">' + n + '</button>').join('') + '</span></div>' +
+        '<div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center"><span style="font-size: 11px; color: #8A919E">常用：</span>' + presets + '</div>' +
+        '<span style="font-size: 12px; color: #5B6372; line-height: 1.7">按整点对齐（每 30 分钟就是 :00、:30），' + (f.days === 'trading' ? '只在 9:30–11:30、13:00–15:00 的交易日里跑' : '全天跑，休市也跑') + '；最短每 ' + minE + ' 分钟，最长 12 小时。任务在这台电脑的客户端里跑：客户端没开着、电脑睡眠或关机时不跑，错过的不补。' + (f.kind === 'scan' ? '同一只票同一天只通知一次。' : '每次都会调用你的模型，一天最多 150 次；每次的回答都会通知。') + '</span>');
+  const whenStep = step(4, '什么时候跑', '', whenInner);
+  // 5 名字
+  const nameStep = step(5, '起个名字', '可以不填，会自动起一个', '<input data-f="title" maxlength="30" value="' + esc(f.title) + '" placeholder="' + esc(cuAutoTitle(f)) + '" style="' + inp + '">');
+  $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1" style="width: 720px; padding: 0; gap: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh">' +
+    '<div style="flex: none; display: flex; align-items: center; gap: 10px; padding: 18px 24px 14px"><div style="display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">' + (f.id ? '编辑任务' : '新建任务') + '</b><span style="font-size: 12px; color: #8A919E">让客户端按你定的时间，自动替你做一件事；结果放进通知</span></div><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 20px">×</button></div>' +
+    '<div id="cfBody" style="flex: 1; min-height: 0; overflow-y: auto; padding: 0 24px 6px"><section style="display: flex; flex-direction: column; gap: 10px; padding: 4px 0 18px"><div style="display: flex; align-items: baseline; gap: 8px"><span style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #14171F; color: #FFFFFF; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center">1</span><b style="font-size: 14px">做什么</b></div>' +
+    '<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">' + cards + '</div>' + noModel + '</section>' + scopeStep + detail + whenStep + nameStep + '</div>' +
+    '<div style="flex: none; padding: 12px 24px 16px; border-top: 1px solid #EEF0F3; background: #FAFBFC; display: flex; flex-direction: column; gap: 10px">' +
+      '<div style="display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: #F1F5FE; font-size: 13px; line-height: 1.65; color: #1F3F8A"><b style="flex: none">这个任务会：</b><span>' + esc(cuSentence(f)) + '</span></div>' +
+      '<div style="display: flex; align-items: center; gap: 8px"><span id="cfErr" style="font-size: 12px; color: #B42318; flex: 1; min-height: 16px">' + esc(f.err) + '</span><button type="button" data-act="close" style="height: 34px; padding: 0 16px; border: 1px solid #DDE1E7; border-radius: 9px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">取消</button><button type="button" id="cfSave" data-act="cusave" style="height: 34px; padding: 0 20px; border: none; border-radius: 9px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">' + (f.id ? '保存修改' : '创建任务') + '</button></div></div></div></div>';
+  const nb = $('cfBody'); if (nb) nb.scrollTop = keepTop;
 }
+// 文字框里打字时只刷新底部那句话，不重画整张表单（不然光标会丢）
+function cuRefreshSentence() { const el = document.querySelector('#modal b + span'); if (el && S.cf) el.textContent = cuSentence(S.cf); }
 function cuPayload() {
   const f = S.cf;
   const gap = Math.round(Number(f.everyNum) || 0) * (f.everyUnit === 'hour' ? 60 : 1);
-  return { title: f.title, kind: f.kind, scope: f.scope, codes: f.scope === 'codes' ? f.codes : [], at: f.mode === 'every' ? '' : f.at, every: f.mode === 'every' ? (gap > 0 ? gap : 1) : 0, days: f.days, question: f.question, analysts: f.kind === 'scan' ? [] : f.analysts, match: f.match,
+  return { title: f.title.trim() || cuAutoTitle(f), kind: f.kind, scope: f.scope, codes: f.scope === 'codes' ? f.codes : [], at: f.mode === 'every' ? '' : f.at, every: f.mode === 'every' ? (gap > 0 ? gap : 1) : 0, days: f.days, question: f.question, analysts: f.kind === 'scan' ? [] : f.analysts, match: f.match,
     rules: f.kind === 'scan' ? f.rules.map((r) => r.kind === 'sector_is' ? { kind: r.kind, text: r.text || ((S.data.custom.sector_verdicts || [])[0] || '') } : { kind: r.kind, value: Number(r.value) || 0 }) : [] };
 }
 async function cuReload() {
   S.data.custom = await api('/custom');
   S.cuCount = S.data.custom.tasks.filter((x) => x.enabled).length;
-  renderTabs(); if (S.tab === 'custom') renderBody();
-  api('/upcoming').then((u) => { S.up = u; if (S.tab === 'today') renderBody(); }).catch(() => {});
+  renderHead(); renderDrawer();
+  api('/upcoming').then((u) => { S.up = u; renderDrawer(); }).catch(() => {});
 }
 async function cuCall(method, path, body) {
   const res = await fetch('/api/scan/custom' + path, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
@@ -664,7 +859,7 @@ function cuSetField(f, el) {
     else if (what === 'text') r.text = el.value;
   }
 }
-document.addEventListener('input', (e) => { const el = e.target; if (el && el.dataset && el.dataset.f && el.tagName !== 'SELECT') cuSetField(el.dataset.f, el); });
+document.addEventListener('input', (e) => { const el = e.target; if (el && el.dataset && el.dataset.f && el.tagName !== 'SELECT') { cuSetField(el.dataset.f, el); if (el.dataset.f !== 'search') cuRefreshSentence(); } });
 document.addEventListener('change', (e) => { const el = e.target; if (el && el.dataset && el.dataset.f) cuSetField(el.dataset.f, el); });
 Object.assign(ACT, {
   cunew: () => cuOpen(null),
@@ -672,6 +867,7 @@ Object.assign(ACT, {
   cuedit: (el) => { const t = S.data.custom.tasks.find((x) => x.id === el.dataset.id); if (t) cuOpen(t); },
   cukind: (el) => { S.cf.kind = el.dataset.k; if (S.cf.kind === 'analyze') S.cf.analysts = S.cf.analysts.filter((x) => x !== 'chief'); if (S.cf.kind !== 'scan' && S.cf.mode === 'every' && (Number(S.cf.everyNum) || 0) * (S.cf.everyUnit === 'hour' ? 60 : 1) < 30) { S.cf.everyNum = '30'; S.cf.everyUnit = 'min'; } if (S.cf.kind === 'scan' && !S.cf.rules.length) S.cf.rules = [cuNewRule()]; cuRender(); },
   cudays: (el) => { S.cf.days = el.dataset.k; cuRender(); },
+  cuscope: (el) => { S.cf.scope = el.dataset.k; cuRender(); },
   cuwho: (el) => { const k = el.dataset.k, a = S.cf.analysts; S.cf.analysts = a.includes(k) ? a.filter((x) => x !== k) : a.concat([k]); cuRender(); },
   cumode: (el) => { S.cf.mode = el.dataset.k; cuRender(); },
   cuevery: (el) => { S.cf.everyNum = el.dataset.n; S.cf.everyUnit = el.dataset.u; cuRender(); },
@@ -708,7 +904,7 @@ Object.assign(ACT, {
     try {
       const j = await cuCall('POST', '/' + encodeURIComponent(t.id) + '/run');
       toast('已开始，共 ' + j.queued + ' 只');
-      [2500, 8000, 20000, 45000].forEach((ms) => setTimeout(() => { if (S.tab === 'custom') cuReload().catch(() => {}); }, ms));
+      [2500, 8000, 20000, 45000].forEach((ms) => setTimeout(() => { if (S.drawer) cuReload().catch(() => {}); }, ms));
       setTimeout(() => cuReload().catch(() => {}), 1200);
     } catch (e) { toast(e.message, true); }
   },
@@ -717,7 +913,8 @@ Object.assign(ACT, {
 /* ---------- 加载与渲染 ---------- */
 function renderBody() {
   if (!S.sum) return;
-  $('body').innerHTML = { today: renderToday, track: renderTrack, done: renderDone, acc: renderAcc, custom: renderCustom }[S.tab]();
+  $('body').innerHTML = { today: renderToday, track: renderTrack, record: renderRecord }[S.tab]();
+  renderDrawer();
 }
 async function loadTab(t, force) {
   if (!S.sum) return;
@@ -729,10 +926,10 @@ async function loadTab(t, force) {
       else if (t === 'track') { S.data[t] = await api('/tracking?due=' + f.track.due + '&source=' + (f.track.who === 'diagnose' ? 'diagnose' : 'all') + (f.track.who === 'mine' ? '&mine=1' : '')); S.shown.track = 15; }
       else if (t === 'done') { S.data[t] = await api('/settled' + doneQuery()); S.shown.done = 4; }
       else if (t === 'acc') S.data[t] = await api('/accuracy?horizon=' + f.acc);
-      else if (t === 'custom') { S.data[t] = await api('/custom'); S.cuCount = S.data[t].tasks.filter((x) => x.enabled).length; renderTabs(); }
-    } catch (e) { $('body').innerHTML = '<div style="' + CARD + '"><span style="color: #B42318">' + esc(e.message) + '</span></div>'; return; }
+      else if (t === 'custom') { S.data[t] = await api('/custom'); S.cuCount = S.data[t].tasks.filter((x) => x.enabled).length; renderHead(); }
+    } catch (e) { if (t === 'custom') { toast(e.message, true); return; } $('body').innerHTML = '<div style="' + CARD + '"><span style="color: #B42318">' + esc(e.message) + '</span></div>'; return; }
   }
-  if (S.tab === t) renderBody();
+  if (cur() === t || t === 'custom') renderBody();
 }
 async function refreshAll() {
   try { S.sum = await api('/summary'); setStatus(true, DEMO ? '示例数据 · 不是你的预测' : '已连接 · 预测记在本机'); }
@@ -740,8 +937,10 @@ async function refreshAll() {
   renderHead(); renderTabs();
   S.data = {};
   api('/panel').then((p) => { S.panel = p; renderPanel(); }).catch(() => {});
-  api('/upcoming').then((u) => { S.up = u; if (S.tab === 'today') renderBody(); }).catch(() => {});
-  api('/custom').then((c) => { S.cuCount = c.tasks.filter((x) => x.enabled).length; renderTabs(); }).catch(() => {});
+  api('/upcoming').then((u) => { S.up = u; renderDrawer(); }).catch(() => {});
+  api('/custom').then((c) => { S.cuCount = c.tasks.filter((x) => x.enabled).length; renderHead(); }).catch(() => {});
+  if (S.drawer) loadTab('custom', true);
+  if ((S.sum.running || []).length) pollRunning();
   await loadTab(S.tab, true);
   loadNotif();
 }
@@ -776,12 +975,12 @@ function demoApi(path) {
   const q = path.split('?')[0], params = new URLSearchParams(path.split('?')[1] || '');
   const ds = demoData();
   if (q === '/summary') return ds.summary;
-  if (q === '/today') { const src = params.get('source'); return { day: '2026-11-02', rows: ds.today.filter((r) => !src || src === 'all' || r.source === src) }; }
+  if (q === '/today') { const src = params.get('source'); return { day: '2026-11-02', rows: ds.today.filter((r) => !src || src === 'all' || r.source === src), focus: ds.focus }; }
   if (q === '/tracking') {
     let rows = ds.tracking.slice();
     if (params.get('mine') === '1') rows = rows.filter((r) => r.mine && r.mine.related);
     if (params.get('source') === 'diagnose') rows = rows.filter((r) => r.source === 'diagnose');
-    return { rows, total: 128, by_horizon: { '5': 106, '20': 22 }, now_right: 74, tomorrow: 22, mine: 6, tomorrow_day: '2026-11-03' };
+    return { rows, total: 128, by_horizon: { '5': 106, '20': 22 }, now_right: 74, tomorrow: 22, mine: 6, tomorrow_day: '2026-11-03', hidden: [] };
   }
   if (q === '/settled') { const h = Number(params.get('horizon')) || 5; return ds.settled(h, params.get('wrong') === '1', params.get('source') || 'all'); }
   if (q === '/accuracy') return ds.accuracy(Number(params.get('horizon')) || 5);
@@ -847,9 +1046,14 @@ function demoData() {
     by_market: [{ key: '上涨市', label: '上涨市', rate: { hit: 214, miss: 174, flat: 0, n: 388, pct: 0.55 }, edge: 2.7 }, { key: '震荡市', label: '震荡市', rate: { hit: 612, miss: 419, flat: 0, n: 1031, pct: 0.594 }, edge: 8.8 }, { key: '下跌市', label: '下跌市', rate: { hit: 3, miss: 2, flat: 0, n: 5, pct: 0.6 }, edge: 9 }],
     by_analyst: [{ key: 'volume_flow', label: '资金流', rate: { hit: 605, miss: 375, flat: 0, n: 980, pct: 0.618 }, edge: 11.2 }, { key: 'sector', label: '板块', rate: { hit: 728, miss: 482, flat: 0, n: 1210, pct: 0.602 }, edge: 9.6 }, { key: 'news', label: '新闻', rate: { hit: 345, miss: 295, flat: 0, n: 640, pct: 0.539 }, edge: 3.3 }, { key: 'finance', label: '财报', rate: { hit: 117, miss: 93, flat: 0, n: 210, pct: 0.557 }, edge: 5.1 }, { key: 'fundamental', label: '基本面', rate: { hit: 234, miss: 216, flat: 0, n: 450, pct: 0.521 }, edge: 1.5 }] });
   _demo = {
-    summary: { day: '2026-11-02', today: '2026-11-02', market: { level: '震荡', tilt: '中性偏弱' }, next_run: '每个交易日 20:30 自动跑 · 盘后结算 · 下次 11-03 周二 20:30', made: 27, tracking: 128, settled_today: { hit: 15, n: 24 }, accuracy: 0.582, accuracy_n: 1510, empty: false, first_made: '2026-09-28',
+    summary: { day: '2026-11-02', today: '2026-11-02', market: { level: '震荡', tilt: '中性偏弱' }, next_run: '每个交易日 20:30 自动跑 · 盘后结算 · 下次 11-03 周二 20:30', made: 27, tracking: 128, running: [], settled_today: { hit: 15, n: 24 }, accuracy: 0.582, accuracy_n: 1510, empty: false, first_made: '2026-09-28',
       funnel: { subjects: 27, researched: 27, bullish: 13, bearish: 7, unclear: 7, scan: 26, diagnose: 1 } },
     today, tracking, settled, accuracy,
+    focus: [
+      { kind: 'conflict', tag: '和你的打算冲突', ts_code: '601689.SH', name: '拓普集团', direction: 'bearish', verdict: '偏空 · 位置偏高', text: '你想买，AI 偏空：估值涨到偏高；板块只热不增' },
+      { kind: 'flip', tag: '判断反转', ts_code: '603738.SH', name: '泰晶科技', direction: 'bullish', verdict: '偏多 · 稍微', text: '10-30 偏空 → 今天偏多：板块主升、本股领涨；大资金在买' },
+      { kind: 'diagnose', tag: '你刚诊断', ts_code: '603738.SH', name: '泰晶科技', direction: 'bullish', verdict: '偏多 · 稍微', text: '你重新分析过：偏多 · 稍微，10:52 大资金转小幅流出，强度下调' },
+    ],
     panel: { day: '2026-11-02', is_today: true, has: true, label: '10-26 发出的 5 天预测', rate: rt(15, 9, 2), baseline: 0.5, squares: ['hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'hit', 'miss', 'miss', 'miss', 'miss', 'miss', 'miss', 'miss', 'miss', 'miss', 'flat', 'flat'], wrong: 9,
       mine: [{ name: '杭氧股份', source_text: '你诊断', direction_text: '偏多', excess: 0.012, outcome: 'hit' }], held_other: 3, wrong_reasons: [{ label: '资金流信号被少数超大单误导', count: 4 }, { label: '估值类「涨多了」理由 5 天内不灵', count: 3 }, { label: '其他', count: 2 }],
       tomorrow: { day: '2026-11-03', count: 22, made_text: '10-27', now_right: 13, mine: 0 }, notify_text: '这份摘要结算后会推送到你设置的渠道。' },

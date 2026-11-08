@@ -131,6 +131,19 @@ func (s *Server) registerScanRoutes(mux *http.ServeMux) {
 		}
 		writeJSON(w, http.StatusAccepted, out)
 	})
+	// hide / show a stock in the tracking list; the predictions themselves are never touched
+	mux.HandleFunc("POST "+base+"/hide", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Code string `json:"code"`
+			On   bool   `json:"on"`
+		}
+		if err := readJSON(r, &body); err != nil || (body.Code == "" && body.On) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "要说明哪只股票"})
+			return
+		}
+		s.hidden.Set(body.Code, body.On)
+		writeJSON(w, http.StatusOK, map[string]any{"hidden": s.hidden.List()})
+	})
 	mux.HandleFunc("GET "+base+"/export.csv", func(w http.ResponseWriter, r *http.Request) {
 		if s.scan == nil {
 			http.Error(w, "扫描还没有启动", http.StatusServiceUnavailable)

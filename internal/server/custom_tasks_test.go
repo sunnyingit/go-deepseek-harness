@@ -163,6 +163,9 @@ func TestCustomTasksCanRepeatEveryFewMinutes(t *testing.T) {
 		t.Fatalf("create = %d %v", code, out)
 	}
 	task := out["task"].(map[string]any)
+	if task["every"] != float64(30) { // the edit form needs the gap to open an interval task as one
+		t.Fatalf("every missing from the view: %v", task)
+	}
 	if task["schedule_text"] != "交易时段每 30 分钟" || task["when_text"] != "下一次 周一 11-09 10:30 · 今天" {
 		t.Fatalf("view = %v", task)
 	}

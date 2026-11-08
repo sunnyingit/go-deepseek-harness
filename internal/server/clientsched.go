@@ -52,6 +52,7 @@ func (s *Server) initClientTasks(ctx context.Context) {
 	s.sch = sched.New(sched.OpenStore(file("sched.json")), s.cal, nil)
 	s.relay = newRelayClient(file("relay.json"), time.Now)
 	s.scan = scan.Open(file("predictions.json"), nil)
+	s.hidden = openHidden(file("scan_hidden.json"))
 	s.custom = custom.Open(file("custom_tasks.json"), nil)
 	loadServiceSetting(file("service.json"))
 	s.quotes.Via = s.backendQuotes
