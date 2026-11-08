@@ -39,6 +39,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /market.html", s.handleMarket)
 	mux.HandleFunc("GET /holdings.html", s.handleHoldings)
 	mux.HandleFunc("GET /scan.html", s.handleScan)
+	mux.HandleFunc("GET /tasks.html", s.handleTasks)
 	mux.HandleFunc("GET /config", s.handleGetConfig)
 	mux.HandleFunc("PUT /config", s.handlePutConfig)
 	mux.HandleFunc("GET /logs", s.handleGetLogs)
