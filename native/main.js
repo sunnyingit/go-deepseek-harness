@@ -3,6 +3,8 @@ const { spawn, execSync } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const electron = require('electron');
+const host = require('./host');
 
 const PORT = process.env.PORT || '8081';
 const BASE = (process.env.HARNESS_URL || `http://127.0.0.1:${PORT}`).replace(/\/$/, '');
@@ -19,6 +21,17 @@ let win = null;
 let splash = null;
 let backend = null;
 let spawnedBackend = false;
+let hostApi = null;
+
+// 单实例：必须赶在启动后端之前。第二个实例会杀掉占着端口的第一个实例的后端，所以直接退出。
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => showMainWindow());
+}
+let startHidden = false;
+let stockBackend = null;
 
 function runtimeRoot() {
   if (app.isPackaged) return path.join(process.resourcesPath, 'runtime');
@@ -264,6 +277,14 @@ function closeSplash() {
   splash = null;
 }
 
+function showMainWindow() {
+  if (!app.isReady()) return;
+  if (!win || win.isDestroyed()) { createWindow(); return; }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
 function loadPage(url) {
   if (win && !win.isDestroyed()) win.loadURL(url);
 }
@@ -340,8 +361,15 @@ function createWindow() {
     `).catch(() => {});
   });
 
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => { if (!startHidden) win.show(); });
   win.on('closed', () => { win = null; });
+  // 托盘常驻：关窗口只是藏起来，定时任务和提醒继续跑；从托盘菜单退出才真退出
+  win.on('close', (event) => {
+    if (hostApi && hostApi.shouldHideOnClose()) {
+      event.preventDefault();
+      win.hide();
+    }
+  });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -349,6 +377,28 @@ function createWindow() {
   });
 
   loadPage(PAGES.index);
+}
+
+// 股票数据服务（Python，8090）只提供数据（各维度详情、市场页），不跑定时任务。已经有人起了就不管；开发时从旁边的 stock_agent_assitant 目录起。
+function stockApiHealthy() {
+  return new Promise((resolve) => {
+    const req = http.get(`${host.stockBase()}/healthz`, (res) => { resolve(res.statusCode === 200); res.resume(); });
+    req.on('error', () => resolve(false));
+    req.setTimeout(1500, () => { req.destroy(); resolve(false); });
+  });
+}
+
+async function ensureStockBackend() {
+  if (await stockApiHealthy()) return;
+  const dir = process.env.STOCK_AGENT_DIR || path.resolve(__dirname, '..', '..', 'stock_agent_assitant');
+  if (!fs.existsSync(path.join(dir, 'app', 'main.py'))) return;
+  const py = fs.existsSync(pythonBin()) ? pythonBin() : (process.env.STOCK_AGENT_PYTHON || 'python3');
+  const log = fs.createWriteStream(path.join(app.getPath('userData'), 'stock-backend.log'), { flags: 'a' });
+  stockBackend = spawn(py, ['-m', 'app.main'], { cwd: dir, env: { ...process.env, PORT: new URL(host.stockBase()).port || '8090' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  stockBackend.stdout.on('data', (d) => log.write(d));
+  stockBackend.stderr.on('data', (d) => log.write(d));
+  stockBackend.on('error', (err) => log.write(String(err) + '\n'));
+  stockBackend.on('exit', () => { stockBackend = null; });
 }
 
 async function boot() {
@@ -385,20 +435,29 @@ async function boot() {
     return;
   }
   closeSplash();
+  // 开机自启时只带托盘起来，不抢焦点弹窗口
+  startHidden = process.argv.includes('--hidden') || (app.getLoginItemSettings && app.getLoginItemSettings().wasOpenedAsHidden);
+  await ensureStockBackend();
   createWindow();
+  hostApi = host.init({
+    app, electron, pageBase: BASE, showMainWindow, loadPage,
+    iconPath: path.join(__dirname, 'icon.png'), userData: app.getPath('userData'),
+  });
 }
 
-app.whenReady().then(boot);
+if (gotLock) app.whenReady().then(boot);
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0 && app.isReady()) createWindow();
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // 托盘还在就不退出：关掉最后一个窗口后，定时任务和价格提醒继续跑
+  if (process.platform !== 'darwin' && !(hostApi && hostApi.shouldHideOnClose())) app.quit();
 });
 
 app.on('before-quit', () => {
+  if (stockBackend) { stockBackend.kill('SIGTERM'); stockBackend = null; }
   if (spawnedBackend && backend) {
     spawnedBackend = false;
     backend.kill('SIGTERM');

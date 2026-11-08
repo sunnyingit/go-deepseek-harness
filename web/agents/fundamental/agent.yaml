@@ -1,0 +1,15 @@
+id: fundamental
+name: 基本面分析师
+dimension: fundamental
+skills:
+  - fundamental-facts
+  - fundamental-reply
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+fact_prefix: "fd."
+max_steps: 8
+opening: 请给出这只股票的基本面结论。只 load fundamental-facts 再 fetch_facts，不要调分片追问工具。输出 stance/strength/text（≤120字，正文禁用英文引号）/fact_ids/suggested_questions；取到事实后立刻结束。

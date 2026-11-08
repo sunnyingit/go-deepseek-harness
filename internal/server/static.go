@@ -36,6 +36,22 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	serveStaticFile(w, "static/settings.html")
 }
 
+func (s *Server) handleMarket(w http.ResponseWriter, r *http.Request) {
+	serveStaticFile(w, "static/market.html")
+}
+
+func (s *Server) handleHoldings(w http.ResponseWriter, r *http.Request) {
+	serveStaticFile(w, "static/holdings.html")
+}
+
+func (s *Server) handleScan(w http.ResponseWriter, r *http.Request) {
+	serveStaticFile(w, "static/scan.html")
+}
+
+func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
+	serveStaticFile(w, "static/tasks.html")
+}
+
 // handleStaticAsset serves vendored CSS/fonts/images under /static/vendor/... —
 // the only files besides the three HTML pages that the UI is allowed to
 // fetch. Paths are confined to that prefix so this cannot be used to read
@@ -92,5 +108,5 @@ func serveStaticFile(w http.ResponseWriter, name string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(data)
+	w.Write(withServiceBase(data))
 }

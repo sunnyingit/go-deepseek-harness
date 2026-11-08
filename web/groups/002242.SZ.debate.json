@@ -1,0 +1,1 @@
+{"bull":[{"id":"bull.1","text":"近5日价+7.2%、大资金净流入+3.25亿元，价与资金同向，连续6日净流入、最近一日仅占5%，属持续而非单日脉冲","dimension":"volume_flow","weight":2},{"id":"bull.2","text":"本股市值排名2/10、12只里领涨第1，是板块核心而非跟风","dimension":"sector","weight":1},{"id":"bull.3","text":"分红率94%、现金比同行83%分位是亮点","dimension":"fundamental","weight":1}],"bear":null}

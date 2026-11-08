@@ -1,0 +1,17 @@
+id: volume_flow
+name: 资金流分析师
+dimension: volume_flow
+skills:
+  - flow-facts
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+fact_prefix: "fr."
+detail_query:
+  window: "3"
+max_steps: 6
+opening: 请给出这只股票的资金流结论。输出 stance/strength/text（80～120字）/fact_ids/suggested_questions；关键缺口再补 0～2 个业务工具。
+

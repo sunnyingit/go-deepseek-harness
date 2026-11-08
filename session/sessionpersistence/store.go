@@ -233,6 +233,19 @@ func (st *Store) ListSnapshots() ([]Snapshot, error) {
 	return out, nil
 }
 
+// Delete removes the durable log directory for id (and cwd). Missing files
+// are not an error — the session may never have been synced.
+func (st *Store) Delete(id session.SessionId, cwd string) error {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	delete(st.durableCount, id)
+	dir := sessionDir(st.root, id, cwd)
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("session-persistence: deleting %q: %w", dir, err)
+	}
+	return nil
+}
+
 // List returns every stored session's header — cheap, header-only reads,
 // no full-log parsing. A session that failed to materialize (Create with
 // no Append yet — this port doesn't even offer that distinction, see

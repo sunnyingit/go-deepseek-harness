@@ -17,11 +17,13 @@ func TestUIPages(t *testing.T) {
 		path string
 		want string
 	}{
-		{"/", "问问这只股票"},
-		{"/dialog.html", "PABuddy AI"},
-		{"/dailog.html", "PABuddy AI"},
+		{"/", "在群里提问"},
+		{"/dialog.html", "问问"},
+		{"/dailog.html", "问问"},
 		{"/space.html", "资料都在这儿，我来帮你。"},
 		{"/settings.html", "运行日志"},
+		{"/market.html", "A 股市场"},
+		{"/holdings.html", "<title>持仓</title>"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {
@@ -138,10 +140,13 @@ func TestUIPagesAreNotCached(t *testing.T) {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
 	}
 	body, _ := io.ReadAll(res.Body)
-	// Every question starts a fresh session; the page keeps no session id
-	// around that a bfcache restore could resurrect into a finished one.
-	if !strings.Contains(string(body), "fetch('/sessions', { method: 'POST'") {
-		t.Fatal("homepage must mint a new session for each question")
+	// The home page is the 研判群: picking a stock streams the analysts, and a
+	// question goes to an analyst's reply stream (or the chief's) instead of
+	// minting a dialog session. It still keeps no session id around.
+	for _, want := range []string{"研判群", "/stream", "/reply", "chief/detail"} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("homepage group chat is missing %q", want)
+		}
 	}
 	if strings.Contains(string(body), "state.sessionId") {
 		t.Fatal("homepage must not cache a session id across questions")

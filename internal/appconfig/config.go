@@ -181,6 +181,7 @@ type Config struct {
 
 	AutoApprovePlan bool
 	SystemPrompt    string
+	WecomWebhook    string
 }
 
 const DefaultUploadBytes int64 = 64 << 20
@@ -289,7 +290,32 @@ func findConfigPath(explicit string) (string, error) {
 			return p, nil
 		}
 	}
+	// 第一次运行：config.yaml 不入库，只有示例。把示例复制成 config.yaml（权限 0600），再由用户填密钥。
+	if created := bootstrapFromExample(); created != "" {
+		return created, nil
+	}
 	return "", fmt.Errorf("no config.yaml found (looked in: %s); pass -config or set WEB_DEMO_CONFIG", strings.Join(tried, ", "))
+}
+
+// bootstrapFromExample 在常见位置找 config.example.yaml，复制成同目录的 config.yaml。成功返回新文件路径，否则返回空串。
+func bootstrapFromExample() string {
+	dirs := []string{"web", "."}
+	if exe, err := os.Executable(); err == nil {
+		dirs = append(dirs, filepath.Dir(exe))
+	}
+	for _, dir := range dirs {
+		example := filepath.Join(dir, "config.example.yaml")
+		data, err := os.ReadFile(example)
+		if err != nil {
+			continue
+		}
+		target := filepath.Join(dir, "config.yaml")
+		if err := os.WriteFile(target, data, 0o600); err != nil {
+			continue
+		}
+		return target
+	}
+	return ""
 }
 
 func ApplyFile(cfg *Config, file FileConfig) error {
@@ -468,6 +494,9 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("HARNESS_PYTHON_BIN"); v != "" {
 		cfg.PythonBin = v
+	}
+	if v := strings.TrimSpace(os.Getenv("WECOM_WEBHOOK_URL")); v != "" {
+		cfg.WecomWebhook = v
 	}
 }
 

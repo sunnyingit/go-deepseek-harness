@@ -128,3 +128,14 @@ func (r *Registry) IsOwnedBy(id, ownerID string) bool {
 	e, ok := r.entries[id]
 	return ok && e.owner == ownerID
 }
+
+// Unregister removes the live agent under id. Returns false if id was not registered.
+func (r *Registry) Unregister(id string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.entries[id]; !ok {
+		return false
+	}
+	delete(r.entries, id)
+	return true
+}

@@ -12,9 +12,10 @@ import (
 )
 
 func TestParseConfigYAMLUsesCheckedInDefaults(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "web", "config.yaml"))
+	// config.yaml 含密钥、不入库；入库的是 config.example.yaml，这里测的是它。
+	data, err := os.ReadFile(filepath.Join("..", "..", "web", "config.example.yaml"))
 	if err != nil {
-		t.Fatalf("read config.yaml: %v", err)
+		t.Fatalf("read config.example.yaml: %v", err)
 	}
 	cfg, err := parseConfigYAML(data)
 	if err != nil {
@@ -229,5 +230,39 @@ func TestFormatDuration(t *testing.T) {
 		if got := FormatDuration(d); got != want {
 			t.Errorf("FormatDuration(%s) = %q, want %q", d, got, want)
 		}
+	}
+}
+
+func TestFindConfigPathBootstrapsFromTheExample(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	example, err := os.ReadFile(filepath.Join("..", "..", "web", "config.example.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "web", "config.example.yaml"), example, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	t.Setenv("WEB_DEMO_CONFIG", "")
+	t.Setenv("DEEPSEEK_API_KEY", "")
+	path, err := findConfigPath("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(path) != "config.yaml" {
+		t.Fatalf("path = %q", path)
+	}
+	st, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("mode = %v, want 0600", st.Mode().Perm())
+	}
+	if _, _, err := Load(""); err == nil {
+		t.Fatal("an empty api key should be reported, not accepted")
 	}
 }

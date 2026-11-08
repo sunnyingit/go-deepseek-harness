@@ -72,7 +72,22 @@ func bundledSkillsDir() string {
 	return ""
 }
 
-func listSkillsTool(reg *skill.Registry) coretools.ToolDefinition {
+// skillAllowed reports whether name is installed on this agent.
+// A nil allow list means every model-invocable skill; a non-nil list is
+// the only set this agent may see or load.
+func skillAllowed(name string, allow []string) bool {
+	if allow == nil {
+		return true
+	}
+	for _, item := range allow {
+		if item == name {
+			return true
+		}
+	}
+	return false
+}
+
+func listSkillsTool(reg *skill.Registry, allow []string) coretools.ToolDefinition {
 	return coretools.ToolDefinition{
 		Name:        "list_skills",
 		Description: "列出可用技能（名称和简介）。需要按技能执行任务时先调用本工具，再用 load_skill 加载。",
@@ -89,7 +104,7 @@ func listSkillsTool(reg *skill.Registry) coretools.ToolDefinition {
 			sort.Slice(skills, func(i, j int) bool { return skills[i].Name < skills[j].Name })
 			var lines []string
 			for _, s := range skills {
-				if !skill.IsModelInvocable(s) {
+				if !skill.IsModelInvocable(s) || !skillAllowed(s.Name, allow) {
 					continue
 				}
 				lines = append(lines, fmt.Sprintf("- %s (%s): %s", s.Name, s.Provider, s.Description))
@@ -102,7 +117,7 @@ func listSkillsTool(reg *skill.Registry) coretools.ToolDefinition {
 	}
 }
 
-func loadSkillTool(reg *skill.Registry) coretools.ToolDefinition {
+func loadSkillTool(reg *skill.Registry, allow []string) coretools.ToolDefinition {
 	return coretools.ToolDefinition{
 		Name:        "load_skill",
 		Description: "按名称加载技能的完整说明（见 list_skills）。加载后对用户的说明必须用简体中文。",
@@ -124,6 +139,9 @@ func loadSkillTool(reg *skill.Registry) coretools.ToolDefinition {
 			}
 			if !skill.IsModelInvocable(def.Summary) {
 				return nil, fmt.Errorf("skill %q is not model-invocable", name)
+			}
+			if !skillAllowed(name, allow) {
+				return nil, fmt.Errorf("skill %q is not installed on this agent", name)
 			}
 			return renderLoadedSkill(*def), nil
 		},

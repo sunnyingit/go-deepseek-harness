@@ -1,0 +1,14 @@
+id: finance
+name: 财报分析师
+dimension: finance
+skills:
+  - finance-facts
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+fact_prefix: "ff."
+max_steps: 8
+opening: 请给出这只股票最新财报的结论。只 load finance-facts 再 fetch_facts。输出 stance/strength/text（≤100字，正文禁用英文引号）/fact_ids/suggested_questions；取到事实后立刻结束。

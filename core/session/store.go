@@ -95,6 +95,17 @@ func (st *Store) List() []*Session {
 	return out
 }
 
+// Remove drops a live session from the store. Returns false if id was not registered.
+func (st *Store) Remove(id SessionId) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if _, ok := st.sessions[id]; !ok {
+		return false
+	}
+	delete(st.sessions, id)
+	return true
+}
+
 // Fork creates a live child session seeded from source's log up to and
 // including boundary (inclusive; the current last event when boundary is
 // -1), recording lineage in the child's header. boundary must land outside

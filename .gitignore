@@ -7,6 +7,9 @@
 # Archives
 *.tar.gz
 
+# 本机配置：含 LLM 密钥，不入库。示例见 web/config.example.yaml
+/web/config.yaml
+
 # web server runtime state (regenerated per run; see WEB_DEMO_DATA_DIR)
 /web/sessions/
 /web/session-logs/
@@ -22,3 +25,7 @@
 .DS_Store
 .idea/
 .vscode/
+
+# 客户端本机数据：自选、持仓、提醒、收件箱、调度状态、预测存证、结论包。含个人信息，不入库
+/web/client/
+/web/bundles/

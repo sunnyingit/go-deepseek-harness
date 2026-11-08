@@ -22,6 +22,7 @@
     },
     "files": [
       "main.js",
+      "host.js",
       "preload.js",
       "setup.html",
       "setup.js",
