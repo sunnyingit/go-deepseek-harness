@@ -286,7 +286,12 @@ func (s *Server) stockGetJSON(path string, out any) error {
 // stockGetJSONWithin is stockGetJSON with the time the data service has to answer.
 func stockGetJSONWithin(path string, out any, within time.Duration) error {
 	client := &http.Client{Timeout: within}
-	resp, err := client.Get(stockAPIBase() + path)
+	req, err := http.NewRequest(http.MethodGet, stockAPIBase()+path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("X-User-Id", clientUserID())
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}

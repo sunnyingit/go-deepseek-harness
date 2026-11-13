@@ -15,12 +15,12 @@ import (
 func resetService(t *testing.T) {
 	t.Helper()
 	serviceMu.Lock()
-	oldSaved, oldEnv, oldOk, oldFile := serviceSaved, serviceEnv, serviceEnvOk, serviceFile
+	oldSaved, oldEnv, oldOk, oldFile, oldUID := serviceSaved, serviceEnv, serviceEnvOk, serviceFile, serviceUserID
 	serviceMu.Unlock()
 	oldEnvVar, hadEnvVar := os.LookupEnv("STOCK_API_BASE")
 	t.Cleanup(func() {
 		serviceMu.Lock()
-		serviceSaved, serviceEnv, serviceEnvOk, serviceFile = oldSaved, oldEnv, oldOk, oldFile
+		serviceSaved, serviceEnv, serviceEnvOk, serviceFile, serviceUserID = oldSaved, oldEnv, oldOk, oldFile, oldUID
 		serviceMu.Unlock()
 		if hadEnvVar {
 			_ = os.Setenv("STOCK_API_BASE", oldEnvVar)
@@ -32,7 +32,7 @@ func resetService(t *testing.T) {
 		quotesDownMu.Unlock()
 	})
 	serviceMu.Lock()
-	serviceSaved, serviceEnvOk = "", false
+	serviceSaved, serviceEnvOk, serviceUserID = "", false, ""
 	serviceMu.Unlock()
 }
 
@@ -84,8 +84,52 @@ func TestEveryPageIsServedWithTheCurrentServiceAddress(t *testing.T) {
 	t.Setenv("STOCK_API_BASE", "http://remote.example:8090")
 	rec := httptest.NewRecorder()
 	serveStaticFile(rec, "static/scan.html")
-	if !strings.Contains(rec.Body.String(), `<meta name="stock-api-base" content="http://remote.example:8090">`) {
+	body := rec.Body.String()
+	if !strings.Contains(body, `<meta name="stock-api-base" content="http://remote.example:8090">`) {
 		t.Fatalf("the page still points at the old address")
+	}
+	if !strings.Contains(body, `name="stock-user-id"`) || !strings.Contains(body, `X-User-Id`) {
+		t.Fatalf("page missing user-id bootstrap: %s", body[:min(400, len(body))])
+	}
+}
+
+func TestClientUserIDIsCreatedOnceAndSurvivesRestart(t *testing.T) {
+	resetService(t)
+	file := filepath.Join(t.TempDir(), "service.json")
+	loadServiceSetting(file)
+	first := clientUserID()
+	if first == "" {
+		t.Fatal("empty user id")
+	}
+	raw, _ := os.ReadFile(file)
+	if !strings.Contains(string(raw), first) {
+		t.Fatalf("user_id not written: %s", raw)
+	}
+	resetService(t)
+	loadServiceSetting(file)
+	if got := clientUserID(); got != first {
+		t.Fatalf("restart changed user id: %s -> %s", first, got)
+	}
+}
+
+func TestStockRequestsCarryXUserId(t *testing.T) {
+	resetService(t)
+	file := filepath.Join(t.TempDir(), "service.json")
+	loadServiceSetting(file)
+	uid := clientUserID()
+	var got string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("X-User-Id")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	t.Cleanup(api.Close)
+	t.Setenv("STOCK_API_BASE", api.URL)
+	var out map[string]any
+	if err := stockGetJSONWithin("/ping", &out, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if got != uid {
+		t.Fatalf("header=%q want %q", got, uid)
 	}
 }
 

@@ -1,12 +1,10 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -22,11 +20,12 @@ import (
 // applied by putting it there.
 
 var (
-	serviceMu    sync.Mutex
-	serviceSaved string
-	serviceEnv   string
-	serviceEnvOk bool
-	serviceFile  string
+	serviceMu     sync.Mutex
+	serviceSaved  string
+	serviceEnv    string
+	serviceEnvOk  bool
+	serviceFile   string
+	serviceUserID string
 )
 
 func serviceSource() string {
@@ -45,23 +44,20 @@ func serviceSource() string {
 func loadServiceSetting(path string) {
 	serviceMu.Lock()
 	serviceFile = path
+	serviceUserID = ""
 	if !serviceEnvOk {
 		serviceEnv, serviceEnvOk = strings.TrimSpace(os.Getenv("STOCK_API_BASE")), true
 	}
 	serviceMu.Unlock()
 	if path == "" {
+		ensureClientUserID("")
 		return
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return
-	}
-	var saved struct {
-		StockBase string `json:"stock_base"`
-	}
-	if json.Unmarshal(raw, &saved) == nil {
+	saved := readServiceDisk(path)
+	if saved.StockBase != "" {
 		applyServiceBase(saved.StockBase)
 	}
+	ensureClientUserID(path)
 }
 
 func applyServiceBase(base string) {
@@ -101,26 +97,24 @@ func saveServiceSetting(base string) error {
 	applyServiceBase(base)
 	serviceMu.Lock()
 	path := serviceFile
+	uid := serviceUserID
 	serviceMu.Unlock()
-	if path == "" {
-		return nil
+	if uid == "" {
+		uid = ensureClientUserID(path)
 	}
-	raw, _ := json.Marshal(map[string]string{"stock_base": base})
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return writeServiceDisk(path, serviceDisk{StockBase: base, UserID: uid})
 }
 
 func serviceView() map[string]any {
 	serviceMu.Lock()
 	saved := serviceSaved
 	serviceMu.Unlock()
-	return map[string]any{"base_url": saved, "effective": stockAPIBase(), "source": serviceSource()}
+	return map[string]any{
+		"base_url":  saved,
+		"effective": stockAPIBase(),
+		"source":    serviceSource(),
+		"user_id":   clientUserID(),
+	}
 }
 
 // probe asks a service whether it answers, and whether it has the quotes endpoint.
@@ -240,5 +234,20 @@ func withServiceBase(page []byte) []byte {
 	if !strings.Contains(string(page), `name="stock-api-base"`) {
 		return page
 	}
-	return stockMeta.ReplaceAll(page, []byte("${1}"+strings.ReplaceAll(stockAPIBase(), "$", "$$")+"${2}"))
+	out := stockMeta.ReplaceAll(page, []byte("${1}"+strings.ReplaceAll(stockAPIBase(), "$", "$$")+"${2}"))
+	uid := clientUserID()
+	inject := `<meta name="stock-user-id" content="` + uid + `">` +
+		`<script>(function(){var id=(document.querySelector('meta[name="stock-user-id"]')||{}).content||"";if(!id)return;` +
+		`try{localStorage.setItem("stock_user_id",id)}catch(e){}` +
+		`var api=((document.querySelector('meta[name="stock-api-base"]')||{}).content||"").replace(/\/$/,"");` +
+		`var orig=window.fetch;window.fetch=function(input,init){` +
+		`var url=typeof input==="string"?input:(input&&input.url)||"";var abs;try{abs=new URL(url,location.href).href}catch(e){return orig.apply(this,arguments)}` +
+		`if(api&&abs.indexOf(api)===0){init=Object.assign({},init||{});var h=new Headers(init.headers||(input&&input.headers)||undefined);` +
+		`if(!h.has("X-User-Id")&&!h.has("Authorization"))h.set("X-User-Id",id);init.headers=h}` +
+		`return orig.call(this,input,init)};})();</script>`
+	html := string(out)
+	if i := strings.Index(html, "</head>"); i >= 0 {
+		return []byte(html[:i] + inject + html[i:])
+	}
+	return append([]byte(inject), out...)
 }

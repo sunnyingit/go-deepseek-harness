@@ -169,6 +169,54 @@ table.tb tr.grp td{background:#F7F8FA;text-align:left;padding:8px 6px;border-top
 .chart-tip{position:absolute;top:6px;z-index:3;transform:translateX(-50%);padding:3px 8px;border-radius:6px;background:#14171F;color:#FFFFFF;font-size:11px;line-height:1.4;white-space:nowrap;pointer-events:none}
 .qmap{position:relative}
 .qmap-tip{position:absolute;z-index:4;max-width:240px;padding:6px 9px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:11px;line-height:1.45;white-space:pre-line;pointer-events:none;box-shadow:0 6px 18px rgba(20,23,31,.18)}
+.wb-news{min-height:0}
+.wb-news a:hover{color:#2457D6}
+.wb-news .rank{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;width:22px;font-size:12px;color:#A1A7B2;padding-top:2px;font-weight:600}
+.wb-news .rank.top{color:#B42318}
+.wb-news .row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid #F1F2F4}
+.wb-news .news-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:4px}
+.wb-news .news-scroll::-webkit-scrollbar{width:6px}
+.wb-news .news-scroll::-webkit-scrollbar-thumb{background:#D5D9E0;border-radius:3px}
+.pair>.wb-news{display:flex;flex-direction:column;min-height:0}
+.wb-out{gap:10px;padding:14px 16px}
+.wb-out .head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.wb-out .head .title{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wb-out .head .title b{font-size:15px;color:#14171F}
+.wb-out .head .title span{font-size:12px;color:#8A919E;line-height:1.45}
+.wb-out .meta{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wb-out .meta .when{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px;color:#8A919E}
+.wb-out .meta .hint{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;background:#F7F8FA;color:#5B6372;font-size:11px;white-space:nowrap}
+.wb-out .meta .hint.warn{background:#FFF8EC;color:#7A4A00}
+.wb-out .ov-board{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.wb-out .ov-chip{position:relative;display:flex;flex-direction:column;gap:2px;min-width:118px;padding:10px 28px 10px 12px;border:1px solid #E3E6EB;border-radius:10px;background:#FFFFFF;box-sizing:border-box}
+.wb-out .ov-chip .nm{font-size:13px;font-weight:600;color:#14171F;line-height:1.3;padding-right:4px}
+.wb-out .ov-chip .px{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:16px;font-weight:700;color:#14171F;line-height:1.25}
+.wb-out .ov-chip .pct{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;line-height:1.3}
+.wb-out .ov-chip .x{position:absolute;top:4px;right:4px;width:22px;height:22px;border:none;border-radius:6px;background:transparent;color:#A1A7B2;cursor:pointer;font-size:14px;line-height:1}
+.wb-out .ov-chip .x:hover{background:#F4F5F7;color:#B42318}
+.wb-out .ov-add-wrap{position:relative}
+.wb-out .ov-add{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;min-width:118px;min-height:72px;padding:10px 12px;border:1px dashed #C9CED6;border-radius:10px;background:#FAFBFC;color:#2457D6;font:inherit;font-size:13px;font-weight:600;cursor:pointer;box-sizing:border-box}
+.wb-out .ov-add:hover{background:#EAF0FD;border-color:#2457D6}
+.wb-out .ov-add span{font-size:11px;font-weight:400;color:#8A919E}
+.wb-out .ov-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:5;width:280px;max-width:min(280px,70vw);max-height:320px;overflow:auto;padding:8px;border:1px solid #C9CED6;border-radius:12px;background:#FFFFFF;box-shadow:0 12px 28px rgba(20,23,31,0.14)}
+.wb-out .ov-pop .g{padding:6px 8px 4px;font-size:11px;color:#8A919E}
+.wb-out .ov-pop .row{display:flex;align-items:center;gap:8px;width:100%;padding:8px 8px;border:none;border-radius:8px;background:transparent;font:inherit;font-size:13px;color:#14171F;cursor:pointer;text-align:left;box-sizing:border-box}
+.wb-out .ov-pop .row:hover{background:#F4F5F7}
+.wb-out .ov-pop .row b{flex:1;min-width:0;font-weight:600}
+.wb-out .ov-pop .row .tag{font-size:11px;color:#8A919E}
+.wb-out .ov-pop .empty{padding:12px 8px;font-size:12px;color:#8A919E}
+.wb-cta{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;font:inherit;font-size:12px;color:#2457D6;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box}
+.wb-cta:hover{background:#EAF0FD;border-color:#2457D6}
+@media (max-width:980px){.wb-grid{grid-template-columns:1fr}}
+.wb-out .ov-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:5;width:300px;max-width:min(300px,78vw);max-height:360px;overflow:auto;padding:8px;border:1px solid #C9CED6;border-radius:12px;background:#FFFFFF;box-shadow:0 12px 28px rgba(20,23,31,0.14)}
+.wb-out .ov-pop .srch{display:flex;align-items:center;gap:8px;padding:4px 8px 10px;border-bottom:1px solid #EEF0F3;margin-bottom:4px}
+.wb-out .ov-pop .srch input{flex:1;min-width:0;border:none;outline:none;font:inherit;font-size:13px;color:#14171F;background:transparent}
+.wb-out .ov-pop .g{padding:6px 8px 4px;font-size:11px;color:#8A919E}
+.wb-out .ov-pop .row{display:flex;align-items:center;gap:8px;width:100%;padding:8px 8px;border:none;border-radius:8px;background:transparent;font:inherit;font-size:13px;color:#14171F;cursor:pointer;text-align:left;box-sizing:border-box}
+.wb-out .ov-pop .row:hover{background:#F4F5F7}
+.wb-out .ov-pop .row b{flex:1;min-width:0;font-weight:600}
+.wb-out .ov-pop .row .tag{font-size:11px;color:#8A919E}
+.wb-out .ov-pop .empty{padding:12px 8px;font-size:12px;color:#8A919E}
 </style>
 </head>
 <body>
@@ -181,8 +229,6 @@ table.tb tr.grp td{background:#F7F8FA;text-align:left;padding:8px 6px;border-top
 </div>
 <span style="padding:0 16px;font-weight:700;font-size:14px">市场</span>
 <div style="margin-left:auto;display:flex;align-items:center;gap:14px;padding-right:16px">
-<button type="button" id="openSearch" class="mini" title="搜索股票，⌘K">搜索股票 <span style="color:#8A919E;margin-left:4px">⌘K</span></button>
-<button type="button" class="mini" id="notifyBtn">通知我</button>
 <span id="session" style="display:flex;align-items:center;gap:6px;font-size:14px;color:#5B6372"></span>
 <button type="button" id="bell" aria-label="通知" title="通知" style="position:relative;width:32px;height:32px;border:none;border-radius:8px;background:transparent;color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
 </div>
@@ -253,14 +299,14 @@ table.tb tr.grp td{background:#F7F8FA;text-align:left;padding:8px 6px;border-top
 </div>
 </div>
 </main>
-<aside id="aside" class="dw" aria-label="依据" style="align-self:stretch;overflow-y:auto;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;display:none;flex-direction:column;font-size:13px">
+<aside id="aside" class="dw" aria-label="依据" style="align-self:stretch;overflow-y:auto;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;display:flex;flex-direction:column;font-size:13px">
 <div style="position:sticky;top:0;z-index:2;background:#FFFFFF;border-bottom:1px solid #E3E6EB;padding:0 8px 0 12px;display:flex;align-items:center">
 <div id="drawerTabs" role="tablist" aria-label="依据" style="display:flex;gap:6px;min-width:0;overflow-x:auto"></div>
 <button type="button" id="foldBtn" aria-label="收起" title="收起" style="margin-left:auto;flex:none;width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:16px;cursor:pointer">⇥</button>
 </div>
-<div id="drawerBody"></div>
+<div id="drawerBody"><div class="skeleton">正在取数据…</div></div>
 </aside>
-<aside id="rail" aria-label="依据（已收起）" style="flex:0 0 44px;width:44px;align-self:stretch;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0">
+<aside id="rail" aria-label="依据（已收起）" style="flex:0 0 44px;width:44px;align-self:stretch;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;display:none;flex-direction:column;align-items:center;gap:4px;padding:10px 0">
 <button type="button" id="unfoldBtn" aria-label="展开" title="展开" style="width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:16px;cursor:pointer">⇤</button>
 <button type="button" data-tab="fund" title="市场资金" style="width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:12px;cursor:pointer">资</button>
 <button type="button" data-tab="team" title="国家队" style="width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:12px;cursor:pointer">国</button>
@@ -285,7 +331,26 @@ table.tb tr.grp td{background:#F7F8FA;text-align:left;padding:8px 6px;border-top
 <script>
 const API = (new URLSearchParams(location.search).get('stockApi') || (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
 const TABS = [['fund', '市场资金'], ['team', '国家队'], ['sector', '板块'], ['mood', '好不好做'], ['cal', '日历'], ['macro', '宏观']];
-const state = { summary: null, tab: 'fund', fold: true, tabs: {}, loading: {}, open: {}, window: '5', hits: [], pick: 0, etf: null, etfDays: 60, etfs: {}, chg: {}, chgMode: 'today', since: null, notif: false, nData: null, nTab: 'all', settings: null, channel: '', intraday: null, history: null };
+function loadOverseasShow() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('market.overseasShow') || 'null');
+    if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+  } catch (e) { /* ignore */ }
+  return null;
+}
+function saveOverseasShow(ids) {
+  try { localStorage.setItem('market.overseasShow', JSON.stringify(ids)); } catch (e) { /* ignore */ }
+}
+function loadOverseasExtras() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('market.overseasExtras') || '{}');
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch (e) { return {}; }
+}
+function saveOverseasExtras(map) {
+  try { localStorage.setItem('market.overseasExtras', JSON.stringify(map || {})); } catch (e) { /* ignore */ }
+}
+const state = { summary: null, tab: 'fund', fold: false, tabs: {}, loading: {}, open: {}, window: '5', hits: [], pick: 0, etf: null, etfDays: 60, etfs: {}, chg: {}, chgMode: 'today', since: null, notif: false, nData: null, nTab: 'all', settings: null, channel: '', intraday: null, history: null, hotNews: null, overseas: null, overseasShow: loadOverseasShow(), overseasExtras: loadOverseasExtras(), overseasAddOpen: false, overseasAddQ: '', overseasAddHits: null, overseasAddBusy: false };
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -653,12 +718,13 @@ function mzCards(rows) {
   }).join('') + '</div>';
 }
 function moneyCard(m) {
+  if (!m) return '<section class="card" aria-label="钱有没有进来"><div style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-size:12px;color:#8A919E">①</span><span style="font-size:15px;font-weight:700">钱有没有进来</span></div><div class="skeleton">正在取资金…</div></section>';
   const ink = { good: '#B42318', bad: '#1E6B44', warn: '#7A4A00', flat: '#14171F' };
   const marks = (m.marks || []).map((t) => '<span class="mznote">' + esc(t) + '</span>').join('');
   return '<section class="card" aria-label="钱有没有进来"><div style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-size:12px;color:#8A919E">①</span><span style="font-size:15px;font-weight:700;white-space:nowrap">钱有没有进来</span>' + qmark('fund') +
     '<b style="font-size:18px;line-height:1;font-weight:700;color:' + (ink[m.tone] || ink.flat) + '">' + esc(m.label) + '</b>' +
     '<span style="margin-left:auto;white-space:nowrap"><button type="button" class="link" data-tab="fund">看依据 →</button></span></div>' +
-    marks + mzCards(m.qa) + scopeRow(m.scope, age_of(m.date)) + '</section>';
+    marks + mzCards(m.qa || []) + scopeRow(m.scope, age_of(m.date)) + '</section>';
 }
 function teamWinTip(f) {
   if (f.v == null || f.v === '—') return '';
@@ -690,6 +756,7 @@ function teamCards(rows) {
   }).join('') + '</div>';
 }
 function teamCard(t) {
+  if (!t) return '<section class="card" aria-label="国家队"><div style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-size:12px;color:#8A919E">②</span><span style="font-size:15px;font-weight:700">国家队</span></div><div class="skeleton">正在取国家队…</div></section>';
   const ink = { good: '#B42318', bad: '#1E6B44', warn: '#7A4A00', flat: '#14171F' };
   if (t.pending) return '<section class="card" aria-label="国家队"><div style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-size:12px;color:#8A919E">②</span><span style="font-size:15px;font-weight:700">国家队</span>' + qmark('team') + '</div>' + verdictWord('没取到', 'flat') + '<p style="margin:0;font-size:14px;line-height:1.5">' + esc(t.text) + '</p></section>';
   const marks = (t.marks || []).map((item) => '<span class="mznote">' + esc(item) + '</span>').join('');
@@ -704,6 +771,7 @@ function stageTrack(stage) {
   return '<div style="display:flex;gap:4px">' + ['冰点', '修复', '发酵', '高潮', '退潮'].map((n) => '<span style="flex:1;text-align:center;height:22px;line-height:22px;border-radius:6px;font-size:11px;' + (n === stage ? 'background:' + STAGE_COLOR[n] + ';color:' + (n === '高潮' || n === '退潮' ? '#fff' : '#14171F') + ';font-weight:700' : 'background:#F1F2F4;color:#8A919E') + '">' + n + '</span>').join('') + '</div>';
 }
 function moodCard(m) {
+  if (!m) return '<section class="card" aria-label="好不好做"><div style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-size:12px;color:#8A919E">③</span><span style="font-size:15px;font-weight:700">好不好做</span></div><div class="skeleton">正在取情绪…</div></section>';
   return '<section class="card" aria-label="好不好做">' + head('③', '好不好做', '', '', 'mood', 'mood') +
     verdictWord(m.label, m.tone) + concludeRows(m.qa) + stageTrack(m.stage) + scopeRow(m.scope, age_of(m.date)) + '</section>';
 }
@@ -809,6 +877,7 @@ function sectorMoneyRight(r, color) {
   return '<span style="display:flex;flex-direction:column;align-items:flex-end;gap:0;line-height:1.15;flex:none">' + mz + flow + '</span>';
 }
 function sectorCard(sec) {
+  if (!sec || !Array.isArray(sec.rows)) return '<section class="card" aria-label="板块：钱和热度放在一起看"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:15px;font-weight:700">板块</span></div><div class="skeleton">正在取板块…</div></section>';
   const days = sec.conclusion_days || 3;
   const cells = [
     { title: '钱进 · 热', inn: true, hot: true, color: '#B42318' },
@@ -846,6 +915,249 @@ function watchCard(w) {
   return '<section class="card" aria-label="我的票怎么办"><div style="display:flex;align-items:baseline;gap:10px"><span class="lv">L4</span><span style="font-size:15px;font-weight:700">我的票怎么办</span><span style="font-size:12px;color:#8A919E">自选映射到板块结论</span></div>' +
     (rows ? '<table class="tb"><tr><th>股票</th><th class="l">所属行业</th><th>板块结论</th><th>动作</th><th class="l">原因</th></tr>' + rows + '</table>' : '<span style="color:#8A919E">自选是空的。可以用右上角的搜索加入。</span>') + scopeRow(w.scope, '') + '</section>';
 }
+function newsAnalystHref(data) {
+  // 新闻分析师可不带股票：主题/市场热闻用 ask_analyst news + question。
+  const items = (data && data.items) || [];
+  const lines = items.slice(0, 12).map((it, i) => {
+    const meta = [it.source_name, it.hot_text || '', it.tag].filter(Boolean).join(' · ');
+    return (i + 1) + '. ' + String(it.title || '').trim() + (meta ? '（' + meta + '）' : '');
+  }).filter((t) => t.length > 3);
+  const more = items.length > lines.length ? '（共 ' + items.length + ' 条，以上为前 ' + lines.length + '）' : '';
+  const question = '请根据今天市场热闻，分析对 A 股的影响、风险点与可跟踪线索。热搜只说明关注度，不是买卖建议。' + more +
+    (lines.length ? '\n\n今日热闻：\n' + lines.join('\n') : '\n\n（热闻列表暂缺，请先 fetch_baidu_board 再分析）');
+  const q = '请调用 ask_analyst：analyst=news，question=' + question;
+  return '/dialog.html?text=' + encodeURIComponent(q);
+}
+function sideNewsCard(data) {
+  const analyze = '<a class="wb-cta" href="' + newsAnalystHref(data) + '">请新闻分析师 →</a>';
+  if (!data) return '<section class="card wb-news" aria-label="今日热闻"><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:15px;color:#14171F">今日热闻</b><span style="font-size:12px;color:#8A919E">正在取…</span><span style="margin-left:auto">' + analyze + '</span></div></section>';
+  if (data.error && !(data.items || []).length) {
+    return '<section class="card wb-news" aria-label="今日热闻"><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:15px;color:#14171F">今日热闻</b><span style="font-size:12px;color:#8A919E">暂时取不到</span><span style="margin-left:auto">' + analyze + '</span></div><div style="padding:8px 0;font-size:13px;color:#8A919E">' + esc(data.error) + '</div></section>';
+  }
+  const items = data.items || [];
+  const head = '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:15px;color:#14171F">今日热闻</b><span style="font-size:12px;color:#8A919E">' + (items.length ? ('Top ' + items.length) : '暂无') + (data.partial ? ' · 部分源' : '') + '</span><span style="margin-left:auto;display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:#8A919E">热度 ≠ 建议</span>' + analyze + '</span></div>';
+  if (!items.length) return '<section class="card wb-news" aria-label="今日热闻">' + head + '<div style="padding:12px 0 2px;font-size:13px;color:#8A919E">热榜和财经快讯都没有取到。</div></section>';
+  const rows = items.map((it, i) => {
+    const meta = [it.source_name, it.hot_text || '', it.tag].filter(Boolean).join(' · ');
+    const title = esc(it.title || '');
+    const body = it.url
+      ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener noreferrer" style="font-size:14px;line-height:1.4;color:#14171F;text-decoration:none;font-weight:600">' + title + '</a>'
+      : '<span style="font-size:14px;line-height:1.4;font-weight:600;color:#14171F">' + title + '</span>';
+    return '<div class="row"><span class="rank' + (i < 3 ? ' top' : '') + '">' + String(i + 1).padStart(2, '0') + '</span><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">' + body + (meta ? '<span style="font-size:11px;color:#8A919E">' + esc(meta) + '</span>' : '') + '</span></div>';
+  }).join('');
+  return '<section class="card wb-news" aria-label="今日热闻">' + head +
+    '<div class="card-body news-scroll">' + rows + '</div>' +
+    '<span class="card-foot">百度财经热搜 · 财联社 · 华尔街见闻 · 可下拉</span></section>';
+}
+function overseasItemKey(it) {
+  return String((it && (it.secid || it.code)) || '');
+}
+function overseasBuiltinCatalog(data) {
+  return [
+    { key: 'us', title: '美股指数', items: (data && data.us && data.us.items) || [] },
+    { key: 'kr', title: '韩股', items: (data && data.kr && data.kr.items) || [] },
+    { key: 'tech', title: '美股科技', items: (data && data.tech && data.tech.items) || [] },
+  ];
+}
+function overseasAllItems(data) {
+  const extra = (data && data.extra && data.extra.items) || [];
+  return overseasBuiltinCatalog(data).reduce((acc, g) => acc.concat(g.items || []), []).concat(extra);
+}
+function overseasLookup(data) {
+  const map = {};
+  overseasAllItems(data).forEach((it) => {
+    const k = overseasItemKey(it);
+    if (k) map[k] = it;
+    if (it.code) map[String(it.code)] = it;
+  });
+  Object.keys(state.overseasExtras || {}).forEach((id) => {
+    if (!map[id]) map[id] = Object.assign({ secid: id }, state.overseasExtras[id]);
+  });
+  return map;
+}
+function ensureOverseasShow(data) {
+  const all = overseasBuiltinCatalog(data).reduce((acc, g) => acc.concat((g.items || []).map(overseasItemKey)), []).filter(Boolean);
+  if (!all.length) return;
+  if (state.overseasShow == null) {
+    state.overseasShow = all.slice();
+    saveOverseasShow(state.overseasShow);
+  }
+}
+function addOverseasItem(it) {
+  const id = overseasItemKey(it);
+  if (!id) return;
+  if (!(state.overseasShow || []).includes(id)) {
+    state.overseasShow = (state.overseasShow || []).concat([id]);
+    saveOverseasShow(state.overseasShow);
+  }
+  const extras = Object.assign({}, state.overseasExtras || {});
+  extras[id] = { secid: id, code: it.code || id.split('.').pop(), name: it.name || id, group: it.group || 'extra' };
+  state.overseasExtras = extras;
+  saveOverseasExtras(extras);
+  state.overseasAddOpen = false;
+  state.overseasAddQ = '';
+  state.overseasAddHits = null;
+  loadOverseas();
+}
+function removeOverseasItem(id) {
+  state.overseasShow = (state.overseasShow || []).filter((x) => x !== id && x !== String(id));
+  saveOverseasShow(state.overseasShow);
+  if (state.overseasExtras && state.overseasExtras[id]) {
+    const extras = Object.assign({}, state.overseasExtras);
+    delete extras[id];
+    state.overseasExtras = extras;
+    saveOverseasExtras(extras);
+  }
+  rerenderMainKeepScroll();
+}
+function overseasExtraIds() {
+  // 只有本地记下的自选需要带给后端拉行情；内置清单后端本来就会返回
+  const extras = state.overseasExtras || {};
+  return (state.overseasShow || []).filter((id) => !!extras[id]);
+}
+function overseasPriceText(price) {
+  if (price == null || price !== price) return '—';
+  const n = Number(price);
+  if (n >= 10000) return n.toFixed(0);
+  if (n >= 1000) return n.toFixed(n % 1 ? 2 : 0);
+  return n.toFixed(2);
+}
+function overseasChip(it, id) {
+  const name = (it && it.name) || id;
+  const px = overseasPriceText(it && it.price);
+  const pctHtml = !(it && it.pct != null && it.pct === it.pct)
+    ? '<span class="pct" style="color:#A1A7B2">—</span>'
+    : '<span class="pct ' + cls(it.pct) + '">' + num(it.pct, 2, true) + '%</span>';
+  return '<div class="ov-chip" title="' + esc((it && it.as_of) || '') + '">' +
+    '<button type="button" class="x" data-ov-remove="' + esc(id) + '" title="从外盘去掉" aria-label="去掉 ' + esc(name) + '">×</button>' +
+    '<span class="nm">' + esc(name) + '</span>' +
+    '<span class="px">' + esc(px) + '</span>' + pctHtml + '</div>';
+}
+function overseasUpdatedAt(iso) {
+  const s = String(iso || '');
+  if (!s) return '';
+  const m = s.match(/(\d{1,2}:\d{2})/);
+  return m ? m[1] : s.slice(5);
+}
+function overseasHead(titleSub, metaHtml) {
+  return '<div class="head"><div class="title"><b>外盘</b>' + (titleSub ? '<span>' + esc(titleSub) + '</span>' : '') + '</div><div class="meta">' + (metaHtml || '') + '</div></div>';
+}
+function overseasCard(data) {
+  if (!data) return '<section class="card wb-out" aria-label="外盘">' + overseasHead('', '<span class="when">正在取…</span>') + '</section>';
+  if (data.error && !(data.us && data.us.items && data.us.items.some((x) => x.ok))) {
+    return '<section class="card wb-out" aria-label="外盘">' + overseasHead('', '<span class="hint warn">暂时取不到</span>') +
+      '<div style="padding:2px 0 0;font-size:13px;color:#8A919E">' + esc(data.error || (data.errors && data.errors[0]) || '') + '</div></section>';
+  }
+  ensureOverseasShow(data);
+  const map = overseasLookup(data);
+  const ids = state.overseasShow || [];
+  const chips = ids.map((id) => overseasChip(map[id] || {}, id)).join('');
+  const when = overseasUpdatedAt(data.generated_at);
+  const meta = (data.partial ? '<span class="hint warn" title="有的标的这一轮没取到">有缺数</span>' : '') +
+    (when ? '<span class="when">' + esc(when) + ' 更新</span>' : '');
+  return '<section class="card wb-out" aria-label="外盘">' + overseasHead('隔夜美股与韩股', meta) +
+    '<div class="ov-board" aria-label="外盘标的">' + chips +
+    '<div class="ov-add-wrap"><button type="button" class="ov-add" data-ov-toggle-add aria-expanded="' + (state.overseasAddOpen ? 'true' : 'false') + '">＋ 添加<span>指数 / 股票</span></button>' +
+    overseasAddPop(data) + '</div></div>' +
+    '<span class="card-foot">只作情绪参考，不是买卖建议</span></section>';
+}
+function overseasAddPop(data) {
+  if (!state.overseasAddOpen) return '';
+  const shown = new Set(state.overseasShow || []);
+  const q = state.overseasAddQ || '';
+  const searchBox = '<div class="srch"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A919E" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>' +
+    '<input id="ovAddInput" type="text" value="' + esc(q) + '" placeholder="代码或名称，如 TSLA / 特斯拉" autocomplete="off" aria-label="搜索外盘"></div>';
+  let body = '';
+  if (q.trim()) {
+    if (state.overseasAddBusy && !state.overseasAddHits) body = '<div class="empty">正在搜…</div>';
+    else if (state.overseasAddHits && !state.overseasAddHits.length) body = '<div class="empty">没搜到美股/韩股/指数</div>';
+    else if (state.overseasAddHits) {
+      body = '<div class="g">搜索结果</div>' + state.overseasAddHits.map((it) => {
+        const k = overseasItemKey(it);
+        const on = shown.has(k);
+        return '<button type="button" class="row" data-ov-pick="' + esc(k) + '" data-ov-name="' + esc(it.name || k) + '" data-ov-code="' + esc(it.code || '') + '" data-ov-group="' + esc(it.group || 'extra') + '"' + (on ? ' disabled style="opacity:.45"' : '') + '><b>' + esc(it.name || k) + '</b><span class="tag">' + esc((it.market || '') + (it.code ? ' · ' + it.code : '')) + (on ? ' · 已加' : '') + '</span></button>';
+      }).join('');
+    } else body = '<div class="empty">正在搜…</div>';
+  } else {
+    const groups = overseasBuiltinCatalog(data).map((g) => {
+      const rows = (g.items || []).filter((it) => {
+        const k = overseasItemKey(it);
+        return k && !shown.has(k);
+      });
+      if (!rows.length) return '';
+      return '<div class="g">' + esc(g.title) + '</div>' + rows.map((it) => {
+        const k = overseasItemKey(it);
+        return '<button type="button" class="row" data-ov-pick="' + esc(k) + '" data-ov-name="' + esc(it.name || k) + '" data-ov-code="' + esc(it.code || '') + '" data-ov-group="' + esc(it.group || g.key) + '"><b>' + esc(it.name || k) + '</b><span class="tag">' + esc(it.code || '') + '</span></button>';
+      }).join('');
+    }).join('');
+    body = groups || '<div class="empty">默认清单都在上面了，搜代码可加更多</div>';
+  }
+  return '<div class="ov-pop" role="menu" aria-label="添加指数或股票">' + searchBox + body + '</div>';
+}
+async function searchOverseasAdd(q) {
+  const text = String(q || '').trim();
+  state.overseasAddQ = q;
+  if (!text) {
+    state.overseasAddHits = null;
+    state.overseasAddBusy = false;
+    rerenderMainKeepScroll();
+    setTimeout(() => { const el = $('ovAddInput'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 0);
+    return;
+  }
+  state.overseasAddBusy = true;
+  rerenderMainKeepScroll();
+  setTimeout(() => { const el = $('ovAddInput'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 0);
+  try {
+    const res = await fetch(API + '/api/v1/market/overseas/search?q=' + encodeURIComponent(text) + '&limit=8');
+    const body = await res.json();
+    if (state.overseasAddQ.trim() !== text) return;
+    state.overseasAddHits = body.items || [];
+  } catch (err) {
+    if (state.overseasAddQ.trim() !== text) return;
+    state.overseasAddHits = [];
+  }
+  state.overseasAddBusy = false;
+  rerenderMainKeepScroll();
+  setTimeout(() => { const el = $('ovAddInput'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 0);
+}
+async function loadOverseas() {
+  try {
+    const extras = overseasExtraIds();
+    const params = new URLSearchParams({ _: String(Date.now()) });
+    if (extras.length) {
+      params.set('extra', extras.join(','));
+      const names = extras.map((id) => {
+        const meta = (state.overseasExtras || {})[id];
+        return meta && meta.name ? (id + ':' + meta.name) : '';
+      }).filter(Boolean);
+      if (names.length) params.set('names', names.join('|'));
+    }
+    const res = await fetch(API + '/api/v1/market/overseas?' + params.toString());
+    const body = await res.json();
+    if (!res.ok || (body.error && body.status === 'error' && !(body.us || body.kr))) throw new Error(body.error || res.status);
+    state.overseas = body;
+  } catch (err) {
+    state.overseas = { error: err.message || '外盘没有取到', us: { items: [] }, kr: { items: [] }, tech: { items: [] }, extra: { items: [] } };
+  }
+  rerenderMainKeepScroll();
+}
+async function loadHotNews() {
+  try {
+    const res = await fetch(API + '/api/v1/market/hot-news?limit=20');
+    const body = await res.json();
+    if (!res.ok || body.error) throw new Error(body.error || res.status);
+    state.hotNews = body;
+  } catch (err) {
+    state.hotNews = { error: err.message || '热闻没有取到', items: [] };
+  }
+  rerenderMainKeepScroll();
+}
+function rerenderMainKeepScroll() {
+  if (!state.summary) return;
+  const top = $('scroll') ? $('scroll').scrollTop : 0;
+  renderMain();
+  if ($('scroll')) $('scroll').scrollTop = top;
+}
 function age_of(d) {
   if (!d) return '';
   return d.length >= 10 ? d.slice(5) : d;
@@ -860,7 +1172,8 @@ function renderMain() {
   $('footIndexes').innerHTML = s.indexes.map((r) => '<span>' + esc(r.name) + ' <span ' + MONO + ' class="' + cls(r.pct) + '">' + Number(r.close).toFixed(2) + ' ' + num(r.pct, 2, true) + '%</span></span>').join('');
   $('status').textContent = '数据时间 ' + s.generated_at;
   $('dot').style.background = '#2E8B57';
-  $('mainBody').innerHTML = '<div class="pair">' + hero(s) + changes(s) + '</div>' +
+  $('mainBody').innerHTML = '<div class="pair">' + hero(s) + sideNewsCard(state.hotNews) + '</div>' +
+    overseasCard(state.overseas) +
     '<div style="display:flex;align-items:baseline;gap:10px;margin-top:6px"><span class="lv">L2</span><span style="font-size:15px;font-weight:700">能不能做</span><span style="font-size:12px;color:#8A919E">钱 → 国家队 → 好不好做（趋势 + 情绪）</span></div>' +
     '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch">' + moneyCard(s.money) + teamCard(s.team) + moodCard(s.mood) + sectorCard(s.sectors) + '</div>' +
     '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:stretch">' + macroCard(s.macro) + calendarCard(s.calendar) + '</div>' +
@@ -888,14 +1201,19 @@ function fitCards() {
     if (card === hero) return;
     card.style.height = 'auto';
     card.style.overflow = '';
+    card.style.minHeight = '';
   });
   hero.style.height = '';
   hero.style.minHeight = '';
   const h = hero.offsetHeight;
-  const shown = new Set(['钱有没有进来', '国家队']);
+  // 外盘随内容长；热闻与结论同高、列表内下拉；L2 四卡与结论对齐。
+  const free = new Set(['外盘']);
+  const tall = new Set(['钱有没有进来', '国家队', '好不好做', '板块：钱和热度放在一起看']);
   cards.forEach((card) => {
     if (card === hero) return;
-    if (shown.has(card.getAttribute('aria-label'))) {
+    const label = card.getAttribute('aria-label') || '';
+    if (free.has(label)) return;
+    if (tall.has(label)) {
       card.style.height = '';
       card.style.overflow = '';
       card.style.minHeight = h + 'px';
@@ -1022,22 +1340,24 @@ function sectorHead(t) {
 }
 function sectorTab(t) {
   const order = ['题材', '科技', '制造', '消费', '医药', '金融', '稳定', '周期'];
-  const seen = Array.from(new Set(t.rows.map((r) => r.group).filter(Boolean)));
+  const allRows = Array.isArray(t.rows) ? t.rows : [];
+  const seen = Array.from(new Set(allRows.map((r) => r.group).filter(Boolean)));
   const groups = ['全部'].concat(order.filter((g) => seen.includes(g))).concat(seen.filter((g) => !order.includes(g)));
   const cur = state.secGroup || '全部';
-  const rows = t.rows.filter((r) => cur === '全部' || r.group === cur);
+  const rows = allRows.filter((r) => cur === '全部' || r.group === cur);
   const filters = '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 4px">' + groups.map((g) => '<button type="button" class="fchip" data-secgroup="' + esc(g) + '" aria-pressed="' + (g === cur) + '">' + esc(g) + '</button>').join('') + '</div>';
   const colHead = '<div class="shead"><span>板块</span><span>钱 Mz</span><span>超额 Mz</span><span>热</span></div>';
-  const body = t.buckets.map((g) => {
+  const body = (t.buckets || []).map((g) => {
     const items = rows.filter((r) => r.bucket === g.key);
     if (!items.length) return '';
-    const parts = String(g.title).split(' · ');
-    return '<div class="sgroup"><div class="sgh"><span class="pill s t-' + g.tone + '" style="font-weight:600;height:20px;font-size:11px">' + esc(parts[0]) + '</span>' + (parts[1] ? '<span style="font-size:11px;color:#8A919E">' + esc(parts.slice(1).join(' · ')) + '</span>' : '') + '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + items.length + ' 个</span></div>' +
+    const parts = String(g.title || '').split(' · ');
+    return '<div class="sgroup"><div class="sgh"><span class="pill s t-' + (g.tone || 'flat') + '" style="font-weight:600;height:20px;font-size:11px">' + esc(parts[0]) + '</span>' + (parts[1] ? '<span style="font-size:11px;color:#8A919E">' + esc(parts.slice(1).join(' · ')) + '</span>' : '') + '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + items.length + ' 个</span></div>' +
       items.map(sectorRow).join('') + '</div>';
   }).join('');
   const cov = t.coverage_l1 || [];
-  const coverage = '<details style="border-top:1px solid #EEF0F3;padding:12px 2px"><summary style="cursor:pointer;font-size:13px;font-weight:600">覆盖了哪些行业 <span style="font-weight:400;font-size:11px;color:#8A919E">申万 ' + (t.coverage.l1 || 31) + ' · ETF ' + (t.coverage.etf || 0) + ' · 估算 ' + (t.coverage.estimated || 0) + '</span></summary>' +
-    cov.map((c) => '<div class="row" style="font-size:12px"><span>' + esc(c.l1) + '</span><span style="text-align:right;color:#5B6372">' + (c.etf.length ? esc(c.etf.join('、')) + (c.estimated ? ' · 其余估算' : '') : (c.estimated ? '行业资金估算' : '—')) + '</span></div>').join('') + '</details>';
+  const coverageMeta = t.coverage || {};
+  const coverage = '<details style="border-top:1px solid #EEF0F3;padding:12px 2px"><summary style="cursor:pointer;font-size:13px;font-weight:600">覆盖了哪些行业 <span style="font-weight:400;font-size:11px;color:#8A919E">申万 ' + (coverageMeta.l1 || 31) + ' · ETF ' + (coverageMeta.etf || 0) + ' · 估算 ' + (coverageMeta.estimated || 0) + '</span></summary>' +
+    cov.map((c) => '<div class="row" style="font-size:12px"><span>' + esc(c.l1) + '</span><span style="text-align:right;color:#5B6372">' + ((c.etf || []).length ? esc((c.etf || []).join('、')) + (c.estimated ? ' · 其余估算' : '') : (c.estimated ? '行业资金估算' : '—')) + '</span></div>').join('') + '</details>';
   const th = t.thresholds || {};
   const nDays = th.conclusion_days || t.conclusion_days || 3;
   const rule = '<details style="border-top:1px solid #EEF0F3;padding:12px 2px"><summary style="cursor:pointer;font-size:13px;font-weight:600">怎么判断的</summary><div style="font-size:12px;line-height:1.8;color:#3A4250;padding-top:6px">' +
@@ -1163,21 +1483,32 @@ function tipAt(spec, ratio) {
 function renderDrawer() {
   chartTips = [];
   if (state.fold) { applyFold(); return; }
-  const aside = $('aside');
-  if (state.notif) { renderNotif(); return; }
-  $('drawerBody').style.padding = '';
-  if (state.etf) { renderEtf(); return; }
-  aside.style.flex = ''; aside.style.width = '';
-  $('drawerTabs').innerHTML = TABS.map(([id, name]) => '<button type="button" role="tab" class="dtab" aria-selected="' + (id === state.tab) + '" data-tab="' + id + '">' + name + '</button>').join('');
-  const t = state.tabs[state.tab];
-  const box = $('drawerBody');
-  if (!t) { box.innerHTML = '<div class="skeleton">' + (state.loading[state.tab] === 'error' ? '这一块没有取到，稍后再点一次。' : '正在取数据…') + '</div>'; return; }
-  if (state.tab === 'sector') box.innerHTML = sectorTab(t);
-  else if (state.tab === 'mood') box.innerHTML = moodTab(t);
-  else if (state.tab === 'cal') box.innerHTML = calTab(t);
-  else if (state.tab === 'macro') box.innerHTML = macroTab(t);
-  else box.innerHTML = headBox(t) + (t.pending ? '<div class="note"><span style="font-size:12px;color:#5B6372">' + esc(t.footnote) + '</span></div>' : sections(t.sections)) + (t.pending ? '' : '<p style="font-size:11px;color:#8A919E;line-height:1.6">' + esc(t.footnote) + '</p>');
-  applyFold();
+  try {
+    const aside = $('aside');
+    if (state.notif) { renderNotif(); return; }
+    $('drawerBody').style.padding = '';
+    if (state.etf) { renderEtf(); return; }
+    aside.style.flex = ''; aside.style.width = '';
+    $('drawerTabs').innerHTML = TABS.map(([id, name]) => '<button type="button" role="tab" class="dtab" aria-selected="' + (id === state.tab) + '" data-tab="' + id + '">' + name + '</button>').join('');
+    const t = state.tabs[state.tab];
+    const box = $('drawerBody');
+    if (!t) {
+      box.innerHTML = '<div class="skeleton">' + (state.loading[state.tab] === 'error' ? '这一块没有取到，稍后再点一次。' : '正在取数据…') + '</div>';
+      return;
+    }
+    try {
+      if (state.tab === 'sector') box.innerHTML = sectorTab(t);
+      else if (state.tab === 'mood') box.innerHTML = moodTab(t);
+      else if (state.tab === 'cal') box.innerHTML = calTab(t);
+      else if (state.tab === 'macro') box.innerHTML = macroTab(t);
+      else box.innerHTML = headBox(t) + (t.pending ? '<div class="note"><span style="font-size:12px;color:#5B6372">' + esc(t.footnote) + '</span></div>' : sections(t.sections)) + (t.pending ? '' : '<p style="font-size:11px;color:#8A919E;line-height:1.6">' + esc(t.footnote) + '</p>');
+    } catch (err) {
+      box.innerHTML = '<div class="skeleton">这一块渲染失败：' + esc(err.message || '未知错误') + '</div>';
+    }
+  } finally {
+    // 加载中 / 失败 / 渲染异常时也必须展开，否则 fold=false 但 aside 仍 display:none，侧栏像「打不开」
+    applyFold();
+  }
 }
 async function openTab(id) {
   state.fold = false;
@@ -1549,6 +1880,7 @@ function toggleRule(btn) {
   else openRule(btn);
 }
 document.body.addEventListener('click', (e) => {
+  if (!e.target || typeof e.target.closest !== 'function') return;
   const tipBtn = e.target.closest('[data-mztop]');
   if (tipBtn) {
     if (!$('tipPop').hidden && tipBtn.getAttribute('aria-expanded') === 'true') { closeTipPop(); tipBtn.removeAttribute('aria-expanded'); return; }
@@ -1592,8 +1924,6 @@ document.body.addEventListener('click', (e) => {
   closeRule();
   closeSectorPop();
   closeTipPop();
-  const chg = e.target.closest('[data-chg]');
-  if (chg) { loadChanges(chg.dataset.chg); return; }
   if (e.target.closest('[data-history]')) { toggleHistory(); return; }
   if (e.target.closest('[data-closehistory]')) { $('history').hidden = true; $('history').style.display = 'none'; return; }
   if (e.target.closest('#notifyBtn')) { toggleNotify(); return; }
@@ -1801,6 +2131,17 @@ async function loadIntraday() {
 }
 setInterval(() => { const d = new Date(), t = d.getHours() * 60 + d.getMinutes(); if (d.getDay() > 0 && d.getDay() < 6 && ((t >= 570 && t <= 690) || (t >= 780 && t <= 900))) loadIntraday(); }, 60000);
 
+async function loadHeavyCards(into) {
+  // summary 已不再内嵌资金/国家队/板块，三张卡走 /market/card/* 并行拉
+  await Promise.all([['fund', 'money'], ['team', 'team'], ['sector', 'sectors']].map(async ([name, key]) => {
+    try {
+      const res = await fetch(API + '/api/v1/market/card/' + name);
+      const body = await res.json();
+      if (res.ok && body && !body.error) into[key] = body;
+    } catch (err) { /* 单卡失败不挡整页 */ }
+  }));
+}
+
 async function load(keepScroll) {
   try {
     const res = await fetch(API + '/api/v1/market/summary');
@@ -1808,10 +2149,17 @@ async function load(keepScroll) {
     if (!res.ok || body.error) throw new Error(body.error || res.status);
     const top = $('scroll').scrollTop;
     state.summary = body; state.tabs = {}; state.chg = {};
+    // 先画 summary（含国家队/板块），再并行补 /card/*；重卡失败也不挡首屏
     renderMain();
     if (keepScroll) $('scroll').scrollTop = top;
     if (state.fold) applyFold(); else openTab(state.tab);
-    loadChanges(state.chgMode); loadNotif(); loadIntraday();
+    loadNotif(); loadIntraday(); loadHotNews(); loadOverseas();
+    await loadHeavyCards(state.summary);
+    if (state.summary === body) {
+      const y = $('scroll').scrollTop;
+      renderMain();
+      if (keepScroll) $('scroll').scrollTop = top; else $('scroll').scrollTop = y;
+    }
     try { localStorage.setItem('market.lastSeen', String(Date.now())); } catch (err) { /* 隐私模式下没法记，忽略 */ }
   } catch (err) {
     $('mainBody').innerHTML = '<div style="color:#9E2A22">市场页没有取到：' + esc(err.message) + '</div>';
@@ -1971,6 +2319,39 @@ function qvRender() {
   wrap.addEventListener('mouseleave', () => { $('qvX').style.display = 'none'; $('qvTip').hidden = true; });
 }
 document.addEventListener('click', (e) => {
+  if (!e.target || typeof e.target.closest !== 'function') return;
+  const ovToggle = e.target.closest('[data-ov-toggle-add]');
+  if (ovToggle) {
+    state.overseasAddOpen = !state.overseasAddOpen;
+    if (!state.overseasAddOpen) { state.overseasAddQ = ''; state.overseasAddHits = null; }
+    rerenderMainKeepScroll();
+    if (state.overseasAddOpen) setTimeout(() => { const el = $('ovAddInput'); if (el) el.focus(); }, 0);
+    return;
+  }
+  const ovPick = e.target.closest('[data-ov-pick]');
+  if (ovPick) {
+    addOverseasItem({
+      secid: ovPick.dataset.ovPick,
+      name: ovPick.dataset.ovName,
+      code: ovPick.dataset.ovCode,
+      group: ovPick.dataset.ovGroup,
+    });
+    return;
+  }
+  const ovRemove = e.target.closest('[data-ov-remove]');
+  if (ovRemove) {
+    removeOverseasItem(ovRemove.dataset.ovRemove);
+    return;
+  }
+  if (state.overseasAddOpen && !e.target.closest('.ov-add-wrap')) {
+    state.overseasAddOpen = false;
+    state.overseasAddQ = '';
+    state.overseasAddHits = null;
+    rerenderMainKeepScroll();
+    return;
+  }
+});
+document.addEventListener('click', (e) => {
   if (e.target.closest('#quoteBtn')) { qvOpen(); return; }
   const el = e.target.closest('[data-qv]'); if (!el || !qv.open) return;
   const k = el.dataset.qv;
@@ -1981,7 +2362,23 @@ document.addEventListener('click', (e) => {
   else if (k === 'result') qvPick(el.dataset.code);
 });
 document.addEventListener('click', (e) => { if (qv.open && !e.target.closest('#qvSearch') && !e.target.closest('#qvResults')) qvResultsHide(); });
-document.addEventListener('input', (e) => { if (e.target && e.target.id === 'qvSearch') { clearTimeout(qvTimer); qvTimer = setTimeout(qvSearchNow, 250); } });
+let ovSearchTimer = 0;
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'qvSearch') { clearTimeout(qvTimer); qvTimer = setTimeout(qvSearchNow, 250); }
+  if (e.target && e.target.id === 'ovAddInput') {
+    clearTimeout(ovSearchTimer);
+    const v = e.target.value;
+    ovSearchTimer = setTimeout(() => searchOverseasAdd(v), 280);
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && state.overseasAddOpen) {
+    state.overseasAddOpen = false;
+    state.overseasAddQ = '';
+    state.overseasAddHits = null;
+    rerenderMainKeepScroll();
+  }
+});
 document.addEventListener('focusin', (e) => { if (e.target && e.target.id === 'qvSearch' && e.target.value.trim() && qv.results.length) qvResultsRender(e.target.value.trim()); });
 document.addEventListener('change', (e) => { if (e.target && e.target.id === 'qvIndex') { qv.indexCode = e.target.value; qvSetCode(e.target.value); } });
 document.addEventListener('keydown', (e) => {
