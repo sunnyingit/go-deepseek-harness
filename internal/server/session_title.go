@@ -11,6 +11,19 @@ import (
 
 const sessionTitleMaxRunes = 36
 
+// sessionUpdatedAt is the newest log timestamp, so the sidebar can put the
+// conversation that was just used above older ones. Creation time is the fallback.
+func sessionUpdatedAt(sess *session.Session) int64 {
+	if sess == nil {
+		return 0
+	}
+	ev := sess.Events()
+	if n := len(ev); n > 0 && ev[n-1].Time > 0 {
+		return ev[n-1].Time
+	}
+	return sess.Header().CreatedAt
+}
+
 // Matches wrapSkillForAgent in the UI: a load_skill preamble plus the
 // original user task after "用户任务：".
 var skillWrapRe = regexp.MustCompile(`(?s)^请先调用 load_skill 工具，参数 name 为 "[^"]+"。.*?\n用户任务：\n`)

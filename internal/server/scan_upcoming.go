@@ -14,7 +14,7 @@ var weekdayName = []string{"周日", "周一", "周二", "周三", "周四", "�
 
 // taskNotes says what the tasks that matter to the scan page do, in plain words.
 var taskNotes = map[string]string{
-	nightlyID:     "给每只自选、持仓、想买各出一份结论，并把结论记成一条预测",
+	nightlyID:     "给每只自选、持仓、想买各出一份结论；同一只票只保留最新一条在跟踪",
 	"scan.settle": "结算到期的预测：第 5、20 个交易日对账，写出对错和原因，并发一条战绩通知",
 }
 
@@ -72,11 +72,16 @@ func (s *Server) scanUpcoming() map[string]any {
 	var scanTasks, others []map[string]any
 	var nightlyNext time.Time
 	for _, sp := range s.sch.Specs() {
-		if sp.Frequent {
+		if sp.Frequent || s.sch.Store.Deleted(sp.ID) {
 			continue
 		}
-		item := map[string]any{"task_id": sp.ID, "title": sp.Title, "trigger_text": scheduleText(sp.Trigger), "note": taskNotes[sp.ID], "paused": s.sch.Store.Paused(sp.ID)}
-		if at, ok := s.nextDaily(sp.Trigger, now); ok {
+		tr := s.sch.EffectiveTrigger(sp)
+		note := sp.Note
+		if note == "" {
+			note = taskNotes[sp.ID]
+		}
+		item := map[string]any{"task_id": sp.ID, "title": sp.Title, "trigger_text": scheduleText(tr), "note": note, "paused": s.sch.Store.Paused(sp.ID), "category": sp.Category}
+		if at, ok := s.nextDaily(tr, now); ok {
 			item["next"], item["when_text"], item["sort"] = at.Format("2006-01-02 15:04"), whenText(at, now), at.Unix()
 			if sp.ID == nightlyID {
 				nightlyNext = at
@@ -131,22 +136,24 @@ func (s *Server) scanUpcoming() map[string]any {
 }
 
 // settlePlan counts the predictions that come due on each coming day.
+// Uses the calendar only (no per-stock closes fetch) so /summary stays off the
+// stock-API critical path; dueDay already falls back to trading-day math.
 func (s *Server) settlePlan() []map[string]any {
 	type bucket struct {
 		n     int
 		names []string
 	}
 	by := map[string]*bucket{}
+	owned := s.relatedCodes()
 	for _, p := range s.scan.All() {
-		if p.Direction == "unclear" {
+		if !p.Active() || p.Direction == "unclear" || !owned[p.Code] {
 			continue
 		}
-		px := s.pricesOf(p.Code)
 		for _, h := range []int{5, 20} {
 			if p.Result(h) != nil {
 				continue
 			}
-			day := s.dueDay(p.BaseDay, h, px.stock)
+			day := s.dueDay(p.BaseDay, h, nil)
 			if day == "" {
 				continue
 			}

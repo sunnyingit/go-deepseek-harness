@@ -46,8 +46,8 @@ a.row:hover,div.row:hover{background:#F7F8FA}
 
 <nav aria-label="主导航" style="flex: 0 0 64px; overflow: hidden; background: #FFFFFF; border-right: 1px solid #DDE1E7; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0">
 <a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
-<a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>诊断</a>
-<a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>持仓</a>
+<a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
+<a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
 <a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
 <a class="nav-a on" href="/tasks.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>任务</a>
 <a class="nav-a" href="/dialog.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>问问</a>
@@ -59,6 +59,7 @@ a.row:hover,div.row:hover{background:#F7F8FA}
 <div id="scroll" style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px 28px 24px; box-sizing: border-box"><div id="body" style="max-width: 1240px"><div class="skeleton">正在读取任务…</div></div></div>
 </main>
 
+<aside id="detailAside" aria-label="任务详情" hidden style="flex: 0 0 420px; width: 420px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; font-size: 13px"></aside>
 <aside id="notifAside" aria-label="通知" hidden style="flex: 0 0 400px; width: 400px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; flex-direction: column; font-size: 13px"></aside>
 </div>
 
@@ -69,7 +70,9 @@ a.row:hover,div.row:hover{background:#F7F8FA}
 const MONO_F = "font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace";
 const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 const API = (new URLSearchParams(location.search).get('stockApi') || (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
-const S = { tab: 'mine', up: null, data: {}, notif: false, nData: null, nTab: 'all', cuCount: null };
+const SYS_TABS = [['mine', '我的'], ['scan', '研判战绩'], ['market', '行情'], ['notify', '通知'], ['watch', '盯盘']];
+const S = { tab: 'mine', up: null, data: {}, sys: {}, notif: false, nData: null, nTab: 'alert', cuCount: null,
+  detail: null, detailRuns: null, detailJobs: {}, openRun: null, se: null };
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -140,39 +143,202 @@ function taskRow(t, scan) {
     '<span style="display: flex; flex-direction: column"><b style="font-size: 13px">' + esc(t.title) + '</b>' + (t.note ? '<span style="font-size: 11px; color: #5B6372; line-height: 1.5">' + esc(t.note) + '</span>' : '') + '</span>' + last +
     (scan && !DEMO ? '<button type="button" data-act="runnow" data-k="' + esc(t.task_id) + '" ' + (busy(t) ? 'disabled style="opacity: .5; cursor: default; ' : 'style="') + 'height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font-size: 12px; color: #2457D6; cursor: pointer; white-space: nowrap">' + (busy(t) ? '正在跑…' : '现在跑一次') + '</button>' : '<span></span>') + '</div>';
 }
-function upcomingCard(part) {
-  const u = S.up;
-  if (!u) return '';
-  const n = u.nightly, subs = n.subjects || [], w = u.watch || { alerts: [] };
-  const sec = (inner) => '<div style="padding-top: 10px; border-top: 1px solid #F1F2F4; display: flex; flex-direction: column; gap: 6px">' + inner + '</div>';
-  const stockChips = subs.slice(0, 12).map((x) => '<span style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid #E3E6EB; border-radius: 8px; background: #FFFFFF; font-size: 12px"><b>' + esc(x.name || x.ts_code) + '</b>' + pl('#EEF0F3', '#4A5260', x.tier_text).replace('height: 20px', 'height: 16px').replace('font-size: 12px', 'font-size: 10px') + '<span style="font-size: 11px; color: #8A919E">' + (x.last_at ? '现有结论 ' + esc(x.last_at.slice(5)) + ' ' + esc(x.last_verdict || '') : '还没有结论') + '</span></span>').join('');
-  const stocks = subs.length ? sec('<span style="font-size: 12px; color: #3A4250"><b>' + (n.next ? esc(n.next.slice(5)) + ' 夜间任务' : '下一次夜间任务') + '会扫这 ' + subs.length + ' 只：</b>持仓排最前，然后想买，最后自选；每只各出一份结论、各记一条预测。</span><span style="display: flex; gap: 8px; flex-wrap: wrap">' + stockChips + (subs.length > 12 ? '<span style="font-size: 11px; color: #8A919E; align-self: center">…共 ' + subs.length + ' 只</span>' : '') + '</span>')
-    : sec('<span style="font-size: 12px; color: #8A919E">你还没有自选、持仓或想买的股票，夜间任务没有东西可扫。在诊断页加入自选后，下一个交易日晚上就会扫。</span>');
+function sysBtn(act, id, text, color) {
+  return '<button type="button" data-act="' + act + '" data-id="' + esc(id) + '" data-stop="1" style="height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: ' + (color || '#2457D6') + '; cursor: pointer; white-space: nowrap">' + text + '</button>';
+}
+function sysRow(t) {
+  const last = t.last ? '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + pl((STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[t.last.state] || t.last.state) + '</span><span style="font-size: 11px; color: #8A919E">上次 ' + esc(t.last.at) + '</span></span>' : '<span style="font-size: 11px; color: #8A919E">还没跑过</span>';
+  const on = S.detail && S.detail.task_id === t.task_id;
+  return '<div role="button" tabindex="0" data-act="sysdetail" data-id="' + esc(t.task_id) + '" style="display: grid; grid-template-columns: 200px minmax(0, 1fr) 130px auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #F1F2F4; cursor: pointer; background: ' + (on ? '#F1F5FE' : t.paused ? '#FAFAFB' : '#FFFFFF') + '">' +
+    '<span style="display: flex; flex-direction: column; gap: 3px"><b style="' + MONO_F + '; font-size: 13px">' + esc(t.trigger_text || '—') + '</b><span style="font-size: 11px; color: #8A919E">' + (t.when_text ? esc(t.when_text) : '') + (t.paused ? ' · 已停用' : '') + '</span></span>' +
+    '<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><b style="font-size: 14px">' + esc(t.title) + '</b>' + (t.note ? '<span style="font-size: 12px; color: #5B6372; line-height: 1.5">' + esc(t.note) + '</span>' : '') + '</span>' + last +
+    '<span style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end">' +
+    (t.deleted ? sysBtn('sysrestore', t.task_id, '恢复') :
+      sysBtn('sysrun', t.task_id, busy(t) ? '正在跑…' : '现在跑') + sysBtn('sysedit', t.task_id, '编辑') + sysBtn('sysdel', t.task_id, '删除', '#B42318')) +
+    '</span></div>';
+}
+function watchAlertsCard() {
+  const u = S.up, w = (u && u.watch) || { alerts: [] };
   const alerts = (w.alerts || []).map((a) => '<div style="display: grid; grid-template-columns: minmax(0, 1fr) 190px 210px 44px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid #F4F5F7"><a href="' + diagnoseHref(a.ts_code) + '" style="text-decoration: none"><b style="font-size: 13px">' + esc(a.name || a.ts_code) + '</b> <span style="font-size: 12px; color: #3A4250">' + (a.side === 'down' ? '跌到' : '涨到') + ' <b style="' + MONO_F + '">' + Number(a.price).toFixed(2) + '</b>' + (a.confirm === 'close' ? ' <span style="display: inline-flex; align-items: center; height: 16px; padding: 0 5px; border-radius: 4px; background: #EEF0F3; color: #4A5260; font-size: 10px; font-weight: 600">收盘确认</span>' : '') + '</span></a>' +
     '<span style="font-size: 11px; color: #8A919E">' + (a.now ? '现价 ' + Number(a.now).toFixed(2) + ' · 还差 ' + Math.abs(a.gap_pct * 100).toFixed(1) + '%' : '现价取不到') + '</span><span style="font-size: 11px; color: #8A919E">' + esc(a.check || '') + '</span><button type="button" class="xbtn" data-act="alertdel" data-id="' + a.id + '" title="撤掉这条提醒">撤掉</button></div>').join('');
-  const noTop = (h) => h.replace('padding-top: 10px; border-top: 1px solid #F1F2F4; ', '');
-  const watch = noTop(sec('<span style="font-size: 12px; color: #3A4250">' + (w.alerts.length ? '你设了 ' + w.alerts.length + ' 条到价提醒' : '你没有设到价提醒') + '，盘中每 3 分钟、收盘后各检查一次，到价才会进通知。' + (w.offline ? '离线转发已开，关机也会提醒。' : '') + (w.held ? ' 持仓的 ' + w.held + ' 只还会自动盯日内涨跌。' : '') + '</span>' + (alerts || '<span style="font-size: 11px; color: #8A919E">在诊断页「要盯的两个价」点「到了提醒我」，这里就会出现。</span>')));
-  const settle = (u.settle || []).length ? sec('<span style="font-size: 12px; color: #3A4250"><b>接下来到期的预测：</b></span><span style="display: flex; gap: 8px; flex-wrap: wrap">' + u.settle.map((x) => '<span style="padding: 5px 10px; border-radius: 8px; background: #F7F8FA; font-size: 12px"><b style="' + MONO_F + '">' + day5(x.day) + '</b> · ' + x.count + ' 条 <span style="font-size: 11px; color: #8A919E">' + esc(x.names.join('、')) + (x.count > x.names.length ? ' 等' : '') + '</span></span>').join('') + '</span>')
-    : sec('<span style="font-size: 12px; color: #8A919E">现在没有在跟踪的预测，所以没有要结算的。</span>');
-  const others = (u.others || []).length ? '<details style="padding-top: 10px; border-top: 1px solid #F1F2F4"><summary style="cursor: pointer; font-size: 12px; color: #5B6372">其他定时任务（' + u.others.length + '）</summary>' + u.others.map((t) => taskRow(t)).join('') + '</details>' : '';
-  if (part === 'watch') return '<div style="' + CARD + '"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">盯价</b><span style="font-size: 12px; color: #8A919E">你设的到价提醒</span></div>' + watch + '</div>';
-  return '<div style="' + CARD + '"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">系统任务</b><span style="font-size: 12px; color: #8A919E">现在 ' + esc(u.now) + ' · 周末和休市日不跑交易日任务</span></div>' + (u.scan_tasks || []).map((t) => taskRow(t, true)).join('') + stocks + settle + others + '</div>';
+  return '<div style="' + CARD + '; margin-top: 14px"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">到价提醒</b><span style="font-size: 12px; color: #8A919E">你设的价格条件</span></div>' +
+    '<span style="font-size: 12px; color: #3A4250">' + ((w.alerts || []).length ? '你设了 ' + w.alerts.length + ' 条' : '你没有设到价提醒') + '，盘中每 3 分钟、收盘后各检查一次。' + (w.offline ? '离线转发已开。' : '') + '</span>' +
+    (alerts || '<span style="font-size: 11px; color: #8A919E; padding: 8px 0">在诊断页「要盯的两个价」点「到了提醒我」，这里就会出现。</span>') + '</div>';
+}
+function renderSysCat(cat) {
+  const label = (SYS_TABS.find((x) => x[0] === cat) || [cat, cat])[1];
+  const d = S.sys[cat];
+  if (!d) return '<div style="' + CARD + '"><b style="font-size: 15px">' + esc(label) + '</b><div class="skeleton" style="padding: 16px">读取中…</div></div>';
+  if (d.error) return '<div style="' + CARD + '"><b style="font-size: 15px">' + esc(label) + '</b><span style="color:#B42318">' + esc(d.error) + '</span></div>';
+  const tasks = d.tasks || [], del = d.deleted || [];
+  const head = '<div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap"><b style="font-size: 15px">' + esc(label) + '</b><span style="font-size: 12px; color: #8A919E">点一行看最近执行的输入和输出 · 可改时间/开关，删除后可恢复</span></div>';
+  const list = tasks.length ? '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: 200px minmax(0, 1fr) 130px auto; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>什么时候</span><span>任务</span><span>上次</span><span></span></div>' + tasks.map(sysRow).join('') + '</div>'
+    : '<div class="empty" style="padding: 24px">这一类暂时没有系统任务</div>';
+  const deleted = del.length ? '<details style="margin-top: 12px"><summary style="cursor: pointer; font-size: 12px; color: #5B6372">已删除（' + del.length + '）· 可恢复</summary><div style="margin: 8px -16px 0">' + del.map(sysRow).join('') + '</div></details>' : '';
+  return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="' + CARD + '">' + head + list + deleted + '</div>' + (cat === 'watch' ? watchAlertsCard() : '') +
+    (cat === 'scan' && S.up && S.up.settle && S.up.settle.length ? '<div style="' + CARD + '"><b style="font-size: 14px">接下来到期的预测</b><span style="display: flex; gap: 8px; flex-wrap: wrap">' + S.up.settle.map((x) => '<span style="padding: 5px 10px; border-radius: 8px; background: #F7F8FA; font-size: 12px"><b style="' + MONO_F + '">' + day5(x.day) + '</b> · ' + x.count + ' 条</span>').join('') + '</span></div>' : '') + '</div>';
+}
+function prettyJSON(v) {
+  if (v == null || v === '') return '—';
+  try { return JSON.stringify(v, null, 2); } catch (e) { return String(v); }
+}
+function apisLine(v) {
+  if (!v || typeof v !== 'object') return '';
+  const apis = Array.isArray(v.apis) ? v.apis : [];
+  if (!apis.length && !(v.purpose || v.detail || v.summary)) return '';
+  let html = '<div style="margin-top:6px;padding:8px 10px;background:#F7F8FA;border-radius:8px;font-size:12px;line-height:1.6;color:#14171F">';
+  if (apis.length) html += '<div><span style="color:#5B6372">调用</span> · ' + esc(apis.join('；')) + '</div>';
+  if (v.purpose) html += '<div><span style="color:#5B6372">用途</span> · ' + esc(String(v.purpose)) + '</div>';
+  const result = v.detail || v.summary || v.text;
+  if (result) html += '<div style="white-space:pre-wrap"><span style="color:#5B6372">结果</span> · ' + esc(String(result)) + '</div>';
+  return html + '</div>';
+}
+function ioBlock(label, value, open) {
+  const empty = value == null || value === '' || (typeof value === 'object' && !Object.keys(value).length);
+  return '<details style="margin-top:6px"' + (open ? ' open' : '') + '><summary style="cursor:pointer;font-size:11px;color:#5B6372">' + label + (empty ? '（空）' : '') + '</summary>' +
+    apisLine(value) +
+    '<pre style="margin:6px 0 0;padding:8px;background:#F7F8FA;border-radius:8px;font-size:11px;overflow:auto;max-height:220px;white-space:pre-wrap">' + esc(prettyJSON(value)) + '</pre></details>';
+}
+function jobBlock(j) {
+  const sc = STATE_COLOR[j.state] || ['#F1F2F4', '#5B6372'];
+  return '<div style="padding:8px 0;border-top:1px solid #F4F5F7"><div style="display:flex;gap:8px;align-items:baseline"><b style="' + MONO_F + ';font-size:12px">' + esc(j.unit_key || '—') + '</b>' + pl(sc[0], sc[1], STATE_TEXT[j.state] || j.state) + '</div>' +
+    (j.error ? '<div style="font-size:12px;color:#B42318;margin-top:4px">' + esc(j.error.message || '') + '</div>' : '') +
+    ioBlock('输入', j.input, false) + ioBlock('输出', j.output, true) + '</div>';
+}
+function runBlock(r) {
+  const open = S.openRun === r.run_id;
+  const jobs = S.detailJobs[r.run_id];
+  const sc = STATE_COLOR[r.state] || ['#F1F2F4', '#5B6372'];
+  let jobsHTML = '';
+  if (open) {
+    if (!jobs) jobsHTML = '<div class="skeleton" style="padding:8px">读取输出…</div>';
+    else if (!jobs.length) jobsHTML = '<span style="font-size:12px;color:#8A919E">这次没有分单位的作业（或已跳过）</span>';
+    else jobsHTML = jobs.map(jobBlock).join('');
+  }
+  return '<div style="border-top:1px solid #EEF0F3"><button type="button" data-act="sysrunopen" data-run="' + esc(r.run_id) + '" style="display:flex;width:100%;gap:8px;align-items:center;padding:10px 0;border:none;background:transparent;text-align:left;font:inherit;cursor:pointer"><span style="color:#8A919E;font-size:12px">' + (open ? '▾' : '▸') + '</span><span style="' + MONO_F + ';font-size:12px">' + esc(r.at || '') + '</span>' + pl(sc[0], sc[1], STATE_TEXT[r.state] || r.state) + '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + esc(r.trigger || '') + '</span></button>' +
+    (open ? '<div style="padding:0 0 10px 18px">' + ioBlock('Run 输入', r.input, false) + jobsHTML + '</div>' : '') + '</div>';
+}
+function renderDetailAside() {
+  const el = $('detailAside');
+  if (!el) return;
+  if (S.notif || !S.detail) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  const t = S.detail, runs = S.detailRuns;
+  let runsHTML = '<div class="skeleton" style="padding:12px">读取运行记录…</div>';
+  if (runs) {
+    runsHTML = runs.length ? runs.map(runBlock).join('') : '<span class="sub" style="padding:8px 0">还没有运行记录</span>';
+  }
+  el.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px;padding:16px 18px"><div style="display:flex;align-items:flex-start;gap:8px"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><b style="font-size:16px">' + esc(t.title || t.task_id) + '</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + esc(t.task_id) + '</span><span style="font-size:12px;color:#5B6372">' + esc(t.trigger_text || '') + (t.paused ? ' · 已停用' : '') + '</span></div><button type="button" data-act="sysdetailclose" style="margin-left:auto;border:none;background:transparent;font-size:18px;color:#8A919E;cursor:pointer">×</button></div>' +
+    (t.note ? '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(t.note) + '</span>' : '') +
+    apisLine(t.trace) +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (t.deleted ? sysBtn('sysrestore', t.task_id, '恢复') : sysBtn('sysrun', t.task_id, '现在跑') + sysBtn('sysedit', t.task_id, '编辑') + sysBtn('sysdel', t.task_id, '删除', '#B42318')) + '</div>' +
+    '<div><b style="font-size:13px">最近执行</b><div style="margin-top:6px">' + runsHTML + '</div></div></div>';
+}
+function findSysTask(id) {
+  for (const k of Object.keys(S.sys)) {
+    const d = S.sys[k] || {};
+    const hit = (d.tasks || []).concat(d.deleted || []).find((x) => x.task_id === id);
+    if (hit) return hit;
+  }
+  return null;
+}
+async function openSysDetail(id) {
+  if (S.notif) { S.notif = false; renderNotif(); }
+  let t = findSysTask(id);
+  if (!t && id.indexOf('custom.') === 0) {
+    const cu = (S.data.custom && S.data.custom.tasks || []).find((x) => ('custom.' + x.id) === id || x.id === id.replace(/^custom\./, ''));
+    if (cu) t = { task_id: 'custom.' + cu.id, title: cu.title, trigger_text: cu.schedule_text, note: '你自己建的定时任务', paused: !cu.enabled };
+  }
+  if (!t) { toast('没有这个任务', true); return; }
+  S.detail = t; S.detailRuns = null; S.detailJobs = {}; S.openRun = null;
+  renderBody();
+  try {
+    const res = await fetch('/api/scan/sys/tasks/' + encodeURIComponent(t.task_id) + '/runs?limit=10');
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || '读取失败');
+    S.detailRuns = j.runs || [];
+  } catch (e) { S.detailRuns = []; toast(e.message, true); }
+  renderDetailAside();
+}
+async function loadRunJobs(runId) {
+  if (S.detailJobs[runId]) return;
+  try {
+    const res = await fetch('/api/scan/sys/runs/' + encodeURIComponent(runId) + '/jobs');
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || '读取失败');
+    S.detailJobs[runId] = j.jobs || [];
+  } catch (e) { S.detailJobs[runId] = []; toast(e.message, true); }
+  renderDetailAside();
+}
+function openSysEdit(id) {
+  const t = findSysTask(id); if (!t) return;
+  const tr = t.trigger || t.default_trigger || {};
+  S.se = {
+    id: t.task_id, title: t.title, note: t.note || '', trace: t.trace || null, paused: !!t.paused,
+    kind: tr.kind || 'daily', at: tr.at || '20:30', days: tr.days || 'trading',
+    window_min: tr.window_min || 30, every_min: tr.every_min || 3,
+  };
+  renderSysEdit();
+}
+function renderSysEdit() {
+  const f = S.se; if (!f) return;
+  const inp = 'width:100%;min-height:34px;padding:7px 10px;border:1px solid #DDE1E7;border-radius:8px;box-sizing:border-box;font-size:13px';
+  const when = f.kind === 'daily'
+    ? '<label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:600">时刻</span><input id="seAt" type="time" value="' + esc(f.at) + '" style="' + inp + '"></label>' +
+      '<label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:600">窗口（分钟）</span><input id="seWin" type="number" min="1" value="' + esc(f.window_min) + '" style="' + inp + '"></label>'
+    : '<label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:600">间隔（分钟）</span><input id="seEvery" type="number" min="1" value="' + esc(f.every_min) + '" style="' + inp + '"></label>';
+  const runIn = f.trace
+    ? '<div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:#F7F8FA;border-radius:10px;border:1px solid #EEF0F3">' +
+      '<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:12px">运行输入</b><span style="font-size:11px;color:#8A919E">只读 · 系统任务改不了</span></div>' +
+      apisLine(f.trace) +
+      '<pre style="margin:0;padding:8px;background:#FFFFFF;border-radius:8px;font-size:11px;overflow:auto;max-height:160px;white-space:pre-wrap;color:#5B6372">' + esc(prettyJSON(f.trace)) + '</pre></div>'
+    : (f.note ? '<div style="padding:10px 12px;background:#F7F8FA;border-radius:10px;font-size:12px;color:#5B6372;line-height:1.6">' + esc(f.note) + '</div>' : '');
+  $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1"><div style="display:flex;align-items:center"><b style="font-size:16px">编辑「' + esc(f.title) + '」</b><button type="button" class="xbtn" data-act="close" style="margin-left:auto;font-size:18px">×</button></div>' +
+    '<span style="font-size:12px;color:#5B6372">只能改开关和触发时间，任务本身的逻辑改不了。</span>' +
+    runIn +
+    '<label style="display:flex;align-items:center;gap:8px"><input id="seOn" type="checkbox"' + (f.paused ? '' : ' checked') + '><span>启用（关掉后不再自动跑）</span></label>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + when +
+    '<label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:600">天数</span><select id="seDays" style="' + inp + '"><option value="trading"' + (f.days === 'trading' ? ' selected' : '') + '>交易日</option><option value="any"' + (f.days === 'any' ? ' selected' : '') + '>每天</option></select></label></div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" data-act="close" style="' + LINKBTN + ';color:#5B6372">取消</button><button type="button" data-act="syssave" style="height:28px;padding:0 14px;border:none;border-radius:8px;background:#2457D6;color:#FFFFFF;font:inherit;font-size:12px;cursor:pointer">保存</button></div></div></div>';
 }
 
 /* ---------- 通知（和设计稿一样的抽屉） ---------- */
-const NOTIF_TABS = [['all', '全部'], ['alert', '提醒'], ['change', '判断变化'], ['settle', '战绩']];
+const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩'], ['system', '系统']];
+const NOTIF_ALERT_KINDS = { alert: 1, upcoming: 1, move: 1, ann: 1 };
 const NOTIF_ICON = { alert: ['🔔', '#FDECEA'], change: ['⇄', '#FFF4E0'], upcoming: ['📅', '#F1F2F4'], settle: ['★', '#EDF7F1'], ann: ['📢', '#F1F2F4'], move: ['📈', '#F1F2F4'], system: ['⚙', '#F1F2F4'] };
+function notifMatch(tab, kind) {
+  if (tab === 'alert') return !!NOTIF_ALERT_KINDS[kind];
+  return kind === tab;
+}
+async function markNotifRead(ids) {
+  if (DEMO) return;
+  const body = ids && ids.length ? JSON.stringify({ ids }) : '{}';
+  try {
+    await fetch('/api/v1/holdings/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+  } catch (e) { toast('标记失败', true); return; }
+  if (!S.nData) return;
+  const set = ids && ids.length ? new Set(ids) : null;
+  let unread = 0;
+  (S.nData.items || []).forEach((i) => {
+    if (!set || set.has(i.id)) i.unread = false;
+    if (i.unread) unread++;
+  });
+  S.nData.unread = unread;
+  const n = unread || 0;
+  $('bellDot').hidden = !n; $('bellDot').textContent = n > 99 ? '99+' : n;
+}
 function renderNotif() {
   const el = $('notifAside');
   el.hidden = !S.notif;
   el.style.display = S.notif ? 'flex' : 'none';
+  if (S.notif) renderDetailAside();
   if (!S.notif) return;
   const d = S.nData;
-  const items = d ? d.items.filter((i) => S.nTab === 'all' || i.kind === S.nTab || (S.nTab === 'alert' && i.kind === 'upcoming')) : [];
+  const items = d ? d.items.filter((i) => notifMatch(S.nTab, i.kind)) : [];
   const groups = ['今天', '即将发生', '昨天', '更早'].map((g) => [g, items.filter((i) => i.group === g)]).filter((x) => x[1].length);
   el.innerHTML = '<div style="display: flex; align-items: center; gap: 12px; padding: 14px 12px 0 20px"><span style="font-size: 16px; font-weight: 700">通知</span><button type="button" data-act="notifread" style="margin-left: auto; font-size: 12px; color: #2457D6; border: none; background: transparent; cursor: pointer">全部已读</button><button type="button" aria-label="关闭（Esc）" data-act="notif" style="width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: #5B6372; font: inherit; font-size: 18px; cursor: pointer">×</button></div>' +
     '<div style="display: flex; padding: 0 10px; border-bottom: 1px solid #EEF0F3">' + NOTIF_TABS.map(([k, n]) => '<button type="button" data-act="ntab" data-k="' + k + '" style="padding: 0 10px; height: 36px; display: inline-flex; align-items: center; font-size: 13px; border: none; background: transparent; cursor: pointer; ' + (S.nTab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : 'color: #5B6372') + '">' + n + '</button>').join('') + '</div>' +
-    (!d ? '<div class="skeleton" style="padding: 20px">正在取通知…</div>' : groups.length ? groups.map(([g, list]) => '<span style="padding: 10px 16px 2px 32px; font-size: 11px; font-weight: 600; color: #8A919E">' + g + '</span>' + list.map((i) => { const ic = NOTIF_ICON[i.kind] || ['•', '#F1F2F4']; return '<button type="button" data-act="nsel" data-kind="' + esc(i.kind) + '" data-code="' + esc(i.code) + '" style="display: grid; grid-template-columns: 6px 28px minmax(0, 1fr) auto; align-items: start; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: transparent; text-align: left; font: inherit; color: #14171F; cursor: pointer">' + (i.unread ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #D9483F; margin-top: 7px"></span>' : '<span style="width: 6px"></span>') + '<span style="width: 28px; height: 28px; border-radius: 8px; background: ' + ic[1] + '; display: flex; align-items: center; justify-content: center; font-size: 13px">' + ic[0] + '</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 11px; color: #8A919E">' + esc(i.title) + '</span><span style="font-weight: 600">' + esc(i.text) + '</span>' + (i.sub ? '<span style="font-size: 12px; color: #5B6372; white-space: pre-line">' + esc(i.sub) + '</span>' : '') + '</span><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(i.when) + '</span></button>'; }).join('')).join('') : '<div style="padding: 28px 20px; color: #8A919E">现在没有通知。</div>') +
+    (!d ? '<div class="skeleton" style="padding: 20px">正在取通知…</div>' : groups.length ? groups.map(([g, list]) => '<span style="padding: 10px 16px 2px 32px; font-size: 11px; font-weight: 600; color: #8A919E">' + g + '</span>' + list.map((i) => { const ic = NOTIF_ICON[i.kind] || ['•', '#F1F2F4']; return '<button type="button" data-act="nsel" data-id="' + esc(i.id || '') + '" data-kind="' + esc(i.kind) + '" data-code="' + esc(i.code) + '" style="display: grid; grid-template-columns: 6px 28px minmax(0, 1fr) auto; align-items: start; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: transparent; text-align: left; font: inherit; color: #14171F; cursor: pointer">' + (i.unread ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #D9483F; margin-top: 7px"></span>' : '<span style="width: 6px"></span>') + '<span style="width: 28px; height: 28px; border-radius: 8px; background: ' + ic[1] + '; display: flex; align-items: center; justify-content: center; font-size: 13px">' + ic[0] + '</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 11px; color: #8A919E">' + esc(i.title) + '</span><span style="font-weight: 600">' + esc(i.text) + '</span>' + (i.sub ? '<span style="font-size: 12px; color: #5B6372; white-space: pre-line">' + esc(i.sub) + '</span>' : '') + '</span><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(i.when) + '</span></button>'; }).join('')).join('') : '<div style="padding: 28px 20px; color: #8A919E">现在没有通知。</div>') +
     '<div style="display: flex; align-items: center; gap: 12px; margin-top: auto; padding: 12px 20px; border-top: 1px solid #EEF0F3; background: #F7F8FA; font-size: 12px; color: #5B6372"><span>系统通知 · 仅交易时间提醒</span><a href="/settings.html" style="margin-left: auto; color: #2457D6; text-decoration: none">通知设置</a></div>';
 }
 async function loadNotif() {
@@ -193,41 +359,86 @@ function renderHead() {
 function renderTabs() {
   const nMine = S.data.custom ? S.data.custom.tasks.length : S.cuCount;
   const nWatch = S.up && S.up.watch ? (S.up.watch.alerts || []).length : null;
+  const nSys = (k) => { const d = S.sys[k]; return d && d.tasks ? d.tasks.length : null; };
   const cnt = (n) => n == null ? '' : '<span style="' + MONO_F + '; font-size: 12px; color: #8A919E">' + n + '</span>';
-  $('tabs').innerHTML = [['mine', '我的任务', cnt(nMine)], ['sys', '系统任务', ''], ['watch', '盯价', cnt(nWatch)]].map(([k, n, c]) =>
-    '<button type="button" role="tab" data-act="tab" data-k="' + k + '" aria-selected="' + (S.tab === k) + '" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 2px; border: none; background: transparent; font: inherit; font-size: 14px; color: #5B6372; cursor: pointer; ' + (S.tab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : '') + '">' + n + c + '</button>').join('');
+  $('tabs').innerHTML = SYS_TABS.map(([k, n]) => {
+    const c = k === 'mine' ? cnt(nMine) : k === 'watch' ? cnt(nWatch) : cnt(nSys(k));
+    return '<button type="button" role="tab" data-act="tab" data-k="' + k + '" aria-selected="' + (S.tab === k) + '" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 2px; border: none; background: transparent; font: inherit; font-size: 14px; color: #5B6372; cursor: pointer; ' + (S.tab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : '') + '">' + n + c + '</button>';
+  }).join('');
 }
 function renderBody() {
   renderTabs();
   const el = $('body');
   if (S.tab === 'mine') el.innerHTML = renderCustom();
-  else el.innerHTML = S.up ? upcomingCard(S.tab) : '<div class="skeleton">' + (DEMO ? '示例数据里没有系统任务和盯价' : '读取中…') + '</div>';
+  else el.innerHTML = renderSysCat(S.tab);
+  renderDetailAside();
+}
+async function loadSys(cat, force) {
+  if (DEMO) { S.sys[cat] = { tasks: [], deleted: [] }; return; }
+  if (!force && S.sys[cat]) return;
+  try {
+    const res = await fetch('/api/scan/sys/tasks?category=' + encodeURIComponent(cat) + '&include_deleted=1');
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || '读取失败');
+    S.sys[cat] = j;
+  } catch (e) { S.sys[cat] = { tasks: [], deleted: [], error: e.message }; }
 }
 let pollTimer = null;
 function pollAfterRun() {
   clearInterval(pollTimer);
   let left = 24;
   const tick = async () => {
-    try { S.up = await api('/upcoming'); renderBody(); } catch (e) { /* 下次再试 */ }
-    const running = (S.up && S.up.scan_tasks || []).some(busy);
+    try {
+      S.up = await api('/upcoming');
+      await reloadSys(true);
+      if (S.data.custom) { try { S.data.custom = await api('/custom'); S.cuCount = S.data.custom.tasks.filter((x) => x.enabled).length; } catch (e) { /* keep */ } }
+      renderBody();
+      if (S.detail) {
+        const t = findSysTask(S.detail.task_id) || S.detail;
+        S.detail = t;
+        try {
+          const res = await fetch('/api/scan/sys/tasks/' + encodeURIComponent(t.task_id) + '/runs?limit=10');
+          const j = await res.json();
+          if (res.ok) S.detailRuns = j.runs || [];
+        } catch (e) { /* keep */ }
+        renderDetailAside();
+      }
+    } catch (e) { /* 下次再试 */ }
+    const running = Object.keys(S.sys).some((k) => (S.sys[k].tasks || []).some(busy)) || (S.data.custom && (S.data.custom.tasks || []).some((t) => t.last && (t.last.state === 'running' || t.last.state === 'waiting' || t.last.state === 'planned')));
     if (--left <= 0 || (!running && left < 22)) clearInterval(pollTimer);
   };
   pollTimer = setInterval(tick, 5000); setTimeout(tick, 1500);
+}
+async function reloadSys(force) {
+  const cats = ['scan', 'market', 'notify', 'watch'];
+  await Promise.all(cats.map((c) => loadSys(c, force)));
 }
 async function refreshAll() {
   try { S.data.custom = await api('/custom'); S.cuCount = S.data.custom.tasks.filter((x) => x.enabled).length; setStatus(true, DEMO ? '示例数据 · 不是你的任务' : '已连接 · 任务记在本机'); }
   catch (e) { setStatus(false, '后端没连上：' + e.message); $('body').innerHTML = '<div style="' + CARD + '"><b>任务接口没有响应</b><span style="font-size: 12px; color: #8A919E">' + esc(e.message) + '</span></div>'; return; }
   renderHead(); renderBody();
   api('/upcoming').then((u) => { S.up = u; renderBody(); }).catch(() => {});
+  reloadSys(true).then(() => renderBody()).catch(() => {});
   loadNotif();
 }
+async function sysCall(method, path, body) {
+  const res = await fetch('/api/scan/sys' + path, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+  let json = {};
+  try { json = await res.json(); } catch (e) { /* empty */ }
+  if (!res.ok) throw new Error(json.error || '请求失败（' + res.status + '）');
+  return json;
+}
 const ACT = {
-  tab: (el) => { S.tab = el.dataset.k; renderBody(); },
-  close: (el, e) => { if (el.classList.contains('modal') && e.target.closest('[data-stop]')) return; $('modal').innerHTML = ''; },
-  notif: async () => { S.notif = !S.notif; renderNotif(); $('bell').style.background = S.notif ? '#EAF0FD' : 'transparent'; if (S.notif) { await loadNotif(); renderNotif(); } },
+  tab: async (el) => {
+    S.tab = el.dataset.k; renderBody();
+    if (S.tab !== 'mine') { await loadSys(S.tab); renderBody(); }
+  },
+  close: (el, e) => { if (el.classList.contains('modal') && e.target.closest('[data-stop]')) return; S.se = null; $('modal').innerHTML = ''; },
+  notif: async () => { S.notif = !S.notif; if (S.notif) S.detail = null; renderNotif(); renderDetailAside(); $('bell').style.background = S.notif ? '#EAF0FD' : 'transparent'; if (S.notif) { await loadNotif(); renderNotif(); } },
   ntab: (el) => { S.nTab = el.dataset.k; renderNotif(); },
-  notifread: async () => { if (DEMO) return; try { await fetch('/api/v1/holdings/notifications/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); await loadNotif(); renderNotif(); } catch (e) { toast('标记失败', true); } },
+  notifread: async () => { await markNotifRead(); renderNotif(); },
   nsel: (el) => {
+    if (el.dataset.id) markNotifRead([el.dataset.id]).then(() => renderNotif());
     clearTimeout(nItemTimer);
     nItemTimer = setTimeout(() => {
       S.notif = false; renderNotif();
@@ -256,6 +467,70 @@ const ACT = {
       S.up = await api('/upcoming'); renderBody();
     } catch (e) { toast(e.message, true); }
   },
+  sysdetail: (el) => { openSysDetail(el.dataset.id); },
+  sysdetailclose: () => { S.detail = null; S.detailRuns = null; S.detailJobs = {}; S.openRun = null; renderBody(); },
+  sysrunopen: async (el) => {
+    const id = el.dataset.run;
+    if (S.openRun === id) { S.openRun = null; renderDetailAside(); return; }
+    S.openRun = id; renderDetailAside();
+    await loadRunJobs(id);
+  },
+  sysedit: (el) => openSysEdit(el.dataset.id),
+  sysrun: async (el) => {
+    if (DEMO) { toast('示例数据里不能运行'); return; }
+    const id = el.dataset.id;
+    if (id === 'stock.nightly') {
+      const n = S.up && S.up.nightly ? S.up.nightly.count : 0;
+      if (!confirm('现在给 ' + n + ' 只股票各跑一遍夜间任务？')) return;
+    }
+    el.disabled = true;
+    try {
+      await sysCall('POST', '/tasks/' + encodeURIComponent(id) + '/run');
+      toast('已开始');
+      await reloadSys(true); renderBody();
+      if (S.detail && S.detail.task_id === id) openSysDetail(id);
+      pollAfterRun();
+    } catch (e) { toast(e.message, true); }
+    finally { el.disabled = false; }
+  },
+  sysdel: async (el) => {
+    if (DEMO) return;
+    const t = findSysTask(el.dataset.id); if (!t) return;
+    if (!confirm('删掉「' + t.title + '」？不会再自动跑，之后可以在已删除里恢复。')) return;
+    try {
+      await sysCall('DELETE', '/tasks/' + encodeURIComponent(t.task_id));
+      toast('已删除');
+      if (S.detail && S.detail.task_id === t.task_id) { S.detail = null; }
+      await reloadSys(true); renderBody();
+    } catch (e) { toast(e.message, true); }
+  },
+  sysrestore: async (el) => {
+    if (DEMO) return;
+    try {
+      await sysCall('POST', '/tasks/' + encodeURIComponent(el.dataset.id) + '/restore');
+      toast('已恢复');
+      await reloadSys(true); renderBody();
+    } catch (e) { toast(e.message, true); }
+  },
+  syssave: async () => {
+    if (DEMO) { toast('示例数据里不能保存'); return; }
+    const f = S.se; if (!f) return;
+    const paused = !$('seOn').checked;
+    const days = $('seDays').value;
+    const trigger = f.kind === 'daily'
+      ? { kind: 'daily', at: $('seAt').value, window_min: Number($('seWin').value) || 30, days }
+      : { kind: f.kind === 'every' ? 'interval' : f.kind, every_min: Number($('seEvery').value) || 1, days };
+    try {
+      await sysCall('PUT', '/tasks/' + encodeURIComponent(f.id), { paused, trigger });
+      toast('已保存');
+      S.se = null; $('modal').innerHTML = '';
+      await reloadSys(true); renderBody();
+      if (S.detail && S.detail.task_id === f.id) {
+        const t = findSysTask(f.id); if (t) { S.detail = t; renderDetailAside(); }
+      }
+    } catch (e) { toast(e.message, true); }
+  },
+  cudetail: (el) => openSysDetail('custom.' + el.dataset.id),
 };
 let nItemTimer = 0;
 /* ---------- 自定义任务：自己定时间、定范围、定做什么 ---------- */
@@ -278,7 +553,7 @@ const cuPill = (kind) => pl(CU_KIND[kind][1], CU_KIND[kind][2], CU_KIND[kind][0]
 
 function cuRow(t) {
   const sub = t.kind === 'ask' ? '「' + esc(t.question) + '」' + (t.analysts_text && t.analysts_text !== '问：主分析师' ? ' · ' + esc(t.analysts_text) : '') : t.kind === 'scan' ? esc(t.rules_text) : esc(t.analysts_text || '给每只股票重新出一份结论，记成预测');
-  const last = t.last ? '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + pl((STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[t.last.state] || t.last.state) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(t.last.at) + (t.last.trigger === 'manual' ? ' · 手动' : '') + '</span><span role="button" tabindex="0" data-act="notif" style="font-size: 11px; color: #2457D6; cursor: pointer">看结果 →</span></span>' : '<span style="font-size: 11px; color: #8A919E">还没跑过</span>';
+  const last = t.last ? '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + pl((STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[t.last.state] || t.last.state) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(t.last.at) + (t.last.trigger === 'manual' ? ' · 手动' : '') + '</span><span role="button" tabindex="0" data-act="cudetail" data-id="' + esc(t.id) + '" data-stop="1" style="font-size: 11px; color: #2457D6; cursor: pointer">看结果 →</span></span>' : '<span style="font-size: 11px; color: #8A919E">还没跑过</span>';
   const running = t.last && (t.last.state === 'running' || t.last.state === 'waiting' || t.last.state === 'planned');
   const btn = (act, text, extra) => '<button type="button" data-act="' + act + '" data-id="' + esc(t.id) + '" style="height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: ' + ((extra && extra.color) || '#2457D6') + '; cursor: pointer; white-space: nowrap">' + text + '</button>';
   return '<div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 150px 120px auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #F1F2F4' + (t.enabled ? '' : '; background: #FAFAFB') + '">' +
@@ -366,7 +641,7 @@ function cuRender() {
   const scopeStep = step(2, '对哪些股票', f.scope === 'codes' ? '最多 50 只' : '跟着你的持仓、想买、自选变，新加的票下次就会带上',
     '<div style="display: flex; gap: 8px; flex-wrap: wrap">' + CU_SCOPE.map(([k, n]) => pill('cuscope', k, n, f.scope === k)).join('') + '</div>' + codes);
   // 3 具体怎么做
-  const dimList = [['volume_flow', '资金流'], ['market', '大盘'], ['sector', '板块'], ['news', '新闻'], ['finance', '财报'], ['fundamental', '基本面']].concat(f.kind === 'ask' ? [['chief', '主分析师']] : []);
+  const dimList = [['market', '大盘'], ['volume_flow', '资金流'], ['sector', '板块'], ['news', '新闻'], ['finance', '财报'], ['fundamental', '基本面']].concat(f.kind === 'ask' ? [['chief', '主分析师']] : []);
   const who = '<div style="display: flex; gap: 6px; flex-wrap: wrap">' + dimList.map(([k, n]) => pill('cuwho', k, n, f.analysts.includes(k), '; height: 28px; padding: 0 12px; font-size: 12px')).join('') + '</div>';
   const kinds = cuKinds();
   let detail = '';
@@ -519,10 +794,15 @@ document.addEventListener('dblclick', (e) => {
   if (!el || !S.notif) return;
   clearTimeout(nItemTimer);
   e.preventDefault();
+  if (el.dataset.id) markNotifRead([el.dataset.id]);
   S.notif = false; renderNotif();
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { if ($('modal').innerHTML) $('modal').innerHTML = ''; else if (S.notif) ACT.notif(); }
+  if (e.key === 'Escape') {
+    if ($('modal').innerHTML) { S.se = null; $('modal').innerHTML = ''; }
+    else if (S.notif) ACT.notif();
+    else if (S.detail) ACT.sysdetailclose();
+  }
 });
 function tickClock() {
   const d = new Date(), t = d.getHours() * 60 + d.getMinutes(), wk = d.getDay() > 0 && d.getDay() < 6;

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"go-harness/core/agentloop"
 	"go-harness/core/session"
 	coretools "go-harness/core/tools"
+	"go-harness/llm/llmretry"
 )
 
 // askIntent is the router decision for the 问问 page: bind a stock or not,
@@ -34,6 +36,10 @@ var askIntentAllowed = map[string]bool{
 	"general":        true,
 }
 
+// askIntentTimeout caps the router so a slow/thinking model never blocks
+// the 问问 send path for long. Empty/timeout replies fall through to general.
+const askIntentTimeout = 1200 * time.Millisecond
+
 func (s *Server) handleAskIntent(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Question string `json:"question"`
@@ -54,7 +60,7 @@ func (s *Server) handleAskIntent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("缺少 question"))
 		return
 	}
-	if s.llm == nil {
+	if s.intentModel() == nil {
 		writeError(w, http.StatusInternalServerError, errors.New("模型还没有配置"))
 		return
 	}
@@ -64,14 +70,46 @@ func (s *Server) handleAskIntent(w http.ResponseWriter, r *http.Request) {
 		lastCode, lastName = "", ""
 	}
 
+	out := s.resolveAskIntent(r.Context(), question, lastCode, lastName)
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) intentModel() agentloop.LLM {
+	if s.intentLLM != nil {
+		return s.intentLLM
+	}
+	if s.llm != nil {
+		return s.llm
+	}
+	return nil
+}
+
+func (s *Server) resolveAskIntent(parent context.Context, question, lastCode, lastName string) askIntent {
+	llm := s.intentModel()
+	if llm == nil {
+		return askIntent{Intent: "general"}
+	}
 	sess := session.New(session.SessionId(fmt.Sprintf("ask-intent-%d", time.Now().UnixNano())), session.Header{})
-	ag := s.newAnalyst(sess, coretools.NewRegistry(), 1, askIntentPrompt(), 512)
-	ctx := r.Context()
+	// Intent is a tiny JSON classify — disable thinking and keep the budget small
+	// so DeepSeek doesn't burn the whole send path on chain-of-thought.
+	ag := agentloop.NewAgent(sess, llm, coretools.Bridge{Registry: coretools.NewRegistry()}, askIntentPrompt(), agentloop.Hooks{
+		PreStep: func(_ context.Context, _ *agentloop.Agent, _, step int, messages []session.Message) (bool, []session.Message) {
+			if step > 1 {
+				return false, nil
+			}
+			return true, messages
+		},
+		RequestError: llmretry.Hook(s.cfg.Retry),
+	}).WithModel(s.cfg.Model).WithTemperature(0.2).WithMaxTokens(256).WithReasoningEffort("off")
+
+	ctx, cancel := context.WithTimeout(parent, askIntentTimeout)
+	defer cancel()
+
 	stopped := make(chan struct{})
 	go func() {
 		select {
 		case <-ctx.Done():
-			ag.Cancel(agentloop.CancelCause{Kind: "user", Reason: "client disconnected"}, false)
+			ag.Cancel(agentloop.CancelCause{Kind: "user", Reason: "ask intent timeout"}, false)
 		case <-stopped:
 		}
 	}()
@@ -81,8 +119,32 @@ func (s *Server) handleAskIntent(w http.ResponseWriter, r *http.Request) {
 	ag.WhenIdle()
 	close(stopped)
 
-	out := parseAskIntent(lastAssistantText(sess.DeriveMessages()), lastCode)
-	writeJSON(w, http.StatusOK, out)
+	raw := lastAssistantText(sess.DeriveMessages())
+	if raw == "" {
+		raw = lastAssistantReasoning(sess.DeriveMessages())
+	}
+	if raw == "" || ctx.Err() != nil {
+		return askIntent{Intent: "general"}
+	}
+	return parseAskIntent(raw, lastCode)
+}
+
+func lastAssistantReasoning(msgs []session.Message) string {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role != session.RoleAssistant {
+			continue
+		}
+		var b strings.Builder
+		for _, block := range msgs[i].Content {
+			if block.Kind == session.BlockReasoning {
+				b.WriteString(block.Text)
+			}
+		}
+		if text := strings.TrimSpace(b.String()); text != "" {
+			return text
+		}
+	}
+	return ""
 }
 
 func askIntentPrompt() string {
@@ -92,7 +154,7 @@ func askIntentPrompt() string {
 - stock_followup：在追问本会话上一只股票（「它怎么样」「这个产业走下坡路吗」「再展开」）。需要 last_code 存在。
 - stock_new：新点名一只股票（「分析三花智控」「603986怎么看」）。
 - sector_theme：在问某个具名板块/产业/概念本身（「分析AI硬件这个板块」「半导体板块怎么样」），即使会话里刚聊过某只股票，也不要绑那只股票。
-- market_screen：全市场筛选/名单（「连涨3天以上有哪些」「涨停池」）。
+- market_screen：全市场筛选/名单（「连涨3天以上有哪些」「涨停池」），或「推荐几只某类票」但未落到单票。
 - general：其他闲聊或无法归类、且不该绑上一只股票。
 
 规则：
@@ -100,8 +162,9 @@ func askIntentPrompt() string {
 2. 「这个产业/这个板块/它」在没有新板块名时，若有 last_code → stock_followup，reuse_last=true；ask 里写清股票名和代码及所属产业/板块语境。
 3. 用户明确写了股票名或代码 → stock_new；stock_query 填名称或代码。
 4. sector_theme / market_screen / general：reuse_last 必须为 false；不要填 stock_query（除非用户同句点了股票）。
-5. analysts 仅在需要个股维度分析时给，从 volume_flow,market,sector,news,finance,fundamental 里选，最多 3 个；板块主题可建议 ["sector","market"]；拿不准就空数组。
-6. note 用一句短中文，给界面提示（例如「按板块话题，不绑定上一只股票」）。
+5. 「推荐两只这几个板块的优质股票并对比」这类：若本句没有具名板块 → market_screen 或 general；ask 保持用户原意（推荐+对比），不要改写成「先确认板块范围」；theme 可空；note 可用「板块未点名，交主理人澄清」。
+6. analysts 仅在需要个股维度分析时给，从 market,volume_flow,sector,news,finance,fundamental 里选，最多 3 个；有大盘时 market 放第一；板块主题可建议 ["market","sector"]；拿不准就空数组。
+7. note 用一句短中文，给界面提示（例如「按板块话题，不绑定上一只股票」）。不要写成长指令。
 
 最后一条回复只能是一个 JSON 对象，不要代码围栏：
 {"intent":"sector_theme","reuse_last":false,"stock_query":"","theme":"AI硬件","ask":"分析AI硬件板块的景气、资金与结构","note":"按板块话题，不绑定上一只股票","analysts":["sector","market"]}`

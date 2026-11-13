@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go-harness/internal/inbox"
@@ -151,6 +152,11 @@ func (c *Ctx) Names() map[string]string {
 		}
 		for code, p := range c.Held() {
 			out[code] = p.Name
+		}
+		for _, p := range c.Store.PlansFrom("1970-01-01") {
+			if out[p.Code] == "" && p.Name != "" {
+				out[p.Code] = p.Name
+			}
 		}
 		return out
 	})
@@ -493,13 +499,55 @@ func (c *Ctx) summaryHeader(t personal.Totals, count int) Map {
 	return h
 }
 
+// warmHoldExtras fetches sector (and market) for every held name in parallel so Summary
+// does not wait on one shared HTTP call after another on a cold cache.
+func (c *Ctx) warmHoldExtras(rows []personal.Row) {
+	type item struct {
+		key string
+		val any
+	}
+	n := len(rows) + 1
+	ch := make(chan item, n)
+	var wg sync.WaitGroup
+	if _, ok := c.memo["market"]; !ok {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ch <- item{"market", c.Data.Market()}
+		}()
+	}
+	for _, r := range rows {
+		key := "sector:" + r.Code
+		if _, ok := c.memo[key]; ok {
+			continue
+		}
+		wg.Add(1)
+		code := r.Code
+		go func() {
+			defer wg.Done()
+			ch <- item{"sector:" + code, c.Data.Sector(code)}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+	for it := range ch {
+		if _, ok := c.memo[it.key]; !ok {
+			c.memo[it.key] = it.val
+		}
+	}
+}
+
 func (c *Ctx) Summary() Map {
 	type scored struct {
 		row Map
 		key [2]float64
 	}
+	held := c.Rows()
+	c.warmHoldExtras(held)
 	var rows []scored
-	for _, r := range c.Rows() {
+	for _, r := range held {
 		row, key := c.holdRow(r)
 		rows = append(rows, scored{row, key})
 	}
@@ -517,10 +565,275 @@ func (c *Ctx) Summary() Map {
 	return Map{
 		"empty":  len(c.Rows()) == 0 && len(c.Wishes()) == 0 && len(c.Trades()) == 0,
 		"header": c.summaryHeader(t, len(out)),
-		"tabs":   Map{"buy": len(c.Wishes()), "now": len(out), "chk": c.attention(), "rev": len(c.reviewTrades(ReviewDays)), "rev_days": ReviewDays},
+		"tabs":   Map{"buy": len(c.Wishes()), "now": len(out), "plan": c.planOpenCount(), "chk": c.attention(), "rev": len(c.reviewTrades(ReviewDays)), "rev_days": ReviewDays},
 		"market": marketBlock(c.Market()),
 		"rows":   out,
 	}
+}
+
+func (c *Ctx) tomorrowISO() string { return c.Today.AddDate(0, 0, 1).Format("2006-01-02") }
+
+func (c *Ctx) planOpenCount() int {
+	n := 0
+	for _, p := range c.Store.PlansFrom(c.todayISO()) {
+		if p.Status == "planned" {
+			n++
+		}
+	}
+	return n
+}
+
+var planSideLabel = map[string]string{"buy": "买入", "sell": "卖出", "add": "加仓", "reduce": "减仓", "watch": "盯着"}
+var planStatusLabel = map[string]string{"planned": "计划中", "done": "已做", "skipped": "没做", "cancelled": "取消"}
+var planSeverity = map[string]string{"sell": "high", "reduce": "high", "buy": "warn", "add": "warn", "watch": "normal"}
+var planSeverityLabel = map[string]string{"high": "要处理", "warn": "要处理", "normal": "留意"}
+
+func planDiagnosisHref(code string) string {
+	return "/?stock=" + code
+}
+
+func planItemView(p personal.PlanItem, price float64) Map {
+	severity := planSeverity[p.Side]
+	if severity == "" {
+		severity = "normal"
+	}
+	if p.Status != "planned" {
+		severity = "normal"
+	}
+	side := planSideLabel[p.Side]
+	if side == "" {
+		side = p.Side
+	}
+	title := side
+	if p.Price > 0 {
+		title = fmt.Sprintf("%s @ %.2f", side, p.Price)
+	}
+	if p.Qty > 0 {
+		title = fmt.Sprintf("%s %d股", title, p.Qty)
+	}
+	return Map{
+		"id": p.ID, "date": p.Date, "ts_code": p.Code, "name": p.Name, "side": p.Side, "side_label": side,
+		"price": p.Price, "qty": p.Qty, "plan_pct": p.PlanPct, "reason": p.Reason, "status": p.Status,
+		"status_label": planStatusLabel[p.Status], "note": p.Note, "last": price,
+		"stock": Map{"ts_code": p.Code, "name": p.Name},
+		"severity": severity, "severity_label": planSeverityLabel[severity],
+		"title": title, "diagnosis_href": planDiagnosisHref(p.Code),
+	}
+}
+
+func (c *Ctx) planPickView(code, name, tag string, qty int, avg, last, planPct float64) Map {
+	return Map{
+		"ts_code": code, "name": name, "tag": tag, "held": tag == "持有",
+		"qty": qty, "avg": avg, "price": last, "plan_pct": planPct,
+	}
+}
+
+// TabPlan is the trading plan for one day (defaults to today: plans are written the day before).
+func (c *Ctx) TabPlan(day string) Map {
+	if day == "" || !personal.ValidDay(day) {
+		day = c.todayISO()
+	}
+	items := c.Store.PlansOf(day)
+	names := map[string]string{}
+	for _, p := range items {
+		names[p.Code] = p.Name
+	}
+	for _, r := range c.Rows() {
+		names[r.Code] = r.Name
+	}
+	for _, w := range c.Wishes() {
+		names[w.Code] = w.Name
+	}
+	quotes := map[string]personal.Quote{}
+	if len(names) > 0 {
+		quotes = c.Data.Quotes(names)
+	}
+	lastOf := func(code string) float64 {
+		if q, ok := quotes[code]; ok {
+			return q.Price
+		}
+		return 0
+	}
+	open, done, skipped := 0, 0, 0
+	out := make([]Map, 0, len(items))
+	todos := make([]Map, 0, len(items))
+	for _, p := range items {
+		view := planItemView(p, lastOf(p.Code))
+		switch p.Status {
+		case "planned":
+			open++
+			todos = append(todos, view)
+		case "done":
+			done++
+		case "skipped":
+			skipped++
+		}
+		out = append(out, view)
+	}
+	picks := make([]Map, 0, len(c.Rows())+len(c.Wishes()))
+	seen := map[string]bool{}
+	for _, r := range c.Rows() {
+		picks = append(picks, c.planPickView(r.Code, r.Name, "持有", r.Qty, r.Avg, lastOf(r.Code), 0))
+		seen[r.Code] = true
+	}
+	for _, w := range c.Wishes() {
+		if seen[w.Code] {
+			continue
+		}
+		picks = append(picks, c.planPickView(w.Code, w.Name, "想买", 0, 0, lastOf(w.Code), w.PlanPct))
+		seen[w.Code] = true
+	}
+	return Map{
+		"date": day, "today": c.todayISO(), "tomorrow": c.tomorrowISO(),
+		"items": out, "todos": todos, "open": open, "done": done, "skipped": skipped,
+		"picks": picks, "market": marketBlock(c.Market()),
+	}
+}
+
+// ChartOverlay is cost line + alert prices for the market chart of one stock.
+func (c *Ctx) ChartOverlay(code string) Map {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	name := c.Names()[code]
+	held := c.Held()[code]
+	out := Map{"ts_code": code, "name": name, "held": held != nil && held.Qty > 0, "cost": nil, "qty": 0, "alerts": []Map{}}
+	if held != nil && held.Qty > 0 {
+		out["held"] = true
+		out["cost"] = held.Avg
+		out["qty"] = held.Qty
+		if name == "" {
+			out["name"] = held.Name
+		}
+	}
+	alerts := []Map{}
+	for _, a := range c.Alerts(code) {
+		alerts = append(alerts, Map{
+			"id": a.ID, "side": a.Side, "price": a.Price, "confirm": a.Confirm, "name": a.Name,
+		})
+	}
+	out["alerts"] = alerts
+	return out
+}
+
+// PlanPreview returns the latest price and what the user already holds / plans for a stock.
+func (c *Ctx) PlanPreview(query string) Map {
+	code, name, err := c.resolvePlanStock(query)
+	if err != nil {
+		return Map{"found": false, "error": err.Error()}
+	}
+	last := 0.0
+	if q, ok := c.Data.Quotes(map[string]string{code: name})[code]; ok {
+		last = q.Price
+	}
+	qty, avg, held := 0, 0.0, false
+	if pos, ok := c.Held()[code]; ok && pos != nil {
+		qty, avg, held = pos.Qty, pos.Avg, true
+	}
+	planPct := 0.0
+	for _, w := range c.Wishes() {
+		if w.Code == code {
+			planPct = w.PlanPct
+			break
+		}
+	}
+	return Map{
+		"found": true, "ts_code": code, "name": name, "held": held,
+		"price": last, "qty": qty, "avg": avg, "plan_pct": planPct,
+	}
+}
+
+func (c *Ctx) resolvePlanStock(query string) (string, string, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return "", "", fail("先选一只股票")
+	}
+	code, name, ok := c.Data.Resolve(query)
+	if !ok {
+		return "", "", fail("没有找到股票：%s", query)
+	}
+	return code, name, nil
+}
+
+// AddPlanItem appends one line to a day's plan.
+func (c *Ctx) AddPlanItem(body Map) (personal.PlanItem, error) {
+	code, name, err := c.resolvePlanStock(firstStr(body["ts_code"], body["q"]))
+	if err != nil {
+		return personal.PlanItem{}, err
+	}
+	day := firstStr(body["date"])
+	if day == "" {
+		day = c.todayISO()
+	}
+	side := firstStr(body["side"])
+	if side == "" {
+		side = "buy"
+	}
+	price, _ := number(body["price"])
+	qty := 0
+	if v, ok := number(body["qty"]); ok {
+		qty = int(v)
+	}
+	planPct, _ := number(body["plan_pct"])
+	p, err := c.Store.PlanAdd(personal.PlanItem{
+		Date: day, Code: code, Name: name, Side: side, Price: price, Qty: qty, PlanPct: planPct,
+		Reason: str(body["reason"]), Note: str(body["note"]),
+	})
+	if err != nil {
+		return personal.PlanItem{}, err
+	}
+	c.reset()
+	return p, nil
+}
+
+func planNum(body Map, key string, cur float64) float64 {
+	if _, has := body[key]; !has {
+		return cur
+	}
+	if v, ok := number(body[key]); ok {
+		return v
+	}
+	if strings.TrimSpace(str(body[key])) == "" {
+		return 0
+	}
+	return cur
+}
+
+// UpdatePlanItem edits a plan line.
+func (c *Ctx) UpdatePlanItem(id int, body Map) (personal.PlanItem, error) {
+	cur, ok := c.Store.PlanByID(id)
+	if !ok {
+		return personal.PlanItem{}, fail("没有这条计划")
+	}
+	side := firstStr(body["side"])
+	if side == "" {
+		side = cur.Side
+	}
+	day := firstStr(body["date"])
+	if day == "" {
+		day = cur.Date
+	}
+	reason, note := cur.Reason, cur.Note
+	if _, has := body["reason"]; has {
+		reason = str(body["reason"])
+	}
+	if _, has := body["note"]; has {
+		note = str(body["note"])
+	}
+	p, err := c.Store.PlanUpdate(id, day, side, planNum(body, "price", cur.Price), int(planNum(body, "qty", float64(cur.Qty))), planNum(body, "plan_pct", cur.PlanPct), reason, note)
+	if err != nil {
+		return personal.PlanItem{}, err
+	}
+	c.reset()
+	return p, nil
+}
+
+// SetPlanStatus marks a plan line done / skipped / cancelled / planned.
+func (c *Ctx) SetPlanStatus(id int, status string) (personal.PlanItem, error) {
+	p, err := c.Store.PlanSetStatus(id, status)
+	if err != nil {
+		return personal.PlanItem{}, err
+	}
+	c.reset()
+	return p, nil
 }
 
 // ---- 想买
@@ -1202,8 +1515,28 @@ func (c *Ctx) StockDetail(code string) Map {
 	}
 	return Map{"capital": c.Store.Capital(), "wish": wishV,
 		"ts_code": code, "name": name, "price": priceV, "held": held, "sector": sectorBlock(sector), "ai": aiBlock(ai), "flip": flipText(ai), "flip_items": watch,
-		"reason": reason, "alerts": alerts, "rules": rules, "needs_price": row != nil && !hasPrice, "trades": trades, "entries": c.entries(code), "market": marketBlock(c.Market()),
+		// entries (研判记录) need daily closes from the shared service; the page loads them
+		// from /stock/{code}/entries so the aside can paint trades and AI first.
+		"reason": reason, "alerts": alerts, "rules": rules, "needs_price": row != nil && !hasPrice, "trades": trades,
+		"entries": []Map{}, "entries_pending": true, "market": marketBlock(c.Market()),
 	}
+}
+
+// StockEntries is the async follow-up for StockDetail's 研判记录.
+func (c *Ctx) StockEntries(code string) Map {
+	name := c.Names()[code]
+	if c.Row(code) == nil && name == "" {
+		for _, t := range c.Trades() {
+			if t.Code == code {
+				name = t.Name
+				break
+			}
+		}
+	}
+	if c.Row(code) == nil && name == "" {
+		return nil
+	}
+	return Map{"ts_code": code, "entries": c.entries(code), "entries_pending": false}
 }
 
 // ---- writing

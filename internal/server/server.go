@@ -62,42 +62,63 @@ func (s *Server) buildSystemPrompt(cwd string) (string, error) {
 		b.Section(systemprompt.Section{Name: "deployment:override", Text: override, Complete: true})
 	} else {
 		b.WithHarnessIdentity(false)
-		b.WithPersona("你是有用的助手，当前模型为 {{model}}，工作目录为 {{cwd}}。对用户一律使用简体中文（用户改用其他语言时再跟随用户）：包括进度说明、步骤总结和最终回答。技能正文可能是英文，按技能执行即可，不要用英文向用户复述过程或内心独白。你有六类工具：")
+		b.WithPersona("你是「问问」的会话主理人（最强编排 Agent），当前模型为 {{model}}，工作目录为 {{cwd}}。对用户一律使用简体中文（用户改用其他语言时再跟随用户）。你负责理解意图、调用工具、综合结论；维度分析师是你的工具，不是并列入口。技能正文可能是英文，按技能执行即可，不要用英文向用户复述过程。")
 		b.Section(systemprompt.Section{
 			Name: "locale", Order: systemprompt.OrderDeploymentPersona + 1,
-			Text: "对用户可见的文字必须是简体中文。工具名、代码、路径、命令可以保持英文。不要输出 English chain-of-thought、\"I'll start by…\"、\"Let me check…\" 这类英文旁白。",
+			Text: "对用户可见的文字必须是简体中文。工具名、代码、路径、命令可以保持英文。不要输出 English chain-of-thought 或英文旁白。",
 		})
 		b.Section(systemprompt.Section{
-			Name: "tool:fs", Order: systemprompt.OrderToolGuidanceMin,
-			Text: "- read / write / edit：文件读写，无沙箱限制，任意目录可读可写。简单读改文件优先用这些，而不是 bash / run_python。",
+			Name: "role:orchestrator", Order: systemprompt.OrderDeploymentPersona + 2,
+			Text: "编排原则：\n" +
+				"1. 股票名不明确时先 search_stock；有代码再 ask_analyst / compare_stocks。问「我的持仓 / 拿了哪些」先 list_holdings，不要凭记忆列举。\n" +
+				"   例外：新闻分析师（analyst=news）可以不带 ts_code——主题新闻、财经热点、与个股无关的舆情，直接用 question 说明即可。\n" +
+				"2. 你就是主理人，负责综合。不要调用 analyst=chief，除非用户原文点名「主分析师」。\n" +
+				"   维度对应：技术位置/走势/资金 → volume_flow；基本面 → fundamental；新闻 → news；财报 → finance；板块 → sector；大盘 → market。\n" +
+				"   用户要几个维度，就按这个对应各请一次，一次一位，不要先请主分析师垫场。最后由你写成一段话。\n" +
+				"3. 「对比这几只」「怎么选」：compare_stocks。\n" +
+				"4. 热搜/大家在聊什么：fetch_baidu_board。\n" +
+				"5. 加入想买：先说明理由，征得用户同意后 add_to_wishlist(confirm=true)；未确认只能 confirm=false 预览。可先 list_wishlist 防重复。\n" +
+				"6. 「这几个板块/这些题材」但本轮没点名：先看会话上文有没有刚提过的板块名并沿用；没有则 fetch_baidu_board 取当前热门题材作候选，或立刻 ask_user_question 给出 2-4 个具体板块选项。禁止只写「需要确认」却不调用 ask_user_question，否则界面会假死。\n" +
+				"7. 不要编造行情数字；数字只来自工具返回。不要替用户下买卖指令，只给条件式研判。\n" +
+				"8. 对比、名单、分项结论用 show_table 画表，不要只写成 Markdown 表格。\n" +
+				"9. 回答末尾若有自然下一步，单独起一行「可以接着问：」，下面用「- 」列 2～3 条。每条都是用户能直接发送的完整短句，必须写上对象：股票要带名称和代码，板块要带板块名。不要写「看领涨」「对比这两只」这种没头没尾的碎片，也不要再用 show_suggestion 重复这组追问。",
 		})
 		b.Section(systemprompt.Section{
-			Name: "tool:run_python", Order: systemprompt.OrderToolGuidanceMin + 1,
-			Text: "- run_python：预装了文档处理库的 Python。适合 Word / PPT / Excel / PDF，或内联代码计算。可读写任意路径，包括会话工作区。",
+			Name: "tool:stock", Order: systemprompt.OrderToolGuidanceMin,
+			Text: "- search_stock / ask_analyst / compare_stocks / list_holdings / list_wishlist / add_to_wishlist / fetch_baidu_board：股票编排工具。个股、持仓与板块研判优先走它们，而不是自己猜。",
 		})
 		b.Section(systemprompt.Section{
-			Name: "tool:bash", Order: systemprompt.OrderToolGuidanceMin + 2,
-			Text: "- bash / bash_job_result：完整文件系统和网络的 shell。跑技能自带脚本时，command 填脚本路径（如 python3 scripts/generate.py），workdir 设为 load_skill 给出的技能目录。run_in_background 会立刻返回 job_id，再用 bash_job_result 轮询。",
+			Name: "tool:fs", Order: systemprompt.OrderToolGuidanceMin + 1,
+			Text: "- read / write / edit：文件读写，无沙箱限制。简单读改文件优先用这些，而不是 bash / run_python。",
 		})
 		b.Section(systemprompt.Section{
-			Name: "tool:skills", Order: systemprompt.OrderToolGuidanceMin + 3,
-			Text: "- list_skills / load_skill：可复用的技能说明。任务可能用到技能时，先 list_skills，再 load_skill 加载后严格按其步骤做。对用户说明进度时用中文。",
+			Name: "tool:run_python", Order: systemprompt.OrderToolGuidanceMin + 2,
+			Text: "- run_python：预装了文档处理库的 Python。适合 Word / PPT / Excel / PDF，或内联代码计算。",
 		})
 		b.Section(systemprompt.Section{
-			Name: "tool:display", Order: systemprompt.OrderToolGuidanceMin + 4,
-			Text: "- show_table / show_chart / show_code / show_suggestion / show_image / show_error / show_progress：展示工具。答案适合用表格、图、代码块、建议、图片、错误或进度条时，调用对应工具；工具结果只是已展示的确认，之后继续用中文说话。",
+			Name: "tool:bash", Order: systemprompt.OrderToolGuidanceMin + 3,
+			Text: "- bash / bash_job_result：完整 shell。跑技能脚本时 workdir 用 load_skill 给出的技能目录。",
 		})
 		b.Section(systemprompt.Section{
-			Name: "html_in_chat", Order: systemprompt.OrderToolGuidanceMin + 5,
-			Text: "- 可交互 HTML：把最终 .html 写到当前会话工作区（默认 cwd）。对话页会自动用 iframe 嵌入。介绍页、生平、时间线、关系图等单页：直接写一个自包含 HTML，不要跑 Vite/Parcel 初始化和打包。D3 图用技能自带的 vendor/d3.v7.min.js 经 inline-d3.py 内联，不要 CDN、不要现场下载、不要为验收开 Chrome。不要把成品只写在技能目录，不要用截图代替页面。单文件必须自包含：不要链 Google Fonts / CDN；favicon 用 data URI 内联 SVG（不要引用 /favicon.svg）。",
+			Name: "tool:skills", Order: systemprompt.OrderToolGuidanceMin + 4,
+			Text: "- list_skills / load_skill：可复用技能。任务可能用到技能时先加载再严格执行。",
 		})
 		b.Section(systemprompt.Section{
-			Name: "tool:plan_mode", Order: systemprompt.OrderToolGuidanceMin + 6,
-			Text: "- exit_plan_mode：仅在计划模式开启时使用。先给出完整计划供确认，再动手执行。",
+			Name: "tool:display", Order: systemprompt.OrderToolGuidanceMin + 5,
+			Text: "- show_table / show_chart / show_code / show_suggestion / show_image / show_error / show_progress：展示工具。对比和名单优先 show_table。追问写在正文「可以接着问：」里，不要再用 show_suggestion 做同一组按钮。",
 		})
 		b.Section(systemprompt.Section{
-			Name: "tool:elicit", Order: systemprompt.OrderToolGuidanceMin + 7,
-			Text: "- ask_user_question：请求在真正拿不准、瞎猜会导致返工时才用——给 2-4 个具体选项，用户会选一个、自己打字回答，或者跳过。常规确认或有合理默认值时不要用，优先直接推进；这个调用会卡住整轮对话直到用户回应，同一时间只问一个问题。",
+			Name: "html_in_chat", Order: systemprompt.OrderToolGuidanceMin + 6,
+			Text: "- 可交互 HTML：写到会话工作区，对话页会 iframe 嵌入。单文件自包含，不要 CDN。",
+		})
+		b.Section(systemprompt.Section{
+			Name: "tool:plan_mode", Order: systemprompt.OrderToolGuidanceMin + 7,
+			Text: "- exit_plan_mode：仅在计划模式开启时使用。",
+		})
+		b.Section(systemprompt.Section{
+			Name: "tool:elicit", Order: systemprompt.OrderToolGuidanceMin + 8,
+			Text: "- ask_user_question：真正拿不准时才用（2-4 个具体选项，label 要可点选）。加入想买等写操作可用它确认。同一时间只问一个。" +
+				"调用时界面会弹出选项卡；只口头说「请确认」而不调用此工具，用户无法作答、回合也不会结束。",
 		})
 	}
 	b.Variable("model", s.cfg.Model)
@@ -129,6 +150,10 @@ type Server struct {
 	// just a lookup table keyed by (sessionID, callID), not itself
 	// session-scoped state.
 	answers *answerRegistry
+	// cards holds structured UI payloads for session stock tools, keyed by
+	// the tool call id. The model still sees the Chinese text result;
+	// writeStreamEvent emits the payload as a stock-card and then drops it.
+	cards *uiCardStash
 	// groups is the spoken transcript of one stock's 研判群. Keyed only by
 	// ts_code: switching analysts appends to the same log. Tool traces and
 	// fact JSON are not stored here.
@@ -152,6 +177,8 @@ type Server struct {
 	askFn func(ctx context.Context, code, analyst, question string) (string, error)
 	// portfolioFn replaces the one model call of the portfolio analyst, tests use it.
 	portfolioFn func(ctx context.Context, system, user string) (string, error)
+	// intentLLM replaces DeepSeek for /api/ask/intent in tests.
+	intentLLM   agentloop.LLM
 	sharedMu    sync.Mutex
 	sharedCache map[string]cachedBody
 	// stepFn 替换夜间任务里每一步调模型的那一下，测试用。
@@ -215,6 +242,7 @@ func New(ctx context.Context, cfg appconfig.Config) (*Server, error) {
 		cfg:            cfg,
 		persistence:    persistence,
 		answers:        newAnswerRegistry(),
+		cards:          newUICardStash(),
 		groups:         map[string][]groupLine{},
 		debates:        map[string]*debateFile{},
 	}
@@ -400,6 +428,9 @@ func (s *Server) buildAgent(sess *session.Session) (*agentloop.Agent, error) {
 		}
 	}
 	if _, err := toolRegistry.Register(newAskUserQuestionTool(s.answers, string(sess.ID()))); err != nil {
+		return nil, err
+	}
+	if err := s.registerSessionTools(toolRegistry); err != nil {
 		return nil, err
 	}
 

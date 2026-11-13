@@ -15,10 +15,11 @@ var inboxKinds = map[string]string{
 	"judgment.changed": "change", "reason.status_changed": "change", "wish.condition_met": "change",
 	"announcement.published": "ann", "news.item": "ann", "calendar.upcoming": "upcoming", "outcome.settled": "settle", "scan.settled": "settle", "custom.hit": "alert", "custom.answer": "ann", "custom.analysis": "ann", "quality.redline": "alert", "quality.picks": "ann",
 	"task.failed": "system", "task.overdue": "system", "task.completed": "system", "digest.summary": "system",
+	"market.brief": "system",
 }
 
 func isSystem(t string) bool {
-	return t == "task.failed" || t == "task.overdue" || t == "task.completed" || t == "scan.settled"
+	return t == "task.failed" || t == "task.overdue" || t == "task.completed" || t == "digest.summary" || t == "market.brief"
 }
 
 const inboxPrefix = "inbox:"
@@ -49,11 +50,12 @@ func (c *Ctx) inboxRows() []inbox.Item {
 	}
 	var out []inbox.Item
 	for _, it := range c.Inbox.List("", false, 120) {
-		if _, ok := inboxKinds[it.Type]; !ok {
+		kind, ok := inboxKinds[it.Type]
+		if !ok {
 			continue
 		}
-		// what the user's own tasks found is always shown, whichever stocks they were told to look at
-		if isSystem(it.Type) || strings.HasPrefix(it.Type, "custom.") || strings.HasPrefix(it.Type, "quality.") || (it.Group == "stock" && names[it.SubjectID] != "") {
+		// system + scan 战绩汇总 always shown; custom/quality too; other stock events only for followed codes
+		if kind == "system" || kind == "settle" || strings.HasPrefix(it.Type, "custom.") || strings.HasPrefix(it.Type, "quality.") || (it.Group == "stock" && names[it.SubjectID] != "") {
 			out = append(out, it)
 		}
 	}
@@ -64,11 +66,26 @@ func (c *Ctx) inboxView(it inbox.Item) Map {
 	created := time.UnixMilli(it.CreatedAt).In(c.Today.Location())
 	group := c.groupOf(created)
 	lines := strings.Split(it.Body, "\n")
+	if it.Type == "task.completed" || it.Type == "task.failed" {
+		// Notification drawer: conclusion only — drop "调用：…" run-input lines from older receipts too.
+		filtered := lines[:0]
+		for _, ln := range lines {
+			if strings.HasPrefix(ln, "调用：") {
+				continue
+			}
+			filtered = append(filtered, ln)
+		}
+		lines = filtered
+	}
 	sub := ""
 	if len(lines) > 1 {
 		end := len(lines)
-		if end > 3 {
-			end = 3
+		max := 3
+		if isSystem(it.Type) || inboxKinds[it.Type] == "settle" {
+			max = 8 // task receipts / digests / market briefs / settle lines carry the result
+		}
+		if end > max {
+			end = max
 		}
 		sub = strings.Join(lines[1:end], "\n")
 	}
@@ -77,7 +94,7 @@ func (c *Ctx) inboxView(it inbox.Item) Map {
 		when = created.Format("15:04")
 	}
 	code := it.SubjectID
-	if isSystem(it.Type) {
+	if isSystem(it.Type) || it.Type == "scan.settled" {
 		code = ""
 	}
 	tab := ""
@@ -191,37 +208,56 @@ func (c *Ctx) mergeInbox(items []Map) []Map {
 	return kept
 }
 
-// MarkRead marks everything seen: the page's own items by remembering their ids, the inbox items directly.
-func (c *Ctx) MarkRead() int {
-	data := c.Notifications()
-	items, _ := data["items"].([]Map)
-	var own []string
-	for _, it := range items {
-		if id := it["id"].(string); !strings.HasPrefix(id, inboxPrefix) {
+// MarkRead marks notifications as seen. Empty ids means everything currently listed;
+// otherwise only those drawer ids (page-local or "inbox:…") are marked.
+func (c *Ctx) MarkRead(ids []string) int {
+	if len(ids) == 0 {
+		data := c.Notifications()
+		items, _ := data["items"].([]Map)
+		all := make([]string, 0, len(items))
+		for _, it := range items {
+			if id, _ := it["id"].(string); id != "" {
+				all = append(all, id)
+			}
+		}
+		return c.markReadIDs(all)
+	}
+	return c.markReadIDs(ids)
+}
+
+func (c *Ctx) markReadIDs(ids []string) int {
+	if len(ids) == 0 {
+		return 0
+	}
+	var own, inboxIDs []string
+	for _, id := range ids {
+		if strings.HasPrefix(id, inboxPrefix) {
+			inboxIDs = append(inboxIDs, strings.TrimPrefix(id, inboxPrefix))
+		} else {
 			own = append(own, id)
 		}
 	}
-	var seen []string
-	c.Store.KVGet("notif_seen", &seen)
-	set := map[string]bool{}
-	for _, id := range append(seen, own...) {
-		set[id] = true
-	}
-	merged := make([]string, 0, len(set))
-	for id := range set {
-		merged = append(merged, id)
-	}
-	sort.Strings(merged)
-	if len(merged) > 300 {
-		merged = merged[len(merged)-300:]
-	}
-	c.Store.KVSet("notif_seen", merged)
-	if c.Inbox != nil {
-		var ids []string
-		for _, r := range c.inboxRows() {
-			ids = append(ids, r.ID)
+	n := 0
+	if len(own) > 0 {
+		var seen []string
+		c.Store.KVGet("notif_seen", &seen)
+		set := map[string]bool{}
+		for _, id := range append(seen, own...) {
+			set[id] = true
 		}
-		c.Inbox.MarkRead(ids, false)
+		merged := make([]string, 0, len(set))
+		for id := range set {
+			merged = append(merged, id)
+		}
+		sort.Strings(merged)
+		if len(merged) > 300 {
+			merged = merged[len(merged)-300:]
+		}
+		c.Store.KVSet("notif_seen", merged)
+		n += len(own)
 	}
-	return len(items)
+	if c.Inbox != nil && len(inboxIDs) > 0 {
+		n += c.Inbox.MarkRead(inboxIDs, false)
+	}
+	return n
 }

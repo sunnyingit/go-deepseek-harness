@@ -8,7 +8,7 @@ Electron 客户端，窗口里加载 go-harness 的三页 UI：
 | 对话 | `/dialog.html` |
 | 个人工作区 | `/space.html` |
 
-正式安装包会**自带** web 服务、便携 Python（已预装文档库）、官方 Node，以及 PPT 用的 Node 库（`pptxgenjs`、`react` / `react-dom` / `react-icons`、`sharp`）。Windows 另外带 MinGit 的 `bash`。对方电脑不需要先装 Go / Python / Node。
+正式安装包会**自带** web 服务、便携 Python（已预装文档库）、官方 Node、PPT 用的 Node 库（`pptxgenjs`、`react` / `react-dom` / `react-icons`、`sharp`），以及股票数据服务（`stock-agent` + 独立 `stock-venv`，本机 `8090`）。Windows 另外带 MinGit 的 `bash`。对方电脑不需要先装 Go / Python / Node，也不必再单独起 `stock_agent_assitant`。
 
 ## 运行（开发）
 
@@ -53,6 +53,6 @@ make win          # 下载 win-x64 运行时并交叉编译 web，打出 .zip
 - **单实例**：重复打开只会把已有窗口叫出来（第二个实例不会去动后端端口）。
 - **休眠恢复**：`resume` / 解锁屏幕时调用 `POST /sched/tick?reason=resume`，错过的任务按各自的补跑策略处理（盘中的提醒不补，收盘复盘等会补）。
 - **桌面通知**：每 10 秒取一次 `GET /notify/desktop/pending`，弹系统通知，点击打开对应页面，并 `POST /notify/desktop/ack`。
-- **股票后端**：8090 没有人起时，开发模式会从 `../../stock_agent_assitant`（或 `STOCK_AGENT_DIR`）用 `python3 -m app.main` 拉起，日志在用户数据目录的 `stock-backend.log`。安装包里还没有打进股票后端，这是后续要补的。
+- **股票后端**：`8090` 没人占用时由宿主拉起。安装包用 `runtime/stock-agent` + `runtime/stock-venv`；开发模式优先用包内，否则旁路 `../../stock_agent_assitant`（或 `STOCK_AGENT_DIR`）。库文件写到用户数据目录的 `stock-data/`（`STOCK_DATA_DIR`），日志 `stock-backend.log`。
 
 单测：`node host.test.js`。

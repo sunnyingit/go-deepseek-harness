@@ -190,7 +190,12 @@ func (s *Server) qualityWatch(c *sched.JobCtx) (any, error) {
 
 func (s *Server) registerQualityTask() {
 	s.sch.Register(&sched.Spec{
-		ID: "quality.watch", Title: "质地筛查", Queue: "data",
+		ID: "quality.watch", Title: "质地筛查", Category: sched.CatScan, Note: "筛持仓/想买的质地红线与关注名单",
+		Trace: map[string]any{
+			"apis":    []any{"GET /api/v1/shared/quality/{code}", "GET /api/v1/shared/quality-peers/{code}"},
+			"purpose": "筛持仓/想买质地红线与关注名单并写通知",
+		},
+		Queue:   "data",
 		Trigger: sched.Trigger{Kind: "daily", At: "20:05", WindowMin: 240, Days: "trading"}, MaxAttempts: 2, Backoff: []time.Duration{15 * time.Minute, time.Hour},
 		CatchupTTL: 20 * time.Hour, Timeout: 8 * time.Minute, Handler: s.qualityWatch,
 	})

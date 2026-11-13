@@ -32,10 +32,89 @@ if (!gotLock) {
 }
 let startHidden = false;
 let stockBackend = null;
+let spawnedStockBackend = false;
 
 function runtimeRoot() {
   if (app.isPackaged) return path.join(process.resourcesPath, 'runtime');
   return path.join(__dirname, 'runtime');
+}
+
+function stockAgentDir() {
+  const bundled = path.join(runtimeRoot(), 'stock-agent');
+  if (fs.existsSync(path.join(bundled, 'app', 'main.py'))) return bundled;
+  if (process.env.STOCK_AGENT_DIR) return process.env.STOCK_AGENT_DIR;
+  return path.resolve(__dirname, '..', '..', 'stock_agent_assitant');
+}
+
+function stockVenvRoot() {
+  return path.join(runtimeRoot(), 'stock-venv');
+}
+
+function stockSitePackages() {
+  return path.join(stockVenvRoot(), 'site-packages');
+}
+
+function stockSiteReady() {
+  const site = stockSitePackages();
+  return fs.existsSync(site) && fs.existsSync(path.join(stockVenvRoot(), '.relocatable'));
+}
+
+function stockPythonBin() {
+  // Relocatable layout: always run the bundled interpreter with PYTHONPATH=site-packages.
+  if (stockSiteReady() && fs.existsSync(pythonBin())) return pythonBin();
+  if (fs.existsSync(pythonBin())) return pythonBin();
+  return process.env.STOCK_AGENT_PYTHON || 'python3';
+}
+
+function stockDataDir() {
+  return path.join(app.getPath('userData'), 'stock-data');
+}
+
+function stockLogPath() {
+  return path.join(app.getPath('userData'), 'stock-backend.log');
+}
+
+/** Cross-builds ship wheels only; fill site-packages once on first launch. */
+function ensureStockVenv() {
+  if (stockSiteReady()) return true;
+  const agent = path.join(runtimeRoot(), 'stock-agent');
+  const req = path.join(agent, 'requirements.txt');
+  const basePy = pythonBin();
+  if (!fs.existsSync(path.join(agent, 'app', 'main.py')) || !fs.existsSync(req) || !fs.existsSync(basePy)) {
+    return false;
+  }
+  const venv = stockVenvRoot();
+  const site = stockSitePackages();
+  fs.mkdirSync(path.dirname(stockLogPath()), { recursive: true });
+  const log = fs.createWriteStream(stockLogPath(), { flags: 'a' });
+  try {
+    log.write(`[stock-venv] creating relocatable site-packages with ${basePy}\n`);
+    fs.mkdirSync(site, { recursive: true });
+    const wheels = path.join(runtimeRoot(), 'stock-wheels');
+    const find = fs.existsSync(wheels) ? ` --find-links "${wheels}"` : '';
+    execSync(`"${basePy}" -m pip install --upgrade pip`, { stdio: ['ignore', 'pipe', 'pipe'] });
+    execSync(`"${basePy}" -m pip install --target "${site}"${find} -r "${req}"`, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 30 * 60 * 1000,
+    });
+    fs.writeFileSync(path.join(venv, '.relocatable'), 'relocatable=1\n');
+    if (process.platform !== 'win32') {
+      const bin = path.join(venv, 'bin');
+      fs.mkdirSync(bin, { recursive: true });
+      const link = path.join(bin, 'python3');
+      try {
+        fs.rmSync(link, { force: true });
+        fs.symlinkSync(path.join('..', '..', 'python', 'bin', 'python3'), link);
+      } catch { /* ignore */ }
+    }
+    log.write('[stock-venv] ready\n');
+    return stockSiteReady();
+  } catch (err) {
+    log.write(`[stock-venv] failed: ${err && err.message ? err.message : err}\n`);
+    return false;
+  } finally {
+    try { log.end(); } catch { /* ignore */ }
+  }
 }
 
 function webBinary() {
@@ -379,7 +458,7 @@ function createWindow() {
   loadPage(PAGES.index);
 }
 
-// 股票数据服务（Python，8090）只提供数据（各维度详情、市场页），不跑定时任务。已经有人起了就不管；开发时从旁边的 stock_agent_assitant 目录起。
+// 股票数据服务（Python，8090）：安装包自带 stock-agent + stock-venv；开发时也可旁路仓库。
 function stockApiHealthy() {
   return new Promise((resolve) => {
     const req = http.get(`${host.stockBase()}/healthz`, (res) => { resolve(res.statusCode === 200); res.resume(); });
@@ -390,15 +469,53 @@ function stockApiHealthy() {
 
 async function ensureStockBackend() {
   if (await stockApiHealthy()) return;
-  const dir = process.env.STOCK_AGENT_DIR || path.resolve(__dirname, '..', '..', 'stock_agent_assitant');
-  if (!fs.existsSync(path.join(dir, 'app', 'main.py'))) return;
-  const py = fs.existsSync(pythonBin()) ? pythonBin() : (process.env.STOCK_AGENT_PYTHON || 'python3');
-  const log = fs.createWriteStream(path.join(app.getPath('userData'), 'stock-backend.log'), { flags: 'a' });
-  stockBackend = spawn(py, ['-m', 'app.main'], { cwd: dir, env: { ...process.env, PORT: new URL(host.stockBase()).port || '8090' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const dir = stockAgentDir();
+  if (!fs.existsSync(path.join(dir, 'app', 'main.py'))) {
+    console.warn('stock agent not found at', dir);
+    return;
+  }
+  if (!stockSiteReady()) {
+    ensureStockVenv();
+  }
+  const py = stockPythonBin();
+  const dataDir = stockDataDir();
+  fs.mkdirSync(dataDir, { recursive: true });
+  const logPath = stockLogPath();
+  fs.mkdirSync(path.dirname(logPath), { recursive: true });
+  const log = fs.createWriteStream(logPath, { flags: 'a' });
+  const port = String(new URL(host.stockBase()).port || '8090');
+  const env = {
+    ...process.env,
+    PORT: port,
+    STOCK_DATA_DIR: dataDir,
+    PYTHONUNBUFFERED: '1',
+  };
+  if (stockSiteReady()) {
+    const site = stockSitePackages();
+    env.PYTHONPATH = [site, process.env.PYTHONPATH || ''].filter(Boolean).join(path.delimiter);
+  }
+  log.write(`[stock] spawn ${py} -m app.main cwd=${dir} PORT=${port} STOCK_DATA_DIR=${dataDir}\n`);
+  stockBackend = spawn(py, ['-m', 'app.main'], {
+    cwd: dir,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  spawnedStockBackend = true;
   stockBackend.stdout.on('data', (d) => log.write(d));
   stockBackend.stderr.on('data', (d) => log.write(d));
   stockBackend.on('error', (err) => log.write(String(err) + '\n'));
-  stockBackend.on('exit', () => { stockBackend = null; });
+  stockBackend.on('exit', (code, signal) => {
+    log.write(`[stock] exited code=${code} signal=${signal}\n`);
+    spawnedStockBackend = false;
+    stockBackend = null;
+  });
+  // Wait briefly so the first market page load is less likely to race an empty port.
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    if (await stockApiHealthy()) return;
+    if (!spawnedStockBackend) return;
+    await new Promise((r) => setTimeout(r, 400));
+  }
 }
 
 async function boot() {
@@ -457,7 +574,11 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  if (stockBackend) { stockBackend.kill('SIGTERM'); stockBackend = null; }
+  if (spawnedStockBackend && stockBackend) {
+    spawnedStockBackend = false;
+    try { stockBackend.kill('SIGTERM'); } catch { /* ignore */ }
+    stockBackend = null;
+  }
   if (spawnedBackend && backend) {
     spawnedBackend = false;
     backend.kill('SIGTERM');

@@ -85,14 +85,40 @@ func TestStoreNeverChangesAWrittenPredictionOrResultAndDedupesByConclusion(t *te
 	if _, made := st.Add(Prediction{Code: "A", Source: "scan", Direction: Bearish, BundleID: 7}); made {
 		t.Fatal("the same conclusion was written twice")
 	}
-	if _, made := st.Add(Prediction{Code: "A", Source: "diagnose", Direction: Bullish, BundleID: 7}); !made {
-		t.Fatal("the same conclusion for another source is its own record")
+	if _, made := st.Add(Prediction{Code: "B", Source: "diagnose", Direction: Bullish, BundleID: 7}); !made {
+		t.Fatal("the same conclusion for another stock is its own record")
 	}
 	if !st.SetResult("p1", 5, Result{Outcome: "hit"}) || st.SetResult("p1", 5, Result{Outcome: "miss"}) {
 		t.Fatal("a result can be written once and only once")
 	}
 	if got := Open(path, nil).All()[0].Result(5); got == nil || got.Outcome != "hit" {
 		t.Fatalf("after restart = %+v", got)
+	}
+}
+
+func TestAddKeepsOnlyTheLatestOpenCallPerStock(t *testing.T) {
+	st := Open("", func() time.Time { return time.Unix(1_800_000_000, 0) })
+	old, _ := st.Add(Prediction{Code: "A", Source: "scan", Direction: Bullish, BundleID: 1, MadeAt: 100})
+	neu, _ := st.Add(Prediction{Code: "A", Source: "diagnose", Direction: Bearish, BundleID: 2, MadeAt: 200})
+	all := st.All()
+	if len(all) != 2 || all[0].ID != old.ID || all[0].SupersededAt == 0 || all[1].ID != neu.ID || all[1].SupersededAt != 0 {
+		t.Fatalf("want old superseded and new active: %+v %+v", all[0], all[1])
+	}
+	if !st.SetResult(old.ID, 5, Result{Outcome: "hit"}) {
+		t.Fatal("already-written rows can still take a result, but settle skips superseded")
+	}
+	path := t.TempDir() + "/collapse.json"
+	raw := Open(path, func() time.Time { return time.Unix(1_800_000_000, 0) })
+	raw.Add(Prediction{Code: "X", Source: "scan", Direction: Bullish, BundleID: 10, MadeAt: 10})
+	raw.Add(Prediction{Code: "X", Source: "scan", Direction: Bearish, BundleID: 11, MadeAt: 20})
+	// simulate a legacy file that never marked superseded: wipe flags then reopen
+	for _, p := range raw.Items {
+		p.SupersededAt = 0
+	}
+	raw.save()
+	got := Open(path, func() time.Time { return time.Unix(1_800_000_001, 0) }).All()
+	if len(got) != 2 || got[0].SupersededAt == 0 || got[1].SupersededAt != 0 {
+		t.Fatalf("reload must collapse open calls per stock: %+v %+v", got[0], got[1])
 	}
 }
 

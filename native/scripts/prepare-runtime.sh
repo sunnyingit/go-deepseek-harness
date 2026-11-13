@@ -271,6 +271,62 @@ else
 fi
 cp "$ROOT/web/config.yaml" "$DEST/config.yaml"
 
+# --- stock agent (8090 Python data service) ---
+STOCK_SRC="${STOCK_AGENT_DIR:-$ROOT/../stock_agent_assitant}"
+STOCK_SRC="$(cd "$STOCK_SRC" 2>/dev/null && pwd || true)"
+if [[ -z "$STOCK_SRC" || ! -f "$STOCK_SRC/app/main.py" ]]; then
+  echo "stock agent source missing (set STOCK_AGENT_DIR); looked beside go-harness" >&2
+  exit 1
+fi
+echo "bundling stock agent from $STOCK_SRC"
+rm -rf "$DEST/stock-agent"
+mkdir -p "$DEST/stock-agent"
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a \
+    --exclude '__pycache__' --exclude '*.pyc' --exclude '.git' \
+    --exclude 'data' --exclude 'tests' --exclude '.venv' --exclude 'venv' \
+    --exclude '.pytest_cache' --exclude '*.egg-info' \
+    "$STOCK_SRC/app" "$STOCK_SRC/requirements.txt" "$DEST/stock-agent/"
+else
+  cp -R "$STOCK_SRC/app" "$DEST/stock-agent/"
+  cp "$STOCK_SRC/requirements.txt" "$DEST/stock-agent/requirements.txt"
+  find "$DEST/stock-agent" -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
+fi
+# Marker so the host can tell a packaged tree from a bare checkout.
+printf '%s\n' "bundled-from=$STOCK_SRC" "target=$TARGET" > "$DEST/stock-agent/.bundled"
+
+# Separate site-packages tree so document-tool packages and market/LLM deps
+# do not clash. Use pip --target (not a classic venv) so the tree stays
+# relocatable when electron-builder copies runtime/ into the .app.
+STOCK_VENV="$DEST/stock-venv"
+STOCK_SITE="$STOCK_VENV/site-packages"
+STOCK_REQ="$DEST/stock-agent/requirements.txt"
+STOCK_WHEELS="$DEST/stock-wheels"
+mkdir -p "$STOCK_WHEELS"
+if [[ -n "$BUNDLED_PY" ]]; then
+  if [[ -f "$STOCK_VENV/.relocatable" && -d "$STOCK_SITE" ]]; then
+    echo "stock-venv already present"
+  else
+    echo "creating relocatable stock-venv with $BUNDLED_PY"
+    rm -rf "$STOCK_VENV"
+    mkdir -p "$STOCK_SITE" "$STOCK_VENV/bin"
+    # Prefer offline wheels when we have them; fall back to network.
+    "$BUNDLED_PY" -m pip install --upgrade pip
+    "$PIP_PY" -m pip download -d "$STOCK_WHEELS" -r "$STOCK_REQ" \
+      || echo "stock wheel download partial; pip install may hit the network"
+    "$BUNDLED_PY" -m pip install --target "$STOCK_SITE" --find-links "$STOCK_WHEELS" -r "$STOCK_REQ"
+    # Relative symlink so stock-venv/bin/python3 works after the tree is moved.
+    ln -sfn ../../python/bin/python3 "$STOCK_VENV/bin/python3"
+    printf '%s\n' "relocatable=1" "target=$TARGET" > "$STOCK_VENV/.relocatable"
+    echo "stock-venv ready: $STOCK_VENV"
+  fi
+else
+  echo "cross-build: stock-agent copied; stock-venv site-packages filled on first launch"
+  "$PIP_PY" -m pip download -d "$STOCK_WHEELS" --only-binary=:all: \
+    --python-version 312 --platform "$PIP_PLAT" -r "$STOCK_REQ" \
+    || echo "cross stock wheel download failed; first launch will use the network"
+fi
+
 # --- web binary ---
 echo "go build GOOS=$GOOS GOARCH=$GOARCH -> bin/$WEB_NAME"
 ( cd "$ROOT" && CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -o "$DEST/bin/$WEB_NAME" ./cmd/web )
@@ -294,3 +350,10 @@ test -d "$DEST/node-packages/node_modules/pptxgenjs"
 test -d "$DEST/node-packages/node_modules/react-icons"
 test -d "$DEST/node-packages/node_modules/sharp"
 test -d "$DEST/skills"
+test -f "$DEST/stock-agent/app/main.py"
+test -f "$DEST/stock-agent/requirements.txt"
+if [[ -n "$BUNDLED_PY" ]]; then
+  test -f "$DEST/stock-venv/.relocatable"
+  test -d "$DEST/stock-venv/site-packages"
+  test -x "$DEST/stock-venv/bin/python3" || test -L "$DEST/stock-venv/bin/python3"
+fi

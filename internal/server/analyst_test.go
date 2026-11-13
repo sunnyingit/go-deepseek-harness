@@ -282,11 +282,11 @@ func TestAgentConfigsKeepTheirOwnSkills(t *testing.T) {
 }
 
 func TestParseChiefPlanKeepsOnlyDimensionAnalysts(t *testing.T) {
-	ids, note := parseChiefPlan("```json\n{\"analysts\":[\"volume_flow\",\"sector\",\"bull\",\"volume_flow\",\"news\",\"finance\"],\"note\":\"请资金流分析师、板块分析师来回答\"}\n```")
+	ids, note := parseChiefPlan("```json\n{\"analysts\":[\"volume_flow\",\"sector\",\"bull\",\"volume_flow\",\"news\",\"finance\"],\"note\":\"该资金流分析师、板块分析师开麦了\"}\n```")
 	if strings.Join(ids, ",") != "volume_flow,sector,news" {
 		t.Fatalf("ids = %#v", ids)
 	}
-	if note != "请资金流分析师、板块分析师来回答" {
+	if note != "该资金流分析师、板块分析师开麦了" {
 		t.Fatalf("note = %q", note)
 	}
 	empty, self := parseChiefPlan("不是 json")

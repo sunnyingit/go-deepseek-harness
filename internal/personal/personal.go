@@ -91,12 +91,30 @@ type Checkup struct {
 	Data      Item  `json:"data"`
 }
 
+// PlanItem is one line in a day's trading plan: what the user might buy, sell, add, reduce or watch.
+type PlanItem struct {
+	ID        int     `json:"id"`
+	Date      string  `json:"date"`
+	Code      string  `json:"ts_code"`
+	Name      string  `json:"name"`
+	Side      string  `json:"side"` // buy | sell | add | reduce | watch
+	Price     float64 `json:"price"`
+	Qty       int     `json:"qty"`
+	PlanPct   float64 `json:"plan_pct"`
+	Reason    string  `json:"reason"`
+	Status    string  `json:"status"` // planned | done | skipped | cancelled
+	Note      string  `json:"note,omitempty"`
+	CreatedAt int64   `json:"created_at"`
+	UpdatedAt int64   `json:"updated_at"`
+}
+
 type data struct {
 	Seq      int                        `json:"seq"`
 	Watch    []Watch                    `json:"watch"`
 	Alerts   []Alert                    `json:"alerts"`
 	Trades   []Trade                    `json:"trades"`
 	Wishes   []Wish                     `json:"wishes"`
+	Plans    []PlanItem                 `json:"plans"`
 	Reasons  map[string]Reason          `json:"reasons"`
 	Rules    []Rule                     `json:"rules"`
 	Checkups []Checkup                  `json:"checkups"`

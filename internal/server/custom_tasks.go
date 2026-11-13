@@ -48,7 +48,8 @@ func (s *Server) registerCustom(t custom.Task) {
 		}
 	}
 	s.sch.Register(&sched.Spec{
-		ID: customID(id), Title: t.Title, Queue: queue, Frequent: frequent, BudgetCalls: budget,
+		ID: customID(id), Title: t.Title, Category: sched.CatMine, Note: "你自己建的定时任务",
+		Queue: queue, Frequent: frequent, BudgetCalls: budget,
 		Trigger:     trigger,
 		MaxAttempts: attempts, Backoff: backoff, CatchupTTL: 6 * time.Hour, Timeout: 10 * time.Minute,
 		Fanout: func(*sched.PlanCtx) []sched.Unit {

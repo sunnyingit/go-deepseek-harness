@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="stock-api-base" content="http://127.0.0.1:8090">
-<title>持仓</title>
+<title>交易</title>
 <style>
 body{margin:0;background:#EEF0F3}
 a{color:inherit}
@@ -48,6 +48,12 @@ button,input,textarea{font:inherit}
 .bar{height:10px;border-radius:5px;background:#F1F2F4;overflow:hidden}
 .bar>i{display:block;height:100%}
 .empty{padding:36px 20px;text-align:center;color:#5B6372;display:flex;flex-direction:column;align-items:center;gap:12px}
+.wish-more>summary{list-style:none;cursor:pointer}
+.wish-more>summary::-webkit-details-marker{display:none}
+.wish-more .when-open{display:none}
+.wish-more[open] .when-closed{display:none}
+.wish-more[open] .when-open{display:inline}
+.wish-more[open] summary{margin-bottom:4px}
 .skeleton{color:#8A919E;padding:24px 0}
 .x{border:none;background:transparent;color:#8A919E;cursor:pointer;font-size:14px;padding:0 4px}
 .x:hover{color:#B42318}
@@ -66,8 +72,8 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 .chk-det>.in{display:flex;flex-direction:column;gap:8px;padding:0 16px 14px}
 .todo{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-top:1px solid #F1F2F4}
 .todo .n{flex:none;width:22px;height:22px;border-radius:50%;background:#14171F;color:#FFFFFF;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
-.dw{flex:0 0 384px;width:384px}
-@media (min-width:1400px){.dw{flex-basis:422px;width:422px}}
+.dw{flex:0 0 420px;width:420px}
+@media (min-width:1400px){.dw{flex-basis:460px;width:460px}}
 .toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:60;padding:9px 16px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:13px;max-width:80vw}
 .toast.err{background:#B42318}
 </style>
@@ -80,7 +86,7 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"></path><path d="M15 8h5v5"></path></svg>
 </div>
 </div>
-<span style="padding:0 16px;font-weight:700;font-size:14px">持仓</span>
+<span style="padding:0 16px;font-weight:700;font-size:14px">交易</span>
 <div style="margin-left:auto;display:flex;align-items:center;gap:14px;padding-right:16px">
 <span id="session" style="display:flex;align-items:center;gap:6px;font-size:14px;color:#5B6372"></span>
 <button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="position:relative;width:32px;height:32px;border:none;border-radius:8px;background:transparent;color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
@@ -89,8 +95,8 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 <div style="flex:1 1 auto;display:flex;flex-wrap:nowrap;align-items:stretch;min-width:0;min-height:0;overflow:hidden;position:relative">
 <nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#FFFFFF;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0">
 <a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
-<a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>诊断</a>
-<a class="nav-a on" href="/holdings.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>持仓</a>
+<a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
+<a class="nav-a on" href="/holdings.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
 <a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
 <a class="nav-a" href="/tasks.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>任务</a>
 <a class="nav-a" href="/dialog.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>问问</a>
@@ -116,11 +122,14 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 </footer>
 </div>
 <div id="modal"></div>
+<div id="aiConcl"></div>
 <div id="sectorPop" role="dialog" aria-label="板块详情" hidden style="position:fixed;z-index:40;width:400px;max-width:calc(100vw - 24px);max-height:min(70vh,560px);overflow:auto;padding:14px 16px;background:#FFFFFF;border:1px solid #C9CED6;border-radius:12px;box-shadow:0 12px 32px rgba(20,23,31,0.16);flex-direction:column;gap:12px;display:none"></div>
 <script>
 const API = (new URLSearchParams(location.search).get('stockApi') || (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
-const S = { tab: 'now', summary: null, tabs: {}, sel: null, detail: {}, notif: false, nData: null, nTab: 'all', rec: null, add: null, busy: {} };
-const TAB_NAMES = [['buy', '想买'], ['now', '持有'], ['chk', '体检'], ['rev', '复盘']];
+const S = { tab: 'now', summary: null, tabs: {}, sel: null, detail: {}, kline: {}, aiOpen: false, aiDetail: {}, chkOpen: false, notif: false, nData: null, nTab: 'alert', rec: null, add: null, busy: {} };
+const TAB_NAMES = [['buy', '想买'], ['now', '持有'], ['plan', '交易计划'], ['rev', '复盘']];
+const PLAN_SIDES = [['buy', '买入'], ['add', '加仓'], ['reduce', '减仓'], ['sell', '卖出'], ['watch', '盯着']];
+const PLAN_STATUS = { planned: ['#EAF0FD', '#2457D6'], done: ['#EDF7F1', '#1E6B44'], skipped: ['#FFF1D6', '#7A4A00'], cancelled: ['#F1F2F4', '#5B6372'] };
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -133,6 +142,8 @@ const px = (v) => v == null ? '—' : Number(v).toFixed(2);
 const day5 = (d) => (d || '').slice(5);
 const codeOnly = (c) => (c || '').split('.')[0];
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const fmtPx = (v) => v == null || v === '' || Number(v) !== Number(v) || !Number(v) ? '' : (Math.round(Number(v) * 1000) / 1000).toString().replace(/\.?0+$/, '');
 
 const LEAN_STYLE = { bullish: ['#FDF0EF', '#B42318'], bearish: ['#EDF7F1', '#1E6B44'], unclear: ['#F1F2F4', '#3A4250'] };
 const VERDICT_STYLE = { '三层同向': ['#FDF0EF', '#B42318'], '有钱没热度': ['#EAF0FD', '#2457D6'], '只热不增': ['#FFF1D6', '#7A4A00'], '在流出': ['#EDF7F1', '#1E6B44'] };
@@ -173,6 +184,205 @@ const verdictPill = (sector) => sector && sector.verdict ? pill(sector.verdict, 
 const reasonPill = (status) => pill(REASON_STYLE[status || 'none'][2], REASON_STYLE[status || 'none']);
 const diagnoseHref = (code) => '/?stock=' + encodeURIComponent(code);
 
+/* ---------- 个股详情：120 日走势 + AI 诊断详情 ---------- */
+const SD_MA = [['ma7', 'MA7', '#E9A23B'], ['ma30', 'MA30', '#2457D6']];
+const SD_SHOW = 120;
+function maOf(closes, n) {
+  const out = new Array(closes.length).fill(null);
+  let sum = 0;
+  for (let i = 0; i < closes.length; i++) {
+    sum += closes[i];
+    if (i >= n) sum -= closes[i - n];
+    if (i >= n - 1) out[i] = Math.round((sum / n) * 100) / 100;
+  }
+  return out;
+}
+function sdPrep(raw) {
+  const items = (raw && raw.items) || [];
+  if (items.length < 2) return null;
+  const closes = items.map((b) => b.c);
+  const ma7 = maOf(closes, 7), ma30 = maOf(closes, 30);
+  const start = Math.max(0, items.length - SD_SHOW);
+  return {
+    name: raw.name, ts_code: raw.ts_code, kind: raw.kind,
+    items: items.slice(start),
+    ma: { ma7: ma7.slice(start), ma30: ma30.slice(start) },
+  };
+}
+function sdChartSVG(d, W, H) {
+  const items = d.items, n = items.length;
+  const L = 6, R = 44, T = 10, B = 20, gap = 8, volH = Math.round((H - T - B) * 0.22), priceH = H - T - B - volH - gap;
+  const plotW = W - L - R, step = plotW / n, bw = Math.max(1, Math.min(6, step * 0.68));
+  let hi = -Infinity, lo = Infinity;
+  items.forEach((b) => { hi = Math.max(hi, b.h); lo = Math.min(lo, b.l); });
+  SD_MA.forEach(([k]) => (d.ma[k] || []).forEach((v) => { if (v != null) { hi = Math.max(hi, v); lo = Math.min(lo, v); } }));
+  const pad = (hi - lo) * 0.06 || 1; hi += pad; lo -= pad;
+  const x = (i) => L + step * (i + 0.5), y = (v) => T + (hi - v) / (hi - lo) * priceH;
+  const vmax = Math.max.apply(null, items.map((b) => b.v)) || 1, vy = (v) => T + priceH + gap + volH - v / vmax * volH;
+  let svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" style="display:block" font-family="IBM Plex Mono, monospace">';
+  for (let g = 0; g <= 3; g++) {
+    const v = lo + (hi - lo) * g / 3, yy = y(v);
+    svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + yy.toFixed(1) + '" y2="' + yy.toFixed(1) + '" stroke="#F1F2F4"/><text x="' + (W - R + 4) + '" y="' + (yy + 3).toFixed(1) + '" font-size="10" fill="#8A919E">' + v.toFixed(2) + '</text>';
+  }
+  const ticks = 5;
+  for (let t = 0; t < ticks; t++) {
+    const i = Math.round((n - 1) * t / (ticks - 1)), dt = items[i].d;
+    svg += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 4) + '" font-size="10" fill="#8A919E" text-anchor="' + (t === 0 ? 'start' : t === ticks - 1 ? 'end' : 'middle') + '">' + dt.slice(5) + '</text>';
+  }
+  items.forEach((b, i) => {
+    const up = b.c >= b.o, c = up ? '#D9483F' : '#2E8B57', xx = x(i);
+    svg += '<line x1="' + xx.toFixed(1) + '" x2="' + xx.toFixed(1) + '" y1="' + y(b.h).toFixed(1) + '" y2="' + y(b.l).toFixed(1) + '" stroke="' + c + '"/>' +
+      '<rect x="' + (xx - bw / 2).toFixed(1) + '" y="' + Math.min(y(b.o), y(b.c)).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(1, Math.abs(y(b.o) - y(b.c))).toFixed(1) + '" fill="' + (up ? '#FFFFFF' : c) + '" stroke="' + c + '"/>' +
+      '<rect x="' + (xx - bw / 2).toFixed(1) + '" y="' + vy(b.v).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0.5, T + priceH + gap + volH - vy(b.v)).toFixed(1) + '" fill="' + c + '" opacity="0.4"/>';
+  });
+  SD_MA.forEach(([k, , c]) => {
+    const pts = (d.ma[k] || []).map((v, i) => v == null ? null : x(i).toFixed(1) + ',' + y(v).toFixed(1)).filter(Boolean);
+    if (pts.length > 1) svg += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + c + '" stroke-width="1.3"/>';
+  });
+  svg += '<line id="sdX" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '" stroke="#14171F" stroke-opacity=".3" style="display:none" pointer-events="none"/>';
+  return svg + '</svg>';
+}
+function sdChartHTML(code) {
+  const e = S.kline[code];
+  if (!e || e.status === 'loading') return '<div id="sdChart" class="skeleton" style="padding:18px 0;min-height:168px">正在取近 120 日走势…</div>';
+  if (e.status === 'error' || !e.data) return '<div id="sdChart" class="sub" style="padding:12px 0">走势没取到' + (e.error ? '：' + esc(e.error) : '') + '</div>';
+  const legend = SD_MA.map(([k, n, c]) => {
+    const arr = e.data.ma[k] || [], v = arr.length ? arr[arr.length - 1] : null;
+    return '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:12px;height:2px;background:' + c + '"></span>' + n + ' <b ' + MONO + ' style="color:#14171F">' + (v == null ? '—' : v.toFixed(2)) + '</b></span>';
+  }).join('');
+  return '<div style="display:flex;flex-direction:column;gap:6px">' + detailHead('近 120 日走势', '<span class="sub">日线 · 前复权</span><span style="margin-left:auto;display:flex;gap:12px;font-size:11px;font-weight:500;color:#5B6372">' + legend + '</span>') + '<div id="sdChart" style="position:relative;width:100%;height:168px"></div></div>';
+}
+function paintSdChart() {
+  const box = $('sdChart');
+  if (!box || !S.sel) return;
+  const e = S.kline[S.sel];
+  if (!e || e.status !== 'done' || !e.data) return;
+  const W = Math.max(280, box.clientWidth || 340), H = 168;
+  box.innerHTML = '<div id="sdWrap" style="position:relative;width:' + W + 'px;height:' + H + 'px">' + sdChartSVG(e.data, W, H) + '<div id="sdTip" hidden style="position:absolute;pointer-events:none;z-index:3;padding:6px 8px;border-radius:7px;background:rgba(20,23,31,.92);color:#FFFFFF;font-size:11px;line-height:1.65;white-space:nowrap"></div></div>';
+  const wrap = $('sdWrap'), d = e.data, L = 6, R = 44;
+  wrap.addEventListener('mousemove', (ev) => {
+    const r = wrap.getBoundingClientRect(), px = ev.clientX - r.left, n = d.items.length, step = (W - L - R) / n;
+    const i = Math.max(0, Math.min(n - 1, Math.floor((px - L) / step)));
+    const b = d.items[i], prev = i > 0 ? d.items[i - 1].c : null, chg = prev ? (b.c / prev - 1) * 100 : null;
+    const line = $('sdX'), xx = L + step * (i + 0.5); line.setAttribute('x1', xx); line.setAttribute('x2', xx); line.style.display = '';
+    const tip = $('sdTip'); tip.hidden = false;
+    const ma = SD_MA.map(([k, nm, c]) => { const v = (d.ma[k] || [])[i]; return '<span style="color:' + c + '">' + nm + ' ' + (v == null ? '—' : v.toFixed(2)) + '</span>'; }).join('　');
+    tip.innerHTML = '<b>' + b.d + '</b><br>收 <b>' + b.c.toFixed(2) + '</b>' + (chg == null ? '' : '　' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%') + '<br>量 ' + (b.v >= 1e4 ? (b.v / 1e4).toFixed(1) + ' 万手' : b.v.toFixed(0) + ' 手') + '<br>' + ma;
+    tip.style.left = (xx > W / 2 ? Math.max(0, xx - tip.offsetWidth - 10) : xx + 10) + 'px'; tip.style.top = '4px';
+  });
+  wrap.addEventListener('mouseleave', () => { const x = $('sdX'), t = $('sdTip'); if (x) x.style.display = 'none'; if (t) t.hidden = true; });
+}
+async function loadKline(code) {
+  if (!code) return;
+  const cur = S.kline[code];
+  if (cur && (cur.status === 'loading' || cur.status === 'done')) return;
+  S.kline[code] = { status: 'loading', data: null, error: '' };
+  if (S.sel === code && !S.notif) renderAside();
+  try {
+    const res = await fetch(API + '/api/v1/shared/kline/' + encodeURIComponent(code) + '?period=day&limit=180');
+    const j = await res.json();
+    if (!res.ok || j.status === 'error') throw new Error(j.error || '请求失败');
+    const data = sdPrep(j);
+    if (!data) throw new Error('日线不够');
+    S.kline[code] = { status: 'done', data, error: '' };
+  } catch (err) {
+    S.kline[code] = { status: 'error', data: null, error: err.message || '取行情失败' };
+  }
+  if (S.sel === code && !S.notif) renderAside();
+}
+function aiClean(t) { return String(t == null ? '' : t).replace(/\*\*|__|`/g, '').replace(/\s*\n+\s*/g, ' ').trim(); }
+function closeAiConcl() { S.aiOpen = false; const el = $('aiConcl'); if (el) el.innerHTML = ''; }
+function openAiConcl(code) {
+  if (!code) return;
+  S.aiOpen = true;
+  renderAiConcl();
+  loadAiDetail(code);
+}
+function aiLevelCard(side, x) {
+  if (!x || x.price == null || !(Number(x.price) > 0)) return '';
+  const up = side === 'up', c = up ? '#B42318' : '#1E6B44', bg = up ? '#FDF0EF' : '#EDF7F1';
+  const dist = x.dist != null ? (up ? '上方 ' : '下方 ') + (Math.abs(Number(x.dist)) * 100).toFixed(1) + '%' : '';
+  const line = (k, v) => v ? '<div style="display:grid;grid-template-columns:34px minmax(0,1fr);gap:6px;font-size:13px;line-height:1.55"><span style="color:#8A919E">' + k + '</span><span style="color:#3A4250">' + esc(v) + '</span></div>' : '';
+  return '<div style="display:flex;flex-direction:column;gap:5px;border-radius:12px;padding:12px;background:' + bg + '">' +
+    '<span style="display:flex;justify-content:space-between;align-items:center"><span ' + MONO + ' style="font-size:18px;font-weight:700;color:' + c + '">' + (up ? '▲ ' : '▼ ') + Number(x.price).toFixed(2) + '</span>' + (dist ? '<span class="pl" style="background:#FFFFFF;color:#3A4250">' + dist + '</span>' : '') + '</span>' +
+    line('依据', x.name) + line('条件', x.condition) + line('结果', x.consequence) +
+    (x.why ? '<span style="font-size:13px;color:#5B6372;line-height:1.55">' + esc(aiClean(x.why)) + '</span>' : '') + '</div>';
+}
+function aiConclBody(code, d) {
+  const e = S.aiDetail[code];
+  const wrap = (inner) => '<div style="display:flex;flex-direction:column;gap:18px">' + inner + '</div>';
+  if (!e || e.status === 'loading') return wrap('<div style="display:flex;align-items:center;gap:8px;font-size:14px;color:#5B6372">正在打开结论详情…</div>');
+  if (e.status === 'error') return wrap('<div style="display:flex;align-items:center;gap:10px;font-size:14px;color:#7A4A00;flex-wrap:wrap">没取到结论详情：' + esc(e.error) + '<button type="button" class="mini" data-act="airetry" style="color:#2457D6">↻ 重试</button><a class="mini" href="' + diagnoseHref(code) + '">去研判页 →</a></div>');
+  const D = e.data || {}, dir = D.direction || {};
+  const verdict = String(dir.verdict || (d && d.ai && d.ai.label) || '不明');
+  const parts = verdict.split(' · '), leanKey = /偏多|看多/.test(parts[0]) ? 'bullish' : /偏空|看空/.test(parts[0]) ? 'bearish' : 'unclear';
+  const style = LEAN_STYLE[leanKey] || LEAN_STYLE.unclear;
+  const sc = D.score || {}, total = (sc.bull || 0) + (sc.bear || 0);
+  const bar = total ? '<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:#E3E6EB"><span style="width:' + (100 * (sc.bull || 0) / total).toFixed(1) + '%;background:#D9483F"></span><span style="width:' + (100 * (sc.bear || 0) / total).toFixed(1) + '%;background:#2E8B57"></span></div><div style="display:flex;justify-content:space-between;font-size:12px;color:#5B6372"><span><b style="color:#B42318">看多 ' + (sc.bull || 0) + '</b></span><span>采信的论据分量</span><span><b style="color:#1E6B44">看空 ' + (sc.bear || 0) + '</b></span></div></div>' : '';
+  const hero = '<div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:14px;background:' + style[0] + '"><div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:30px;font-weight:700;line-height:1.1;color:' + style[1] + '">' + esc(parts[0]) + '</span>' + (parts[1] ? '<span style="font-size:15px;font-weight:600;color:' + style[1] + '">' + esc(parts[1]) + '</span>' : '') + '</div>' +
+    (dir.text ? '<div style="font-size:14px;font-weight:600;line-height:1.7;color:#14171F">' + esc(aiClean(dir.text)) + '</div>' : '') + bar +
+    '<span style="font-size:13px;color:#8A919E">主分析师' + (D.updated_at ? ' · ' + esc(String(D.updated_at).slice(0, 16).replace('T', ' ')) + ' 更新' : '') + '</span></div>';
+  const box = (title, text, bg, fg) => text ? '<div style="display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;background:' + bg + '"><span style="font-size:13px;font-weight:600;color:' + fg + '">' + title + '</span><div style="font-size:14px;line-height:1.7;color:#3A4250">' + esc(aiClean(text)) + '</div></div>' : '';
+  const stance = (D.stance || []).filter((r) => r.done || r.direction || r.text);
+  const stanceRows = stance.length ? '<div style="display:flex;flex-direction:column"><div style="display:flex;align-items:baseline;gap:8px;padding-bottom:2px"><span style="font-size:15px;font-weight:700">各位分析师的结论</span></div>' + stance.map((r) => {
+    const J = r.direction && /多/.test(r.direction) ? LEAN_STYLE.bullish : r.direction && /空/.test(r.direction) ? LEAN_STYLE.bearish : LEAN_STYLE.unclear;
+    return '<div style="display:grid;grid-template-columns:8px minmax(0,1fr);gap:10px;align-items:start;padding:10px 0;border-top:1px solid #F1F2F4"><span style="width:8px;height:8px;border-radius:2px;margin-top:6px;background:' + (r.direction ? J[1] : '#C9CED6') + '"></span><span style="display:flex;flex-direction:column;gap:3px;min-width:0"><span style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:15px">' + esc(r.label || '') + '</b>' + (r.direction ? '<span style="font-size:14px;font-weight:600;color:' + J[1] + '">' + esc(r.direction) + '</span>' : '<span style="font-size:14px;color:#A1A7B2">暂无结论</span>') + '</span>' +
+      (r.text ? '<span style="font-size:14px;line-height:1.65;color:#5B6372">' + esc(aiClean(r.text)) + '</span>' : '') + '</span></div>';
+  }).join('') + '</div>' : '';
+  const ptsBlock = (label, color, bg, block) => {
+    const pts = (block && block.points) || [];
+    if (!pts.length) return '<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:15px;font-weight:700">' + label + '</span><span style="font-size:14px;color:#8A919E;line-height:1.7">这边没有找到能改变这几个星期判断的硬论据。</span></div>';
+    return '<div style="display:flex;flex-direction:column;gap:0"><div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:15px;font-weight:700">' + label + '</span><span style="margin-left:auto;font-size:13px;color:#8A919E">' + pts.length + ' 条</span></div>' + pts.map((p) => {
+      const took = p.state === 'adopted', pending = p.state === 'pending';
+      return '<div style="display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;padding:8px 0;border-top:1px solid #F1F2F4;' + (took || pending ? '' : 'opacity:.62') + '"><span style="font-size:15px;color:' + color + '">' + esc(p.mark || '') + '</span><span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:14px;line-height:1.65;color:#14171F">' + esc(aiClean(p.claim)) + '</span><span style="font-size:13px;color:#8A919E">' + (took ? '<span class="pl" style="background:' + bg + ';color:' + color + '">采信</span>' : pending ? '<span class="pl" style="background:#F4F5F7;color:#5B6372">主分析师没有裁决，仅列出</span>' : '<span class="pl" style="background:#F4F5F7;color:#5B6372">不采信' + (p.reason ? ' · ' + esc(p.reason) : '') + '</span>') + '</span></span></div>';
+    }).join('') + '</div>';
+  };
+  const pts = D.points || {};
+  const lv = D.levels || {}, prices = aiLevelCard('down', lv.down) + aiLevelCard('up', lv.up);
+  const empty = !dir.text && !stance.length && !((pts.bull || {}).points || []).length && !((pts.bear || {}).points || []).length && !prices;
+  return wrap(hero + box('结论可能在哪里错', D.postmortem, '#FFF8E8', '#7A4A00') + box('分歧怎么处理的', D.conflict, '#F4F5F7', '#5B6372') +
+    (prices ? '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:15px;font-weight:700">要盯的两个价</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">' + prices + '</div></div>' : '') +
+    stanceRows + ptsBlock('看多的理由', '#C8312B', '#FDECEA', pts.bull) + ptsBlock('看空的理由', '#1E6B44', '#E5F3EB', pts.bear) +
+    (empty ? '<span class="sub">还没有完整的诊断结论。去研判页跑一轮专家团，这里就会有详情。</span>' : '') +
+    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><a class="mini" href="' + diagnoseHref(code) + '">去研判页看完整讨论 →</a><span style="font-size:12px;color:#A1A7B2;line-height:1.7">以上是基于公开数据的研究分析，描述的是未来 5 到 20 个交易日的倾向，不构成投资建议。</span></div>');
+}
+function renderAiConcl() {
+  const root = $('aiConcl');
+  if (!root) return;
+  if (!S.aiOpen || !S.sel) { root.innerHTML = ''; return; }
+  const code = S.sel, d = S.detail[code] || {}, e = S.aiDetail[code], D = (e && e.data) || {};
+  const name = d.name || code, upd = D.updated_at ? String(D.updated_at).slice(0, 16).replace('T', ' ') + ' 更新' : '';
+  root.innerHTML = '<div data-act="aiclose" style="position:fixed;inset:0;background:rgba(20,23,31,.38);z-index:40"></div>' +
+    '<div role="dialog" aria-modal="true" aria-label="结论详情" style="position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1000px,calc(100vw - 48px));max-height:calc(100vh - 56px);overflow-y:auto;box-sizing:border-box;padding:20px 26px 24px;background:#FFFFFF;border-radius:16px;box-shadow:0 24px 64px rgba(20,23,31,.30)">' +
+    '<div style="display:flex;align-items:center;gap:10px;padding-bottom:14px;flex-wrap:wrap"><span style="font-size:18px;font-weight:700">结论详情</span><span style="font-size:15px;font-weight:600">' + esc(name) + '</span><span ' + MONO + ' style="font-size:13px;color:#8A919E">' + esc(code) + '</span>' +
+    (upd ? '<span style="font-size:13px;color:#8A919E">主分析师 · ' + esc(upd) + '</span>' : '') +
+    wishBtnInConcl(code, d) +
+    '<button type="button" aria-label="关闭（Esc）" data-act="aiclose" style="margin-left:auto;width:30px;height:30px;border:none;border-radius:8px;background:transparent;color:#5B6372;font-size:20px;cursor:pointer">×</button></div>' +
+    aiConclBody(code, d) + '</div>';
+}
+function wishBtnInConcl(code, d) {
+  if (d && d.held) return '<span style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:8px;background:#F1F2F4;color:#5B6372;font-size:13px;font-weight:600">已持有</span>';
+  if (d && d.wish) return '<span style="display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:8px;background:#F1F2F4;color:#5B3A8C;font-size:13px;font-weight:600">已在想买</span>';
+  if (S.wishBusy === code) return '<button type="button" class="mini" disabled style="height:28px;opacity:.6">加入中…</button>';
+  return '<button type="button" class="mini" data-act="addwishconcl" data-code="' + esc(code) + '" style="height:28px;color:#2457D6">＋ 加入想买</button>';
+}
+async function loadAiDetail(code, force) {
+  if (!code) return;
+  const cur = S.aiDetail[code];
+  if (!force && cur && (cur.status === 'loading' || cur.status === 'done')) { if (S.aiOpen) renderAiConcl(); return; }
+  S.aiDetail[code] = { status: 'loading', data: null, error: '' };
+  if (S.aiOpen) renderAiConcl();
+  try {
+    const res = await fetch('/api/stocks/' + encodeURIComponent(code) + '/agents/chief/detail');
+    const j = await res.json();
+    if (!res.ok || j.status === 'error') throw new Error(j.error || '请求失败（' + res.status + '）');
+    S.aiDetail[code] = { status: 'done', data: j, error: '' };
+  } catch (err) {
+    S.aiDetail[code] = { status: 'error', data: null, error: err.message || '取诊断失败' };
+  }
+  if (S.aiOpen) renderAiConcl();
+}
+
 /* ---------- 请求 ---------- */
 async function api(path, method, body) {
   const res = await fetch('/api/v1/holdings' + path, { method: method || 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
@@ -204,22 +414,30 @@ function renderHead() {
   const s = S.summary, h = s ? s.header : null;
   const stat = (label, body) => '<span style="display:flex;flex-direction:column"><span class="lbl">' + label + '</span>' + body + '</span>';
   const big = 'font-family:\'IBM Plex Mono\',monospace;font-weight:700;font-size:16px';
-  $('head').innerHTML = '<h1 style="margin:0;font-size:20px;font-weight:700">持仓</h1>' +
+  $('head').innerHTML = '<h1 style="margin:0;font-size:20px;font-weight:700">交易</h1>' +
     (h ? stat('持仓市值', '<b style="' + big.replace('font-weight:700', 'font-weight:600') + '">' + money(h.mv) + '</b>') +
       stat('今天', '<span class="' + cls(h.day_pnl) + '" style="' + big + '">' + money(h.day_pnl, true) + ' <span style="font-size:11px">' + pct(h.day_pct) + '</span></span>') +
       stat('总盈亏', '<span class="' + cls(h.pnl) + '" style="' + big + '">' + money(h.pnl, true) + ' <span style="font-size:11px">' + pct(h.pnl_pct) + '</span></span>') : '') +
     (h ? capitalStat(h) : '') +
     '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">' +
-    '<button type="button" class="btn" data-act="pfopen" style="position:relative">持仓分析师' + (S.pf && pfUnseen() && pfPane() !== 'analyst' ? '<span style="position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:#D9483F"></span>' : '') + '</button>' +
     '<button type="button" class="btn" data-act="import">导入券商持仓</button>' +
+    '<button type="button" class="btn" data-act="checkup" style="position:relative">仓位体检' + checkupBadge() + '</button>' +
     '<button type="button" class="btn pri" data-act="rec">＋ 记一笔</button></span>';
+}
+function checkupCount() {
+  const t = S.summary ? S.summary.tabs : null;
+  return ((t && t.chk) || 0) + ((S.quality && S.quality.red) ? 1 : 0) + ((S.quality && S.quality.attention) ? 1 : 0);
+}
+function checkupBadge() {
+  const n = checkupCount();
+  return n ? '<span style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center">' + (n > 99 ? '99+' : n) + '</span>' : '';
 }
 function renderTabs() {
   const t = S.summary ? S.summary.tabs : null;
   const extra = {
     buy: t ? '<span class="n">' + t.buy + '</span>' : '',
     now: t ? '<span class="n">' + t.now + '</span>' : '',
-    chk: (t && t.chk) || (((S.quality && S.quality.red) ? 1 : 0) + ((S.quality && S.quality.attention) ? 1 : 0)) ? '<span style="height:18px;padding:0 6px;border-radius:999px;background:#FFF1D6;color:#7A4A00;font-size:11px;font-weight:600;line-height:18px">' + (((t && t.chk) || 0) + ((S.quality && S.quality.red) ? 1 : 0) + ((S.quality && S.quality.attention) ? 1 : 0)) + ' 个要注意</span>' : '',
+    plan: t ? '<span class="n">' + (t.plan || 0) + '</span>' : '',
     rev: t ? '<span class="n">近 ' + t.rev_days + ' 天 ' + t.rev + ' 笔</span>' : '',
   };
   $('tabs').innerHTML = TAB_NAMES.map(([k, n]) => '<button type="button" class="tab" role="tab" data-act="tab" data-k="' + k + '" aria-selected="' + (S.tab === k) + '">' + n + (extra[k] || '') + '</button>').join('');
@@ -272,24 +490,157 @@ function impactText(im) {
   const lines = im.lines.map((l) => esc(l.sector) + ' ' + (l.before * 100).toFixed(0) + '% → ' + (l.buying ? '' : '<b>') + (l.after * 100).toFixed(1).replace(/\.0$/, '') + '%' + (l.buying ? '' : '</b>')).join('；');
   return '买入后：' + lines + (im.notes.length ? '；' + im.notes.map(esc).join('；') : '');
 }
+function moreText(text, limit, opts) {
+  const t = String(text || '').trim();
+  const o = opts || {};
+  const wrap = (s) => (o.quote === false ? esc(s) : '「' + esc(s) + '」');
+  if (!t) return '<span class="sub">' + esc(o.empty || '') + '</span>';
+  if (t.length <= limit) return '<span style="font-size:13px;line-height:1.55' + (o.color ? ';color:' + o.color : '') + '">' + wrap(t) + '</span>';
+  const short = t.slice(0, limit).replace(/[，,。；;\s]+$/, '') + '…';
+  return '<details class="wish-more" data-act="stop"><summary><span class="when-closed" style="font-size:13px;line-height:1.55' + (o.color ? ';color:' + o.color : '') + '">' + wrap(short) + ' <span style="color:#2457D6;font-size:12px">更多</span></span><span class="when-open" style="font-size:12px;color:#2457D6">收起</span></summary><span style="display:block;font-size:13px;line-height:1.55' + (o.color ? ';color:' + o.color : '') + '">' + wrap(t) + '</span></details>';
+}
 function wishCard(w) {
   const st = TONE_STYLE[{ good: 'blue', warn: 'blue', bad: 'warn', flat: 'flat' }[w.status.tone] || 'flat'];
   const sector = w.sector && w.sector.name ? '<button type="button" data-act="secpop" data-name="' + esc(w.sector.name) + '" class="pl" title="看板块详情" style="border:none;cursor:pointer;background:' + (VERDICT_STYLE[w.sector.verdict] || TONE_STYLE.flat)[0] + ';color:' + (VERDICT_STYLE[w.sector.verdict] || TONE_STYLE.flat)[1] + '">' + esc(w.sector.name) + (w.sector.verdict ? ' · ' + esc(w.sector.verdict) : '') + '</button>' : '';
-  const note = impactText(w.impact);
+  const buyTip = w.ai && w.ai.actions && w.ai.actions.buy ? moreText('想买：' + w.ai.actions.buy, 36, { quote: false, color: '#1F3F8A' }) : '';
   return '<div class="card" role="button" tabindex="0" data-act="sel" data-code="' + esc(w.ts_code) + '" style="cursor:pointer"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">' + esc(w.name) + '</b>' + qualityTag(w.ts_code) + '<span ' + MONO + ' style="font-size:11px;color:#8A919E">' + codeOnly(w.ts_code) + ' · ' + px(w.price) + '</span>' + sector +
     '<span class="sub">' + esc(w.source) + '</span><span style="margin-left:auto">' + pill(w.status.text, st) + '</span></div>' +
     '<div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:16px">' +
-    '<span style="display:flex;flex-direction:column;gap:4px"><span class="lbl">为什么想买</span><span style="font-size:13px;line-height:1.5">「' + esc(w.reason) + '」</span></span>' +
+    '<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span class="lbl">为什么想买</span>' + moreText(w.reason, 72) + '</span>' +
     '<span style="display:flex;flex-direction:column;gap:5px"><span class="lbl">什么时候买' + (w.conditions.length > 1 ? ' · ' + (w.match === 'all' ? '全部满足' : '任一满足') : '') + '</span>' + (w.conditions.length ? w.conditions.map(condRow).join('') : '<span class="sub">没有设条件，自己盯</span>') + '</span>' +
-    '<span style="display:flex;flex-direction:column;gap:4px"><span class="lbl">AI 现在怎么看 · 打算买多少</span><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + aiPill(w.ai) + '<span ' + MONO + ' style="font-size:12px">' + (w.plan_pct ? '计划 ' + w.plan_pct + '%' + (w.amount ? ' · 约 ' + money(w.amount) + ' 元' : '') : '没写仓位') + '</span></span>' + aiAnalystChips(w.ai) + (w.ai && w.ai.actions && w.ai.actions.buy ? '<span style="font-size:12px;line-height:1.5;color:#1F3F8A">想买：' + esc(w.ai.actions.buy) + '</span>' : '') + '</span></div>' +
-    '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:#F7F8FA;font-size:12px;color:#3A4250"><span>' + (note || '这只票还没有可比的持仓占比') + '</span>' +
-    '<span style="margin-left:auto;display:flex;gap:6px"><a class="mini" href="' + diagnoseHref(w.ts_code) + '">诊断 →</a><button type="button" class="mini" data-act="wishedit" data-id="' + w.id + '">编辑</button><button type="button" class="mini" data-act="rec" data-wish="' + w.id + '">记一笔</button><button type="button" class="mini" style="color:#5B6372" data-act="wishdrop" data-id="' + w.id + '">不想买了</button></span></div></div>';
+    '<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span class="lbl">AI 现在怎么看 · 打算买多少</span><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + aiPill(w.ai) + '<span ' + MONO + ' style="font-size:12px">' + (w.plan_pct ? '计划 ' + w.plan_pct + '%' + (w.amount ? ' · 约 ' + money(w.amount) + ' 元' : '') : '没写仓位') + '</span></span>' + aiAnalystChips(w.ai) + buyTip + '</span></div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:6px"><a class="mini" href="' + diagnoseHref(w.ts_code) + '">诊断 →</a><button type="button" class="mini" data-act="wishedit" data-id="' + w.id + '">编辑</button><button type="button" class="mini" data-act="rec" data-wish="' + w.id + '">记一笔</button><button type="button" class="mini" style="color:#5B6372" data-act="wishdrop" data-id="' + w.id + '">不想买了</button></div></div>';
 }
 function renderBuy(d) {
-  const head = '<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#5B6372"><span>先写好理由、条件和仓位，条件到了提醒你；买入时这些会自动变成逻辑卡。</span><button type="button" class="btn pri" data-act="addwish" style="margin-left:auto">＋ 加一只想买的</button></div>';
-  const m = d.market ? '<div style="padding:10px 14px;border-radius:10px;background:#FFF8EC;font-size:13px;color:#3A4250">大盘现在 <b style="color:#7A4A00">' + esc(d.market.text) + '</b>：条件到了也会先提醒你这一点，买不买你定。</div>' : '';
-  const body = d.items.length ? d.items.map(wishCard).join('') : '<div class="card"><div class="empty"><b>还没有想买的票</b><span>想买的票可以从诊断页「加入想买」、判断偏多的列表、或者体检里的热点板块加进来。</span></div></div>';
+  const body = d.items.length ? d.items.map(wishCard).join('') : '<div class="card"><div class="empty"><b>还没有想买的票</b><span>想买的票可以从诊断页「加入想买」、判断偏多的列表、或者体检里的热点板块加进来。</span><button type="button" class="btn pri" data-act="addwish">＋ 加一只想买的</button></div></div>';
+  return '<div style="display:flex;flex-direction:column;gap:12px">' + body + '</div>';
+}
+
+/* ---------- 交易计划（一天一份） ---------- */
+function planCard(p) {
+  const st = PLAN_STATUS[p.status] || PLAN_STATUS.planned;
+  const bits = [];
+  if (p.price) bits.push('触发价 ' + Number(p.price).toFixed(2));
+  if (p.qty) bits.push(p.qty + ' 股');
+  if (p.plan_pct) bits.push('仓位 ' + p.plan_pct + '%');
+  if (p.last) bits.push('现价 ' + px(p.last));
+  const acts = p.status === 'planned'
+    ? '<button type="button" class="mini" data-act="plandone" data-id="' + p.id + '">已做</button><button type="button" class="mini" data-act="planskip" data-id="' + p.id + '">没做</button><button type="button" class="mini" data-act="planedit" data-id="' + p.id + '">改</button><button type="button" class="mini" style="color:#5B6372" data-act="plandrop" data-id="' + p.id + '">删</button>'
+    : '<button type="button" class="mini" data-act="planreopen" data-id="' + p.id + '">改回计划中</button><button type="button" class="mini" style="color:#5B6372" data-act="plandrop" data-id="' + p.id + '">删</button>';
+  const rec = (p.status === 'planned' || p.status === 'done') && p.side !== 'watch'
+    ? '<button type="button" class="mini" data-act="planrec" data-id="' + p.id + '">记一笔</button>' : '';
+  const on = S.sel === p.ts_code;
+  return '<div class="card" role="button" tabindex="0" data-act="sel" data-code="' + esc(p.ts_code) + '" style="gap:10px;cursor:pointer' + (on ? ';border-color:#2457D6;background:#F1F5FE' : '') + '"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">' + esc(p.name) + '</b><span ' + MONO + ' class="sub">' + codeOnly(p.ts_code) + '</span>' +
+    pill(p.side_label || p.side, TONE_STYLE.blue) + pill(p.status_label || p.status, st) +
+    '<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">' + rec + acts + '</span></div>' +
+    (bits.length ? '<span class="sub">' + bits.map(esc).join(' · ') + '</span>' : '') +
+    (p.reason ? '<span style="font-size:13px;line-height:1.55">「' + esc(p.reason) + '」</span>' : '') +
+    (p.note ? '<span class="sub">备注：' + esc(p.note) + '</span>' : '') + '</div>';
+}
+function renderPlan(d) {
+  const day = d.date || (d.today || today());
+  S.planDay = day;
+  const head = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:#5B6372"><span>写下打算买/卖/加/减什么；收盘标「已做」或「没做」，方便进复盘对照。</span>' +
+    '<span style="margin-left:auto;display:flex;align-items:center;gap:8px"><input class="inp" id="planDay" type="date" value="' + esc(day) + '" style="width:148px;height:32px;padding:0 8px" data-act="planday"><span class="sub">' + (d.open ? '还有 ' + d.open + ' 条未做' : '暂无未做') + (d.done ? ' · 已做 ' + d.done : '') + (d.skipped ? ' · 没做 ' + d.skipped : '') + '</span></span>' +
+    '<button type="button" class="btn pri" data-act="planadd">＋ 加一条</button></div>';
+  const m = d.market ? '<div style="padding:10px 14px;border-radius:10px;background:#F7F8FA;font-size:13px;color:#3A4250">大盘现在 <b>' + esc(d.market.text) + '</b>：计划可以写，动手时再看一眼。</div>' : '';
+  const body = (d.items || []).length ? d.items.map(planCard).join('') : '<div class="card"><div class="empty"><b>' + esc(day) + ' 还没有交易计划</b><span>从持有或想买里挑一只，写上方向、触发价和理由。计划提前写，打开默认看今天；只记打算，不算成交。</span><button type="button" class="btn pri" data-act="planadd">＋ 加一条</button></div></div>';
   return '<div style="display:flex;flex-direction:column;gap:12px">' + head + m + body + '</div>';
+}
+function planDefaults(info, side, keep) {
+  const last = info && info.price ? fmtPx(info.price) : '';
+  const heldQty = info && info.qty ? info.qty : '';
+  const avg = info && info.avg ? fmtPx(info.avg) : '';
+  const pct = info && info.plan_pct ? info.plan_pct : '';
+  const out = Object.assign({}, keep || {});
+  if (out._filled) return out;
+  out.price = out.price || last || '';
+  if (!out.qty) {
+    if (side === 'sell' || side === 'reduce') out.qty = heldQty || '';
+    else out.qty = '';
+  }
+  if (!out.plan_pct && (side === 'buy' || side === 'add')) out.plan_pct = pct || '';
+  out.avg = avg;
+  out.last = last;
+  out.held_qty = heldQty;
+  out.held = !!(info && info.held);
+  out._filled = true;
+  return out;
+}
+function planStockInfo(p) {
+  if (!p.stock) return '';
+  const bits = [];
+  if (p.last) bits.push('现价 <b ' + MONO + '>' + esc(p.last) + '</b>');
+  if (p.held) {
+    bits.push('持仓 <b ' + MONO + '>' + esc(String(p.held_qty || 0)) + '</b> 股');
+    if (p.avg) bits.push('成本 <b ' + MONO + '>' + esc(p.avg) + '</b>');
+  } else bits.push('<span class="sub">现在没有持仓</span>');
+  return '<div class="note" style="flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px;font-size:12px;color:#3A4250">' + bits.join('<span class="sub">·</span>') +
+    (p.last ? '<button type="button" class="mini" data-act="planfillprice" style="margin-left:auto">用现价填触发价</button>' : '') + '</div>';
+}
+function openPlanAdd(edit) {
+  const tab = S.tabs.plan || {};
+  const picks = tab.picks || [];
+  const p = edit || { side: 'buy', date: tab.today || S.planDay || today(), price: '', qty: '', plan_pct: '', reason: '', note: '', stock: null };
+  if (!p.date) p.date = tab.today || S.planDay || today();
+  S.planForm = p;
+  const pickRow = picks.length
+    ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + picks.slice(0, 12).map((x) => '<button type="button" class="chip' + (p.stock && p.stock.ts_code === x.ts_code ? ' on' : '') + '" data-act="planpick" data-code="' + esc(x.ts_code) + '" data-name="' + esc(x.name) + '" data-price="' + esc(x.price || '') + '" data-qty="' + esc(x.qty || '') + '" data-avg="' + esc(x.avg || '') + '" data-pct="' + esc(x.plan_pct || '') + '" data-held="' + (x.held ? '1' : '') + '">' + esc(x.name) + '<span class="sub" style="margin-left:4px">' + esc(x.tag) + '</span></button>').join('') + '</div>'
+    : '<span class="sub">还没有持有或想买，也可以搜索一只</span>';
+  const stock = p.stock
+    ? '<div class="note" style="flex-direction:row;align-items:center;gap:8px"><b>' + esc(p.stock.name) + '</b><span ' + MONO + ' class="sub">' + esc(p.stock.ts_code) + '</span><button type="button" class="mini" data-act="planclear" style="margin-left:auto">重选</button></div>' + planStockInfo(p)
+    : field('选一只', '<input class="inp" id="plQ" placeholder="代码或名称"><div id="plHits"></div>' + pickRow);
+  modal(modalHead(edit && edit.id ? '改计划' : '加一条计划') + stock +
+    '<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px">' +
+    field('计划日期', '<input class="inp" id="plDate" type="date" value="' + esc(p.date) + '">', '默认今天（计划提前写）') +
+    field('方向', '<span class="seg">' + PLAN_SIDES.map(([k, n]) => '<button type="button" data-act="planside" data-k="' + k + '" aria-pressed="' + (p.side === k) + '">' + n + '</button>').join('') + '</span>') + '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">' +
+    field('触发价（可选）', '<input class="inp" id="plPrice" inputmode="decimal" value="' + esc(p.price) + '" placeholder="' + (p.last ? '现价 ' + esc(p.last) : '') + '">') +
+    field('数量（股，可选）', '<input class="inp" id="plQty" inputmode="numeric" value="' + esc(p.qty) + '" placeholder="' + (p.held_qty ? '持仓 ' + esc(String(p.held_qty)) : '') + '">') +
+    field('仓位 %（可选）', '<input class="inp" id="plPct" inputmode="decimal" value="' + esc(p.plan_pct) + '">') + '</div>' +
+    field('为什么想做', '<textarea class="inp" id="plReason" rows="2" placeholder="一句话">' + esc(p.reason || '') + '</textarea>', p.side === 'watch' ? '盯着可以不写理由' : '') +
+    field('备注（可选）', '<input class="inp" id="plNote" value="' + esc(p.note || '') + '">') +
+    '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="close">取消</button><button type="button" class="btn pri" id="plSave" data-act="plansave">' + (edit && edit.id ? '保存' : '加上') + '</button></div>', edit && edit.id ? '改计划' : '加一条计划');
+  if (!p.stock) {
+    const q = $('plQ');
+    if (q) { q.focus(); q.addEventListener('input', debounce(() => searchStocks(q.value, 'plHits', 'plansearch'), 250)); }
+  }
+}
+function capturePlan() {
+  const f = S.planForm; if (!f) return;
+  f.date = val('plDate') || f.date; f.price = val('plPrice'); f.qty = val('plQty'); f.plan_pct = val('plPct'); f.reason = val('plReason'); f.note = val('plNote');
+}
+async function applyPlanStock(stock, info) {
+  capturePlan();
+  const f = S.planForm;
+  f.stock = stock;
+  delete f._filled;
+  Object.assign(f, planDefaults(info || {}, f.side, { price: '', qty: '', plan_pct: '', date: f.date, side: f.side, reason: f.reason, note: f.note, stock: stock, id: f.id }));
+  openPlanAdd(f);
+}
+async function savePlan() {
+  capturePlan();
+  const f = S.planForm; if (!f || !f.stock) { toast('先选一只股票', true); return; }
+  if (!f.date) { toast('先选计划日期', true); return; }
+  const btn = $('plSave'); btn.disabled = true;
+  const body = { ts_code: f.stock.ts_code, date: f.date, side: f.side, price: f.price, qty: f.qty, plan_pct: f.plan_pct, reason: f.reason, note: f.note };
+  try {
+    if (f.id) await api('/plans/' + f.id, 'PUT', body);
+    else await api('/plans', 'POST', body);
+    closeModal(); toast(f.id ? '已保存' : '已加到计划');
+    S.planDay = f.date; delete S.tabs.plan; S.tab = 'plan';
+    await refreshAll();
+  } catch (e) { toast(e.message, true); btn.disabled = false; }
+}
+async function setPlanStatus(id, status) {
+  try {
+    await api('/plans/' + id + '/status', 'PUT', { status });
+    delete S.tabs.plan;
+    if (S.summary && S.summary.tabs) {
+      try { S.summary = await api('/summary'); renderHead(); renderTabs(); } catch (e) { /* 计数刷新失败就算了 */ }
+    }
+    await showTab('plan', true);
+  } catch (e) { toast(e.message, true); }
 }
 
 /* ---------- 体检 ---------- */
@@ -310,7 +661,9 @@ let qualityTimer = null, qualityTries = 0;
 async function loadQuality(again) {
   if (!again) qualityTries = 0;
   try { S.quality = await api('/quality'); } catch (e) { S.quality = S.quality || { rows: [], picks: [], red: 0, attention: 0, pending: false }; }
-  renderTabs(); renderBody();
+  renderHead(); renderTabs();
+  if (S.chkOpen) renderCheckupModal();
+  else renderBody();
   clearTimeout(qualityTimer);
   if (S.quality.pending && ++qualityTries < 12) qualityTimer = setTimeout(() => loadQuality(true), 6000);
 }
@@ -335,75 +688,6 @@ function qualityCards() {
     '<span class="sub" style="padding-bottom:4px">按最近一期财务和近一年公告的规则查：ST、连续亏损、立案处罚、负债过高算红线。只看质地，不看贵不贵，也不预测涨跌。</span>' + (rows || '<span class="sub">你还没有持有或想买的股票。</span>') +
     (picks ? '<div style="border-top:1px solid #E3E6EB;margin-top:8px"><span class="sub" style="font-weight:600;display:block;padding-top:8px">想买的公司，同赛道质地靠前的（不踩红线、ROE 不低于 8%、现金跟得上，按质地打分）</span>' + picks + '</div>' : '') +
     '<span class="sub" style="padding-top:6px">这是按质地规则筛出来的名单，不是买入建议：好公司也可能贵，也可能在弱势板块里；要不要看，先点「去诊断」。</span></div>';
-}
-/* ---------- 持仓分析师：放在页面左边的侧栏，把一组股票放在一起看（我的持仓，或挑几只对比） ---------- */
-const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* 存不了就算了 */ } };
-S.pf = { mode: 'check', result: null, cmp: null, loading: false, error: '', reply: null, asking: false, picked: [], pool: null, question: '', ask: '', pane: null };
-const pfKey = () => S.pf.mode === 'compare' ? 'cmp' : 'result';
-const pfUnseen = () => !!(S.pf.result && lsGet('hold.pf.seen') !== S.pf.result.generated_at);
-const pfPane = () => S.pf.pane || (S.tab === 'chk' ? 'analyst' : 'detail');
-function pfRender() { renderPf(); renderHead(); if (S.tab === 'chk') renderBody(); }
-function pfSetPane(k) { S.pf.pane = k; S.notif = false; if (k === 'analyst' && S.pf.result) lsSet('hold.pf.seen', S.pf.result.generated_at); renderAside(); renderHead(); updateBell(); if (S.tab === 'chk') renderBody(); }
-async function pfFetch(method, body) {
-  const url = '/api/portfolio/analyst' + (method === 'GET' ? '?mode=' + S.pf.mode + (S.pf.mode === 'compare' ? '&codes=' + S.pf.picked.join(',') : '') : '');
-  const res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
-  let j = {}; try { j = await res.json(); } catch (e) { /* 没有正文 */ }
-  if (!res.ok || j.status === 'error') throw new Error(j.error || '请求失败（' + res.status + '）');
-  return j;
-}
-async function loadPortfolio() {
-  try { const j = await pfFetch('GET'); S.pf[pfKey()] = j.status === 'ok' ? j.result : null; } catch (e) { /* 没取到就当还没有 */ }
-  if (pfPane() === 'analyst' && !S.notif && S.pf.result) lsSet('hold.pf.seen', S.pf.result.generated_at);
-  pfRender();
-}
-async function loadPool() {
-  const rows = (S.summary && S.summary.rows || []).map((r) => ({ ts_code: r.ts_code, name: r.name, tag: '持有' }));
-  let wl = [];
-  try { wl = ((await (await fetch('/api/v1/watchlist')).json()).items || []).map((x) => ({ ts_code: x.ts_code, name: x.name, tag: '自选' })); } catch (e) { /* 没有自选也行 */ }
-  const seen = new Set(), pool = [];
-  rows.concat(wl).forEach((x) => { if (!seen.has(x.ts_code)) { seen.add(x.ts_code); pool.push(x); } });
-  S.pf.pool = pool;
-  renderPf();
-}
-function pfItems(r) {
-  const facts = {}; (r.facts || []).forEach((f) => { facts[f.id] = f.text; });
-  const chips = (ids) => (ids || []).map((id) => '<span class="tag" title="' + esc(facts[id] || '') + '" style="background:#F1F2F4;color:#5B6372;cursor:help">' + esc(id) + '</span>').join(' ');
-  return (r.items || []).map((it, i) => '<div class="pf-item"><div style="display:flex;align-items:center;gap:8px"><span style="flex:none;width:22px;height:22px;border-radius:50%;background:#14171F;color:#FFFFFF;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">' + (i + 1) + '</span>' +
-    '<button type="button" data-act="pfgo" data-code="' + esc(it.code) + '" title="在左边的列表里找到它" style="border:none;background:transparent;padding:0;font:inherit;font-size:14px;font-weight:700;color:#14171F;cursor:pointer;text-align:left">' + esc(it.name || it.code) + '</button><span style="font-size:13px;font-weight:600;min-width:0">' + esc(it.title) + '</span></div>' +
-    (it.why ? '<span style="font-size:13px;line-height:1.65;color:#3A4250;padding-left:30px">' + esc(it.why) + '</span>' : '') +
-    (it.action ? '<span style="font-size:13px;line-height:1.65;margin-left:30px;padding:7px 10px;border-radius:8px;background:#F1F5FE;color:#1F3F8A">' + esc(it.action) + '</span>' : '') +
-    ((it.fact_ids || []).length ? '<details style="padding-left:30px"><summary>依据 · ' + it.fact_ids.length + ' 条事实</summary><div style="display:flex;flex-direction:column;gap:4px;padding-top:6px">' + it.fact_ids.map((id) => '<span style="font-size:12px;line-height:1.55;color:#5B6372"><span class="tag" style="background:#F1F2F4;color:#5B6372">' + esc(id) + '</span> ' + esc(facts[id] || '') + '</span>').join('') + '</div></details>' : '') +
-    '<span style="padding-left:30px"><a class="mini" href="' + diagnoseHref(it.code) + '">去诊断 →</a></span></div>').join('');
-}
-function pfPanelHTML() {
-  const pf = S.pf, r = pf[pfKey()], compare = pf.mode === 'compare';
-  const can = compare ? pf.picked.length >= 2 : true;
-  const run = '<button type="button" class="btn pri" data-act="pfrun" style="width:100%"' + (pf.loading || !can ? ' disabled' : '') + '>' + (pf.loading ? '正在分析…（几十秒）' : r ? '重新分析' : compare ? '开始对比' : '让持仓分析师看看') + '</button>';
-  const head = '<div style="flex:none;padding:12px 16px 10px;border-bottom:1px solid #EEF0F3;display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:baseline;gap:8px"><span class="sub">' + (r ? esc(r.generated_at) + ' 生成' : '还没有分析') + '</span></div>' +
-    '<span class="seg" style="display:flex">' + [['check', '我的持仓和想买'], ['compare', '对比几只股票']].map(([k, n]) => '<button type="button" style="flex:1" data-act="pfmode" data-k="' + k + '" aria-pressed="' + (pf.mode === k) + '">' + n + '</button>').join('') + '</span></div>';
-  let picker = '';
-  if (compare) {
-    if (!pf.pool) { loadPool(); picker = '<span class="sub">正在列出你的股票…</span>'; }
-    else picker = '<div style="display:flex;flex-direction:column;gap:8px"><span class="sub">选两到六只来比较（已选 ' + pf.picked.length + ' / 6）</span><div style="display:flex;gap:6px;flex-wrap:wrap">' + pf.pool.map((x) => '<button type="button" class="chip' + (pf.picked.includes(x.ts_code) ? ' on' : '') + '" data-act="pfpick" data-code="' + esc(x.ts_code) + '">' + esc(x.name) + ' <span style="opacity:.6">' + x.tag + '</span></button>').join('') + '</div>' +
-      '<input class="inp" data-pf="question" value="' + esc(pf.question) + '" placeholder="想比什么？比如：哪一只质地最好（可以不填）"></div>';
-  }
-  let body;
-  if (pf.error) body = '<span style="font-size:13px;line-height:1.7;color:#B42318">' + esc(pf.error) + '</span>';
-  else if (r) body = '<div style="padding:12px 14px;border-radius:12px;background:#F1F5FE;font-size:14px;font-weight:600;line-height:1.75;color:#14171F">' + esc(r.text) + '</div>' + (r.items && r.items.length ? '<div><div class="sub" style="font-weight:600;padding-bottom:2px">' + (r.mode === 'compare' ? '怎么比' : '先处理什么') + '</div>' + pfItems(r) + '</div>' : '') +
-    (pf.reply ? '<div style="font-size:13px;line-height:1.8;color:#3A4250;white-space:pre-wrap;padding:10px 12px;border-radius:10px;background:#F7F8FA"><span class="sub" style="display:block;padding-bottom:4px">你问：' + esc(pf.lastAsk || '') + '</span>' + esc(pf.reply.answer) + '</div>' : '');
-  else body = '<span class="sub" style="line-height:1.75">' + (compare ? '选两到六只股票，它按事实表比较：走势位置、质地、AI 的态度、板块，以及它们之间的联动。' : '它把你的持仓和想买放在一起看：哪几只其实是同一个逻辑、先处理什么、想买的放进来合不合适。数字都来自体检和各分析师的结论，它只做判断。') + '</span>';
-  const qs = r && !pf.error ? (r.suggested_questions || []).map((q) => '<button type="button" class="chip" style="height:auto;min-height:26px;padding:4px 10px;text-align:left;line-height:1.4" data-act="pfq" data-q="' + esc(q) + '">' + esc(q) + '</button>').join('') : '';
-  const foot = r ? '<div style="flex:none;padding:10px 16px 12px;border-top:1px solid #EEF0F3;display:flex;flex-direction:column;gap:8px">' + (qs ? '<div style="display:flex;gap:6px;flex-wrap:wrap">' + qs + '</div>' : '') + '<div style="display:flex;gap:8px"><input class="inp" data-pf="ask" value="' + esc(pf.ask) + '" placeholder="接着问，比如：大盘再跌 5%，先动哪只？" style="flex:1"><button type="button" class="btn" data-act="pfask"' + (pf.asking ? ' disabled' : '') + '>' + (pf.asking ? '…' : '追问') + '</button></div></div>' : '';
-  return '<div style="display:flex;flex-direction:column;min-height:0;flex:1">' + head + '<div id="pfBody" style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px">' + picker + (compare || !r ? run : '') + body + (r && !compare ? run.replace('btn pri', 'btn') : '') +
-    '<span class="sub" style="line-height:1.7">条件式的看法，不含目标价和买卖金额，不是买卖指令；「依据」里是它引用的事实原文，可以核对。</span></div>' + foot + '</div>';
-}
-function renderPf() { if (pfPane() === 'analyst' && !S.notif) renderAside(); }
-// 体检页里只放一句话，完整的在左边的侧栏
-function pfTeaser() {
-  const r = S.pf.result;
-  return '<div class="card" style="gap:6px"><div style="display:flex;align-items:center;gap:8px"><h3>持仓分析师</h3><span class="sub">' + (r ? esc(r.generated_at) + ' 生成' : '还没有分析') + '</span><button type="button" class="mini" style="margin-left:auto;color:#2457D6" data-act="pfopen">' + (pfPane() === 'analyst' ? '看右边 →' : (r ? '打开完整分析 →' : '让它看看 →')) + '</button></div>' +
-    (r ? '<span style="font-size:14px;line-height:1.7">' + esc(r.text) + '</span>' : '<span class="sub">把持仓和想买放在一起看，也能挑几只股票对比。</span>') + '</div>';
 }
 function renderCheck(d) {
   if (d.empty) return '<div class="card"><div class="empty"><b>体检还没有可看的</b><span>' + esc(d.text) + '</span></div></div>';
@@ -451,7 +735,22 @@ function renderCheck(d) {
   const hot = d.hot.length ? d.hot.map((g) => '<div style="display:flex;flex-direction:column;gap:2px"><b style="font-size:12px;color:#5B6372;padding-top:4px">' + esc(g.title) + '</b>' + g.rows.map((r) => '<div style="display:grid;grid-template-columns:78px 78px 52px 78px minmax(0,1fr);gap:8px;align-items:center;padding:5px 0;border-top:1px solid #F4F5F7;font-size:12px"><span class="ell">' + sectorBtn(r.name) + '</span><span ' + MONO + ' class="' + (r.flow == null ? '' : cls(r.flow)) + '" title="' + esc(r.source) + '">' + (r.flow == null ? '—' : sign(r.flow) + Math.abs(r.flow).toFixed(1) + ' 亿') + '</span><span ' + MONO + '>' + (r.heat == null ? '—' : r.heat.toFixed(1) + '×') + '</span>' + pill(r.verdict, VERDICT_STYLE[r.verdict] || TONE_STYLE.flat) + '<span class="ell" style="color:#5B6372">' + (r.mine.length ? esc(r.mine.map((m) => m.name + ' ' + (m.weight * 100).toFixed(1) + '%').join('、')) : '没有') + '</span></div>').join('') + '</div>').join('') : '<span class="sub">没有取到板块数据</span>';
   const hotFirst = d.hot[0] && d.hot[0].rows[0] ? d.hot[0].title.split(' · ')[0] + '：' + d.hot[0].rows[0].name : '没有取到';
   secs.push(det('现在的热点（参考）', esc(hotFirst) + ' · 只到板块，不推荐具体的票', '<div style="display:grid;grid-template-columns:78px 78px 52px 78px minmax(0,1fr);gap:8px;font-size:11px;color:#8A919E"><span>板块</span><span>新钱</span><span>热度</span><span>状态</span><span>你的持仓</span></div>' + hot + '<span class="sub">新钱：有代表 ETF 的按近 5 日份额净增，其余按行业主力资金近 10 日。</span>'));
-  return '<div style="display:flex;flex-direction:column;gap:12px;max-width:980px">' + band + pfTeaser() + todoCard + qualityCards() + '<span class="sub" style="padding:2px 2px 0;font-weight:600">依据 · 点开核对</span>' + secs.join('') + '<span class="sub" style="padding:4px 2px">体检按规则生成，只指出问题和方向，不是预测，不构成投资建议，也不代你做买卖决定。</span></div>';
+  return '<div style="display:flex;flex-direction:column;gap:12px">' + band + todoCard + qualityCards() + '<span class="sub" style="padding:2px 2px 0;font-weight:600">依据 · 点开核对</span>' + secs.join('') + '<span class="sub" style="padding:4px 2px">体检按规则生成，只指出问题和方向，不是预测，不构成投资建议，也不代你做买卖决定。</span></div>';
+}
+async function openCheckup(force) {
+  S.chkOpen = true; S.notif = false;
+  modal(modalHead('仓位体检') + '<div class="skeleton">正在体检…</div>', '仓位体检', { wide: true });
+  try {
+    if (force || !S.tabs.chk) S.tabs.chk = await api('/tab/chk');
+    if (!S.quality) await loadQuality();
+    renderCheckupModal();
+  } catch (e) {
+    if (S.chkOpen) modal(modalHead('仓位体检') + '<div class="card"><span style="color:#B42318">' + esc(e.message) + '</span></div>', '仓位体检', { wide: true });
+  }
+}
+function renderCheckupModal() {
+  if (!S.chkOpen) return;
+  modal(modalHead('仓位体检') + (S.tabs.chk ? renderCheck(S.tabs.chk) : '<div class="skeleton">正在体检…</div>'), '仓位体检', { wide: true });
 }
 function suggestAction(x) {
   if (x.action === 'diagnose') return '<a class="mini" href="' + diagnoseHref(x.ts_code) + '">去诊断 →</a>';
@@ -479,6 +778,7 @@ function renderReview(d) {
 }
 
 /* ---------- 右侧：详情 / 通知 ---------- */
+const detailHead = (title, right) => '<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#14171F;padding-bottom:4px">' + title + (right || '') + '</div>';
 function alertRow(a) {
   return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span style="display:flex;flex-direction:column;gap:1px"><span>' + esc(a.text) + '</span><span class="sub">你设的' + (a.detail ? ' · ' + esc(a.detail) : '') + '</span></span><button type="button" class="x" style="margin-left:auto" title="删除这条提醒" data-act="alertdel" data-id="' + a.id + '">×</button></div>';
 }
@@ -487,63 +787,84 @@ function renderDetail() {
   if (!code) return '<div style="padding:24px 20px;color:#8A919E;font-size:13px">点一只持仓或想买的票，这里显示你的成本、买入理由、提醒、买卖记录和 AI 的研判记录。</div>';
   if (!d) return '<div class="skeleton" style="padding:24px 20px">正在取这只票的详情…</div>';
   const h = d.held, r = d.reason;
-  const top = '<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:18px">' + esc(d.name) + '</b><span ' + MONO + ' style="font-size:12px;color:#8A919E">' + codeOnly(d.ts_code) + '</span><a class="mini" style="margin-left:auto" href="' + diagnoseHref(d.ts_code) + '">诊断 →</a></div>' +
+  const top = '<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:18px">' + esc(d.name) + '</b><span ' + MONO + ' style="font-size:12px;color:#8A919E">' + codeOnly(d.ts_code) + '</span><a class="mini" style="margin-left:auto" href="' + diagnoseHref(d.ts_code) + '">研判 →</a></div>' +
     (h ? '<div style="display:flex;align-items:baseline;gap:10px"><span ' + MONO + ' class="' + cls(h.pnl) + '" style="font-weight:700;font-size:22px">' + money(h.pnl, true) + ' <span style="font-size:14px">' + pct(h.pnl_pct) + '</span></span><span class="sub">现价 ' + px(d.price) + '</span></div>' : '<div class="sub">现价 ' + px(d.price) + ' · 现在没有持仓</div>') + '</div>';
-  const mine = h ? '<div><div style="display:flex;align-items:center;font-size:12px;font-weight:700;color:#5B6372;padding-bottom:4px">我的持仓<button type="button" class="mini" style="margin-left:auto" data-act="adjust" data-code="' + esc(d.ts_code) + '" title="数量或成本价和券商对不上时，直接改成对的">编辑持仓</button></div><div class="kv"><span>成本 · 数量</span><b ' + MONO + '>' + px(h.avg) + ' · ' + h.qty + ' 股</b></div>' + (h.cap_weight != null ? '<div class="kv"><span>占总资金</span><b ' + MONO + '>' + (h.cap_weight * 100).toFixed(1) + '%</b></div>' : '<div class="kv"><span>占总持仓</span><b ' + MONO + '>' + (h.weight * 100).toFixed(0) + '%</b></div>') + '<div class="kv"><span>买入</span><b ' + MONO + '>' + day5(h.since) + ' · 持有 ' + h.days + ' 天</b></div></div>' : '';
-  const reason = r ? '<div class="note" style="gap:6px;padding:12px"><div style="display:flex;align-items:center;gap:6px"><b style="font-size:13px">我买的理由</b>' + reasonPill(r.status) + '<span class="sub" style="margin-left:auto">' + (r.written_at ? '写于 ' + day5(r.written_at) : '') + '</span></div>' +
-    '<span style="font-size:14px;line-height:1.6">' + (r.text ? '「' + esc(r.text) + '」' : '<span class="sub">没写理由，只设了「什么情况算我错」</span>') + '</span>' +
+  const chart = sdChartHTML(d.ts_code);
+  const mine = h ? '<div style="display:flex;flex-direction:column">' + detailHead('我的持仓', '<button type="button" class="mini" style="margin-left:auto" data-act="adjust" data-code="' + esc(d.ts_code) + '" title="数量或成本价和券商对不上时，直接改成对的">编辑持仓</button>') + '<div class="kv"><span>成本 · 数量</span><b ' + MONO + '>' + px(h.avg) + ' · ' + h.qty + ' 股</b></div>' + (h.cap_weight != null ? '<div class="kv"><span>占总资金</span><b ' + MONO + '>' + (h.cap_weight * 100).toFixed(1) + '%</b></div>' : '<div class="kv"><span>占总持仓</span><b ' + MONO + '>' + (h.weight * 100).toFixed(0) + '%</b></div>') + '<div class="kv"><span>买入</span><b ' + MONO + '>' + day5(h.since) + ' · 持有 ' + h.days + ' 天</b></div></div>' : '';
+  const reason = r ? '<div style="display:flex;flex-direction:column">' + detailHead('我买的理由', reasonPill(r.status) + '<span class="sub" style="margin-left:auto">' + (r.written_at ? '写于 ' + day5(r.written_at) : '') + '</span>') +
+    '<div class="note" style="gap:6px;padding:12px"><span style="font-size:14px;line-height:1.6">' + (r.text ? '「' + esc(r.text) + '」' : '<span class="sub">没写理由，只设了「什么情况算我错」</span>') + '</span>' +
     (r.invalid.length ? '<span class="sub">什么情况说明我错了：' + r.invalid.map(invalidText).map(esc).join('；') + '</span>' : '') +
-    '<span style="font-size:12px;color:#5B6372">' + esc(r.line) + '</span><button type="button" class="mini" style="align-self:flex-start" data-act="reason" data-code="' + esc(d.ts_code) + '">改一下理由</button></div>' : '';
-  const view = (d.ai || (d.sector && d.sector.name)) ? '<div>' + (d.ai ? '<div class="kv" style="align-items:center"><span>AI 现在怎么看</span><b style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + aiPill(d.ai) + (d.ai.stale ? '<span class="sub">偏旧</span>' : '') + '</b></div>' +
-    (d.ai.analysts && d.ai.analysts.length ? '<div style="display:flex;justify-content:flex-end;padding:4px 0 2px">' + aiAnalystChips(d.ai) + '</div>' : '') : '') +
-    (d.sector && d.sector.name ? '<div class="kv"><span>所在板块</span><b>' + sectorBtn(d.sector.name, 'font-size:13px;font-weight:700') + (d.sector.verdict ? ' · ' + esc(d.sector.verdict) : '') + '</b></div>' : '') + '</div>' : '';
-  const wish = d.wish ? '<div class="note" style="gap:8px;padding:12px"><b style="font-size:13px">我想买</b><span style="font-size:14px;line-height:1.6">「' + esc(d.wish.reason) + '」</span>' +
+    '<span style="font-size:12px;color:#5B6372">' + esc(r.line) + '</span><button type="button" class="mini" style="align-self:flex-start" data-act="reason" data-code="' + esc(d.ts_code) + '">改一下理由</button></div></div>' : '';
+  const aiBtn = '<div style="display:flex;flex-direction:column">' + detailHead('AI 现在怎么看', '<span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">' + (d.ai ? aiPill(d.ai) + (d.ai.stale ? '<span class="sub">偏旧</span>' : '') : '<span class="sub">还没有判断</span>') + '<button type="button" class="mini" data-act="aiview" style="color:#2457D6">AI怎么看 →</button></span>') +
+    (d.ai && d.ai.analysts && d.ai.analysts.length ? '<div style="display:flex;justify-content:flex-end;padding:2px 0 0">' + aiAnalystChips(d.ai) + '</div>' : '') + '</div>';
+  const sector = (d.sector && d.sector.name) ? '<div style="display:flex;flex-direction:column">' + detailHead('所在板块', '<span style="margin-left:auto;font-weight:700">' + sectorBtn(d.sector.name, 'font-size:13px;font-weight:700') + (d.sector.verdict ? ' · ' + esc(d.sector.verdict) : '') + '</span>') + '</div>' : '';
+  const wish = d.wish ? '<div style="display:flex;flex-direction:column">' + detailHead('我想买') + '<div class="note" style="gap:8px;padding:12px"><span style="font-size:14px;line-height:1.6">「' + esc(d.wish.reason) + '」</span>' +
     d.wish.conditions.map((c) => '<div style="display:flex;gap:8px;font-size:12px;align-items:baseline"><span>' + (c.met === true ? '✓' : c.met === false ? '○' : '·') + '</span><span>' + esc(c.label) + '</span><span class="sub" style="margin-left:auto">' + esc(c.detail || '') + '</span></div>').join('') +
-    '<span class="sub">' + esc(d.wish.status.text) + (d.wish.plan_pct ? ' · 计划 ' + d.wish.plan_pct + '%' : '') + '</span></div>' : '';
+    '<span class="sub">' + esc(d.wish.status.text) + (d.wish.plan_pct ? ' · 计划 ' + d.wish.plan_pct + '%' : '') + '</span></div></div>' : '';
   const act = (d.ai && d.ai.actions) || {};
-  const advice = h && act.hold ? '<div class="note" style="gap:4px;background:#F1F5FE"><b style="font-size:13px">操作提醒 · 你持有</b><span style="font-size:13px;line-height:1.6">' + esc(act.hold) + '</span><span class="sub">条件式提醒，条件变了做法就变，不是买卖指令</span></div>'
-    : (!h && d.wish && act.buy ? '<div class="note" style="gap:4px;background:#F1F5FE"><b style="font-size:13px">操作提醒 · 你想买</b><span style="font-size:13px;line-height:1.6">' + esc(act.buy) + '</span><span class="sub">条件式提醒，条件变了做法就变，不是买卖指令</span></div>' : '');
+  const advice = h && act.hold ? '<div style="display:flex;flex-direction:column">' + detailHead('操作提醒 · 你持有') + '<div class="note" style="gap:4px;padding:12px;background:#F1F5FE"><span style="font-size:13px;line-height:1.6">' + esc(act.hold) + '</span><span class="sub">条件式提醒，条件变了做法就变，不是买卖指令</span></div></div>'
+    : (!h && d.wish && act.buy ? '<div style="display:flex;flex-direction:column">' + detailHead('操作提醒 · 你想买') + '<div class="note" style="gap:4px;padding:12px;background:#F1F5FE"><span style="font-size:13px;line-height:1.6">' + esc(act.buy) + '</span><span class="sub">条件式提醒，条件变了做法就变，不是买卖指令</span></div></div>' : '');
   const flip = d.flip ? '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span style="display:flex;flex-direction:column;gap:1px"><span>AI 改判时通知我</span><span class="sub">' + esc(d.flip) + (d.flip_items.length ? '：' + esc(d.flip_items.join('、')) : '') + '</span></span></div>' : (d.ai ? '<div style="display:flex;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span>AI 改判时通知我</span></div>' : '');
-  const reminders = h ? '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">我设的提醒</b>' + d.alerts.map(alertRow).join('') + d.rules.map((x) => '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span style="display:flex;flex-direction:column;gap:1px"><span>' + esc(x.text) + '</span><span class="sub">' + esc(x.detail) + '</span></span><button type="button" class="x" style="margin-left:auto" data-act="ruledel" data-id="' + x.id + '">×</button></div>').join('') + flip +
+  const reminders = h ? '<div style="display:flex;flex-direction:column">' + detailHead('我设的提醒') + d.alerts.map(alertRow).join('') + d.rules.map((x) => '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span style="color:#2457D6">🔔</span><span style="display:flex;flex-direction:column;gap:1px"><span>' + esc(x.text) + '</span><span class="sub">' + esc(x.detail) + '</span></span><button type="button" class="x" style="margin-left:auto" data-act="ruledel" data-id="' + x.id + '">×</button></div>').join('') + flip +
     (d.needs_price ? '<div class="warnbox" style="margin-top:4px"><span><b style="color:#7A4A00">还没设「理由不成立」的价格</b>：现在跌多少都不会提醒你。</span><button type="button" class="mini" style="align-self:flex-start" data-act="priceline" data-code="' + esc(d.ts_code) + '">设一个价格</button></div>' : '') + '</div>' : '';
-  const trades = d.trades.length ? '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">买卖记录</b>' + d.trades.map((t) => '<div style="display:grid;grid-template-columns:42px 36px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span ' + MONO + ' style="color:#5B6372">' + day5(t.date) + '</span><b>' + esc(t.label) + '</b><span style="display:flex;flex-direction:column;gap:2px"><span ' + MONO + '>' + (t.side === 'adjust' ? '成本 ' + px(t.price) + ' · ' + t.qty + ' 股' : px(t.price) + ' × ' + t.qty + ' 股') + (t.imported ? ' <span class="sub">（导入）</span>' : '') + '</span>' +
+  const trades = d.trades.length ? '<div style="display:flex;flex-direction:column">' + detailHead('买卖记录') + d.trades.map((t) => '<div style="display:grid;grid-template-columns:42px 36px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span ' + MONO + ' style="color:#5B6372">' + day5(t.date) + '</span><b>' + esc(t.label) + '</b><span style="display:flex;flex-direction:column;gap:2px"><span ' + MONO + '>' + (t.side === 'adjust' ? '成本 ' + px(t.price) + ' · ' + t.qty + ' 股' : px(t.price) + ' × ' + t.qty + ' 股') + (t.imported ? ' <span class="sub">（导入）</span>' : '') + '</span>' +
     ((t.market_text || t.ai_label) ? '<span class="sub">当时大盘 ' + esc(t.market_text || '—') + (t.ai_label ? ' · AI ' + esc(t.ai_label) : '') + (t.conflict ? '　<span style="color:#7A4A00">⚠ 和大盘结论不一致</span>' : '') + '</span>' : '') + (t.note ? '<span style="font-size:12px;color:#5B6372">复盘：' + esc(t.note) + '</span>' : '') + '</span><span style="display:flex;gap:2px"><button type="button" class="x" title="改这一笔" data-act="tradeedit" data-id="' + t.id + '" data-side="' + esc(t.side) + '" data-price="' + t.price + '" data-qty="' + t.qty + '" data-date="' + esc(t.date) + '">改</button><button type="button" class="x" title="删除这笔记录" data-act="tradedel" data-id="' + t.id + '">×</button></span></div>').join('') + '</div>' : '';
-  const entries = '<div style="display:flex;flex-direction:column"><b style="font-size:13px;padding-bottom:4px">这只票的研判记录</b>' + (d.entries.length ? d.entries.map((e) => '<div style="display:grid;grid-template-columns:42px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span ' + MONO + ' style="color:#5B6372">' + day5(e.date) + '</span><span>' + esc(e.text) + '</span><span class="pl" style="height:18px;font-size:11px;background:' + (e.outcome.state === 'hit' ? '#EDF7F1' : e.outcome.state === 'miss' ? '#FFF1D6' : '#F1F2F4') + ';color:' + (e.outcome.state === 'hit' ? '#1E6B44' : e.outcome.state === 'miss' ? '#7A4A00' : '#5B6372') + '">' + esc(e.outcome.text) + '</span></div>').join('') : '<span class="sub">还没有记录。AI 的判断每个交易日盘前更新，买入时和之后每次改判都会记在这里。</span>') + '<span class="sub" style="padding-top:4px">单只票样本太少，只列逐条记录，不算胜率。</span></div>';
-  return '<div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px">' + top + wish + view + advice + mine + reason + reminders + trades + entries + '</div>';
+  const entryRows = d.entries || [];
+  const entriesBody = d.entries_pending
+    ? '<span class="sub">正在整理研判记录…</span>'
+    : (entryRows.length ? entryRows.map((e) => '<div style="display:grid;grid-template-columns:42px 1fr auto;gap:8px;align-items:baseline;padding:7px 0;border-top:1px solid #F4F5F7;font-size:12px"><span ' + MONO + ' style="color:#5B6372">' + day5(e.date) + '</span><span>' + esc(e.text) + '</span><span class="pl" style="height:18px;font-size:11px;background:' + (e.outcome.state === 'hit' ? '#EDF7F1' : e.outcome.state === 'miss' ? '#FFF1D6' : '#F1F2F4') + ';color:' + (e.outcome.state === 'hit' ? '#1E6B44' : e.outcome.state === 'miss' ? '#7A4A00' : '#5B6372') + '">' + esc(e.outcome.text) + '</span></div>').join('') : '<span class="sub">还没有记录。AI 的判断每个交易日盘前更新，买入时和之后每次改判都会记在这里。</span>');
+  const entries = '<div style="display:flex;flex-direction:column">' + detailHead('这只票的研判记录') + entriesBody + (d.entries_pending ? '' : '<span class="sub" style="padding-top:4px">单只票样本太少，只列逐条记录，不算胜率。</span>') + '</div>';
+  return '<div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px">' + top + chart + wish + '<div style="display:flex;flex-direction:column;gap:10px">' + aiBtn + sector + '</div>' + advice + mine + reason + reminders + trades + entries + '</div>';
 }
 function invalidText(i) {
   return i.kind === 'close_below' ? '收盘跌破 ' + Number(i.value).toFixed(2) : i.kind === 'sector_out' ? '板块转为在流出' : i.kind === 'flow_out' ? '大资金连续 ' + i.days + ' 天流出' : i.text;
 }
-const NOTIF_TABS = [['all', '全部'], ['alert', '提醒'], ['change', '判断变化'], ['settle', '战绩']];
+const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩'], ['system', '系统']];
+const NOTIF_ALERT_KINDS = { alert: 1, upcoming: 1, move: 1, ann: 1 };
 const NOTIF_ICON = { alert: ['🔔', '#FDECEA'], change: ['⇄', '#FFF4E0'], upcoming: ['📅', '#F1F2F4'], settle: ['★', '#EDF7F1'], ann: ['📢', '#F1F2F4'], move: ['📈', '#F1F2F4'], system: ['⚙', '#F1F2F4'] };
+function notifMatch(tab, kind) {
+  if (tab === 'alert') return !!NOTIF_ALERT_KINDS[kind];
+  return kind === tab;
+}
+async function markNotifRead(ids) {
+  const body = ids && ids.length ? { ids } : {};
+  try { await api('/notifications/read', 'POST', body); } catch (e) { toast(e.message, true); return; }
+  if (!S.nData) return;
+  const set = ids && ids.length ? new Set(ids) : null;
+  let unread = 0;
+  (S.nData.items || []).forEach((i) => {
+    if (!set || set.has(i.id)) i.unread = false;
+    if (i.unread) unread++;
+  });
+  S.nData.unread = unread;
+  updateBell();
+}
 function renderNotif() {
   const d = S.nData;
-  const items = d ? d.items.filter((i) => S.nTab === 'all' || i.kind === S.nTab || (S.nTab === 'alert' && i.kind === 'upcoming')) : [];
+  const items = d ? d.items.filter((i) => notifMatch(S.nTab, i.kind)) : [];
   const groups = ['今天', '即将发生', '昨天', '更早'].map((g) => [g, items.filter((i) => i.group === g)]).filter((x) => x[1].length);
   return '<div style="display:flex;flex-direction:column;min-height:100%"><div style="display:flex;align-items:center;gap:12px;padding:14px 12px 0 20px"><span style="font-size:16px;font-weight:700">通知</span><button type="button" data-act="notifread" style="margin-left:auto;font-size:12px;color:#2457D6;border:none;background:transparent;cursor:pointer">全部已读</button><button type="button" data-act="notif" aria-label="关闭（Esc）" style="width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:18px;cursor:pointer">×</button></div>' +
     '<div style="display:flex;padding:0 10px;border-bottom:1px solid #EEF0F3">' + NOTIF_TABS.map(([k, n]) => '<button type="button" data-act="ntab" data-k="' + k + '" style="padding:0 10px;height:36px;display:inline-flex;align-items:center;font-size:13px;border:none;background:transparent;cursor:pointer;' + (S.nTab === k ? 'color:#2457D6;font-weight:600;box-shadow:inset 0 -2px 0 #2457D6' : 'color:#5B6372') + '">' + n + '</button>').join('') + '</div>' +
-    (!d ? '<div class="skeleton" style="padding:20px">正在取通知…</div>' : groups.length ? groups.map(([g, list]) => '<span style="padding:10px 16px 2px 32px;font-size:11px;font-weight:600;color:#8A919E">' + g + '</span>' + list.map((i) => { const ic = NOTIF_ICON[i.kind] || ['•', '#F1F2F4']; return '<button type="button" data-act="nsel" data-code="' + esc(i.code) + '" style="display:grid;grid-template-columns:6px 28px minmax(0,1fr) auto;align-items:start;gap:10px;width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;font:inherit;color:#14171F;cursor:pointer">' + (i.unread ? '<span style="width:6px;height:6px;border-radius:50%;background:#D9483F;margin-top:7px"></span>' : '<span style="width:6px"></span>') + '<span style="width:28px;height:28px;border-radius:8px;background:' + ic[1] + ';display:flex;align-items:center;justify-content:center;font-size:13px">' + ic[0] + '</span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:11px;color:#8A919E">' + esc(i.title) + '</span><span style="font-weight:600">' + esc(i.text) + '</span>' + (i.sub ? '<span style="font-size:12px;color:#5B6372">' + esc(i.sub) + '</span>' : '') + '</span><span ' + MONO + ' style="font-size:11px;color:#8A919E">' + esc(i.when) + '</span></button>'; }).join('')).join('') : '<div style="padding:28px 20px;color:#8A919E">现在没有通知。到价、AI 改判、披露和解禁这些事会出现在这里。</div>') +
+    (!d ? '<div class="skeleton" style="padding:20px">正在取通知…</div>' : groups.length ? groups.map(([g, list]) => '<span style="padding:10px 16px 2px 32px;font-size:11px;font-weight:600;color:#8A919E">' + g + '</span>' + list.map((i) => { const ic = NOTIF_ICON[i.kind] || ['•', '#F1F2F4']; return '<button type="button" data-act="nsel" data-id="' + esc(i.id || '') + '" data-code="' + esc(i.code) + '" style="display:grid;grid-template-columns:6px 28px minmax(0,1fr) auto;align-items:start;gap:10px;width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;font:inherit;color:#14171F;cursor:pointer">' + (i.unread ? '<span style="width:6px;height:6px;border-radius:50%;background:#D9483F;margin-top:7px"></span>' : '<span style="width:6px"></span>') + '<span style="width:28px;height:28px;border-radius:8px;background:' + ic[1] + ';display:flex;align-items:center;justify-content:center;font-size:13px">' + ic[0] + '</span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:11px;color:#8A919E">' + esc(i.title) + '</span><span style="font-weight:600">' + esc(i.text) + '</span>' + (i.sub ? '<span style="font-size:12px;color:#5B6372">' + esc(i.sub) + '</span>' : '') + '</span><span ' + MONO + ' style="font-size:11px;color:#8A919E">' + esc(i.when) + '</span></button>'; }).join('')).join('') : '<div style="padding:28px 20px;color:#8A919E">现在没有通知。到价、AI 改判、披露和解禁这些事会出现在这里。</div>') +
     '<div style="display:flex;align-items:center;gap:12px;margin-top:auto;padding:12px 20px;border-top:1px solid #EEF0F3;background:#F7F8FA;font-size:12px;color:#5B6372"><span>系统通知 · 仅交易时间提醒</span><a href="/settings.html" style="margin-left:auto;color:#2457D6;text-decoration:none">通知设置</a></div></div>';
-}
-function asideTabs() {
-  const on = pfPane(), tab = (k, n, dot) => '<button type="button" data-act="pfpane" data-k="' + k + '" aria-pressed="' + (on === k) + '" style="flex:1;height:34px;border:none;border-bottom:2px solid ' + (on === k ? '#2457D6' : 'transparent') + ';background:transparent;font:inherit;font-size:13px;' + (on === k ? 'color:#2457D6;font-weight:600' : 'color:#5B6372') + ';cursor:pointer;position:relative">' + n + (dot ? '<span style="position:absolute;top:7px;margin-left:3px;width:7px;height:7px;border-radius:50%;background:#D9483F"></span>' : '') + '</button>';
-  return '<div style="flex:none;display:flex;border-bottom:1px solid #E3E6EB;background:#FFFFFF;position:sticky;top:0;z-index:3">' + tab('detail', '个股详情') + tab('analyst', '持仓分析师', pfUnseen() && on !== 'analyst') + '</div>';
 }
 function renderAside() {
   const el = $('aside');
   if (S.notif) { el.innerHTML = renderNotif(); return; }
-  // 在分析师的输入框里打字时，后台刷新不要把输入框重画掉
-  if (pfPane() === 'analyst' && document.activeElement && document.activeElement.tagName === 'INPUT' && el.contains(document.activeElement)) return;
-  const old = el.querySelector('#pfBody'), top = old ? old.scrollTop : 0;
-  el.innerHTML = '<div style="display:flex;flex-direction:column;min-height:100%">' + asideTabs() + (pfPane() === 'analyst' ? pfPanelHTML() : renderDetail()) + '</div>';
-  const nb = el.querySelector('#pfBody'); if (nb) nb.scrollTop = top;
+  el.innerHTML = '<div style="display:flex;flex-direction:column;min-height:100%">' + renderDetail() + '</div>';
+  paintSdChart();
+  if (S.sel) loadKline(S.sel);
 }
 
 /* ---------- 弹窗 ---------- */
-function modal(inner, label) {
-  $('modal').innerHTML = '<div data-act="close" style="position:fixed;inset:0;background:rgba(20,23,31,0.28);z-index:30"></div><div role="dialog" aria-label="' + esc(label) + '" style="position:fixed;top:56px;left:50%;transform:translateX(-50%);width:600px;max-width:calc(100% - 32px);max-height:calc(100vh - 80px);overflow-y:auto;z-index:31;display:flex;flex-direction:column;gap:14px;padding:18px 20px;background:#FFFFFF;border-radius:14px;box-shadow:0 12px 40px rgba(20,23,31,0.22)">' + inner + '</div>';
+function modal(inner, label, opts) {
+  const wide = opts && opts.wide;
+  const width = wide ? 'min(980px, calc(100% - 32px))' : '600px';
+  const top = wide ? '36px' : '56px';
+  const maxH = wide ? 'calc(100vh - 56px)' : 'calc(100vh - 80px)';
+  $('modal').innerHTML = '<div data-act="close" style="position:fixed;inset:0;background:rgba(20,23,31,0.28);z-index:30"></div><div role="dialog" aria-label="' + esc(label) + '" style="position:fixed;top:' + top + ';left:50%;transform:translateX(-50%);width:' + width + ';max-width:calc(100% - 32px);max-height:' + maxH + ';overflow-y:auto;z-index:31;display:flex;flex-direction:column;gap:14px;padding:18px 20px;background:#FFFFFF;border-radius:14px;box-shadow:0 12px 40px rgba(20,23,31,0.22)">' + inner + '</div>';
 }
-function closeModal() { $('modal').innerHTML = ''; S.rec = null; S.add = null; }
+function closeModal() { $('modal').innerHTML = ''; S.rec = null; S.add = null; S.planForm = null; S.chkOpen = false; }
 const field = (label, inner, hint) => '<div style="display:flex;flex-direction:column;gap:5px"><span style="font-size:12px;font-weight:600">' + label + '</span>' + inner + (hint ? '<span class="sub">' + hint + '</span>' : '') + '</div>';
 const modalHead = (title, extra) => '<div style="display:flex;align-items:center;gap:10px"><b style="font-size:16px">' + title + '</b>' + (extra || '') + '<button type="button" class="x" data-act="close" aria-label="关闭" style="margin-left:auto;font-size:18px">×</button></div>';
 const val = (id) => { const el = $(id); return el ? el.value : ''; };
@@ -840,17 +1161,42 @@ async function openWishEdit(id) {
 
 /* ---------- 动作 ---------- */
 const ACT = {
-  tab: (el) => { S.tab = el.dataset.k; S.pf.pane = null; renderTabs(); showTab(S.tab); },
+  tab: (el) => { S.tab = el.dataset.k; renderTabs(); showTab(S.tab); },
   sel: (el) => { selectStock(el.dataset.code); },
-  goalert: (el) => { S.tab = 'now'; renderTabs(); renderBody(); selectStock(el.dataset.code); },
+  checkup: () => openCheckup(),
+  aiview: () => { if (S.sel) openAiConcl(S.sel); },
+  aiclose: () => closeAiConcl(),
+  airetry: () => { if (S.sel) loadAiDetail(S.sel, true); },
+  addwishconcl: async (el) => {
+    const code = el.dataset.code || S.sel;
+    if (!code || S.wishBusy === code) return;
+    const d = S.detail[code] || {}, e = S.aiDetail[code], D = (e && e.data) || {}, dir = D.direction || {};
+    const verdict = String(dir.verdict || (d.ai && d.ai.label) || '').trim();
+    const text = String(dir.text || '').replace(/\*\*|__|`/g, '').replace(/\s+/g, ' ').trim();
+    let reason = verdict ? ('研判结论：' + verdict) : '';
+    if (text) reason = (reason ? reason + '。' : '') + text;
+    if (reason.length > 180) reason = reason.slice(0, 177) + '…';
+    if (!reason) reason = '研判后想买';
+    S.wishBusy = code; renderAiConcl();
+    try {
+      await api('/wishes', 'POST', { ts_code: code, reason, source: 'diagnose' });
+      if (S.detail[code]) S.detail[code].wish = S.detail[code].wish || { reason };
+      toast('已加入想买');
+      try { delete S.tabs.buy; await showTab('buy', true); } catch (e) { /* keep */ }
+    } catch (err) { toast(err.message || '加入失败', true); }
+    finally { S.wishBusy = null; renderAiConcl(); }
+  },
+  goalert: (el) => { closeModal(); S.tab = 'now'; renderTabs(); renderBody(); selectStock(el.dataset.code); },
   nsel: (el) => {
+    if (el.dataset.id) markNotifRead([el.dataset.id]).then(() => renderAside());
     clearTimeout(nItemTimer);
     nItemTimer = setTimeout(() => { if (el.dataset.code) { S.notif = false; selectStock(el.dataset.code); } }, 280);
   },
   notif: async () => { S.notif = !S.notif; renderAside(); updateBell(); if (S.notif) { await loadNotif(); renderAside(); } },
   ntab: (el) => { S.nTab = el.dataset.k; renderAside(); },
-  notifread: async () => { try { await api('/notifications/read', 'POST', {}); await loadNotif(); renderAside(); } catch (e) { toast(e.message, true); } },
+  notifread: async () => { await markNotifRead(); renderAside(); },
   close: closeModal,
+  stop: (_el, e) => { e.stopPropagation(); },
   rec: (el) => {
     const wid = el.dataset.wish;
     if (!wid) return openRec();
@@ -883,6 +1229,48 @@ const ACT = {
   tsave: saveTradeEdit,
   wishedit: (el) => openWishEdit(el.dataset.id),
   wishdrop: async (el) => { if (!confirm('不想买这只了？这条计划会被删掉。')) return; try { await api('/wishes/' + el.dataset.id, 'DELETE'); delete S.tabs.buy; await refreshAll(); } catch (e) { toast(e.message, true); } },
+  planadd: () => openPlanAdd(),
+  planday: async (el) => {
+    const day = el.value; if (!day) return;
+    S.planDay = day;
+    try { S.tabs.plan = await api('/tab/plan?date=' + encodeURIComponent(day)); renderBody(); } catch (e) { toast(e.message, true); }
+  },
+  planpick: (el) => applyPlanStock({ ts_code: el.dataset.code, name: el.dataset.name }, { price: el.dataset.price, qty: Number(el.dataset.qty) || 0, avg: el.dataset.avg, plan_pct: Number(el.dataset.pct) || 0, held: el.dataset.held === '1' }),
+  plansearch: async (el) => {
+    const h = S.hits[Number(el.dataset.i)];
+    let info = {};
+    try { info = await api('/plans/preview', 'POST', { ts_code: h.ts_code }); } catch (e) { info = {}; }
+    applyPlanStock({ ts_code: h.ts_code, name: h.name }, info);
+  },
+  planclear: () => { capturePlan(); const f = S.planForm; f.stock = null; delete f._filled; f.price = ''; f.qty = ''; f.plan_pct = ''; f.last = ''; f.avg = ''; f.held_qty = ''; f.held = false; openPlanAdd(f); },
+  planside: (el) => {
+    capturePlan();
+    const f = S.planForm; f.side = el.dataset.k; delete f._filled;
+    if (f.stock) Object.assign(f, planDefaults({ price: f.last, qty: f.held_qty, avg: f.avg, plan_pct: f.plan_pct, held: f.held }, f.side, { date: f.date, side: f.side, reason: f.reason, note: f.note, stock: f.stock, id: f.id, price: '', qty: '', plan_pct: '' }));
+    openPlanAdd(f);
+  },
+  planfillprice: () => { capturePlan(); if (S.planForm.last) { S.planForm.price = S.planForm.last; openPlanAdd(S.planForm); } },
+  plansave: savePlan,
+  planedit: async (el) => {
+    const p = ((S.tabs.plan || {}).items || []).find((x) => String(x.id) === String(el.dataset.id)); if (!p) return;
+    let info = { price: p.last, qty: 0, avg: '', plan_pct: p.plan_pct || 0, held: false };
+    try { info = await api('/plans/preview', 'POST', { ts_code: p.ts_code }); } catch (e) { /* 没有预览也行 */ }
+    openPlanAdd({
+      id: p.id, date: p.date || S.planDay || today(), side: p.side,
+      price: p.price || '', qty: p.qty || '', plan_pct: p.plan_pct || '', reason: p.reason || '', note: p.note || '',
+      stock: { ts_code: p.ts_code, name: p.name },
+      last: fmtPx(info.price || p.last), avg: fmtPx(info.avg), held_qty: info.qty || '', held: !!info.held, _filled: true,
+    });
+  },
+  plandone: (el) => setPlanStatus(el.dataset.id, 'done'),
+  planskip: (el) => setPlanStatus(el.dataset.id, 'skipped'),
+  planreopen: (el) => setPlanStatus(el.dataset.id, 'planned'),
+  plandrop: async (el) => { if (!confirm('删掉这条计划？')) return; try { await api('/plans/' + el.dataset.id, 'DELETE'); delete S.tabs.plan; await refreshAll(); S.tab = 'plan'; renderTabs(); await showTab('plan', true); } catch (e) { toast(e.message, true); } },
+  planrec: (el) => {
+    const p = ((S.tabs.plan || {}).items || []).find((x) => String(x.id) === String(el.dataset.id)); if (!p) return;
+    const side = (p.side === 'sell' || p.side === 'reduce') ? 'sell' : 'buy';
+    openRec({ stock: { ts_code: p.ts_code, name: p.name }, side, price: p.price ? Number(p.price).toFixed(2) : '', qty: p.qty || '', reason: p.reason || '', from: '已从「计划 · ' + p.name + '」带入' });
+  },
   import: openImport,
   idoit: doImport,
   reason: (el) => openReason(el.dataset.code),
@@ -892,32 +1280,14 @@ const ACT = {
   psave: savePriceLine,
   note: (el) => openNote(el.dataset.id, el.dataset.note),
   nsave: saveNote,
-  pfopen: () => pfSetPane('analyst'),
-  pfpane: (el) => pfSetPane(el.dataset.k),
-  pfmode: (el) => { S.pf.mode = el.dataset.k; S.pf.error = ''; S.pf.reply = null; if (S.pf.mode === 'compare' && S.pf.picked.length < 2 && S.summary) S.pf.picked = (S.summary.rows || []).slice(0, 3).map((r) => r.ts_code); loadPortfolio(); renderPf(); },
-  pfpick: (el) => { const c = el.dataset.code, p = S.pf.picked; if (p.includes(c)) S.pf.picked = p.filter((x) => x !== c); else if (p.length < 6) S.pf.picked = p.concat([c]); else toast('最多选 6 只', true); S.pf.error = ''; renderPf(); },
-  pfrun: async () => {
-    const pf = S.pf; if (pf.loading) return;
-    pf.loading = true; pf.error = ''; pf.reply = null; renderPf();
-    try { const j = await pfFetch('POST', { mode: pf.mode, codes: pf.picked, question: '', force: !!pf[pfKey()] }); pf[pfKey()] = j.result; if (j.cached) toast('事实没有变化，还是上次的分析'); if (pfPane() === 'analyst') lsSet('hold.pf.seen', j.result.generated_at); }
-    catch (e) { pf.error = e.message; }
-    pf.loading = false; pfRender();
+  recheck: async () => {
+    try {
+      S.tabs.chk = await api('/checkup', 'POST', {});
+      toast('已重新体检并存了一份快照');
+      try { S.summary = await api('/summary'); renderHead(); renderTabs(); } catch (e) { /* 计数刷新失败就算了 */ }
+      if (S.chkOpen) renderCheckupModal();
+    } catch (e) { toast(e.message, true); }
   },
-  pfq: (el) => { S.pf.ask = el.dataset.q; ACT.pfask(); },
-  pfask: async () => {
-    const pf = S.pf; if (pf.asking || !pf.ask.trim()) return;
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-    pf.asking = true; pf.lastAsk = pf.ask; renderPf();
-    try { const j = await pfFetch('POST', { mode: pf.mode, codes: pf.picked, question: pf.ask }); pf.reply = j.reply; pf.ask = ''; }
-    catch (e) { pf.reply = { answer: '没能回答：' + e.message }; }
-    pf.asking = false; renderPf();
-  },
-  pfgo: (el) => {
-    const code = el.dataset.code, held = S.summary && S.summary.rows.some((r) => r.ts_code === code);
-    if (held) { S.tab = 'now'; renderTabs(); renderBody(); selectStock(code); } else { location.href = diagnoseHref(code); return; }
-    S.pf.pane = 'detail'; renderAside(); renderHead();
-  },
-  recheck: async () => { try { S.tabs.chk = await api('/checkup', 'POST', {}); toast('已重新体检并存了一份快照'); renderBody(); } catch (e) { toast(e.message, true); } },
   tradedel: async (el) => { if (!confirm('删掉这笔记录？持仓会按剩下的流水重算。')) return; try { await api('/trades/' + el.dataset.id, 'DELETE'); S.tabs = {}; S.detail = {}; await refreshAll(); } catch (e) { toast(e.message, true); } },
   alertdel: async (el) => { try { const res = await fetch('/api/v1/alerts/' + el.dataset.id, { method: 'DELETE' }); if (!res.ok) throw new Error('删除失败'); delete S.detail[S.sel]; S.tabs = {}; await refreshAll(); } catch (e) { toast(e.message, true); } },
   ruledel: async (el) => { try { await api('/rules/' + el.dataset.id, 'DELETE'); delete S.detail[S.sel]; await loadDetail(S.sel); } catch (e) { toast(e.message, true); } },
@@ -1001,8 +1371,6 @@ async function openSectorPop(btn) {
   }
 }
 let nItemTimer = 0;
-document.addEventListener('input', (e) => { const f = e.target && e.target.dataset && e.target.dataset.pf; if (f) S.pf[f] = e.target.value; });
-document.addEventListener('keydown', (e) => { const f = e.target && e.target.dataset && e.target.dataset.pf; if (f === 'ask' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); ACT.pfask(); } });
 document.addEventListener('click', (e) => {
   if (e.target.closest('#sectorPop')) {
     if (e.target.closest('[data-closesector]')) { closeSectorPop(); return; }
@@ -1027,7 +1395,7 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('[data-act="secpop"]')) closeSectorPop();
   const el = e.target.closest('[data-act]');
   if (!el || el.tagName === 'A' || e.target.closest('a')) return;
-  if (el.tagName === 'INPUT' && el.type === 'checkbox') return;   // 复选框走 change
+  if (el.tagName === 'INPUT') return;   // checkbox / date 走 change
   const fn = ACT[el.dataset.act];
   if (fn) fn(el, e);
 });
@@ -1036,12 +1404,18 @@ document.addEventListener('dblclick', (e) => {
   if (!el || !S.notif) return;
   clearTimeout(nItemTimer);
   e.preventDefault();
+  if (el.dataset.id) markNotifRead([el.dataset.id]);
   S.notif = false; updateBell(); renderAside();
 });
-document.addEventListener('change', (e) => { const el = e.target; if (el.tagName === 'INPUT' && el.type === 'checkbox' && el.dataset.act && ACT[el.dataset.act]) ACT[el.dataset.act](el, e); });
+document.addEventListener('change', (e) => {
+  const el = e.target;
+  if (el.tagName !== 'INPUT' || !el.dataset.act || !ACT[el.dataset.act]) return;
+  if (el.type === 'checkbox' || el.type === 'date') ACT[el.dataset.act](el, e);
+});
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (!$('sectorPop').hidden) { closeSectorPop(); return; }
+    if (S.aiOpen) { closeAiConcl(); return; }
     if ($('modal').innerHTML) closeModal();
     else if (S.notif) ACT.notif();
   }
@@ -1049,28 +1423,48 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ---------- 加载与渲染 ---------- */
+async function loadEntries(code) {
+  try {
+    const out = await api('/stock/' + encodeURIComponent(code) + '/entries');
+    if (!S.detail[code]) return;
+    S.detail[code].entries = out.entries || [];
+    S.detail[code].entries_pending = false;
+  } catch (e) {
+    if (!S.detail[code]) return;
+    S.detail[code].entries = [];
+    S.detail[code].entries_pending = false;
+  }
+  if (S.sel === code && !S.notif) renderAside();
+}
 async function loadDetail(code) {
   try { S.detail[code] = await api('/stock/' + encodeURIComponent(code)); } catch (e) { S.detail[code] = null; if (S.sel === code) S.sel = null; toast(e.message, true); }
   if (!S.notif) renderAside();
+  if (S.detail[code] && S.detail[code].entries_pending) loadEntries(code);
 }
 function selectStock(code) {
+  if (S.sel !== code) closeAiConcl();
   S.sel = code; S.notif = false; updateBell();
-  if (S.tab === 'chk') { S.tab = 'now'; renderTabs(); renderBody(); }
   if (S.tab === 'now') $('body').innerHTML = renderNow();
+  else if (S.tab === 'plan' && S.tabs.plan) $('body').innerHTML = renderPlan(S.tabs.plan);
+  else if (S.tab === 'buy' && S.tabs.buy) $('body').innerHTML = renderBuy(S.tabs.buy);
   renderAside();
   if (!S.detail[code]) loadDetail(code);
+  loadKline(code);
 }
 function renderBody() {
   const t = S.tab;
   renderAside();
   if (t === 'now') $('body').innerHTML = S.summary ? renderNow() : '';
-  else if (S.tabs[t]) $('body').innerHTML = t === 'buy' ? renderBuy(S.tabs[t]) : t === 'chk' ? renderCheck(S.tabs[t]) : renderReview(S.tabs[t]);
+  else if (S.tabs[t]) $('body').innerHTML = t === 'buy' ? renderBuy(S.tabs[t]) : t === 'plan' ? renderPlan(S.tabs[t]) : renderReview(S.tabs[t]);
   else $('body').innerHTML = '<div class="skeleton">正在整理…</div>';
 }
 async function showTab(t, force) {
   if (t !== 'now' && (force || !S.tabs[t])) {
     renderBody();
-    try { S.tabs[t] = await api('/tab/' + t); } catch (e) { $('body').innerHTML = '<div class="card"><span style="color:#B42318">' + esc(e.message) + '</span></div>'; return; }
+    try {
+      const q = t === 'plan' && S.planDay ? '?date=' + encodeURIComponent(S.planDay) : '';
+      S.tabs[t] = await api('/tab/' + t + q);
+    } catch (e) { $('body').innerHTML = '<div class="card"><span style="color:#B42318">' + esc(e.message) + '</span></div>'; return; }
   }
   if (S.tab === t) renderBody();
 }
@@ -1079,14 +1473,12 @@ async function refreshAll() {
     S.summary = await api('/summary');
     setStatus(true, '已连接 · 现价约 10 秒缓存');
   } catch (e) { setStatus(false, '后端没连上：' + e.message); $('body').innerHTML = '<div class="card"><b>持仓接口没有响应</b><span class="sub">' + esc(e.message) + '。持仓在本机的 Go 服务里算，市场数据来自 ' + esc(API) + '（可以用 ?stockApi= 指定）。</span></div>'; return; }
-  if (S.sel && !S.summary.rows.some((r) => r.ts_code === S.sel)) S.sel = null;
   if (!S.sel && S.summary.rows.length) S.sel = S.summary.rows[0].ts_code;
   renderHead(); renderTabs();
   await showTab(S.tab, S.tab !== 'now');
   if (S.sel) { if (!S.detail[S.sel]) loadDetail(S.sel); }
   renderAside();
   loadQuality();
-  loadPortfolio();
   loadNotif().then(() => { updateBell(); if (S.notif) renderAside(); });
 }
 async function loadNotif() { try { S.nData = await api('/notifications'); } catch (e) { S.nData = S.nData || { items: [], unread: 0 }; } updateBell(); }

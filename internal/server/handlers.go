@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	coreagent "go-harness/core/agent"
@@ -112,6 +113,19 @@ func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, s.sessionDTOFromHandle(id, ag))
 	}
+	sort.SliceStable(out, func(i, j int) bool {
+		ti, tj := out[i].UpdatedAt, out[j].UpdatedAt
+		if ti == 0 {
+			ti = out[i].CreatedAt
+		}
+		if tj == 0 {
+			tj = out[j].CreatedAt
+		}
+		if ti != tj {
+			return ti > tj
+		}
+		return out[i].ID > out[j].ID
+	})
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -416,7 +430,7 @@ func (s *Server) handleStreamSession(w http.ResponseWriter, r *http.Request) {
 		case <-ticker.C:
 			events := sess.Events()
 			for ; lastSeq < len(events); lastSeq++ {
-				writeStreamEvent(w, events[lastSeq], pendingDisplay)
+				writeStreamEvent(w, events[lastSeq], pendingDisplay, s.cards)
 				flusher.Flush()
 				lastActivity = time.Now()
 			}
@@ -511,7 +525,7 @@ type displayPending struct {
 // handleStreamSession's reconnect comment: a reconnect always resumes
 // exactly at the currently-open step's own step/start, re-sending
 // everything that step already produced.
-func writeStreamEvent(w http.ResponseWriter, ev session.Event, pending map[string]displayPending) {
+func writeStreamEvent(w http.ResponseWriter, ev session.Event, pending map[string]displayPending, cards *uiCardStash) {
 	data, _ := ev.Data.(map[string]any)
 	switch ev.Type {
 	case "step/start":
@@ -567,6 +581,12 @@ func writeStreamEvent(w http.ResponseWriter, ev session.Event, pending map[strin
 				writeSSE(w, p.eventType, p.payload)
 			}
 			return
+		}
+		if cards != nil {
+			if card, ok := cards.take(callID); ok {
+				card["callId"] = callID
+				writeSSE(w, "stock-card", card)
+			}
 		}
 		writeSSE(w, "tool-result", map[string]any{"text": msg.Content[0].Text, "callId": callID})
 	}
@@ -794,6 +814,7 @@ func (s *Server) sessionDTOFromHandle(id string, ag coreagent.Agent) sessionDTO 
 		Title:         sessionTitle(sess),
 		QuestionCount: sessionQuestionCount(sess),
 		CreatedAt:     header.CreatedAt,
+		UpdatedAt:     sessionUpdatedAt(sess),
 	}
 	if entries, err := s.listFilesForSession(id); err == nil {
 		dto.FileCount = len(entries)

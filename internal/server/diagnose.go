@@ -10,7 +10,7 @@ import (
 )
 
 // diagnosisDims 是维度分析师（不含看多/看空/主分析师）。
-var diagnosisDims = []string{"volume_flow", "market", "sector", "news", "finance", "fundamental"}
+var diagnosisDims = []string{"market", "volume_flow", "sector", "news", "finance", "fundamental"}
 
 // diagnosisOrder 是页面点诊断和每晚任务共用的顺序：维度分析师，然后看多、看空，最后主分析师。
 var diagnosisOrder = append(append([]string{}, diagnosisDims...), "bull", "bear", "chief")

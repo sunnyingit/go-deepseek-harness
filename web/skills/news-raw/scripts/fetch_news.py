@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Read raw stock news from the stock service and optionally keep a topic.
+"""Read raw stock or topic news from the stock service.
 
 Does not call Tushare. Keyword matching is local, including 储存/存储.
+Topic mode: ts_code is "-" and keyword is required → /api/stocks/news?keyword=…
 """
 
 from __future__ import annotations
@@ -18,14 +19,22 @@ _PAIRS = (("储存", "存储"), ("存储", "储存"))
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2 or len(argv) > 3 or not argv[1].strip():
-        sys.stderr.write("usage: fetch_news.py <ts_code> [keyword]\n")
+        sys.stderr.write("usage: fetch_news.py <ts_code|-> [keyword]\n")
         return 2
     code = argv[1].strip()
     keyword = argv[2].strip() if len(argv) == 3 else ""
+    topic = code in ("-", "_", "NONE", "TOPIC")
+    if topic and not keyword:
+        sys.stderr.write("topic news needs keyword\n")
+        return 2
     base = os.environ.get("STOCK_API_BASE", "http://127.0.0.1:8090").rstrip("/")
-    params = {"q": code, "limit": "50"}
-    if keyword:
+    params = {"limit": "50"}
+    if topic:
         params["keyword"] = keyword
+    else:
+        params["q"] = code
+        if keyword:
+            params["keyword"] = keyword
     query = urllib.parse.urlencode(params)
     url = f"{base}/api/stocks/news?{query}"
     request = urllib.request.Request(url, headers={"Accept": "application/json"})

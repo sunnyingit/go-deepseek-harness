@@ -39,14 +39,14 @@ var (
 // groupLine is one spoken turn in a stock's shared 研判群. Fact sheets stay
 // out of this log; the next analyst only sees what was actually said.
 type groupLine struct {
-	Agent              string           `json:"agent"`
-	Name               string           `json:"name"`
-	Kind               string           `json:"kind"`
-	Quote              string           `json:"quote,omitempty"`
-	Text               string           `json:"text"`
-	Status             string           `json:"status,omitempty"`
-	StatusText         string           `json:"status_text,omitempty"`
-	SuggestedQuestions []map[string]any `json:"suggested_questions,omitempty"`
+	Agent              string              `json:"agent"`
+	Name               string              `json:"name"`
+	Kind               string              `json:"kind"`
+	Quote              string              `json:"quote,omitempty"`
+	Text               string              `json:"text"`
+	Status             string              `json:"status,omitempty"`
+	StatusText         string              `json:"status_text,omitempty"`
+	SuggestedQuestions []map[string]any    `json:"suggested_questions,omitempty"`
 	Tools              []map[string]string `json:"tools,omitempty"`
 	Day                string              `json:"day,omitempty"`
 }
@@ -398,7 +398,7 @@ type agentConfig struct {
 	Opening     string            `yaml:"opening"`
 	Forbid      []string          `yaml:"forbid"`
 	// Speak is headline for a dimension analyst, points for 看多/看空, chief for 主分析师.
-	Speak string `yaml:"speak"`
+	Speak  string `yaml:"speak"`
 	Prompt string `yaml:"-"`
 	Rules  string `yaml:"-"`
 	// Reply 可选：web/agents/<id>/reply.md；有则追问只用它，避免开场 JSON 示例带节奏。
@@ -445,14 +445,22 @@ func (s *Server) prepareAnalyst(ctx context.Context, cfg agentConfig, code, kind
 		}
 	}
 	prior := s.groupLines(code)
-	sess := session.New(session.SessionId(cfg.ID+"-"+sanitizeCode(code)+"-"+fmt.Sprintf("%d", time.Now().UnixNano())), session.Header{})
+	sidCode := sanitizeCode(code)
+	if sidCode == "" {
+		sidCode = "topic"
+	}
+	sess := session.New(session.SessionId(cfg.ID+"-"+sidCode+"-"+fmt.Sprintf("%d", time.Now().UnixNano())), session.Header{})
 	charts := &chartBox{}
 	ag, err := s.buildConfiguredAgent(sess, cfg, charts, kind)
 	if err != nil {
 		return nil, nil, err
 	}
+	debate := (*debateFile)(nil)
+	if strings.TrimSpace(code) != "" {
+		debate = s.loadDebate(code)
+	}
 	ag.Followup(session.Message{Role: session.RoleUser, Content: []session.ContentBlock{{
-		Kind: session.BlockText, Text: analystUserPrompt(cfg, code, question, prior, s.loadDebate(code)),
+		Kind: session.BlockText, Text: analystUserPrompt(cfg, code, question, prior, debate),
 	}}})
 	return ag, charts, nil
 }
@@ -626,7 +634,11 @@ func analystMessage(cfg agentConfig, kind, quote, text string, headline map[stri
 
 func analystUserPrompt(cfg agentConfig, code, question string, lines []groupLine, debate *debateFile) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "股票代码：%s\n", code)
+	if strings.TrimSpace(code) == "" {
+		b.WriteString("本轮无绑定股票（主题/市场新闻追问）。不要硬套某只个股；fetch_news 可不传 ts_code，或只传 keyword。\n")
+	} else {
+		fmt.Fprintf(&b, "股票代码：%s\n", code)
+	}
 	fmt.Fprintf(&b, "当前时间：%s\n", time.Now().Format("2006-01-02 15:04"))
 	if strings.TrimSpace(question) == "" {
 		opening := strings.TrimSpace(cfg.Opening)
@@ -1263,11 +1275,13 @@ func (s *Server) fetchNewsTool() (coretools.ToolDefinition, error) {
 		return coretools.ToolDefinition{}, errors.New("python 还没有准备好")
 	}
 	return coretools.ToolDefinition{
-		Name:        "fetch_news",
-		Description: "按用户原话搜索新闻，不限于当前股票。keyword 传要搜的内容，例如最新的财经资讯、物理AI、国家政策。不要在前面加股票名称。走股票服务 /api/stocks/news，不能改走 Tushare。",
+		Name: "fetch_news",
+		Description: "按用户原话搜索新闻，不限于当前股票。" +
+			"keyword 传要搜的内容，例如最新的财经资讯、物理AI、国家政策。不要在前面加股票名称。" +
+			"主题/市场新闻可不传 ts_code（此时 keyword 必填）。走股票服务 /api/stocks/news，不能改走 Tushare。",
 		Parameters: coretools.ParameterSchema{
-			"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，例如 600519.SH"}, Required: true},
-			"keyword": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "主题词，可空。例如 储存"}},
+			"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，例如 600519.SH；主题新闻可省略"}},
+			"keyword": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "主题词。无股票时必填。例如 储存、财政政策"}},
 		},
 		Output: coretools.Output{
 			Schema: coretools.ValueSchema{Kind: coretools.KindString},
@@ -1277,13 +1291,25 @@ func (s *Server) fetchNewsTool() (coretools.ToolDefinition, error) {
 		IsConcurrencySafe: func(map[string]any) bool { return true },
 		Execute: func(ctx context.Context, args map[string]any, _ *coretools.RunContext) (any, error) {
 			code := strings.ToUpper(strings.TrimSpace(fmt.Sprint(args["ts_code"])))
-			if !tsCodePattern.MatchString(code) {
-				return "", fmt.Errorf("ts_code 必须是 600519.SH 这种代码")
+			if code == "<NIL>" || code == "NIL" || code == "NULL" || code == "-" {
+				code = ""
 			}
 			keyword, _ := args["keyword"].(string)
-			argv := []string{pythonBin, script, code}
-			if strings.TrimSpace(keyword) != "" {
-				argv = append(argv, strings.TrimSpace(keyword))
+			keyword = strings.TrimSpace(keyword)
+			if code != "" && !tsCodePattern.MatchString(code) {
+				return "", fmt.Errorf("ts_code 必须是 600519.SH 这种代码")
+			}
+			if code == "" && keyword == "" {
+				return "", fmt.Errorf("主题新闻需要 keyword；或传入 ts_code")
+			}
+			argv := []string{pythonBin, script}
+			if code == "" {
+				argv = append(argv, "-", keyword)
+			} else {
+				argv = append(argv, code)
+				if keyword != "" {
+					argv = append(argv, keyword)
+				}
 			}
 			cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 			cmd.Env = basicEnv()
@@ -2162,29 +2188,39 @@ func lastTurnError(sess *session.Session) string {
 	return ""
 }
 
+func groupStorageKey(code string) string {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return "_topic_"
+	}
+	return code
+}
+
 func (s *Server) groupLines(code string) []groupLine {
+	key := groupStorageKey(code)
 	s.groupsMu.Lock()
 	defer s.groupsMu.Unlock()
 	if s.groups == nil {
 		s.groups = map[string][]groupLine{}
 	}
-	if lines, ok := s.groups[code]; ok {
+	if lines, ok := s.groups[key]; ok {
 		return append([]groupLine(nil), lines...)
 	}
-	lines := readGroupFile(s.groupPath(code))
-	s.groups[code] = lines
+	lines := readGroupFile(s.groupPath(key))
+	s.groups[key] = lines
 	return append([]groupLine(nil), lines...)
 }
 
 func (s *Server) appendGroup(code string, line groupLine) {
+	key := groupStorageKey(code)
 	s.groupsMu.Lock()
 	defer s.groupsMu.Unlock()
 	if s.groups == nil {
 		s.groups = map[string][]groupLine{}
 	}
-	lines := s.groups[code]
+	lines := s.groups[key]
 	if lines == nil {
-		lines = readGroupFile(s.groupPath(code))
+		lines = readGroupFile(s.groupPath(key))
 	}
 	if line.Day == "" {
 		line.Day = diagnosisDay(time.Now())
@@ -2193,8 +2229,8 @@ func (s *Server) appendGroup(code string, line groupLine) {
 	if len(lines) > maxGroupLines {
 		lines = lines[len(lines)-maxGroupLines:]
 	}
-	s.groups[code] = lines
-	_ = writeGroupFile(s.groupPath(code), lines)
+	s.groups[key] = lines
+	_ = writeGroupFile(s.groupPath(key), lines)
 }
 
 func (s *Server) handleGroupRecord(w http.ResponseWriter, r *http.Request) {
@@ -2280,7 +2316,11 @@ func (s *Server) groupPath(code string) string {
 	if strings.TrimSpace(s.cfg.DataDir) == "" {
 		return ""
 	}
-	return filepath.Join(s.cfg.DataDir, "groups", sanitizeCode(code)+".json")
+	key := sanitizeCode(code)
+	if key == "" {
+		key = "_topic_"
+	}
+	return filepath.Join(s.cfg.DataDir, "groups", key+".json")
 }
 
 func sanitizeCode(code string) string {

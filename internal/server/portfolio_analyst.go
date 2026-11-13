@@ -364,7 +364,12 @@ func (s *Server) portfolioReview(c *sched.JobCtx) (any, error) {
 
 func (s *Server) registerPortfolioTask() {
 	s.sch.Register(&sched.Spec{
-		ID: "portfolio.review", Title: "持仓分析师", Queue: "llm",
+		ID: "portfolio.review", Title: "持仓分析师", Category: sched.CatScan, Note: "盘后对整个持仓组合做一轮综述",
+		Trace: map[string]any{
+			"apis":    []any{"本地持仓事实汇总", "LLM 持仓综述"},
+			"purpose": "盘后对整个持仓组合做一轮综述并缓存",
+		},
+		Queue:   "llm",
 		Trigger: sched.Trigger{Kind: "daily", At: "21:30", WindowMin: 180, Days: "trading"}, MaxAttempts: 2, Backoff: []time.Duration{10 * time.Minute, 40 * time.Minute},
 		CatchupTTL: 10 * time.Hour, Timeout: 6 * time.Minute, BudgetCalls: 3, Handler: s.portfolioReview,
 	})

@@ -38,6 +38,18 @@ exports.default = async function afterPack(context) {
     }
   }
 
+  const stockMain = path.join(runtime, 'stock-agent', 'app', 'main.py');
+  if (!fs.existsSync(stockMain)) {
+    throw new Error(`bundled stock-agent missing at ${stockMain}`);
+  }
+  // Native mac builds ship a filled relocatable site-packages; win cross-builds
+  // may only ship wheels and fill on first launch.
+  const stockSite = path.join(runtime, 'stock-venv', 'site-packages');
+  const stockWheels = path.join(runtime, 'stock-wheels');
+  if (!fs.existsSync(stockSite) && !fs.existsSync(stockWheels)) {
+    throw new Error(`bundled stock-venv/site-packages and stock-wheels both missing under ${runtime}`);
+  }
+
   const executables = new Set([
     webName, 'python3', 'python', 'pip', 'pip3', 'node', 'npm', 'npx',
     'python.exe', 'python3.exe', 'pip.exe', 'node.exe', 'npm.cmd', 'npx.cmd',

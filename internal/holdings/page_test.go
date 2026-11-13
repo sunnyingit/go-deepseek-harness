@@ -398,12 +398,15 @@ func TestHeldDetailEntriesOutcomesRulesAndUnknownStock(t *testing.T) {
 	if items := out["flip_items"].([]string); len(items) != 2 || items[0] != "大资金连续 2 天流入" {
 		t.Fatalf("flip_items = %v", items)
 	}
+	if out["entries_pending"] != true {
+		t.Fatalf("detail should defer entries, got %v", out["entries_pending"])
+	}
 	outcomes := map[string]Map{}
-	for _, en := range out["entries"].([]Map) {
+	for _, en := range e.ctx().StockEntries("002050.SZ")["entries"].([]Map) {
 		outcomes[en["text"].(string)] = en["outcome"].(Map)
 	}
 	if outcomes["你买入时 · AI 偏多 · 比较明显"] == nil || outcomes["偏多 · 比较明显 → 不明"]["state"] != "skip" {
-		t.Fatalf("entries = %v", out["entries"])
+		t.Fatalf("entries = %v", outcomes)
 	}
 	e.store.AddRule("603738.SH", "flow_out", 2)
 	p := e.ctx().StockDetail("603738.SH")
@@ -420,7 +423,7 @@ func TestOutcomeSettlesAfterFiveDays(t *testing.T) {
 	e := newEnv(t)
 	e.seed()
 	e.data.closes["603738.SH"] = line("2026-10-20", 19.8, 20, 20.5, 21, 21.5, 22.0, 22.5)
-	for _, en := range e.ctx().StockDetail("603738.SH")["entries"].([]Map) {
+	for _, en := range e.ctx().StockEntries("603738.SH")["entries"].([]Map) {
 		if strings.HasPrefix(en["text"].(string), "你买入时") {
 			o := en["outcome"].(Map)
 			if o["state"] != "hit" || !strings.Contains(o["text"].(string), "T+5 方向对了 +11.1%") {
@@ -556,9 +559,32 @@ func TestNotificationsItemsAndReadMarks(t *testing.T) {
 	if !kinds["alert"] || !kinds["change"] || !kinds["upcoming"] || alertText != "拓普集团 跌到 56.50" || data["unread"] != len(data["items"].([]Map)) {
 		t.Fatalf("data = %v", data)
 	}
-	e.ctx().MarkRead()
+	e.ctx().MarkRead(nil)
 	if e.ctx().Notifications()["unread"] != 0 {
 		t.Fatal("still unread after marking read")
+	}
+}
+
+func TestMarkReadOneNotification(t *testing.T) {
+	e := newEnv(t)
+	e.seed()
+	e.data.quotes["601689.SH"] = personal.Quote{Price: 56.42, Change: -1.4, ChangePct: -2.4}
+	before := e.ctx().Notifications()
+	items := before["items"].([]Map)
+	if len(items) < 2 {
+		t.Fatalf("need >=2 items, got %d", len(items))
+	}
+	id := items[0]["id"].(string)
+	e.ctx().MarkRead([]string{id})
+	after := e.ctx().Notifications()
+	unread := after["unread"].(int)
+	if unread != before["unread"].(int)-1 {
+		t.Fatalf("unread before=%v after=%v", before["unread"], unread)
+	}
+	for _, it := range after["items"].([]Map) {
+		if it["id"] == id && it["unread"] == true {
+			t.Fatalf("item %s still unread", id)
+		}
 	}
 }
 

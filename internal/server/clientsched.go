@@ -70,36 +70,73 @@ func (s *Server) registerTasks() {
 		return !now.Before(t)
 	})
 	s.sch.Register(&sched.Spec{
-		ID: nightlyID, Title: "每晚个股结论", Queue: "llm", Gates: []string{"market_closed"},
+		ID: nightlyID, Title: "每晚个股结论", Category: sched.CatScan, Note: "给每只自选、持仓、想买各出一份结论；同一只票只保留最新一条在跟踪",
+		Trace: map[string]any{
+			"apis":    []any{"POST /api/v1/stocks/{code}/analyze", "本地结论落库"},
+			"purpose": "对每只关注股票跑一轮分析并写出结论",
+		},
+		Queue: "llm", Gates: []string{"market_closed"},
 		Trigger:     sched.Trigger{Kind: "daily", At: "20:30", WindowMin: 210, Days: "trading"},
 		MaxAttempts: 3, Backoff: []time.Duration{2 * time.Minute, 10 * time.Minute, 30 * time.Minute}, Timeout: 15 * time.Minute,
 		CatchupTTL: 12 * time.Hour, BudgetCalls: 500, Fanout: s.subjectUnits, Handler: s.nightly,
 	})
+	marketTrace := map[string]any{
+		"apis":    []any{"POST /api/v1/market/refresh", "GET /api/v1/market/summary"},
+		"purpose": "刷新股票服务市场缓存，再读大盘结论，写成简报通知",
+	}
 	s.sch.Register(&sched.Spec{
-		ID: "market.pre", Title: "盘前简报", Queue: "data", Trigger: sched.Trigger{Kind: "daily", At: "08:30", WindowMin: 20, Days: "trading"},
+		ID: "market.pre", Title: "盘前简报", Category: sched.CatMarket, Note: "开盘前汇总大盘与隔夜要点",
+		Trace: marketTrace,
+		Queue: "data", Trigger: sched.Trigger{Kind: "daily", At: "08:30", WindowMin: 20, Days: "trading"},
 		MaxAttempts: 3, Backoff: []time.Duration{time.Minute, 5 * time.Minute, 15 * time.Minute}, CatchupTTL: 5 * time.Hour,
 		Handler: func(c *sched.JobCtx) (any, error) { return s.marketBrief(c, "pre") },
 	})
 	s.sch.Register(&sched.Spec{
-		ID: "market.close", Title: "收盘复盘", Queue: "data", Gates: []string{"market_closed"},
+		ID: "market.close", Title: "收盘复盘", Category: sched.CatMarket, Note: "收盘后复盘当日行情",
+		Trace: marketTrace,
+		Queue: "data", Gates: []string{"market_closed"},
 		Trigger:     sched.Trigger{Kind: "daily", At: "15:35", WindowMin: 20, Days: "trading"},
 		MaxAttempts: 3, Backoff: []time.Duration{time.Minute, 5 * time.Minute, 15 * time.Minute}, CatchupTTL: 16 * time.Hour,
 		Handler: func(c *sched.JobCtx) (any, error) { return s.marketBrief(c, "close") },
 	})
+	alertTrace := map[string]any{
+		"apis":    []any{"quotes.Fetch", "inbox.Publish(price.alert.fired|price.move)"},
+		"purpose": "拉实时行情，核对到价提醒与持仓异动",
+	}
 	s.sch.Register(&sched.Spec{
-		ID: "alerts.intraday", Title: "盘中价格提醒", Queue: "light", Frequent: true, Trigger: sched.Trigger{Kind: "interval", EveryMin: 3, Days: "trading"},
+		ID: "alerts.intraday", Title: "盘中价格提醒", Category: sched.CatMarket, Note: "交易时段每 3 分钟检查到价提醒",
+		Trace: alertTrace,
+		Queue: "light", Frequent: true, Trigger: sched.Trigger{Kind: "interval", EveryMin: 3, Days: "trading"},
 		MaxAttempts: 1, Timeout: 90 * time.Second, Handler: func(c *sched.JobCtx) (any, error) { return s.evaluateAlerts(c, "touch") },
 	})
 	s.sch.Register(&sched.Spec{
-		ID: "relay.sync", Title: "离线转发同步", Queue: "light", Frequent: true, Trigger: sched.Trigger{Kind: "every", EveryMin: 2, Days: "any"},
+		ID: "relay.sync", Title: "离线转发同步", Category: sched.CatNotify, Note: "把待投递的通知同步到外部渠道",
+		Trace: map[string]any{
+			"apis":    []any{"relay.syncAlerts", "relay.syncSubscriptions", "relay.pullEvents", "relay.pullSystemEvents"},
+			"purpose": "与离线转发服务对账并拉回事件",
+		},
+		Queue: "light", Frequent: true, Trigger: sched.Trigger{Kind: "every", EveryMin: 2, Days: "any"},
 		MaxAttempts: 1, Timeout: 60 * time.Second, Handler: s.relaySyncTask,
 	})
 	s.registerWatchTasks()
 	s.registerScanTasks()
 	s.registerCustomTasks()
 	s.sch.Register(&sched.Spec{
-		ID: "notify.dispatch", Title: "通知投递", Queue: "light", Frequent: true, Trigger: sched.Trigger{Kind: "every", EveryMin: 1, Days: "any"},
-		MaxAttempts: 1, Timeout: 60 * time.Second, Handler: func(c *sched.JobCtx) (any, error) { return s.inbox.Dispatch(), nil },
+		ID: "notify.dispatch", Title: "通知投递", Category: sched.CatNotify, Note: "按打扰策略投递收件箱里的通知",
+		Trace: map[string]any{
+			"apis":    []any{"inbox.Dispatch"},
+			"purpose": "按打扰策略把收件箱待投递项发到桌面/外部渠道",
+		},
+		Queue: "light", Frequent: true, Trigger: sched.Trigger{Kind: "every", EveryMin: 1, Days: "any"},
+		MaxAttempts: 1, Timeout: 60 * time.Second, Handler: func(c *sched.JobCtx) (any, error) {
+			res := s.inbox.Dispatch()
+			summary := fmt.Sprintf("投递结果：%v", res)
+			out := map[string]any{"apis": []any{"inbox.Dispatch"}, "summary": summary, "detail": summary}
+			for k, v := range res {
+				out[k] = v
+			}
+			return out, nil
+		},
 	})
 	for _, d := range []struct {
 		id, title, at, days, label string
@@ -110,18 +147,39 @@ func (s *Server) registerTasks() {
 	} {
 		d := d
 		s.sch.Register(&sched.Spec{
-			ID: d.id, Title: d.title, Queue: "light", Trigger: sched.Trigger{Kind: "daily", At: d.at, WindowMin: 60, Days: d.days}, MaxAttempts: 1, CatchupTTL: 3 * time.Hour,
+			ID: d.id, Title: d.title, Category: sched.CatNotify, Note: "把未单独打扰的通知折成一条摘要",
+			Trace: map[string]any{
+				"apis":         []any{"inbox.BuildDigest"},
+				"purpose":      "把时间窗内未单独打扰的普通通知折成一条摘要",
+				"label":        d.label,
+				"window_hours": d.hours,
+			},
+			Queue: "light", Trigger: sched.Trigger{Kind: "daily", At: d.at, WindowMin: 60, Days: d.days}, MaxAttempts: 1, CatchupTTL: 3 * time.Hour,
 			Handler: func(c *sched.JobCtx) (any, error) {
-				made, n := s.inbox.BuildDigest(d.label, c.Now().Add(-time.Duration(d.hours)*time.Hour))
-				if made == nil {
-					return map[string]any{"absorbed": 0}, nil
+				since := c.Now().Add(-time.Duration(d.hours) * time.Hour)
+				made, n := s.inbox.BuildDigest(d.label, since)
+				out := map[string]any{
+					"absorbed":     n,
+					"label":        d.label,
+					"window_hours": d.hours,
+					"since":        since.In(sched.Zone).Format("2006-01-02 15:04"),
+					"apis":         []any{"inbox.BuildDigest"},
 				}
-				return map[string]any{"absorbed": n, "summary": made.Title}, nil
+				if made == nil {
+					out["summary"] = "这段时间没有可折进摘要的通知（或摘要开关未开）"
+					out["detail"] = out["summary"]
+					return out, nil
+				}
+				out["summary"] = made.Title
+				out["detail"] = made.Body
+				return out, nil
 			},
 		})
 	}
 	s.sch.Register(&sched.Spec{
-		ID: "alerts.close", Title: "收盘提醒", Queue: "light", Gates: []string{"market_closed"},
+		ID: "alerts.close", Title: "收盘提醒", Category: sched.CatMarket, Note: "收盘后按收盘价确认到价提醒",
+		Trace: alertTrace,
+		Queue: "light", Gates: []string{"market_closed"},
 		Trigger:     sched.Trigger{Kind: "daily", At: "15:35", WindowMin: 60, Days: "trading"},
 		MaxAttempts: 3, Backoff: []time.Duration{5 * time.Minute, 15 * time.Minute, 30 * time.Minute}, CatchupTTL: 24 * time.Hour,
 		Handler: func(c *sched.JobCtx) (any, error) { return s.evaluateAlerts(c, "close") },
@@ -302,7 +360,33 @@ func stockGetJSONWithin(path string, out any, within time.Duration) error {
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
+// stockPostRefresh asks the data service to drop its market bundle cache, so
+// the summary read right after is freshly computed (the two scheduled points).
+func (s *Server) stockPostRefresh() error {
+	client := &http.Client{Timeout: 15 * time.Second}
+	req, err := http.NewRequest(http.MethodPost, stockAPIBase()+"/api/v1/market/refresh", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-User-Id", clientUserID())
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("股票服务返回 %d", resp.StatusCode)
+	}
+	return nil
+}
+
 func (s *Server) marketBrief(c *sched.JobCtx, session string) (any, error) {
+	apis := []any{"POST /api/v1/market/refresh", "GET /api/v1/market/summary"}
+	// 先让数据服务丢弃缓存重算：定时任务点上的换档靠这一步，平时页面读到的可能是 5 分钟内的旧切片。
+	if err := s.stockPostRefresh(); err != nil {
+		return nil, sched.Transient("触发市场重算失败：" + err.Error())
+	}
 	var summary map[string]any
 	if err := s.stockGetJSON("/api/v1/market/summary", &summary); err != nil {
 		return nil, sched.Transient("取市场数据失败：" + err.Error())
@@ -321,7 +405,9 @@ func (s *Server) marketBrief(c *sched.JobCtx, session string) (any, error) {
 			return nil, err
 		}
 	}
-	return map[string]any{"session": session, "summary": headline}, nil
+	return map[string]any{
+		"session": session, "summary": headline, "title": title, "detail": text, "apis": apis,
+	}, nil
 }
 
 func briefText(session string, summary map[string]any) (title, text, headline string) {
@@ -392,8 +478,12 @@ func (s *Server) evaluateAlerts(c *sched.JobCtx, confirm string) (any, error) {
 			codes[code] = true
 		}
 	}
+	apis := []any{"quotes.Fetch", "inbox.Publish(price.alert.fired|price.move)"}
 	if len(codes) == 0 {
-		return map[string]any{"watching": 0}, nil
+		return map[string]any{
+			"watching": 0, "alerts": 0, "moves": 0, "apis": apis,
+			"summary": "没有需要检查的提醒或持仓", "detail": "没有需要检查的提醒或持仓",
+		}, nil
 	}
 	list := make([]string, 0, len(codes))
 	for code := range codes {
@@ -443,7 +533,11 @@ func (s *Server) evaluateAlerts(c *sched.JobCtx, confirm string) (any, error) {
 			}
 		}
 	}
-	return map[string]any{"watching": len(list), "alerts": fired, "moves": moves}, nil
+	summary := fmt.Sprintf("盯 %d 只 · 到价 %d · 异动 %d", len(list), fired, moves)
+	return map[string]any{
+		"watching": len(list), "alerts": fired, "moves": moves, "apis": apis,
+		"summary": summary, "detail": summary,
+	}, nil
 }
 
 // ---- receipts
@@ -481,12 +575,88 @@ func (s *Server) onRunFinished(run sched.Run, sp *sched.Spec) {
 		if run.StartedAt > 0 && run.FinishedAt > 0 {
 			payload["duration_ms"] = run.FinishedAt - run.StartedAt
 		}
+		attachJobResult(payload, jobs, sp)
 		key := "client:" + run.ID
 		if sp.Frequent && (run.Trigger == "schedule" || run.Trigger == "catchup") {
 			key = fmt.Sprintf("client:daily:%s:%s:%s", run.TaskID, sched.Day(time.UnixMilli(run.FinishedAt)), run.State)
 		}
 		_, _, _ = s.inbox.Publish("task.completed", "system", run.TaskID, payload, key, inbox.Options{})
 	}
+}
+
+// attachJobResult copies human-readable result fields from job outputs into the receipt.
+func attachJobResult(payload map[string]any, jobs []sched.Job, sp *sched.Spec) {
+	if sp != nil && sp.Trace != nil {
+		if apis, ok := sp.Trace["apis"]; ok {
+			payload["apis"] = apis
+		}
+		if purpose, ok := sp.Trace["purpose"].(string); ok && purpose != "" {
+			payload["purpose"] = purpose
+		}
+	}
+	for _, j := range jobs {
+		m, ok := j.Output.(map[string]any)
+		if !ok || m == nil {
+			continue
+		}
+		if _, have := payload["apis"]; !have {
+			if apis, ok := m["apis"]; ok {
+				payload["apis"] = apis
+			}
+		}
+		for _, k := range []string{"detail", "summary", "text"} {
+			if payload[k] != nil {
+				continue
+			}
+			if v, ok := m[k].(string); ok && strings.TrimSpace(v) != "" {
+				payload[k] = v
+			}
+		}
+		if payload["detail"] == nil {
+			if title, _ := m["title"].(string); title != "" {
+				if text, _ := m["text"].(string); text != "" {
+					payload["detail"] = title + "\n" + text
+				} else {
+					payload["detail"] = title
+				}
+			}
+		}
+		if payload["detail"] == nil && payload["summary"] == nil {
+			if syn := summarizeCounts(m); syn != "" {
+				payload["summary"] = syn
+			}
+		}
+		if payload["detail"] != nil || payload["summary"] != nil {
+			break
+		}
+	}
+}
+
+func summarizeCounts(m map[string]any) string {
+	parts := []string{}
+	for _, k := range []string{"watching", "alerts", "moves", "absorbed", "events", "created", "n", "hit", "decided"} {
+		if v, ok := fltAny(m[k]); ok {
+			parts = append(parts, fmt.Sprintf("%s=%v", k, v))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, " · ")
+}
+
+func fltAny(v any) (float64, bool) {
+	switch x := v.(type) {
+	case float64:
+		return x, true
+	case float32:
+		return float64(x), true
+	case int:
+		return float64(x), true
+	case int64:
+		return float64(x), true
+	}
+	return 0, false
 }
 
 // ensureWecomChannel turns the WeCom webhook from the config file (the only outside channel before

@@ -45,14 +45,15 @@ button,input,textarea{font:inherit}
 .toast.show{opacity:1}
 .ask-modal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(20,23,31,.42);backdrop-filter:blur(2px)}
 .ask-modal[hidden]{display:none}
-.ask-modal-card{width:min(360px,100%);background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;box-shadow:0 18px 48px rgba(20,23,31,.16);padding:22px 22px 18px;box-sizing:border-box}
-.ask-modal-title{margin:0;font-size:16px;font-weight:700;color:#14171F;letter-spacing:.01em}
-.ask-modal-body{margin:10px 0 0;font-size:13px;line-height:1.6;color:#5B6372}
-.ask-modal-actions{margin-top:18px;display:flex;justify-content:flex-end;gap:8px}
-.ask-modal-btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid #E3E6EB;background:#FFFFFF;color:#3A4250;font:inherit;font-size:13px;cursor:pointer}
+.ask-modal-card{width:min(380px,100%);background:#FFFFFF;border:1px solid #E3E6EB;border-radius:16px;box-shadow:0 20px 52px rgba(20,23,31,.14);padding:24px 24px 18px;box-sizing:border-box}
+.ask-modal-title{margin:0;font-size:17px;font-weight:700;color:#14171F;letter-spacing:.01em;line-height:1.35}
+.ask-modal-body{margin:12px 0 0;font-size:14px;line-height:1.65;color:#5B6372}
+.ask-modal-actions{margin-top:20px;display:flex;justify-content:flex-end;gap:10px}
+.ask-modal-btn{height:36px;padding:0 16px;border-radius:10px;border:1px solid #E3E6EB;background:#FFFFFF;color:#3A4250;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .ask-modal-btn:hover{background:#F4F5F7}
-.ask-modal-btn.danger{border-color:#F0B4AF;background:#D9483F;color:#FFFFFF}
+.ask-modal-btn.danger{border-color:transparent;background:#D9483F;color:#FFFFFF}
 .ask-modal-btn.danger:hover{background:#C13B33}
+.ask-modal-btn:focus-visible{outline:2px solid #2457D6;outline-offset:2px}
 .ask-box{position:relative;display:flex;flex-direction:column;gap:10px;padding:12px 12px 10px 16px;border:1px solid #C9CED6;border-radius:14px;background:#FFFFFF;box-shadow:0 4px 16px rgba(20,23,31,.06)}
 .ask-box:focus-within{border-color:#2457D6;box-shadow:0 0 0 3px rgba(36,87,214,.12),0 4px 16px rgba(20,23,31,.06)}
 .ask-input{width:100%;border:none;outline:none;resize:none;background:transparent;font-size:14px;line-height:1.6;color:#14171F;min-height:28px;max-height:140px}
@@ -82,6 +83,54 @@ button,input,textarea{font:inherit}
 .md code{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;background:#F4F5F7;padding:1px 4px;border-radius:4px}
 .md pre{overflow:auto;padding:10px 12px;background:#F4F5F7;border-radius:8px;font-size:12px}
 .md a{color:#2457D6}
+.elicit{margin-top:8px;padding:12px 14px;border:1px solid #C9D7F5;border-radius:12px;background:#F5F8FF;display:flex;flex-direction:column;gap:10px}
+.elicit-q{font-size:14px;font-weight:600;color:#14171F;line-height:1.5}
+.elicit-opts{display:flex;flex-direction:column;gap:6px}
+.elicit-opt{display:block;width:100%;padding:9px 12px;border:1px solid #C9D7F5;border-radius:10px;background:#FFFFFF;color:#2457D6;font:inherit;font-size:13px;text-align:left;cursor:pointer;box-sizing:border-box}
+.elicit-opt:hover{background:#EAF0FD;border-color:#2457D6}
+.elicit-opt:disabled,.elicit-skip:disabled,.elicit-go:disabled{opacity:.55;cursor:default}
+.elicit-free{display:flex;gap:6px;align-items:center}
+.elicit-free input{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;font:inherit;font-size:13px;outline:none;box-sizing:border-box}
+.elicit-free input:focus{border-color:#2457D6;box-shadow:0 0 0 3px rgba(36,87,214,.12)}
+.elicit-go{flex:none;height:34px;padding:0 12px;border:none;border-radius:8px;background:#2457D6;color:#FFFFFF;font:inherit;font-size:13px;cursor:pointer}
+.elicit-skip{align-self:flex-start;border:none;background:transparent;color:#8A919E;font:inherit;font-size:12px;cursor:pointer;padding:2px 0}
+.elicit-skip:hover{color:#5B6372}
+.toolrail{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.tstep{display:flex;align-items:center;gap:8px;min-height:22px;font-size:12px;color:#5B6372}
+.tdot{flex:none;width:7px;height:7px;border-radius:50%;background:#C9CED6}
+.tdot.run{background:#2457D6;box-shadow:0 0 0 3px rgba(36,87,214,.15)}
+.tdot.ok{background:#2E8B57}
+.tdot.bad{background:#D9483F}
+.tlab{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tlab.bad{color:#B42318;white-space:normal}
+.tevbtn{margin-left:auto;border:none;background:transparent;color:#2457D6;font:inherit;font-size:12px;cursor:pointer;padding:0 2px}
+.tev{margin:0;padding:8px 10px;border-radius:8px;background:#F4F5F7;color:#3A4250;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px;line-height:1.5;white-space:pre-wrap;overflow:auto;max-height:220px}
+.wbox{padding:10px 12px;border:1px solid #E3E6EB;border-radius:12px;background:#FFFFFF}
+.wcap{font-size:13px;font-weight:600;color:#14171F;margin-bottom:8px}
+.wtab{width:100%;border-collapse:collapse;font-size:13px}
+.wtab th,.wtab td{padding:6px 8px;border-bottom:1px solid #EEF0F3;text-align:left;vertical-align:top}
+.wtab th{font-size:11px;color:#8A919E;font-weight:600}
+.wsvg{display:block;width:100%;height:auto}
+.wchart{display:flex;align-items:center;gap:12px}
+.wleg{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#3A4250}
+.wleg i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.wcode{margin:0;padding:10px 12px;border-radius:10px;background:#F4F5F7;overflow:auto;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5}
+.wcode .wfn{display:block;margin-bottom:6px;color:#8A919E;font-size:11px}
+.werr{padding:10px 12px;border:1px solid #F0B4AF;border-radius:10px;background:#FDF6F6;color:#B42318;font-size:13px}
+.werr .wdet{margin-top:4px;color:#5B6372;font-size:12px}
+.tprog{display:flex;align-items:center;gap:8px;font-size:12px;color:#5B6372}
+.tprogbar{flex:1;height:6px;border-radius:999px;background:#EEF0F3;overflow:hidden}
+.tprogbar i{display:block;height:100%;background:#2457D6}
+.scard{padding:10px 12px;border:1px solid #E3E6EB;border-radius:12px;background:#FAFBFD;display:flex;flex-direction:column;gap:8px}
+.srow{display:flex;align-items:flex-start;gap:8px}
+.stag{font-size:11px;font-weight:600;color:#8A919E}
+.sname{font-size:13px;font-weight:600;color:#14171F}
+.sexc,.swhy,.stitle{font-size:13px;color:#3A4250;line-height:1.5}
+.stitle{font-weight:600}
+.scmp{padding-top:8px;border-top:1px solid #EEF0F3;display:flex;flex-direction:column;gap:2px}
+.spill{display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:999px;background:#EAF0FD;color:#2457D6;font-size:11px;font-weight:600}
+.schips{display:flex;flex-wrap:wrap;gap:6px}
+.wimg{max-width:100%;border-radius:10px;display:block}
 </style>
 </head>
 <body>
@@ -100,8 +149,8 @@ button,input,textarea{font:inherit}
 <div style="flex:1 1 auto;display:flex;min-width:0;min-height:0;overflow:hidden">
 <nav aria-label="主导航" style="flex:0 0 64px;background:#FFFFFF;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;overflow:hidden">
 <a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
-<a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>诊断</a>
-<a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>持仓</a>
+<a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
+<a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
 <a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
 <a class="nav-a" href="/tasks.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>任务</a>
 <a class="nav-a on" href="/dialog.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"></path></svg>问问</a>
@@ -123,7 +172,7 @@ button,input,textarea{font:inherit}
 <div style="max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:6px">
 <div class="ask-box">
 <div id="slashMenu" class="slash-menu" hidden role="listbox" aria-label="快捷选择"></div>
-<textarea id="chatInput" class="ask-input" rows="1" placeholder="# 唤起持仓或想买股票 @ 唤起分析师"></textarea>
+<textarea id="chatInput" class="ask-input" rows="1" placeholder="问点什么… @ 点名分析师，# 选持仓/想买"></textarea>
 <div style="display:flex;align-items:center;gap:6px;position:relative">
 <button type="button" id="attachBtn" aria-label="带上资料" style="width:28px;height:28px;border:1px solid #E3E6EB;border-radius:8px;background:#FFFFFF;font-size:15px;line-height:1;color:#5B6372;cursor:pointer">＋</button>
 <span id="ctxChips" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap"></span>
@@ -176,7 +225,7 @@ button,input,textarea{font:inherit}
   const SUGGEST = ['银行还能买吗？', '两融是什么意思', '我的持仓风险大吗', '芯片为什么只热不增'];
   const params = new URLSearchParams(location.search);
   const state = {
-    sessions: [], id: params.get('session') || '', streaming: false, es: null, abort: null, filter: '', lastAnalysts: [], lastCode: '', lastName: '', pickedWho: 'auto',
+    sessions: [], id: params.get('session') || '', streaming: false, es: null, abort: null, streamCard: null, filter: '', lastAnalysts: [], lastCode: '', lastName: '', pickedWho: 'auto',
     slash: { open: false, kind: '', start: 0, query: '', items: [], idx: 0 }, slashStocks: null,
     ctx: { hold: true, market: true }, attachOpen: false, notif: false, notifTab: 'all', notifs: [], unread: 0,
   };
@@ -253,12 +302,28 @@ button,input,textarea{font:inherit}
     if (diff < 7) return '最近 7 天';
     return '更早';
   }
+  // Never surface raw session-N ids in the UI. Title comes from the first real user question.
+  function realTitle(s) {
+    const t = String((s && (s.title || s.question || s.lastMessage)) || '').trim();
+    if (!t || /^session-\d+$/i.test(t)) return '';
+    return t;
+  }
   function titleOf(s) {
-    return (s.title || s.question || s.lastMessage || s.id || '未命名对话').trim() || '未命名对话';
+    return realTitle(s) || '新对话';
+  }
+  function hasTitle(s) {
+    return !!realTitle(s);
   }
   function renderList() {
     const q = state.filter.trim().toLowerCase();
-    const items = state.sessions.filter((s) => !q || titleOf(s).toLowerCase().includes(q));
+    // Untitled sessions stay off the list until a title exists — except the one currently open.
+    const items = state.sessions.filter((s) => {
+      if (!hasTitle(s) && s.id !== state.id) return false;
+      if (!q) return true;
+      return titleOf(s).toLowerCase().includes(q);
+    });
+    const when = (s) => Number(s.updatedAt || s.createdAt || 0);
+    items.sort((a, b) => when(b) - when(a) || String(b.id).localeCompare(String(a.id)));
     if (!items.length) {
       $('sessList').innerHTML = '<div style="padding:24px 10px;color:#8A919E;font-size:12px;text-align:center">' + (q ? '没有匹配的对话' : '暂无对话') + '</div>';
       return;
@@ -270,12 +335,14 @@ button,input,textarea{font:inherit}
     });
     const order = ['今天', '最近 7 天', '更早'];
     $('sessList').innerHTML = order.filter((g) => groups[g]).map((g) =>
-      '<span class="grp">' + g + '</span>' + groups[g].map((s) =>
-        '<div class="sess-row' + (s.id === state.id ? ' on' : '') + '">' +
-          '<button type="button" class="sess" data-id="' + esc(s.id) + '" title="' + esc(titleOf(s)) + '">' + esc(titleOf(s)) + '</button>' +
+      '<span class="grp">' + g + '</span>' + groups[g].map((s) => {
+        const titled = hasTitle(s);
+        const label = titled ? realTitle(s) : '新对话';
+        return '<div class="sess-row' + (s.id === state.id ? ' on' : '') + '">' +
+          '<button type="button" class="sess" data-id="' + esc(s.id) + '" title="' + esc(label) + '"' + (titled ? '' : ' style="color:#8A919E;font-weight:500"') + '>' + esc(label) + '</button>' +
           '<button type="button" class="sess-del" data-del="' + esc(s.id) + '" title="删除对话" aria-label="删除对话">×</button>' +
-        '</div>'
-      ).join('')
+        '</div>';
+      }).join('')
     ).join('');
   }
 
@@ -288,10 +355,13 @@ button,input,textarea{font:inherit}
   }
   async function deleteSession(id) {
     if (!id) return;
-    const title = titleOf(state.sessions.find((s) => s.id === id) || { id });
+    const s = state.sessions.find((x) => x.id === id) || { id };
+    const named = realTitle(s);
     const ok = await askConfirm({
       title: '删除对话',
-      body: '「' + title + '」将被永久删除，无法恢复。',
+      body: named
+        ? '确定删除「' + named + '」吗？删除后无法恢复。'
+        : '确定删除这条对话吗？删除后无法恢复。',
       okText: '删除',
     });
     if (!ok) return;
@@ -364,7 +434,7 @@ button,input,textarea{font:inherit}
     bull: { name: '看多分析师', short: '看多', av: '看多分析师' },
     bear: { name: '看空分析师', short: '看空', av: '看空分析师' },
   };
-  const DOMAIN = ['volume_flow', 'market', 'sector', 'news', 'finance', 'fundamental'];
+  const DOMAIN = ['market', 'volume_flow', 'sector', 'news', 'finance', 'fundamental']; // 多人时大盘永远第一
   const DOMAIN_HINTS = {
     volume_flow: ['资金流', '融资', '龙虎榜', '筹码', '均线', 'macd', '大单', '超大单', '净流入', '净流出'],
     market: ['大盘', '市场结论', '市场资金', '国家队', '两市', '宽基', '沪深300', '上证', '深成', '创业板', '涨停', '跌停', '好不好做'],
@@ -568,13 +638,11 @@ button,input,textarea{font:inherit}
     let j = at + 1;
     for (; j < lines.length; j++) {
       const line = lines[j];
+      if (!line.trim()) { if (qs.length) break; continue; }
       const m = SUGG_ITEM.exec(line);
-      if (m) { qs.push(cleanSug(m[1])); continue; }
-      const t = cleanSug(line);
-      if (!t) { if (qs.length) break; continue; }
-      // 无列表符的短行也当推荐问（模型常直接换行写）
-      if (t.length <= 48 && !/^#{1,6}\s/.test(t) && !/^依据|^结论|^倾向|^价格|^资金/.test(t)) { qs.push(t); continue; }
-      break;
+      if (!m) break;
+      const item = cleanSug(m[1]);
+      if (item) qs.push(item);
     }
     if (!qs.length) return { body: raw, qs: [] };
     return { body: lines.slice(0, at).concat(lines.slice(j)).join('\n'), qs: qs };
@@ -592,13 +660,23 @@ button,input,textarea{font:inherit}
   const suggestChips = (qs, who) => {
     const list = sugList(qs).slice(0, 4);
     if (!list.length) return '';
-    const whoAttr = who && ROLE[who] ? ' data-who="' + esc(who) + '"' : '';
+    const whoAttr = who && who !== 'assistant' && ROLE[who] ? ' data-who="' + esc(who) + '"' : '';
     return '<div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:4px;margin-top:2px;border-top:1px solid #EEF0F3">' +
       list.map((q) => '<button type="button" class="sq" data-click="askSuggest" data-ask-chip data-q="' + esc(q) + '"' + whoAttr + ' title="点一下就问这个"><span style="overflow-wrap:anywhere">' + esc(q) + '</span><span aria-hidden="true">↗</span></button>').join('') + '</div>';
   };
+  const withSubject = (q) => {
+    const name = state.lastName || '';
+    const code = state.lastCode || '';
+    if (!q) return '';
+    if ((code && q.indexOf(code.slice(0, 6)) >= 0) || (name && q.indexOf(name) >= 0)) return q;
+    const tag = name && code ? name + '（' + code + '）' : (name || code);
+    return tag ? (tag + '：' + q) : q;
+  };
   const mdBox = (text, who, hideSuggest) => {
     const sp = splitSuggestions(text);
-    return '<div style="display:flex;flex-direction:column;gap:12px;min-width:0">' + mdHTML(sp.body) + (hideSuggest ? '' : suggestChips(sp.qs, who)) + '</div>';
+    let qs = sp.qs;
+    if (!hideSuggest && !qs.length && FALLBACK_SQ[who]) qs = FALLBACK_SQ[who].map(withSubject);
+    return '<div style="display:flex;flex-direction:column;gap:12px;min-width:0">' + mdHTML(sp.body) + (hideSuggest ? '' : suggestChips(qs, who)) + '</div>';
   };
   // 流式文本的最后一对加粗可能还没写完，补上闭合再渲染，避免星号露在外面。
   const mdLive = (text, who) => {
@@ -653,7 +731,7 @@ button,input,textarea{font:inherit}
     const copyBtn = wrap.querySelector('.copyBtn');
     const who = wrap.dataset.who || 'assistant';
     if (done) {
-      body.innerHTML = mdBox(text || '（没有正文）', who === 'assistant' ? 'chief' : who);
+      body.innerHTML = mdBox(text || '（没有正文）', who);
       status.style.cssText = MONO + ';font-size:13px;color:#A1A7B2';
       status.textContent = hhmm();
       if (copyBtn) {
@@ -666,19 +744,21 @@ button,input,textarea{font:inherit}
       let src = String(text || '');
       const marks = src.match(/\*\*/g);
       if (marks && marks.length % 2) src += '**';
-      body.innerHTML = mdBox(src, who === 'assistant' ? 'chief' : who, true) + '<span class="typing" aria-label="正在输入" style="margin-top:4px"><i></i><i></i><i></i></span>';
+      body.innerHTML = mdBox(src, who, true) + '<span class="typing" aria-label="正在输入" style="margin-top:4px"><i></i><i></i><i></i></span>';
       status.textContent = '正在写…';
       status.style.color = '#A1A7B2';
     }
     $('thread').scrollTop = $('thread').scrollHeight;
   }
   function addRouteNote(ids, code) {
-    // 主分析师点名：与诊断页「请你们回答」同款
+    // 主分析师点名：与诊断页同款（单人「球给你了」，多人「该你们开麦了」）；大盘永远排第一
     const wrap = addAI('chief');
-    const mentions = ids.map((id) => '<span style="color:#2457D6;font-weight:600">@' + esc((ROLE[id] && ROLE[id].name) || id) + '</span>').join(' ');
+    const ordered = DOMAIN.filter((id) => ids.includes(id)).concat(ids.filter((id) => DOMAIN.indexOf(id) < 0));
+    const mentions = ordered.map((id) => '<span style="color:#2457D6;font-weight:600">@' + esc((ROLE[id] && ROLE[id].name) || id) + '</span>').join(' ');
+    const cue = ordered.length > 1 ? '该你们开麦了' : '球给你了';
     wrap.querySelector('.status').style.cssText = MONO + ';font-size:13px;color:#A1A7B2';
     wrap.querySelector('.status').textContent = hhmm();
-    wrap.querySelector('.body').innerHTML = '<span>' + mentions + ' 请你们回答' + (code ? ' <span style="color:#8A919E">· ' + esc(code) + '</span>' : '') + '。</span>';
+    wrap.querySelector('.body').innerHTML = '<span>' + mentions + ' ' + cue + (code ? ' <span style="color:#8A919E">· ' + esc(code) + '</span>' : '') + '。</span>';
     const copyBtn = wrap.querySelector('.copyBtn');
     if (copyBtn) copyBtn.hidden = true;
     return wrap;
@@ -773,10 +853,107 @@ button,input,textarea{font:inherit}
 
 
   function stop() {
-    if (state.es) { state.es.close(); state.es = null; }
+    const card = state.streamCard;
+    const elicit = card && card.querySelector('.elicit');
+    if (elicit) elicit.remove();
+    if (state.es) { try { state.es.close(); } catch (_) {} state.es = null; }
     if (state.abort) { try { state.abort.abort(); } catch (e) {} state.abort = null; }
     if (state.id) fetch('/sessions/' + encodeURIComponent(state.id) + '/cancel', { method: 'POST' }).catch(() => {});
-    state.streaming = false; syncSend();
+    state.streaming = false;
+    state.streamCard = null;
+    if (card) {
+      if (card._buf != null) paintTail(card, true);
+      else setAIText(card, '（已停止）', true);
+      const status = card.querySelector('.status');
+      if (status) { status.style.cssText = MONO + ';font-size:13px;color:#A1A7B2'; status.textContent = hhmm(); }
+    }
+    syncSend();
+  }
+
+  function optionLabel(opt) {
+    if (opt == null) return '';
+    if (typeof opt === 'string') return opt;
+    if (typeof opt === 'object') return String(opt.label || opt.text || opt.value || '');
+    return String(opt);
+  }
+  function optionDesc(opt) {
+    if (!opt || typeof opt !== 'object') return '';
+    return String(opt.description || opt.desc || '');
+  }
+  function answerElicit(callId, text, skipped) {
+    if (!state.id || !callId) return Promise.resolve();
+    return api('/sessions/' + encodeURIComponent(state.id) + '/answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callId: callId, text: text || '', skipped: !!skipped }),
+    });
+  }
+  function mountElicit(card, data) {
+    if (!card || !data || !data.callId) return;
+    const host = ensureRail(card);
+    if (!host) return;
+    const old = host.querySelector('.elicit');
+    if (old) old.remove();
+    const status = card.querySelector('.status');
+    if (status) {
+      status.textContent = '等你选一下…';
+      status.style.color = '#2457D6';
+    }
+    const panel = document.createElement('div');
+    panel.className = 'elicit';
+    panel.dataset.callId = data.callId;
+    const opts = Array.isArray(data.options) ? data.options : [];
+    panel.innerHTML = '<div class="elicit-q"></div><div class="elicit-opts"></div>' +
+      '<div class="elicit-free"><input type="text" placeholder="或自己写一句" maxlength="200"><button type="button" class="elicit-go">发送</button></div>' +
+      '<button type="button" class="elicit-skip">跳过，让你自己判断</button>';
+    panel.querySelector('.elicit-q').textContent = String(data.question || '请选择一项');
+    const box = panel.querySelector('.elicit-opts');
+    opts.slice(0, 4).forEach((opt) => {
+      const lab = optionLabel(opt);
+      if (!lab) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'elicit-opt';
+      const desc = optionDesc(opt);
+      btn.textContent = lab;
+      if (desc) btn.title = desc;
+      btn.addEventListener('click', () => submitElicit(panel, card, data.callId, lab, false));
+      box.appendChild(btn);
+    });
+    const input = panel.querySelector('input');
+    const go = panel.querySelector('.elicit-go');
+    const skip = panel.querySelector('.elicit-skip');
+    const sendFree = () => {
+      const t = (input.value || '').trim();
+      if (!t) { input.focus(); return; }
+      submitElicit(panel, card, data.callId, t, false);
+    };
+    go.addEventListener('click', sendFree);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); sendFree(); }
+    });
+    skip.addEventListener('click', () => submitElicit(panel, card, data.callId, '', true));
+    place(host, panel);
+    $('thread').scrollTop = $('thread').scrollHeight;
+    const first = box.querySelector('.elicit-opt');
+    if (first) first.focus();
+    else input.focus();
+  }
+  function submitElicit(panel, card, callId, text, skipped) {
+    if (!panel || panel.dataset.done === '1') return;
+    panel.dataset.done = '1';
+    panel.querySelectorAll('button,input').forEach((el) => { el.disabled = true; });
+    const status = card && card.querySelector('.status');
+    if (status) {
+      status.textContent = skipped ? '已跳过，继续…' : '收到，继续…';
+      status.style.color = '#A1A7B2';
+    }
+    answerElicit(callId, text, skipped).catch((err) => {
+      toast((err && err.message) || '提交失败');
+      panel.dataset.done = '0';
+      panel.querySelectorAll('button,input').forEach((el) => { el.disabled = false; });
+      if (status) { status.textContent = '等你选一下…'; status.style.color = '#2457D6'; }
+    });
   }
 
   function parseMention(text) {
@@ -870,11 +1047,15 @@ button,input,textarea{font:inherit}
     return '';
   }
   // 问问路由：用服务端意图识别，不在前端堆关键词规则。
+  // 1.2s 超时直接放弃，避免发送前白等；超时/失败当 null，按原问题进会话流。
   async function classifyAsk(question) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 1200);
     try {
       return await api('/api/ask/intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
         body: JSON.stringify({
           question: question,
           last_code: state.lastCode || '',
@@ -883,6 +1064,8 @@ button,input,textarea{font:inherit}
       });
     } catch (e) {
       return null;
+    } finally {
+      clearTimeout(timer);
     }
   }
   async function planAnalysts(code, question) {
@@ -979,166 +1162,572 @@ button,input,textarea{font:inherit}
     else el.textContent = (ROLE[who] && ROLE[who].name) || '自动选分析师';
   }
 
+  const TOOL_LABEL = {
+    search_stock: '搜股票',
+    ask_analyst: '请分析师',
+    compare_stocks: '对比',
+    list_holdings: '持仓',
+    list_wishlist: '想买',
+    add_to_wishlist: '想买',
+    fetch_baidu_board: '热搜',
+  };
+  function toolTag(name, args) {
+    args = args || {};
+    const label = TOOL_LABEL[name] || name || '工具';
+    let extra = '';
+    if (name === 'ask_analyst') extra = [(ROLE[args.analyst] && ROLE[args.analyst].short) || args.analyst || '', args.ts_code || ''].filter(Boolean).join(' · ');
+    else if (name === 'search_stock') extra = args.q || '';
+    else if (name === 'compare_stocks') extra = args.codes || '';
+    else if (args.ts_code) extra = String(args.ts_code);
+    extra = String(extra || '');
+    if (extra.length > 42) extra = extra.slice(0, 42) + '…';
+    return extra ? (label + ' · ' + extra) : label;
+  }
+  function ensureRail(card) {
+    const col = card && card.querySelector('.hd') && card.querySelector('.hd').parentElement;
+    if (!col) return null;
+    col._card = card;
+    return col;
+  }
+  // 工具卡片插在「已经写出来的正文」后面。下一段正文再接在卡片下面，避免字一直堆在卡片上方。
+  function sealText(card) {
+    if (!card) return;
+    card._seal = (card._buf || '').length;
+    card.querySelectorAll('.typing').forEach((n) => n.remove());
+    card.querySelectorAll('.body.live').forEach((n) => {
+      n.classList.remove('live');
+      if (!(n.innerText || '').replace(/\s+/g, '')) n.remove();
+    });
+  }
+  function place(rail, node) {
+    if (!rail || !node) return;
+    sealText(rail._card);
+    rail.appendChild(node);
+    scrollThread();
+  }
+  function paintTailNow(card, done) {
+    const col = ensureRail(card);
+    if (!col) return;
+    const who = card.dataset.who || 'assistant';
+    const tail = (card._buf || '').slice(card._seal || 0);
+    const last = col.lastElementChild;
+    let live = last && last.classList && last.classList.contains('body') && last.classList.contains('live') ? last : null;
+    col.querySelectorAll('.body.live').forEach((n) => {
+      if (n !== live) {
+        n.classList.remove('live');
+        const typing = n.querySelector('.typing');
+        if (typing) typing.remove();
+      }
+    });
+    if (!String(tail || '').trim()) {
+      if (done && live) {
+        live.classList.remove('live');
+        const typing = live.querySelector('.typing');
+        if (typing) typing.remove();
+        if (!(live.innerText || '').trim()) live.remove();
+      }
+      scrollThread();
+      return;
+    }
+    if (!live) {
+      live = document.createElement('div');
+      live.className = 'body live';
+      live.style.cssText = BUBBLE;
+      col.appendChild(live);
+    }
+    if (done) {
+      live.classList.remove('live');
+      live.innerHTML = mdBox(tail, who);
+    } else {
+      let src = tail;
+      const marks = src.match(/\*\*/g);
+      if (marks && marks.length % 2) src += '**';
+      live.innerHTML = mdBox(src, who, true) + '<span class="typing" aria-label="正在输入" style="margin-top:4px"><i></i><i></i><i></i></span>';
+      const status = card.querySelector('.status');
+      if (status) { status.textContent = '正在写…'; status.style.color = '#A1A7B2'; }
+    }
+    scrollThread();
+  }
+  // 流式 chunk 合并到下一帧再渲染，避免每个 token 全量跑一遍 markdown。
+  function paintTail(card, done) {
+    if (done) {
+      if (card._paintRaf) {
+        cancelAnimationFrame(card._paintRaf);
+        card._paintRaf = 0;
+      }
+      paintTailNow(card, true);
+      return;
+    }
+    if (card._paintRaf) return;
+    card._paintRaf = requestAnimationFrame(() => {
+      card._paintRaf = 0;
+      paintTailNow(card, false);
+    });
+  }
+  function scrollThread() { $('thread').scrollTop = $('thread').scrollHeight; }
+  function findStep(rail, callId) {
+    if (!rail || !callId || !window.CSS || !CSS.escape) return null;
+    const row = rail.querySelector('.tstep[data-call="' + CSS.escape(callId) + '"]');
+    const pre = rail.querySelector('.tev[data-for="' + CSS.escape(callId) + '"]');
+    return row ? { row: row, pre: pre } : null;
+  }
+  function addStep(rail, callId, label) {
+    const row = document.createElement('div');
+    row.className = 'tstep';
+    row.dataset.call = callId || '';
+    row.innerHTML = '<span class="tdot run"></span><span class="tlab"></span>';
+    row.querySelector('.tlab').textContent = label;
+    place(rail, row);
+    return { row: row, pre: null };
+  }
+  function isShortError(text) {
+    const t = String(text || '').trim();
+    if (!t || t.length > 80) return false;
+    return /^(Error|error|出错|失败|缺少|无法)/.test(t);
+  }
+  function friendlyModelError(raw) {
+    const t = String(raw || '').trim();
+    if (/QUOTA_EXCEEDED|Insufficient Balance/i.test(t)) {
+      return '模型额度不足（DeepSeek 余额不够），请充值或更换 API Key 后再试。';
+    }
+    if (/rate.?limit|429/i.test(t)) return '模型请求过于频繁，请稍后再试。';
+    return t || '本轮失败';
+  }
+  function finishStep(rail, callId, text, carded) {
+    if (carded) {
+      const old = findStep(rail, callId);
+      if (old) { old.row.remove(); if (old.pre) old.pre.remove(); }
+      return;
+    }
+    let hit = findStep(rail, callId);
+    if (!hit) hit = addStep(rail, callId, '工具');
+    const dot = hit.row.querySelector('.tdot');
+    const lab = hit.row.querySelector('.tlab');
+    const t = String(text || '').trim();
+    if (isShortError(t)) {
+      if (dot) dot.className = 'tdot bad';
+      if (lab) { lab.classList.add('bad'); lab.textContent = t; }
+      return;
+    }
+    if (dot) dot.className = 'tdot ok';
+    if (lab && !/完成$/.test(lab.textContent || '')) lab.textContent = (lab.textContent || '工具') + ' 完成';
+  }
+  function stockLink(code, name) {
+    const c = String(code || '').trim();
+    const n = String(name || '').trim();
+    if (!c) return esc(n);
+    const same = !n || n === c || n.toUpperCase() === c.toUpperCase();
+    if (same) return '<a class="nl" href="/?stock=' + encodeURIComponent(c) + '">' + esc(c) + '</a>';
+    return '<a class="nl" href="/?stock=' + encodeURIComponent(c) + '">' + esc(n) + '</a> <span class="mono" style="font-size:12px;color:#8A919E">' + esc(c) + '</span>';
+  }
+  function mountStockCard(rail, data) {
+    if (!rail || !data) return;
+    const box = document.createElement('div');
+    box.className = 'scard';
+    const kind = data.kind;
+    if (kind === 'stock') {
+      box.innerHTML = '<div class="srow"><span class="stag">标的</span><span>' + stockLink(data.code, data.name) + '</span></div>';
+    } else if (kind === 'analyst') {
+      const who = data.analyst;
+      const av = ROLE[who] ? avatarHTML(who, 28) : '';
+      box.innerHTML = '<div class="srow">' + av + '<div style="min-width:0"><div class="sname">' + esc(data.name || who || '分析师') + '</div><div>' + stockLink(data.code, data.stock) + '</div></div></div>';
+    } else if (kind === 'compare') {
+      const items = Array.isArray(data.items) ? data.items : [];
+      box.innerHTML = '<div class="stag">对比</div>' + items.map((it) =>
+        '<div class="scmp"><div>' + stockLink(it.code, it.name) + (it.action ? ' <span class="spill">' + esc(it.action) + '</span>' : '') + '</div>' +
+        (it.title ? '<div class="stitle">' + esc(it.title) + '</div>' : '') +
+        (it.why ? '<div class="swhy">' + esc(it.why) + '</div>' : '') + '</div>'
+      ).join('');
+    } else if (kind === 'holdings') {
+      const items = Array.isArray(data.items) ? data.items : [];
+      box.innerHTML = '<div class="stag">持仓</div>' + (items.length ? items.map((it) => {
+        const pct = Number(it.pnl_pct);
+        const w = Number(it.weight);
+        const pctTxt = Number.isFinite(pct) ? (pct * 100).toFixed(1) + '%' : '';
+        const wTxt = Number.isFinite(w) ? '仓位 ' + (w * 100).toFixed(1) + '%' : '';
+        return '<div class="scmp"><div>' + stockLink(it.code, it.name) + (it.qty != null ? ' <span class="spill">' + esc(it.qty) + ' 股</span>' : '') + '</div>' +
+          '<div class="swhy">' + [pctTxt && ('盈亏 ' + pctTxt), wTxt].filter(Boolean).join(' · ') + '</div></div>';
+      }).join('') : '<div class="swhy">当前没有持仓</div>');
+    } else if (kind === 'wishlist') {
+      if (data.preview) {
+        const q = '确认把 ' + (data.name || data.code || '') + '（' + (data.code || '') + '）加入想买，理由：' + (data.reason || '');
+        box.innerHTML = '<div class="stag">想买预览 · 尚未写入</div><div>' + stockLink(data.code, data.name) + '</div>' +
+          (data.reason ? '<div class="swhy">' + esc(data.reason) + '</div>' : '') +
+          '<button type="button" class="sq" data-ask-chip data-q="' + esc(q) + '">确认加入</button>';
+      } else if (data.code) {
+        box.innerHTML = '<div class="stag">已加入想买</div><div>' + stockLink(data.code, data.name) + '</div>' +
+          (data.reason ? '<div class="swhy">' + esc(data.reason) + '</div>' : '');
+      } else {
+        const items = Array.isArray(data.items) ? data.items : [];
+        box.innerHTML = '<div class="stag">想买</div><div class="schips">' + (items.length ? items.map((it) =>
+          '<a class="qchip" href="/?stock=' + encodeURIComponent(it.code || '') + '">' + esc(it.name || it.code) + '</a>'
+        ).join('') : '<span class="swhy">还没有想买</span>') + '</div>';
+      }
+    } else {
+      return;
+    }
+    place(rail, box);
+  }
+  function cellText(v) { return v == null ? '' : String(v); }
+  function mountTable(rail, data) {
+    const headers = Array.isArray(data.headers) ? data.headers : [];
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    const box = document.createElement('div');
+    box.className = 'wbox';
+    box.innerHTML = (data.caption ? '<div class="wcap">' + esc(data.caption) + '</div>' : '') +
+      '<table class="mdt wtab"><thead><tr>' + headers.map((h) => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' +
+      rows.map((row) => '<tr>' + (Array.isArray(row) ? row : []).map((c) => '<td>' + esc(cellText(c)) + '</td>').join('') + '</tr>').join('') +
+      '</tbody></table>';
+    place(rail, box);
+  }
+  function mountChart(rail, data) {
+    const labels = Array.isArray(data.labels) ? data.labels.map((x) => String(x)) : [];
+    const series = (Array.isArray(data.series) && data.series[0]) || {};
+    const vals = (Array.isArray(series.values) ? series.values : []).map((v) => Number(v) || 0);
+    const n = Math.max(labels.length, vals.length, 1);
+    const type = String(data.type || 'bar');
+    const colors = ['#2457D6', '#0E7C86', '#C9A227', '#9C3591', '#D9483F', '#2E8B57', '#5B6372'];
+    let body = '';
+    if (type === 'pie') {
+      const sum = vals.reduce((a, b) => a + Math.max(b, 0), 0) || 1;
+      let ang = -Math.PI / 2;
+      const cx = 80, cy = 80, r = 62;
+      let paths = '';
+      for (let i = 0; i < vals.length; i++) {
+        const frac = Math.max(vals[i], 0) / sum;
+        const a2 = ang + frac * Math.PI * 2;
+        const x1 = cx + r * Math.cos(ang), y1 = cy + r * Math.sin(ang);
+        const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+        const large = frac > 0.5 ? 1 : 0;
+        const fill = colors[i % colors.length];
+        if (frac >= 0.999) paths += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + fill + '"></circle>';
+        else if (frac > 0) paths += '<path d="M' + cx + ' ' + cy + ' L' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' A' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x2.toFixed(1) + ' ' + y2.toFixed(1) + ' Z" fill="' + fill + '"></path>';
+        ang = a2;
+      }
+      const legend = labels.map((lb, i) => '<span><i style="background:' + colors[i % colors.length] + '"></i>' + esc(lb) + '</span>').join('');
+      body = '<div class="wchart"><svg viewBox="0 0 160 160" width="160" height="160">' + paths + '</svg><div class="wleg">' + legend + '</div></div>';
+    } else {
+      const w = 480, h = 140, padL = 8, padB = 22, padT = 8;
+      const max = Math.max.apply(null, vals.concat([1]));
+      const iw = w - padL * 2, ih = h - padT - padB;
+      let marks = '';
+      if (type === 'line') {
+        const pts = [];
+        for (let i = 0; i < n; i++) {
+          const x = padL + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
+          const y = padT + ih - ((vals[i] || 0) / max) * ih;
+          pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+        }
+        marks = '<polyline fill="none" stroke="#2457D6" stroke-width="2" points="' + pts.join(' ') + '"></polyline>';
+      } else {
+        const gap = 6;
+        const bw = Math.max(4, (iw - gap * n) / n);
+        for (let i = 0; i < n; i++) {
+          const bh = ((vals[i] || 0) / max) * ih;
+          const x = padL + i * (bw + gap);
+          const y = padT + ih - bh;
+          marks += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(bh, 0).toFixed(1) + '" rx="3" fill="#2457D6"></rect>';
+        }
+      }
+      let labs = '';
+      for (let i = 0; i < labels.length; i++) {
+        const x = padL + (n === 1 ? iw / 2 : (i / Math.max(n - 1, 1)) * iw);
+        labs += '<text x="' + x.toFixed(1) + '" y="' + (h - 6) + '" text-anchor="middle" font-size="10" fill="#8A919E">' + esc(labels[i] || '') + '</text>';
+      }
+      body = '<svg class="wsvg" viewBox="0 0 ' + w + ' ' + h + '" role="img">' + marks + labs + '</svg>';
+    }
+    const box = document.createElement('div');
+    box.className = 'wbox';
+    box.innerHTML = (data.title ? '<div class="wcap">' + esc(data.title) + '</div>' : '') + body;
+    place(rail, box);
+  }
+  function mountSuggestion(rail, data) {
+    const items = Array.isArray(data.items) ? data.items : [];
+    const box = document.createElement('div');
+    box.className = 'wbox';
+    box.innerHTML = (data.title ? '<div class="wcap">' + esc(data.title) + '</div>' : '') +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + items.map((it) => {
+        const label = (it && (it.label || it.action)) || '';
+        const action = (it && (it.action || it.label)) || '';
+        if (!label) return '';
+        return '<button type="button" class="sq" data-ask-chip data-q="' + esc(action) + '">' + esc(label) + '</button>';
+      }).join('') + '</div>';
+    place(rail, box);
+  }
+  function mountCode(rail, data) {
+    const box = document.createElement('pre');
+    box.className = 'wcode';
+    const name = data.filename || data.language || '';
+    box.innerHTML = (name ? '<span class="wfn">' + esc(name) + '</span>' : '') + esc(data.code || '');
+    place(rail, box);
+  }
+  function mountError(rail, data) {
+    const box = document.createElement('div');
+    box.className = 'werr';
+    box.innerHTML = '<b>' + esc(data.message || '出错了') + '</b>' +
+      (data.details ? '<div class="wdet">' + esc(data.details) + '</div>' : '') +
+      (data.suggestion ? '<div class="wdet">' + esc(data.suggestion) + '</div>' : '');
+    place(rail, box);
+  }
+  function mountProgress(rail, data) {
+    let el = rail.querySelector('.tprog:not(.done)');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'tprog';
+      place(rail, el);
+    }
+    const pct = Math.max(0, Math.min(100, Number(data.progress) || 0));
+    const status = String(data.status || 'running');
+    if (status === 'completed' || status === 'failed') el.classList.add('done');
+    el.innerHTML = '<div class="tprogbar"><i style="width:' + pct + '%"></i></div><span>' + esc(data.message || (pct + '%')) + '</span>';
+    scrollThread();
+  }
+  function mountImage(rail, data) {
+    const path = String(data.path || '');
+    const box = document.createElement('div');
+    box.className = 'wbox';
+    if (/^https?:\/\//i.test(path)) {
+      box.innerHTML = '<img class="wimg" alt="' + esc(data.alt || '') + '" src="' + esc(path) + '">';
+    } else {
+      box.innerHTML = '<div class="swhy">' + esc(data.alt || path || '图片') + '</div>';
+    }
+    place(rail, box);
+  }
+
   function sendSession(text, card) {
     let buf = '';
     let finished = false;
+    let es = null;
     // EventSource 在服务端正常关掉连接后也会触发 onerror，且带 text= 的 URL
     // 若自动重连会再跑一轮 Followup；所以 done/error 后必须立刻 close，并忽略晚到的 onerror。
-    const es = new EventSource('/sessions/' + encodeURIComponent(state.id) + '/stream?text=' + encodeURIComponent(text));
-    state.es = es;
+    state.streamCard = card;
+    card._buf = '';
+    card._seal = 0;
+    const firstBody = card.querySelector('.body');
+    if (firstBody) firstBody.classList.add('live');
+    const carded = {};
+    const clearElicit = () => {
+      const panel = card && card.querySelector('.elicit');
+      if (panel) panel.remove();
+    };
     const finish = (finalText) => {
       if (finished) return;
       finished = true;
-      try { es.close(); } catch (_) {}
+      clearElicit();
+      if (es) { try { es.close(); } catch (_) {} }
       state.es = null;
       state.streaming = false;
-      setAIText(card, finalText || '（没有正文）', true);
+      if (state.streamCard === card) state.streamCard = null;
+      card._buf = finalText || card._buf || '';
+      paintTail(card, true);
+      const status = card.querySelector('.status');
+      const copyBtn = card.querySelector('.copyBtn');
+      if (status) { status.style.cssText = MONO + ';font-size:13px;color:#A1A7B2'; status.textContent = hhmm(); }
+      if (copyBtn) {
+        copyBtn.hidden = !card._buf;
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(card._buf || '').then(() => toast('已复制')).catch(() => toast('复制失败'));
+        };
+      }
       syncSend();
       loadSessions();
     };
-    const on = (type, fn) => es.addEventListener(type, (e) => fn(e));
-    on('chunk', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.kind === 'reasoning') return;
-        buf += data.text || '';
-        setAIText(card, buf, false);
-      } catch {}
-    });
-    on('text', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        buf += (typeof data === 'string' ? data : (data.text || data.content || ''));
-        setAIText(card, buf, false);
-      } catch {}
-    });
-    on('done', () => finish(buf || '（没有正文）'));
-    on('error', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        buf += (buf ? '\n' : '') + (data.message || data.error || '出错了');
-      } catch {}
-      // 服务端主动推了 error 事件：有正文就保留，否则用错误文案收尾
-      finish(buf || '出错了');
-    });
-    es.onerror = () => {
-      if (finished) return;
-      // 已经收到正文时，把「连接关闭」当成正常结束，避免盖成「连接中断」
-      if (buf) {
-        finish(buf);
-        return;
-      }
-      // 让同批到达的 done 事件先处理
-      setTimeout(() => {
+    const bind = (source) => {
+      const on = (type, fn) => source.addEventListener(type, (e) => fn(e));
+      on('chunk', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.kind === 'reasoning') return;
+          clearElicit();
+          buf += data.text || '';
+          card._buf = buf;
+          paintTail(card, false);
+        } catch {}
+      });
+      on('text', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          clearElicit();
+          buf += (typeof data === 'string' ? data : (data.text || data.content || ''));
+          card._buf = buf;
+          paintTail(card, false);
+        } catch {}
+      });
+      on('elicit', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          mountElicit(card, data);
+        } catch {}
+      });
+      on('tool-call', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          const rail = ensureRail(card);
+          if (!rail) return;
+          sealText(card);
+          addStep(rail, data.callId, toolTag(data.toolName, data.args));
+          const status = card.querySelector('.status');
+          if (status) { status.textContent = toolTag(data.toolName, data.args) + '…'; status.style.color = '#A1A7B2'; }
+        } catch {}
+      });
+      on('tool-result', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          const rail = ensureRail(card);
+          if (!rail) return;
+          finishStep(rail, data.callId, data.text, !!carded[data.callId]);
+        } catch {}
+      });
+      on('stock-card', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.callId) carded[data.callId] = true;
+          const rail = ensureRail(card);
+          if (!rail) return;
+          const hit = findStep(rail, data.callId);
+          if (hit) { hit.row.remove(); if (hit.pre) hit.pre.remove(); }
+          mountStockCard(rail, data);
+        } catch {}
+      });
+      on('table', (e) => { try { const rail = ensureRail(card); if (rail) mountTable(rail, JSON.parse(e.data)); } catch {} });
+      on('chart', (e) => { try { const rail = ensureRail(card); if (rail) mountChart(rail, JSON.parse(e.data)); } catch {} });
+      on('suggestion', (e) => { try { const rail = ensureRail(card); if (rail) mountSuggestion(rail, JSON.parse(e.data)); } catch {} });
+      on('code', (e) => { try { const rail = ensureRail(card); if (rail) mountCode(rail, JSON.parse(e.data)); } catch {} });
+      on('progress', (e) => { try { const rail = ensureRail(card); if (rail) mountProgress(rail, JSON.parse(e.data)); } catch {} });
+      on('image', (e) => { try { const rail = ensureRail(card); if (rail) mountImage(rail, JSON.parse(e.data)); } catch {} });
+      on('done', (e) => {
+        let data = null;
+        try { data = e && e.data ? JSON.parse(e.data) : null; } catch {}
+        if (data && data.failed) {
+          const msg = friendlyModelError(data.errorMessage || data.message || '本轮失败');
+          finish(buf ? (buf + '\n\n' + msg) : msg);
+          return;
+        }
+        finish(buf || '（没有正文）');
+      });
+      on('error', (e) => {
+        let data = null;
+        try { data = JSON.parse(e.data); } catch {}
+        // show_error 的展示事件也叫 error，不能当成回合失败把流关掉
+        if (data && data.message && data.error == null && !data.failed && !data.errorMessage) {
+          const rail = ensureRail(card);
+          if (rail) mountError(rail, data);
+          return;
+        }
+        try {
+          const raw = (data && (data.errorMessage || data.message || data.error)) || '出错了';
+          buf += (buf ? '\n' : '') + friendlyModelError(raw);
+        } catch {}
+        finish(buf || '出错了');
+      });
+      source.onerror = () => {
         if (finished) return;
-        finish(buf || '连接中断，请再试一次');
-      }, 80);
+        // 等用户点选时：关掉带 text= 的源，改挂只看不发的流，避免自动重连再 Followup
+        if (card && card.querySelector('.elicit')) {
+          try { source.close(); } catch (_) {}
+          if (state.es === source) state.es = null;
+          openWatch();
+          return;
+        }
+        if (buf) {
+          finish(buf);
+          return;
+        }
+        setTimeout(() => {
+          if (finished) return;
+          if (card && card.querySelector('.elicit')) {
+            try { source.close(); } catch (_) {}
+            if (state.es === source) state.es = null;
+            openWatch();
+            return;
+          }
+          finish(buf || '连接中断，请再试一次');
+        }, 80);
+      };
     };
+    const openWatch = () => {
+      if (finished) return;
+      if (state.es) return;
+      es = new EventSource('/sessions/' + encodeURIComponent(state.id) + '/stream');
+      state.es = es;
+      bind(es);
+    };
+    es = new EventSource('/sessions/' + encodeURIComponent(state.id) + '/stream?text=' + encodeURIComponent(text));
+    state.es = es;
+    bind(es);
   }
 
   async function sendRouted(text) {
+    // 会话主理人编排：分析师/对比/想买都是 session tools，默认走会话流。
     const mentioned = parseMention(text);
     const question = mentioned.question || text;
-    const host = addAI('chief');
-    host.querySelector('.status').textContent = '正在理解问题…';
-    const intent = await classifyAsk(question);
-    let code = '';
-    let reused = false;
+    const host = addAI('assistant');
+    host.querySelector('.status').textContent = '正在安排…';
+    setAIWho(host, 'assistant');
+    const whoLabel = host.querySelector('.whoName');
+    if (whoLabel) whoLabel.textContent = '主理人';
+
+    // @ 点名已定路由，跳过意图识别，少一次阻塞模型调用。
+    const intent = (mentioned.forced && mentioned.who && ROLE[mentioned.who])
+      ? null
+      : await classifyAsk(question);
     let ask = (intent && intent.ask) || question;
     let tipText = (intent && intent.note) || '';
+    let code = '';
 
     if (intent && intent.reuse_last && state.lastCode) {
       code = state.lastCode;
-      reused = true;
-    } else if (intent && intent.intent === 'stock_new') {
-      try { code = await resolveStock(intent.stock_query || question); } catch (e) {}
-    } else if (intent && (intent.intent === 'sector_theme' || intent.intent === 'market_screen' || intent.intent === 'general')) {
-      // 明确不绑上一只股票；仅当同句点了股票才解析
-      if (intent.stock_query) {
-        try { code = await resolveStock(intent.stock_query); } catch (e) {}
+      if (!/\d{6}/.test(ask)) {
+        ask = '【上下文：上一只股票 ' + (state.lastName ? state.lastName + ' ' : '') + state.lastCode + '】\n' + ask;
       }
+    } else if (intent && intent.intent === 'stock_new' && intent.stock_query) {
+      try { code = await resolveStock(intent.stock_query); } catch (e) {}
+    } else if (intent && intent.stock_query) {
+      try { code = await resolveStock(intent.stock_query); } catch (e) {}
     } else {
-      // 意图服务失败时：只从本句解析股票，绝不沿用上一只（避免再误绑）
       try { code = await resolveStock(question); } catch (e) {}
     }
-
-    if (code) state.lastCode = code;
-
-    let ids = [];
-    if (mentioned.forced && mentioned.who) ids = [mentioned.who];
-    else if (state.pickedWho && state.pickedWho !== 'auto') ids = [state.pickedWho];
-    else if (code) {
-      ids = await planAnalysts(code, ask);
-      if (intent && Array.isArray(intent.analysts) && intent.analysts.length) {
-        const hinted = intent.analysts.filter((id) => ROLE[id] && id !== 'bull' && id !== 'bear');
-        if (hinted.length) ids = hinted;
+    if (code) {
+      state.lastCode = code;
+      if (!state.lastName) {
+        try {
+          const hit = await searchStockHit(code);
+          if (hit && hit.name) state.lastName = hit.name;
+        } catch (e) {}
       }
     }
 
-    if (!code) {
-      setAIWho(host, 'assistant');
-      host.querySelector('.status').textContent = '正在回答…';
+    // @点名或侧栏指定：写成明确指令，让主理人用 ask_analyst 召唤
+    // 新闻分析师可不带股票（主题/市场舆情）；其他维度仍要代码。
+    if (mentioned.forced && mentioned.who && ROLE[mentioned.who]) {
+      const need = code || state.lastCode || '';
+      if (mentioned.who === 'news' && !need) {
+        ask = '请调用 ask_analyst：analyst=news，question=' + question;
+      } else {
+        ask = '请调用 ask_analyst：analyst=' + mentioned.who +
+          (need ? '，ts_code=' + need : '（若还没有代码先 search_stock）') +
+          '，question=' + question;
+      }
+      tipText = tipText || ('点名 ' + ROLE[mentioned.who].name);
+    } else if (state.pickedWho && state.pickedWho !== 'auto' && ROLE[state.pickedWho]) {
+      const need = code || state.lastCode || '';
+      if (state.pickedWho === 'news' && !need) {
+        ask = '请优先调用 ask_analyst：analyst=news，回答：' + ask;
+      } else {
+        ask = '请优先调用 ask_analyst：analyst=' + state.pickedWho +
+          (need ? '，ts_code=' + need : '') +
+          '，回答：' + ask;
+      }
+    }
+
+    if (tipText) {
       const tip = document.createElement('div');
       tip.style.cssText = 'font-size:13px;color:#8A919E;padding:0 0 4px 44px';
-      tip.textContent = tipText || (
-        (intent && intent.intent === 'sector_theme')
-          ? '这是板块话题，未绑定上一只股票。若要按某只成分股深挖，可以说股票名或代码。'
-          : '没认出股票。可以说「分析三花智控」或带上代码如 002050.SZ，我会请主分析师安排。'
-      );
-      host.before(tip);
-      sendSession(ask || text, host);
-      return;
-    }
-
-    if (reused || tipText) {
-      const tip = document.createElement('div');
-      tip.style.cssText = 'font-size:13px;color:#8A919E;padding:0 0 4px 44px';
-      tip.textContent = tipText || ('沿用本会话标的 ' + (state.lastName ? state.lastName + ' · ' : '') + code);
+      tip.textContent = tipText;
       host.before(tip);
     }
-
-    // 有标的：主分析师安排 → 点名维度分析师，或自己答
-    if (!ids.length) ids = ['chief'];
-    const dims = ids.filter((id) => id !== 'chief');
-    if (!dims.length) {
-      setAIWho(host, 'chief');
-      host.querySelector('.status').textContent = '正在回答…';
-      try {
-        const msg = await sseOnce('/api/stocks/' + encodeURIComponent(code) + '/agents/chief/reply', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: ask }),
-        }, (d) => setAIText(host, draftText(d), false));
-        const out = draftText(msg) || msg.text || '';
-        setAIText(host, out, true);
-        saveExtra({ role: 'assistant', who: 'chief', text: out, at: Date.now(), code: code, name: state.lastName || '', q: text, analysts: [] });
-      } catch (err) {
-        setAIText(host, err.message || '出错了', true);
-      }
-      state.lastAnalysts = [];
-      state.streaming = false; syncSend();
-      loadSessions();
-      return;
-    }
-
-    // 主分析师 @ 相关分析师，再请他们依次发言
-    host.remove();
-    addRouteNote(dims, code);
-    state.lastAnalysts = dims.slice();
-    for (let i = 0; i < dims.length; i++) {
-      const who = dims[i];
-      const card = addAI(who);
-      try {
-        const msg = await sseOnce('/api/stocks/' + encodeURIComponent(code) + '/agents/' + encodeURIComponent(who) + '/reply', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: ask }),
-        }, (d) => setAIText(card, draftText(d), false));
-        const out = draftText(msg) || msg.text || '';
-        setAIText(card, out, true);
-        saveExtra({ role: 'assistant', who: who, text: out, at: Date.now(), code: code, name: state.lastName || '', q: text, analysts: dims.slice() });
-      } catch (err) {
-        setAIText(card, err.message || '出错了', true);
-      }
-    }
-    state.streaming = false; syncSend();
-    loadSessions();
+    host.querySelector('.status').textContent = '正在回答…';
+    sendSession(ask, host);
   }
 
   function send(text) {
@@ -1182,13 +1771,14 @@ button,input,textarea{font:inherit}
     }
     $('notifBody').innerHTML = items.map((n) => {
       const unread = !(n.read || n.is_read);
-      return '<button type="button" style="display:grid;grid-template-columns:6px 28px minmax(0,1fr) auto;align-items:start;gap:10px;width:100%;padding:10px 16px;border:none;background:transparent;text-align:left;font:inherit;color:#14171F;cursor:pointer">' +
+      return '<div style="display:grid;grid-template-columns:6px 28px minmax(0,1fr) auto;align-items:start;gap:10px;width:100%;padding:10px 16px">' +
         '<span style="width:6px;height:6px;border-radius:50%;background:' + (unread ? '#D9483F' : 'transparent') + ';margin-top:7px"></span>' +
         '<span style="width:28px;height:28px;border-radius:8px;background:#EAF0FD;display:flex;align-items:center;justify-content:center;font-size:13px">✓</span>' +
         '<span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:11px;color:#8A919E">' + esc(n.category || n.type || '通知') + '</span>' +
         '<span style="font-weight:600">' + esc(n.title || n.summary || '未命名') + '</span>' +
         '<span style="font-size:12px;color:#5B6372">' + esc(n.body || n.detail || n.message || '') + '</span></span>' +
-        '<span class="mono" style="font-size:11px;color:#8A919E">' + esc(n.time || hhmm(n.created_at || n.ts)) + '</span></button>';
+        '<span style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-size:11px;color:#8A919E">' + esc(n.time || hhmm(n.created_at || n.ts)) + '</span>' +
+        '<button type="button" data-ndel="' + esc(n.notif_id || n.id || '') + '" title="看过了，删掉这条" style="height:24px;padding:0 8px;border:1px solid #DDE1E7;border-radius:6px;background:#FFFFFF;color:#5B6372;font:inherit;font-size:12px;cursor:pointer">看过</button></span></div>';
     }).join('');
   }
   async function loadNotif() {
@@ -1362,8 +1952,20 @@ button,input,textarea{font:inherit}
   $('msgs').addEventListener('click', (e) => {
     const chip = e.target.closest('[data-ask-chip],[data-ask]');
     if (!chip) return;
-    const q = chip.dataset.q || chip.dataset.ask;
+    let q = chip.dataset.q || chip.dataset.ask;
     if (!q) return;
+    if (state.streaming) { toast('等这轮写完再点'); return; }
+    const who = chip.dataset.who || '';
+    if (who && who !== 'assistant' && ROLE[who]) {
+      const code = state.lastCode || '';
+      const named = (state.lastName && q.indexOf(state.lastName) >= 0) || (code && q.indexOf(code.slice(0, 6)) >= 0);
+      if (!named) q = withSubject(q);
+      if (DOMAIN.indexOf(who) >= 0 || who === 'chief') {
+        q = '请调用 ask_analyst：analyst=' + who + (code ? '，ts_code=' + code : '') + '，question=' + q;
+      }
+    } else if (state.lastCode && q.indexOf(state.lastCode.slice(0, 6)) < 0 && !(state.lastName && q.indexOf(state.lastName) >= 0) && (q.length <= 16 || /它|这只|该股|这票|上面|刚才/.test(q))) {
+      q = withSubject(q);
+    }
     $('chatInput').value = q;
     syncSend();
     $('sendBtn').click();
@@ -1440,9 +2042,25 @@ button,input,textarea{font:inherit}
     const b = e.target.closest('[data-ntab]'); if (!b) return;
     state.notifTab = b.dataset.ntab; renderNotif();
   });
+  $('notifBody').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-ndel]');
+    if (!b) return;
+    const id = b.dataset.ndel;
+    if (!id) return;
+    b.disabled = true;
+    try {
+      await api('/notify/inbox/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [id] }) });
+      state.notifs = state.notifs.filter((n) => (n.notif_id || n.id) !== id);
+      state.unread = state.notifs.filter((n) => !(n.read || n.is_read)).length;
+      renderNotif(); updateBell();
+    } catch (err) {
+      b.disabled = false;
+      toast((err && err.message) || '删除失败');
+    }
+  });
   $('notifReadAll').addEventListener('click', async () => {
-    try { await api('/notify/inbox/read-all', { method: 'POST' }).catch(() => {}); } catch {}
-    state.notifs.forEach((n) => { n.read = true; n.is_read = true; });
+    try { await api('/notify/inbox/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) }); } catch {}
+    state.notifs = [];
     state.unread = 0; renderNotif(); updateBell();
   });
   document.addEventListener('keydown', (e) => {
