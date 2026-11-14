@@ -15,21 +15,23 @@ button,input,textarea{font:inherit}
 .seg button{height:28px;padding:0 12px;white-space:nowrap;border:none;border-right:1px solid #DDE1E7;background:#FFFFFF;color:#3A4250;font-size:12px;cursor:pointer}
 .seg button:last-child{border-right:none}
 .seg button[aria-pressed="true"]{background:#14171F;color:#FFFFFF}
-.mini{height:28px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;color:#2457D6;font-size:12px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;text-decoration:none;box-sizing:border-box}
-.mini:hover{border-color:#2457D6}
-.btn{height:32px;padding:0 12px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;font-size:13px;cursor:pointer;white-space:nowrap}
-.btn.pri{border:none;background:#2457D6;color:#FFFFFF}
+.mini{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;color:#2457D6;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s}
+.mini:hover{background:#EAF0FD;border-color:#2457D6}
+.btn{display:inline-flex;align-items:center;height:30px;padding:0 12px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;color:#2457D6;font:inherit;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
+.btn:hover{background:#EAF0FD;border-color:#2457D6}
+.btn.pri{background:#14171F;border-color:#14171F;color:#FFFFFF;font-weight:600}
+.btn.pri:hover{background:#2457D6;border-color:#2457D6;color:#FFFFFF}
 .btn:disabled{opacity:.5;cursor:default}
 .pl{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap}
 .tag{display:inline-flex;align-items:center;align-self:flex-start;height:18px;padding:0 6px;border-radius:4px;font-size:11px;font-weight:600;line-height:18px;white-space:nowrap}
-.nav-a{width:48px;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5B6372;text-decoration:none;font-size:13px}
-.nav-a:hover{color:#14171F;background:#D8D8D8}
-.nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:500}
+.nav-a{width:48px;min-height:46px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#6B7280;text-decoration:none;font-size:12px;font-weight:500;letter-spacing:.02em;line-height:1.15;transition:color .15s ease,background .15s ease}
+.nav-a:hover{color:#14171F;background:rgba(0,0,0,.06)}
+.nav-a.on{color:#2457D6;background:#EEF3FC;font-weight:600}
 .card{display:flex;flex-direction:column;gap:10px;padding:14px 16px;background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px}
 .card h3{margin:0;font-size:15px;font-weight:700}
 .sub{font-size:12px;color:#8A919E}
 .lbl{font-size:11px;color:#8A919E}
-.tab{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 2px;border:none;background:transparent;font-size:14px;color:#5B6372;cursor:pointer}
+.tab{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 2px;border:none;background:transparent;font-size:13px;color:#6B7280;cursor:pointer}
 .tab[aria-selected="true"]{color:#2457D6;font-weight:600;box-shadow:inset 0 -2px 0 #2457D6}
 .tab .n{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;color:#8A919E}
 .grid-h{display:grid;grid-template-columns:132px 150px 80px minmax(0,1fr) minmax(0,1fr) 96px 64px;gap:14px;align-items:center}
@@ -80,17 +82,17 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 </style>
 </head>
 <body>
-<div style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#EEF0F3;font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;color:#14171F;font-size:13px;line-height:1.55">
-<header style="flex:none;display:flex;align-items:center;height:44px;background:#FFFFFF;border-bottom:1px solid #DDE1E7">
-<div style="flex:0 0 64px;border-right:1px solid #DDE1E7;height:44px;background:#FFFFFF" aria-hidden="true"></div>
-<span style="padding:0 16px;font-weight:700;font-size:14px">交易</span>
+<div style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#F2F2F2;font-family:'PingFang SC','Noto Sans SC','Microsoft YaHei',system-ui,sans-serif;color:#14171F;font-size:13px;line-height:1.55">
+<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8">
+<div style="flex:0 0 64px;border-right:1px solid #E8E8E8;height:48px;background:#FAFAFA" aria-hidden="true"></div>
+<span style="padding:0 16px;font-size:15px;font-weight:600;letter-spacing:-.01em;color:#14171F">交易</span>
 <div style="margin-left:auto;display:flex;align-items:center;gap:14px;padding-right:16px">
-<span id="session" style="display:flex;align-items:center;gap:6px;font-size:14px;color:#5B6372"></span>
+<span id="session" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6B7280"></span>
 <button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="position:relative;width:32px;height:32px;border:none;border-radius:8px;background:transparent;color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
 </div>
 </header>
 <div style="flex:1 1 auto;display:flex;flex-wrap:nowrap;align-items:stretch;min-width:0;min-height:0;overflow:hidden;position:relative">
-<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#E6E6E6;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0">
+<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#EFEFEF;border-right:1px solid #E8E8E8;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0">
 <a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
 <a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
 <a class="nav-a on" href="/holdings.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
@@ -112,7 +114,7 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 </main>
 <aside id="aside" class="dw" aria-label="详情" style="align-self:stretch;overflow-y:auto;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;font-size:13px"></aside>
 </div>
-<footer style="flex:none;height:26px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;padding:0 12px;border-top:1px solid #DDE1E7;background:#FFFFFF;font-size:13px;color:#5B6372;white-space:nowrap;overflow:hidden">
+<footer style="flex:none;height:26px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;padding:0 12px;border-top:1px solid #E8E8E8;background:#FAFAFA;font-size:12px;color:#9CA3AF;white-space:nowrap;overflow:hidden">
 <div style="display:flex;align-items:center;gap:18px;min-width:0;overflow:hidden"><span style="display:flex;align-items:center;gap:6px"><span id="dot" style="width:7px;height:7px;border-radius:50%;background:#A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display:flex;gap:18px"></span></div>
 <span role="note" style="text-align:center">研究分析，不构成投资建议</span>
 <div style="display:flex;align-items:center;justify-content:flex-end;gap:18px;min-width:0;overflow:hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div>

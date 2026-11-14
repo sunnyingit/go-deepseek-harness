@@ -15,7 +15,8 @@ button{font:inherit}
 .seg button{height:28px;padding:0 10px;white-space:nowrap;border:none;border-right:1px solid #DDE1E7;background:#FFFFFF;color:#3A4250;font-size:12px;cursor:pointer}
 .seg button:last-child{border-right:none}
 .seg button[aria-pressed="true"]{background:#14171F;color:#FFFFFF}
-.mini{height:30px;padding:0 12px;border:1px solid #C9CED6;border-radius:6px;background:#FFFFFF;color:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.mini{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;color:#2457D6;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s}
+.mini:hover{background:#EAF0FD;border-color:#2457D6}
 .pill{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
 .pill.s{height:18px;padding:0 6px;font-size:10px;font-weight:600}
 .age{display:inline-flex;align-items:center;height:16px;padding:0 5px;border-radius:4px;background:#EEF0F3;color:#4A5260;font-size:10px;font-weight:600;vertical-align:2px;white-space:nowrap}
@@ -59,10 +60,10 @@ button{font:inherit}
 .ssum .r i{font-style:normal;font-size:12px;font-weight:650;display:flex;align-items:center;gap:6px;white-space:nowrap}
 .ssum .r i::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
 .ssum .r span{color:#14171F}
-.dtab{flex:none;height:44px;padding:0 8px;border:none;background:transparent;color:#5B6372;font-size:13px;cursor:pointer;white-space:nowrap}
+.dtab{flex:none;height:48px;padding:0 8px;border:none;background:transparent;color:#5B6372;font-size:13px;cursor:pointer;white-space:nowrap}
 .dtab:hover{color:#14171F}
 .dtab[aria-selected="true"]{color:#2457D6;font-weight:600;box-shadow:inset 0 -2px 0 #2457D6}
-.wtab{height:38px;padding:0 2px;margin-right:24px;border:none;background:transparent;font:inherit;font-size:14px;color:#5B6372;cursor:pointer}
+.wtab{height:38px;padding:0 2px;margin-right:24px;border:none;background:transparent;font:inherit;font-size:13px;color:#6B7280;cursor:pointer}
 .wtab:hover{color:#14171F}
 .wtab[aria-selected="true"]{color:#14171F;font-weight:700;box-shadow:inset 0 -2px 0 #14171F}
 .wb-shell{display:flex;flex-direction:column;gap:12px}
@@ -110,7 +111,7 @@ button{font:inherit}
 .wb-market .tilt{font-size:14px;font-weight:700}
 .wb-market .head{flex:1;min-width:12em;font-size:13px;line-height:1.45;color:#5B6372}
 .wb-market .sigs{display:flex;flex-wrap:wrap;gap:6px}
-.wb-market .sigp{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid #E3E6EB;border-radius:8px;font-size:12px;color:#5B6372;background:#FFFFFF}
+.wb-market .sigp{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid #E3E6EB;border-radius:8px;font-size:13px;color:#6B7280;background:#FFFFFF}
 .wb-market .act{padding-top:8px;border-top:1px solid #F1F2F4;font-size:13px;line-height:1.55;color:#3A4250}
 .wb-market .act .lab{color:#8A919E;margin-right:8px}
 .wb-news{min-height:0}
@@ -151,17 +152,19 @@ button{font:inherit}
 .wb-out .ov-pop .row b{flex:1;min-width:0;font-weight:600}
 .wb-out .ov-pop .row .tag{font-size:11px;color:#8A919E}
 .wb-out .ov-pop .empty{padding:12px 8px;font-size:12px;color:#8A919E}
-.wb-cta{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;font:inherit;font-size:12px;color:#2457D6;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box}
+.wb-cta{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;font:inherit;font-size:12px;color:#2457D6;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s}
 .wb-cta:hover{background:#EAF0FD;border-color:#2457D6}
 .wb-cta.pri{height:30px;padding:0 12px;background:#14171F;border-color:#14171F;color:#FFFFFF;font-weight:600}
 .wb-cta.pri:hover{background:#2457D6;border-color:#2457D6;color:#FFFFFF}
 @media (max-width:980px){.wb-grid{grid-template-columns:1fr}}
-.nav-a{width:48px;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5B6372;text-decoration:none;font-size:13px}
-.nav-a:hover{color:#14171F;background:#D8D8D8}
-.nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:500}
+.nav-a{width:48px;min-height:46px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#6B7280;text-decoration:none;font-size:12px;font-weight:500;letter-spacing:.02em;line-height:1.15;transition:color .15s ease,background .15s ease}
+.nav-a:hover{color:#14171F;background:rgba(0,0,0,.06)}
+.nav-a.on{color:#2457D6;background:#EEF3FC;font-weight:600}
 .card{display:flex;flex-direction:column;gap:10px;box-sizing:border-box;padding:16px 18px;background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px}
 .pair{display:flex;align-items:flex-start;gap:14px}
 .pair>section{flex:1 1 0;min-width:0}
+.pair-head{display:flex;align-items:center;gap:8px;min-height:30px;min-width:0}
+.pair-head .acts{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .card-body{flex:1 1 auto;min-height:0;overflow-y:auto}
 .card>.scope{margin-top:0;flex:none}
 .card-foot{flex:none;padding-top:8px;font-size:11px;color:#A1A7B2}
@@ -192,7 +195,7 @@ button{font:inherit}
 .chg-more[open] .when-closed{display:none}
 .chg-more[open] .when-open{display:inline}
 .chg-more[open] summary{margin-bottom:4px}
-.chk{display:flex;flex-direction:column;gap:6px;border-radius:10px;background:#F7F8FA;padding:10px 12px;min-height:0}
+.chk{display:flex;flex-direction:column;gap:8px;border-radius:10px;background:#F7F8FA;padding:10px 12px;min-height:0}
 .chk-h{display:flex;align-items:baseline;gap:8px;font-size:13px;font-weight:600;color:#14171F}
 .chk-body{max-height:200px;overflow:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
 .chk-body::-webkit-scrollbar{width:6px}
@@ -267,16 +270,16 @@ table.tb tr.grp td{background:#F7F8FA;text-align:left;padding:8px 6px;border-top
 </style>
 </head>
 <body>
-<div style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#EEF0F3;font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;color:#14171F;font-size:13px;line-height:1.55">
-<header style="flex:none;display:flex;align-items:center;height:44px;background:#FFFFFF;border-bottom:1px solid #DDE1E7">
-<div style="flex:0 0 64px;border-right:1px solid #DDE1E7;height:44px;background:#FFFFFF" aria-hidden="true"></div>
-<span style="padding:0 16px;font-weight:700;font-size:14px">市场</span>
+<div style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#F2F2F2;font-family:'PingFang SC','Noto Sans SC','Microsoft YaHei',system-ui,sans-serif;color:#14171F;font-size:13px;line-height:1.55">
+<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8">
+<div style="flex:0 0 64px;border-right:1px solid #E8E8E8;height:48px;background:#FAFAFA" aria-hidden="true"></div>
+<span style="padding:0 16px;font-size:15px;font-weight:600;letter-spacing:-.01em;color:#14171F">市场</span>
 <div style="margin-left:auto;display:flex;align-items:center;gap:14px;padding-right:16px">
-<span id="session" style="display:flex;align-items:center;gap:6px;font-size:14px;color:#5B6372"></span>
+<span id="session" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6B7280"></span>
 </div>
 </header>
 <div style="flex:1 1 auto;display:flex;flex-wrap:nowrap;align-items:stretch;min-width:0;min-height:0;overflow:hidden">
-<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#E6E6E6;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0">
+<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#EFEFEF;border-right:1px solid #E8E8E8;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0">
 <a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
 <a class="nav-a on" href="/market.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
 <a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
@@ -358,7 +361,7 @@ table.tb tr.grp td{background:#F7F8FA;text-align:left;padding:8px 6px;border-top
 <button type="button" data-tab="macro" title="宏观" style="width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:12px;cursor:pointer">宏</button>
 </aside>
 </div>
-<footer style="flex:none;height:26px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;padding:0 12px;border-top:1px solid #DDE1E7;background:#FFFFFF;font-size:13px;color:#5B6372;white-space:nowrap;overflow:hidden">
+<footer style="flex:none;height:26px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;padding:0 12px;border-top:1px solid #E8E8E8;background:#FAFAFA;font-size:12px;color:#9CA3AF;white-space:nowrap;overflow:hidden">
 <div style="display:flex;align-items:center;gap:18px;min-width:0;overflow:hidden"><span style="display:flex;align-items:center;gap:6px"><span id="dot" style="width:7px;height:7px;border-radius:50%;background:#A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display:flex;gap:18px"></span></div>
 <span role="note" style="text-align:center">研究分析，不构成投资建议</span>
 <div style="display:flex;align-items:center;justify-content:flex-end;gap:18px;min-width:0;overflow:hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div>
@@ -396,7 +399,7 @@ const state = {
   summary: null, tab: 'fund', fold: false,
   tabs: {}, loading: {}, open: {}, window: '5', hits: [], pick: 0, etf: null, etfDays: 60, etfs: {},
   chg: {}, chgMode: 'today', since: null, notif: false, nData: null, nTab: 'alert', settings: null, channel: '',
-  intraday: null, history: null, plan: null, hotNews: null, overseas: null, held: [],
+  intraday: null, history: null, plan: null, hotNews: null, hotNewsBusy: false, overseas: null, held: [],
   overseasShow: loadOverseasShow(), overseasExtras: loadOverseasExtras(),
   overseasAddOpen: false, overseasAddQ: '', overseasAddHits: null, overseasAddBusy: false,
   wb: { code: '', name: '', kind: 'index', mode: 'day', chart: null, loading: false, error: '' },
@@ -702,16 +705,19 @@ function noteBox(means, when) {
 }
 function bullets(title, items, tone) {
   const open = items.filter((i) => !i.met).length;
-  const col = tone === 'good' ? '#B42318' : '#1E6B44';
-  return '<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:12px;color:' + col + '">' + title + '</b><span style="margin-left:auto;font-size:11px;color:#8A919E">' + (open ? '还差 ' + open : '齐了') + '</span></div>' +
-    items.map((i) => '<span title="' + esc(i.text || i.short || '') + '" style="display:flex;align-items:baseline;gap:6px;font-size:12px;line-height:1.35;color:' + (i.met ? '#14171F' : '#8A919E') + '"><span style="flex:none;color:' + (i.met ? col : '#C9CED6') + '">' + (i.met ? '●' : '○') + '</span><span style="flex:none">' + esc(i.short || i.text) + '</span><b class="mono" style="margin-left:auto;font-weight:600;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(String(i.now || '').replace(/^现在\s*/, '')) + '</b></span>').join('') + '</div>';
+  const good = tone === 'good';
+  const col = good ? '#B42318' : '#1E6B44';
+  const bg = good ? '#FDF0EF' : '#EDF7F1';
+  const border = good ? '#F3D0CC' : '#C5E4D2';
+  return '<div style="display:flex;flex-direction:column;gap:6px;min-width:0;padding:10px 12px;border-radius:10px;background:' + bg + ';border:1px solid ' + border + '"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:12px;color:' + col + '">' + title + '</b><span style="margin-left:auto;font-size:11px;color:' + col + ';opacity:.75">' + (open ? '还差 ' + open : '齐了') + '</span></div>' +
+    items.map((i) => '<span title="' + esc(i.text || i.short || '') + '" style="display:flex;align-items:baseline;gap:6px;font-size:12px;line-height:1.35;color:' + (i.met ? '#14171F' : '#8A919E') + '"><span style="flex:none;color:' + (i.met ? col : (good ? '#E2B4AF' : '#A8CDB8')) + '">' + (i.met ? '●' : '○') + '</span><span style="flex:none">' + esc(i.short || i.text) + '</span><b class="mono" style="margin-left:auto;font-weight:600;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(String(i.now || '').replace(/^现在\s*/, '')) + '</b></span>').join('') + '</div>';
 }
 function checklist(better, worse) {
   const bOpen = (better || []).filter((i) => !i.met).length;
   const wHit = (worse || []).filter((i) => i.met).length;
   const tip = '变好还差 ' + bOpen + ' · 变差已中 ' + wHit;
   return '<div class="chk"><div class="chk-h"><span>条件清单</span><span style="margin-left:auto;font-weight:400;color:#8A919E">' + tip + '</span></div>' +
-    '<div class="chk-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">' + bullets('变好', better || [], 'good') + bullets('变差', worse || [], 'bad') + '</div></div></div>';
+    '<div class="chk-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' + bullets('变好', better || [], 'good') + bullets('变差', worse || [], 'bad') + '</div></div></div>';
 }
 function hero(s) {
   const c = s.conclusion, tilt = c.tilt ? '<span style="font-size:16px;font-weight:700;color:' + (c.tilt === '偏弱' ? '#7A4A00' : c.tilt === '偏强' ? '#B42318' : '#5B6372') + '">' + esc(c.tilt) + '</span>' : '';
@@ -720,12 +726,12 @@ function hero(s) {
   const levelColor = c.level === '顺风' ? '#B42318' : c.level === '逆风' ? '#1E6B44' : '#14171F';
   const gateColor = c.gate === '通过' ? '#B42318' : '#1E6B44';
   return '<section class="card" aria-label="今天的结论" style="gap:12px;border-color:#C9CED6">' +
-    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:15px;font-weight:700">今天的结论</span><span class="mono" style="font-size:12px;color:#8A919E">' + esc(s.generated_at) + '</span><span id="heroSince" style="font-size:12px;color:#8A919E">' + sinceText() + '</span>' +
-    '<span style="margin-left:auto;display:flex;align-items:center;gap:8px">' + askMarketBtn('', '问大盘分析师') + '<button type="button" class="link" data-history="1">历次结论 →</button></span></div>' +
+    '<div class="pair-head"><span style="font-size:15px;font-weight:700;flex:none">今天的结论</span><span class="mono" style="font-size:12px;color:#8A919E;flex:none">' + esc(s.generated_at) + '</span><span id="heroSince" style="font-size:12px;color:#8A919E;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + sinceText() + '</span>' +
+    '<span class="acts">' + askMarketBtn('', '问大盘分析师') + '<button type="button" class="link" data-history="1">历次结论 →</button></span></div>' +
     '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b style="font-size:32px;line-height:1;color:' + levelColor + '">' + esc(c.level) + '</b>' + tilt +
       '<span style="display:inline-flex;align-items:baseline;gap:6px;font-size:13px;white-space:nowrap"><span style="color:#8A919E">闸门</span><b style="font-size:15px;color:' + gateColor + '">' + esc(c.gate) + '</b><span style="color:#5B6372">' + esc(c.gate_text) + '</span></span></div>' +
     '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + sigs + '</div>' +
-    '<div style="font-size:14px;line-height:1.5"><b>怎么做</b>　' + esc(c.action) + '</div>' +
+    (c.action ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:10px;background:#EEF3FC;border:1px solid #C9D7F5"><span style="font-size:12px;font-weight:700;letter-spacing:.04em;color:#2457D6">怎么做</span><span style="font-size:15px;font-weight:600;line-height:1.65;color:#14171F">' + esc(c.action) + '</span></div>' : '') +
     checklist(c.better, c.worse) +
     '<div style="margin-top:auto;display:flex;align-items:center;gap:8px;font-size:11px;color:#A1A7B2">' + esc(c.note) + '</div></section>';
 }
@@ -758,13 +764,17 @@ function askMarketBtn(topic, label) {
   return '<a class="wb-cta' + (topic === '' ? ' pri' : '') + '" href="' + marketAnalystHref(topic) + '">' + esc(label || '问大盘分析师') + '</a>';
 }
 function sideNewsCard(data) {
-  const analyze = '<a class="wb-cta" href="' + newsAnalystHref() + '">请新闻分析师 →</a>';
-  if (!data) return '<section class="card wb-news" aria-label="今日热闻"><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:15px;color:#14171F">今日热闻</b><span style="font-size:12px;color:#8A919E">正在取…</span><span style="margin-left:auto">' + analyze + '</span></div></section>';
+  const analyze = '<a class="wb-cta pri" href="' + newsAnalystHref() + '">问新闻分析师</a>';
+  const refresh = state.hotNewsBusy
+    ? '<button type="button" class="wb-cta" disabled style="opacity:.6;cursor:default">更新中…</button>'
+    : '<button type="button" class="wb-cta" data-news-refresh title="重新拉取热搜和财经快讯">更新</button>';
+  const newsHead = (meta) => '<div class="pair-head"><b style="font-size:15px;color:#14171F;flex:none">今日热闻</b><span style="font-size:12px;color:#8A919E;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + meta + '</span><span class="acts"><span style="font-size:11px;color:#8A919E">热度 ≠ 建议</span>' + refresh + analyze + '</span></div>';
+  if (!data) return '<section class="card wb-news" aria-label="今日热闻">' + newsHead(state.hotNewsBusy ? '更新中…' : '正在取…') + '</section>';
   if (data.error && !(data.items || []).length) {
-    return '<section class="card wb-news" aria-label="今日热闻"><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:15px;color:#14171F">今日热闻</b><span style="font-size:12px;color:#8A919E">暂时取不到</span><span style="margin-left:auto">' + analyze + '</span></div><div style="padding:8px 0;font-size:13px;color:#8A919E">' + esc(data.error) + '</div></section>';
+    return '<section class="card wb-news" aria-label="今日热闻">' + newsHead(state.hotNewsBusy ? '更新中…' : '暂时取不到') + '<div style="padding:8px 0;font-size:13px;color:#8A919E">' + esc(data.error) + '</div></section>';
   }
   const items = data.items || [];
-  const head = '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:15px;color:#14171F">今日热闻</b><span style="font-size:12px;color:#8A919E">' + (items.length ? ('Top ' + items.length) : '暂无') + (data.partial ? ' · 部分源' : '') + '</span><span style="margin-left:auto;display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:#8A919E">热度 ≠ 建议</span>' + analyze + '</span></div>';
+  const head = newsHead((items.length ? ('Top ' + items.length) : '暂无') + (data.partial ? ' · 部分源' : '') + (state.hotNewsBusy ? ' · 更新中…' : ''));
   if (!items.length) return '<section class="card wb-news" aria-label="今日热闻">' + head + '<div style="padding:12px 0 2px;font-size:13px;color:#8A919E">热榜和财经快讯都没有取到。</div></section>';
   const rows = items.map((it, i) => {
     const meta = [it.source_name, it.hot_text || '', it.tag].filter(Boolean).join(' · ');
@@ -2233,6 +2243,10 @@ document.body.addEventListener('click', (e) => {
   closeRule();
   closeSectorPop();
   closeTipPop();
+  if (e.target.closest('[data-news-refresh]')) {
+    if (!state.hotNewsBusy) loadHotNews({ force: true });
+    return;
+  }
   if (e.target.closest('[data-ov-retry]')) {
     state.overseas = null;
     rerenderMainKeepScroll();
@@ -2554,16 +2568,24 @@ async function loadPlan() {
   }
   rerenderMainKeepScroll();
 }
-async function loadHotNews() {
+async function loadHotNews(opts) {
+  const force = !!(opts && opts.force);
+  if (force) {
+    state.hotNewsBusy = true;
+    rerenderMainKeepScroll();
+  }
   try {
-    const res = await fetch(API + '/api/v1/market/hot-news?limit=20');
+    const url = API + '/api/v1/market/hot-news?limit=20' + (force ? '&_=' + Date.now() : '');
+    const res = await fetch(url, force ? { cache: 'no-store' } : undefined);
     const body = await res.json();
     if (!res.ok || body.error) throw new Error(body.error || res.status);
     state.hotNews = body;
   } catch (err) {
-    state.hotNews = { error: err.message || '热闻没有取到', items: [] };
+    state.hotNews = { error: err.message || '热闻没有取到', items: (state.hotNews && state.hotNews.items) || [] };
+  } finally {
+    state.hotNewsBusy = false;
+    rerenderMainKeepScroll();
   }
-  rerenderMainKeepScroll();
 }
 let ovSearchTimer = 0;
 async function searchOverseasAdd(q) {

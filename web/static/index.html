@@ -8,8 +8,10 @@
 <style>
 body{margin:0;background:#ffffff}
 a{color:inherit}
-.wl{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:baseline;gap:4px 10px;padding:10px 12px;border-radius:6px;text-decoration:none;color:#14171F;font-size:15px}
+.wl{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:baseline;gap:4px 10px;padding:10px 12px;border-radius:8px;transition:background .12s ease,box-shadow .12s ease;text-decoration:none;color:#14171F;font-size:15px}
 .wl:hover{background:#F4F5F7}
+.wl[aria-current="true"]{background:#EEF3FC;box-shadow:inset 3px 0 0 #2457D6}
+.wl[aria-current="true"]>span:first-child{font-weight:600;color:#1F3F8A}
 .wl+.wl::before{content:"";position:absolute;top:0;left:12px;right:12px;height:1px;background:#EEF0F3}
 .wl:hover::before,.wl:hover+.wl::before,.wl[aria-current]::before,.wl[aria-current]+.wl::before{background:transparent}
 .wl .px,.wl .chg{font-family:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;text-align:right}
@@ -18,32 +20,44 @@ a{color:inherit}
 .wl .dn{color:#1E6B44}
 .wl .sub{grid-column:1/-1;font-size:14px;color:#8A919E}
 .wl .sub.warn{color:#9A5B00}
-.wl .wl-x{position:absolute;right:8px;bottom:7px;display:none;width:20px;height:20px;padding:0;border:none;border-radius:5px;background:#EEF0F3;color:#5B6372;font:inherit;font-size:14px;line-height:20px;cursor:pointer}
-.wl:hover .wl-x,.wl:focus-within .wl-x{display:block}
+.wl .wl-more,.wl .wl-x{position:absolute;display:none;width:22px;height:22px;padding:0;border:none;border-radius:6px;background:#EEF0F3;color:#5B6372;font:inherit;font-size:15px;line-height:22px;cursor:pointer}
+.wl .wl-more{right:30px;bottom:7px}
+.wl .wl-x{right:6px;bottom:7px;font-size:14px}
+.wl:hover .wl-more,.wl:focus-within .wl-more,.wl:hover .wl-x,.wl:focus-within .wl-x{display:block}
+.wl .wl-more:hover{background:#EAF0FD;color:#2457D6}
 .wl .wl-x:hover{background:#E3E6EB;color:#B42318}
 .wl.drag-src{opacity:.45}
 .wl.drop-top{box-shadow:inset 0 2px 0 #2457D6}
 .wl.drop-bot{box-shadow:inset 0 -2px 0 #2457D6}
-#wlMenu{position:fixed;z-index:60;min-width:184px;padding:6px;background:#FFFFFF;border:1px solid #DDE1E7;border-radius:12px;box-shadow:0 10px 28px -8px rgba(20,23,31,.28),0 2px 6px rgba(20,23,31,.06);display:flex;flex-direction:column;animation:askpop .12s ease-out}
-.wlm-it{display:flex;align-items:center;gap:20px;width:100%;height:30px;padding:0 10px;border:none;border-radius:8px;background:transparent;font:inherit;font-size:15px;color:#14171F;cursor:pointer;text-align:left}
-.wlm-it.on{background:#EAF0FD}
+#wlMenu{position:fixed;z-index:60;min-width:200px;padding:6px;background:#FFFFFF;border:1px solid #D0D5DD;border-radius:12px;box-shadow:0 12px 32px -8px rgba(20,23,31,.28),0 2px 8px rgba(20,23,31,.08);display:flex;flex-direction:column;animation:askpop .12s ease-out}
+.wlm-it{display:flex;align-items:center;gap:16px;width:100%;height:34px;padding:0 10px;border:none;border-radius:8px;background:transparent;font:inherit;font-size:14px;font-weight:500;color:#14171F;cursor:pointer;text-align:left;transition:background .12s}
+.wlm-it.on{background:#EEF3FC;color:#1F3F8A}
 .wlm-it.danger{color:#B42318}
-.wlm-k{margin-left:auto;font-size:14px;color:#8A919E}
+.wlm-it.danger.on{background:#FDF0EF;color:#B42318}
+.wlm-k{margin-left:auto;display:inline-flex;align-items:center;height:20px;padding:0 6px;border:1px solid #E3E6EB;border-radius:5px;background:#F7F8FA;font-family:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11px;font-weight:600;color:#5B6372;letter-spacing:.02em}
+.wlm-it.on .wlm-k{border-color:#C9D7F5;background:#FFFFFF;color:#2457D6}
+.wlm-it.danger.on .wlm-k{border-color:#F0C4C0;background:#FFFFFF;color:#B42318}
 .wlm-sep{height:1px;margin:5px 6px;background:#E3E6EB}
+.wlm-hint{padding:6px 10px 4px;font-size:11px;color:#9CA3AF;line-height:1.4}
 #toast.has-act{pointer-events:auto}
 .toast-act{padding:0;border:none;background:transparent;color:#9DB3E3;font:inherit;cursor:pointer;text-decoration:underline}
 .seg{display:flex;border:1px solid #DDE1E7;border-radius:8px;overflow:hidden}
 .seg button{height:28px;padding:0 10px;border:none;border-right:1px solid #DDE1E7;background:#FFFFFF;color:#3A4250;font-family:inherit;font-size:14px;cursor:pointer}
 .seg button:last-child{border-right:none}
 .seg button[aria-pressed="true"]{background:#14171F;color:#FFFFFF}
-.mini{height:30px;padding:0 12px;border:1px solid #C9CED6;border-radius:6px;background:#FFFFFF;color:inherit;font-family:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
+.mini{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;color:#2457D6;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s}
+.mini:hover{background:#EAF0FD;border-color:#2457D6}
+.cta{display:inline-flex;align-items:center;height:30px;padding:0 12px;border:1px solid #14171F;border-radius:8px;background:#14171F;color:#FFFFFF;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s}
+.cta:hover{background:#2457D6;border-color:#2457D6;color:#FFFFFF}
+.cta:disabled{opacity:.55;cursor:default}
+
 .pill{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;background:#EEF0F3;color:#4A5260;font-size:14px;white-space:nowrap}
 .opt{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid #DDE1E7;border-radius:999px;background:#FFFFFF;cursor:pointer;font-size:15px}
-.dtab{flex:none;height:44px;padding:0 5px;border:none;background:transparent;color:#5B6372;font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
+.dtab{flex:none;height:48px;padding:0 5px;border:none;background:transparent;color:#5B6372;font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
 .dtab:hover{color:#14171F}
 .drow{display:grid;grid-template-columns:52px 112px minmax(0,1fr);align-items:center;gap:8px;width:100%;height:36px;padding:0 14px 0 20px;border:none;background:transparent;color:#14171F;font:inherit;font-size:15px;text-align:left;cursor:pointer}
 .drow:hover{background:#F4F5F7}
-.drow .tg{font-size:14px;color:#5B6372;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drow .tg{font-size:13px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qchip{height:26px;padding:0 10px;border:1px solid #DDE1E7;border-radius:999px;background:#FFFFFF;color:#3A4250;font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
 .qchip:hover{border-color:#C9CED6;background:#F7F8FA}
 .cp{border:none;background:transparent;color:#8A919E;font:inherit;font-size:12px;cursor:pointer;padding:2px 8px;border-radius:6px;white-space:nowrap}
@@ -57,9 +71,9 @@ a{color:inherit}
 .mdt tbody tr:hover td{background:#FAFBFD}
 .kbd{flex:none;font-size:13px;color:#8A919E;white-space:nowrap}
 .instar{min-width:76px;text-align:center;font-size:14px;color:#8A919E}
-.nav-a{width:48px;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5B6372;text-decoration:none;font-size:13px}
-.nav-a:hover{color:#14171F;background:#D8D8D8}
-.nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:500}
+.nav-a{width:48px;min-height:46px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#6B7280;text-decoration:none;font-size:12px;font-weight:500;letter-spacing:.02em;line-height:1.15;transition:color .15s ease,background .15s ease}
+.nav-a:hover{color:#14171F;background:rgba(0,0,0,.06)}
+.nav-a.on{color:#2457D6;background:#EEF3FC;font-weight:600}
 .dim{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:10px;font-family:inherit;text-align:left}
 sc-if{display:contents}
 sc-if[hidden]{display:none}
@@ -116,12 +130,12 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 .facts>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F4F5F7;color:#5B6372;font-size:14px;line-height:20px;white-space:nowrap;user-select:none}
 .facts>summary::-webkit-details-marker{display:none}
 .facts>summary:hover,.facts[open]>summary{background:#E9EBEF;color:#14171F}
-.facts-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;max-height:min(420px,60vh);overflow-y:auto;overflow-x:hidden;padding:12px 14px;border-radius:8px;background:#FFFFFF;border:1px solid #E4E6EA;box-shadow:0 6px 18px rgba(20,23,31,.14);font-size:14px;color:#5B6372}
+.facts-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;max-height:min(420px,60vh);overflow-y:auto;overflow-x:hidden;padding:12px 14px;border-radius:8px;background:#FFFFFF;border:1px solid #E4E6EA;box-shadow:0 6px 18px rgba(20,23,31,.14);font-size:13px;color:#6B7280}
 .tools{align-self:flex-start;max-width:100%}
 .tools>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F7F8FA;color:#8A919E;font-size:12px;line-height:18px;white-space:nowrap;user-select:none}
 .tools>summary::-webkit-details-marker{display:none}
 .tools>summary:hover,.tools[open]>summary{background:#EEF0F3;color:#5B6372}
-.tools-body{margin-top:6px;padding:8px 10px;border-radius:8px;background:#F7F8FA;border:1px solid #EEF0F3;display:flex;flex-direction:column;gap:4px;font-size:12px;color:#5B6372;line-height:1.45}
+.tools-body{margin-top:6px;padding:8px 10px;border-radius:8px;background:#F7F8FA;border:1px solid #EEF0F3;display:flex;flex-direction:column;gap:4px;font-size:13px;color:#6B7280;line-height:1.45}
 .acc{border-top:1px solid #F1F2F4}
 .acc-list>.acc:first-child{border-top:none}
 .acc>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 0;user-select:none}
@@ -143,17 +157,17 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 </style>
 </head>
 <body>
-<div style="height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #ffffff; font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; color: #14171F; font-size: 15px; line-height: 1.55">
+<div style="height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #F2F2F2; font-family: 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif; color: #14171F; font-size: 15px; line-height: 1.55">
 
-<header style="flex: none; display: flex; align-items: center; height: 44px; background: #FFFFFF; border-bottom: 1px solid #DDE1E7">
-<div style="flex:0 0 64px;border-right:1px solid #DDE1E7;height:44px;background:#FFFFFF" aria-hidden="true"></div>
-<span style="padding: 0 16px; font-weight: 700; font-size: 14px">研判</span>
-<div style="margin-left: auto; display: flex; align-items: center; gap: 14px; padding-right: 16px"><span id="session" style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #5B6372"></span><button type="button" aria-label="通知" title="通知" data-click="toggleNotif" style="position: relative; width: 32px; height: 32px; border: none; border-radius: 8px; background: var(--notif-bg, transparent); color: #3A4250; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position: absolute; top: 2px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #D9483F; color: #FFFFFF; font-size: 10px; font-weight: 600; line-height: 16px; text-align: center"></span></button></div>
+<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8">
+<div style="flex:0 0 64px;border-right:1px solid #E8E8E8;height:48px;background:#FAFAFA" aria-hidden="true"></div>
+<span style="padding:0 16px;font-size:15px;font-weight:600;letter-spacing:-.01em;color:#14171F">研判</span>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 14px; padding-right: 16px"><span id="session" style="display: flex; align-items: center; gap: 6px; font-size:13px;color:#6B7280"></span><button type="button" aria-label="通知" title="通知" data-click="toggleNotif" style="position: relative; width: 32px; height: 32px; border: none; border-radius: 8px; background: var(--notif-bg, transparent); color: #3A4250; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position: absolute; top: 2px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #D9483F; color: #FFFFFF; font-size: 10px; font-weight: 600; line-height: 16px; text-align: center"></span></button></div>
 </header>
 
 <div style="flex: 1 1 auto; display: flex; flex-wrap: nowrap; align-items: stretch; min-width: 0; min-height: 0; overflow: hidden">
 
-<nav aria-label="主导航" style="flex: 0 0 64px; overflow: hidden; background: #E6E6E6; border-right: 1px solid #DDE1E7; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0">
+<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#EFEFEF;border-right:1px solid #E8E8E8;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0">
 <a class="nav-a on" href="/" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
 <a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
 <a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
@@ -163,8 +177,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 <a class="nav-a" href="/settings.html" style="margin-top:auto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>设置</a>
 </nav>
 
-<aside aria-label="自选" style="flex: 0 0 248px; width: 248px; overflow: hidden; background: #FFFFFF; border-right: 1px solid #DDE1E7; padding: 0; display: flex; flex-direction: column; box-sizing: border-box">
-<div style="flex: none; padding: 12px 8px 8px"><button type="button" title="搜索股票（⌘K）" data-click="openSearch" style="display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; padding: 0 8px 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #F7F8FA; color: #8A919E; font: inherit; font-size: 15px; cursor: pointer; box-sizing: border-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><span style="flex: 1; text-align: left">搜索股票，加入自选</span><span style="font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; padding: 0 5px; border: 1px solid #DDE1E7; border-radius: 4px; background: #FFFFFF; color: #5B6372">⌘K</span></button></div>
+<aside aria-label="自选" style="flex: 0 0 248px; width: 248px; overflow: hidden; background: #FFFFFF; border-right: 1px solid #E8E8E8; padding: 0; display: flex; flex-direction: column; box-sizing: border-box">
+<div style="flex: none; padding: 12px 8px 8px"><button type="button" title="搜索股票（⌘K）" data-click="openSearch" style="display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 8px 0 12px;border:1px solid #E8E8E8;border-radius:8px;background:#F7F7F7;color:#9CA3AF;font:inherit;font-size:14px;cursor:pointer;box-sizing:border-box;transition:border-color .15s,background .15s,color .15s"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><span style="flex: 1; text-align: left">搜索股票，加入自选</span><span style="font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 13px; padding: 0 5px; border: 1px solid #DDE1E7; border-radius: 4px; background: #FFFFFF; color: #5B6372">⌘K</span></button></div>
 <div id="watchList" style="flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 14px; display: flex; flex-direction: column"></div>
 </aside>
 
@@ -181,10 +195,10 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 <div aria-label="问问" style="flex: none; padding: 10px 28px 14px; border-top: 1px solid #E8ECF2; background: #ffffff"><div style="max-width: 1120px"><div class="ask2"><div class="ask-pop" role="listbox" aria-label="推荐问题" hidden></div><div class="ask-card"><span class="pill ask-tag" id="askTag">主分析师</span><textarea class="ask-input" rows="1" placeholder="@ 翻起指定的设计师 # 翻起你关注的股票" aria-label="在群里提问"></textarea><span class="ask-kbd">↵ 发送</span><button type="button" class="ask-send" data-ask-send aria-label="发送" title="发送（Enter）"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"></path><path d="M6 11l6-6 6 6"></path></svg></button></div></div></div></div>
 </main>
 <sc-if data-if="notifOpen">
-<aside id="notifDrawer" class="dw" aria-label="通知" style="align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; display: flex; flex-direction: column; font-size: 15px"></aside>
+<aside id="notifDrawer" class="dw" aria-label="通知" style="align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #E8E8E8; box-sizing: border-box; display: flex; flex-direction: column; font-size: 15px"></aside>
 </sc-if>
 <sc-if data-if="drawerOpen">
-<aside class="dw" aria-label="6 个方面" style="align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; display: flex; flex-direction: column; font-size: 15px">
+<aside class="dw" aria-label="6 个方面" style="align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #E8E8E8; box-sizing: border-box; display: flex; flex-direction: column; font-size: 15px">
 <div style="position: sticky; top: 0; z-index: 2; background: #FFFFFF; border-bottom: 1px solid #E3E6EB; padding: 0 8px 0 12px; display: flex; align-items: center"><div role="tablist" id="drawerTabs" aria-label="6 个方面" style="display: flex; gap: 0; overflow-x: auto"></div><button type="button" aria-label="收起（⌘\）" title="收起（⌘\）" data-click="closeDrawer" style="margin-left: auto; flex: none; width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: #5B6372; font: inherit; font-size: 16px; cursor: pointer">⇥</button></div>
 <div style="padding: 20px 28px 28px; display: flex; flex-direction: column; gap: 24px; flex: 1">
 <sc-if data-if="conclOpen">
@@ -218,10 +232,10 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 </sc-if>
 </div>
 
-<footer style="flex: none; height: 26px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 0 12px; border-top: 1px solid #DDE1E7; background: #FFFFFF; font-size: 13px; color: #5B6372; white-space: nowrap; overflow: hidden"><div style="display: flex; align-items: center; gap: 18px; min-width: 0; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display: flex; gap: 18px"></span></div><span role="note" style="text-align: center">研究分析，不构成投资建议</span><div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px; min-width: 0; overflow: hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div></footer>
+<footer style="flex: none; height: 26px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 0 12px; border-top:1px solid #E8E8E8;background:#FAFAFA;font-size:12px;color:#9CA3AF; white-space: nowrap; overflow: hidden"><div style="display: flex; align-items: center; gap: 18px; min-width: 0; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display: flex; gap: 18px"></span></div><span role="note" style="text-align: center">研究分析，不构成投资建议</span><div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px; min-width: 0; overflow: hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div></footer>
 <sc-if data-if="srchOpen">
 <button type="button" aria-label="关闭" data-click="closeSearch" style="position: fixed; inset: 0; z-index: 20; border: none; padding: 0; background: rgba(20, 23, 31, 0.22); cursor: default"></button>
-<div role="dialog" aria-label="搜索股票" style="position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 21; width: 640px; max-width: calc(100% - 32px); background: #FFFFFF; border: 1px solid #C9CED6; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 32px rgba(20, 23, 31, 0.18)">
+<div role="dialog" aria-label="搜索股票" style="position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 21; width: 640px; max-width: calc(100% - 32px); background: #FFFFFF; border: 1px solid #E0E0E0; border-radius: 12px; overflow: hidden; box-shadow: 0 16px 40px rgba(20, 23, 31, 0.14), 0 2px 8px rgba(20, 23, 31, 0.04)">
 <div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #EEF0F3"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5B6372" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="text" id="srchInput" autocomplete="off" aria-label="输入股票名称或代码" placeholder="输入股票名称或代码，如 三花 / 002050" style="flex: 1; border: none; outline: none; font: inherit; font-size: 15px; color: #14171F; background: transparent"><button type="button" aria-label="关闭" title="关闭" data-click="closeSearch" style="flex: none; width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: #5B6372; font: inherit; font-size: 18px; line-height: 1; cursor: pointer">×</button></div>
 <div id="srchResults" style="padding: 6px; max-height: 360px; overflow-y: auto"></div>
 <div style="display: flex; gap: 16px; padding: 9px 16px; border-top: 1px solid #EEF0F3; background: #F7F8FA; font-size: 14px; color: #5B6372"><span>↑↓ 选择</span><span>Enter 打开诊断</span><span>⌘Enter 加自选，可以连续加</span><span style="margin-left: auto">Esc 关闭</span></div>
@@ -3088,7 +3102,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (!b) {
       if (c.pending && c.pending.state === 'failed') {
         return '<div style="padding:10px 12px;border-radius:10px;background:#FFF6E5;color:#7A4A00;font-size:15px;line-height:1.6">这只股票的结论还没有生成出来' + (c.pending.message ? '：' + esc(c.pending.message) : '') +
-          '<button type="button" class="mini" data-click="reanalyze" style="margin-left:8px;color:#2457D6">重新分析</button></div>';
+          '<button type="button" class="cta" data-click="reanalyze" style="margin-left:8px">重新分析</button></div>';
       }
       return '<div style="padding:12px;border-radius:10px;background:#F4F7FF;color:#2457D6;font-size:15px;line-height:1.6;display:flex;align-items:center;gap:10px"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>' +
         '<span>正在生成这只股票的结论（五位分析师在本机依次分析，约一两分钟）' + (job.total ? ' · ' + (job.done || 0) + '/' + job.total : '') + '</span></div>';
@@ -4051,6 +4065,10 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       .catch((err) => toast('移出自选失败：' + err.message));
   }
   actions.unwatch = (el) => removeWatch(el.dataset.code);
+  actions.wlMore = (el) => {
+    const r = el.getBoundingClientRect();
+    openWlMenu(el.dataset.code, r.left, r.bottom + 4);
+  };
   function watchAction(kind, code) {
     closeWlMenu();
     if (kind === 'open') { openStock(code); render(); } else if (kind === 'rediag') rediagnose(code);
@@ -4069,10 +4087,10 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     closeWlMenu();
     const it = watchItem(code);
     const rows = [['open', '打开诊断', 'Enter'], ['rediag', '重新诊断', '⌘R']].concat(it && isAttention(it) ? [] : [['pin', '置顶', '']]);
-    const btn = (r, danger) => '<button type="button" role="menuitem" class="wlm-it' + (danger ? ' danger' : '') + '" data-wlm="' + r[0] + '"><span>' + r[1] + '</span><span class="wlm-k">' + r[2] + '</span></button>';
+    const btn = (r, danger) => '<button type="button" role="menuitem" class="wlm-it' + (danger ? ' danger' : '') + '" data-wlm="' + r[0] + '"><span>' + r[1] + '</span>' + (r[2] ? '<span class="wlm-k">' + r[2] + '</span>' : '') + '</button>';
     const el = document.createElement('div');
     el.id = 'wlMenu'; el.setAttribute('role', 'menu');
-    el.innerHTML = rows.map((r) => btn(r, false)).join('') + '<div class="wlm-sep"></div>' + btn(['remove', '移出自选', '⌫'], true);
+    el.innerHTML = rows.map((r) => btn(r, false)).join('') + '<div class="wlm-sep"></div>' + btn(['remove', '移出自选', '⌫'], true) + '<div class="wlm-hint">↑↓ 选择 · Enter 执行 · Esc 关闭</div>';
     document.body.appendChild(el);
     el.style.left = Math.max(8, Math.min(x, innerWidth - el.offsetWidth - 8)) + 'px';
     el.style.top = Math.max(8, Math.min(y, innerHeight - el.offsetHeight - 8)) + 'px';
@@ -4192,10 +4210,11 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       const sel = s.ts_code === state.stock, sub = s.subtitle || {}, diag = s.computing || rediag[s.ts_code];
       const ok = num(s.price) != null, pct = num(s.change_pct);
       return '<a role="button" tabindex="0" class="wl" data-click="pickStock" data-code="' + esc(s.ts_code) + '"' + (isAttention(s) ? '' : ' draggable="true" data-drop="1"') + (sel ? ' aria-current="true"' : '') +
-        ' style="cursor:pointer;' + (sel ? 'background:' + SOFT : '') + '"><span>' + esc(s.name || s.ts_code) + '</span>' +
+        ' title="右键或点 ⋯ 打开操作" style="cursor:pointer"><span>' + esc(s.name || s.ts_code) + '</span>' +
         '<span class="px">' + (ok ? s.price.toFixed(2) : '—') + '</span>' +
         '<span class="chg ' + (pct > 0 ? 'up' : pct < 0 ? 'dn' : '') + '">' + (pct != null ? fmtSigned(pct, 2) + '%' : '') + '</span>' +
         '<span class="sub' + (sub.tone === 'warn' && !diag ? ' warn' : '') + '">' + (diag ? '<span class="dc-spin" style="display:inline-block;margin-right:4px;color:#2457D6">⟳</span>诊断中…' : esc(sub.text || '')) + '</span>' +
+        '<button type="button" class="wl-more" data-click="wlMore" data-code="' + esc(s.ts_code) + '" title="更多操作（也可右键）" aria-label="更多操作">⋯</button>' +
         '<button type="button" class="wl-x" data-click="unwatch" data-code="' + esc(s.ts_code) + '" title="移出自选" aria-label="移出自选">×</button></a>';
     }).join('');
   }
@@ -4224,11 +4243,11 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         (verdict ? '<span style="flex:none;font-size:17px;font-weight:700;color:' + verdict.color + '">' + esc(verdict.label) + '</span>' +
           '<span title="' + esc(verdict.text) + '" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:600">' + esc(verdict.text) + '</span>' +
           '<span style="flex:none;display:inline-flex;align-items:center;gap:6px">' + wishBtnHTML(st.code) +
-          '<button type="button" class="mini" data-click="toggleConcl" style="height:28px;color:#2457D6">' + '结论详情 →' + '</button></span>'
+          '<button type="button" class="cta" data-click="toggleConcl">结论详情 →</button></span>'
           : phase === 'failed' ? '<span style="flex:1;min-width:0;font-size:15px;color:#8A919E">主分析师这次没有给出裁决，点“重新分析”再试一次</span>'
           : '<span style="flex:1;min-width:0;display:inline-flex;align-items:center;gap:8px;font-size:15px;color:#8A919E"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>结论正在生成…</span>')
         : '<span style="flex:1"></span>') +
-      '<button type="button" class="mini" data-click="reanalyze" style="flex:none;height:28px;color:#2457D6">重新分析</button>' +
+      '<button type="button" class="cta" data-click="reanalyze" style="flex:none">重新分析</button>' +
       '<a href="/scan.html" title="在战绩中心查看这只股票的全部研判" style="flex:none;display:flex;align-items:baseline;gap:6px;font-size:15px;text-decoration:none;color:#5B6372">战绩<span style="color:#2457D6">→</span></a></div>';
   }
 

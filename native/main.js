@@ -601,10 +601,10 @@ function createWindow() {
     icon: path.join(__dirname, 'icon.png'),
     show: false,
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
-    // Keep traffic lights clear of the 44px header logo (left rail starts after this).
-    trafficLightPosition: { x: 12, y: 14 },
+    // Keep traffic lights clear of the 48px header (left rail starts after this).
+    trafficLightPosition: { x: 14, y: 16 },
     ...(isMac ? {} : {
-      titleBarOverlay: { color: '#ffffff', symbolColor: '#1c2a44', height: 44 },
+      titleBarOverlay: { color: '#fafafa', symbolColor: '#1c2a44', height: 48 },
     }),
     webPreferences: {
       sandbox: true,
