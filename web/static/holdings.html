@@ -23,6 +23,7 @@ button,input,textarea{font:inherit}
 .pl{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap}
 .tag{display:inline-flex;align-items:center;align-self:flex-start;height:18px;padding:0 6px;border-radius:4px;font-size:11px;font-weight:600;line-height:18px;white-space:nowrap}
 .nav-a{width:48px;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5B6372;text-decoration:none;font-size:13px}
+.nav-a:hover{color:#14171F;background:#D8D8D8}
 .nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:500}
 .card{display:flex;flex-direction:column;gap:10px;padding:14px 16px;background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px}
 .card h3{margin:0;font-size:15px;font-weight:700}
@@ -81,11 +82,7 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 <body>
 <div style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#EEF0F3;font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;color:#14171F;font-size:13px;line-height:1.55">
 <header style="flex:none;display:flex;align-items:center;height:44px;background:#FFFFFF;border-bottom:1px solid #DDE1E7">
-<div style="flex:0 0 64px;display:flex;align-items:center;justify-content:center;border-right:1px solid #EEF0F3;height:44px">
-<div style="width:28px;height:28px;border-radius:8px;background:#2457D6;display:flex;align-items:center;justify-content:center">
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"></path><path d="M15 8h5v5"></path></svg>
-</div>
-</div>
+<div style="flex:0 0 64px;border-right:1px solid #DDE1E7;height:44px;background:#FFFFFF" aria-hidden="true"></div>
 <span style="padding:0 16px;font-weight:700;font-size:14px">交易</span>
 <div style="margin-left:auto;display:flex;align-items:center;gap:14px;padding-right:16px">
 <span id="session" style="display:flex;align-items:center;gap:6px;font-size:14px;color:#5B6372"></span>
@@ -93,9 +90,9 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 </div>
 </header>
 <div style="flex:1 1 auto;display:flex;flex-wrap:nowrap;align-items:stretch;min-width:0;min-height:0;overflow:hidden;position:relative">
-<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#FFFFFF;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0">
-<a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
+<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#E6E6E6;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0">
 <a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
+<a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
 <a class="nav-a on" href="/holdings.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
 <a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
 <a class="nav-a" href="/tasks.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>任务</a>
@@ -472,11 +469,13 @@ function emptyState() {
 function renderNow() {
   const s = S.summary;
   if (s.empty) return emptyState();
-  if (!s.rows.length) return '<div class="card"><div class="empty"><b>现在手里没有持仓</b><span>想买里有计划的话，条件到了会提醒你；买了就「记一笔」。</span><button type="button" class="btn pri" data-act="rec">＋ 记一笔</button></div></div>';
-  return '<div style="display:flex;flex-direction:column;gap:12px"><div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;overflow:auto"><div style="min-width:900px">' +
+  if (!s.rows.length) return '<div class="card"><div class="empty"><b>现在手里没有持仓</b><span>想买里有计划的话，条件到了提醒你；买了就「记一笔」。</span><button type="button" class="btn pri" data-act="rec">＋ 记一笔</button></div></div>';
+  const head = '<div style="display:flex;justify-content:flex-end;gap:8px;align-items:center"><button type="button" class="btn" data-act="import">导入券商持仓</button><button type="button" class="btn pri" data-act="rec">＋ 记一笔</button></div>';
+  return '<div style="display:flex;flex-direction:column;gap:12px">' + head +
+    '<div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;overflow:auto"><div style="min-width:900px">' +
     '<div class="grid-h" style="padding:10px 16px;font-size:11px;color:#8A919E;background:#F7F8FA"><span>股票 · 要处理的在前</span><span>盈亏</span><span>占总资金</span><span>你的理由</span><span>AI 现在怎么看</span><span>板块</span><span></span></div>' +
     s.rows.map(holdRow).join('') + '</div></div>' +
-    '<div style="display:flex;align-items:center;gap:12px;font-size:13px;color:#3A4250;flex-wrap:wrap">' + marketLine(s.market) + '<span style="margin-left:auto;font-size:12px;color:#8A919E">这里说 AI 怎么看、离改判还差什么；操作提醒是条件式的，不是买卖指令</span></div></div>';
+    '<div style="display:flex;align-items:center;gap:12px;font-size:13px;color:#3A4250;flex-wrap:wrap">' + marketLine(s.market) + '</div></div>';
 }
 
 /* ---------- 想买 ---------- */
@@ -512,8 +511,9 @@ function wishCard(w) {
     '<div style="display:flex;justify-content:flex-end;gap:6px"><a class="mini" href="' + diagnoseHref(w.ts_code) + '">诊断 →</a><button type="button" class="mini" data-act="wishedit" data-id="' + w.id + '">编辑</button><button type="button" class="mini" data-act="rec" data-wish="' + w.id + '">记一笔</button><button type="button" class="mini" style="color:#5B6372" data-act="wishdrop" data-id="' + w.id + '">不想买了</button></div></div>';
 }
 function renderBuy(d) {
-  const body = d.items.length ? d.items.map(wishCard).join('') : '<div class="card"><div class="empty"><b>还没有想买的票</b><span>想买的票可以从诊断页「加入想买」、判断偏多的列表、或者体检里的热点板块加进来。</span><button type="button" class="btn pri" data-act="addwish">＋ 加一只想买的</button></div></div>';
-  return '<div style="display:flex;flex-direction:column;gap:12px">' + body + '</div>';
+  const head = '<div style="display:flex;justify-content:flex-end"><button type="button" class="btn pri" data-act="addwish">＋ 加一只想买的</button></div>';
+  const body = d.items.length ? d.items.map(wishCard).join('') : '<div class="card"><div class="empty"><b>还没有想买的票</b></div></div>';
+  return '<div style="display:flex;flex-direction:column;gap:12px">' + head + body + '</div>';
 }
 
 /* ---------- 交易计划（一天一份） ---------- */
@@ -1469,6 +1469,10 @@ async function showTab(t, force) {
   if (S.tab === t) renderBody();
 }
 async function refreshAll() {
+  // 质地 / 通知 / 指数与 summary 并行，避免串在首屏后面。
+  const qualityP = loadQuality();
+  const notifP = loadNotif().then(() => { updateBell(); if (S.notif) renderAside(); });
+  const indexP = loadIndexes();
   try {
     S.summary = await api('/summary');
     setStatus(true, '已连接 · 现价约 10 秒缓存');
@@ -1478,8 +1482,7 @@ async function refreshAll() {
   await showTab(S.tab, S.tab !== 'now');
   if (S.sel) { if (!S.detail[S.sel]) loadDetail(S.sel); }
   renderAside();
-  loadQuality();
-  loadNotif().then(() => { updateBell(); if (S.notif) renderAside(); });
+  await Promise.allSettled([qualityP, notifP, indexP]);
 }
 async function loadNotif() { try { S.nData = await api('/notifications'); } catch (e) { S.nData = S.nData || { items: [], unread: 0 }; } updateBell(); }
 function updateBell() {
@@ -1501,7 +1504,7 @@ async function loadIndexes() {
 }
 // 每 20 秒刷新一次现价（只在交易时间、窗口可见、没有弹窗时）
 setInterval(() => { const d = new Date(), t = d.getHours() * 60 + d.getMinutes(), wk = d.getDay() > 0 && d.getDay() < 6; if (wk && ((t >= 570 && t <= 690) || (t >= 780 && t <= 900)) && !document.hidden && !$('modal').innerHTML && S.tab === 'now') { api('/summary').then((s) => { S.summary = s; renderHead(); renderTabs(); renderBody(); }).catch(() => {}); } }, 20000);
-refreshAll().then(loadIndexes);
+refreshAll();
 </script>
 </body>
 </html>

@@ -27,6 +27,31 @@ func TestRoundFreshNeedsEveryAnalystOnTheSameDay(t *testing.T) {
 	}
 }
 
+func TestBullBearJudgedTodayKeepsArchiveAfterSecondChief(t *testing.T) {
+	s := &Server{}
+	day := "2026-11-14"
+	code := "600010.SH"
+	for _, id := range diagnosisDims {
+		s.appendGroup(code, groupLine{Agent: id, Kind: "analysis", Text: "维度", StatusText: "偏空", Day: day})
+	}
+	s.appendGroup(code, groupLine{Agent: "bull", Kind: "analysis", Text: "看多", Day: day})
+	s.appendGroup(code, groupLine{Agent: "bear", Kind: "analysis", Text: "看空", Day: day})
+	s.appendGroup(code, groupLine{Agent: "chief", Kind: "analysis", Text: "第一轮", StatusText: "偏空", Day: day})
+	s.updateDebate(code, func(file *debateFile) {
+		file.Bull = []debatePoint{{ID: "bull.1", Text: "钱在进"}}
+		file.Bear = []debatePoint{{ID: "bear.1", Text: "板块弱"}}
+		file.Chief = &chiefDecision{Verdict: "偏空", Text: "第二轮裁决"}
+	})
+	// 同日第二轮：维度重说 + 主分析师再裁决，看多看空复用存档（群里 bull/bear 仍在第一轮 chief 之前）
+	for _, id := range diagnosisDims {
+		s.appendGroup(code, groupLine{Agent: id, Kind: "analysis", Text: "维度再讲", StatusText: "偏空", Day: day})
+	}
+	s.appendGroup(code, groupLine{Agent: "chief", Kind: "analysis", Text: "第二轮", StatusText: "偏空", Day: day})
+	if !s.bullBearJudgedToday(code, day) {
+		t.Fatal("同日第二轮裁决后应仍可复用看多看空存档，否则会清掉刚写好的 Chief")
+	}
+}
+
 func TestVerdictHistoryKeepsTheLastChiefOfEachDay(t *testing.T) {
 	s := &Server{}
 	s.appendGroup("600000.SH", groupLine{Agent: "chief", Kind: "analysis", Text: "先看多", StatusText: "偏多", Day: "2026-11-06"})

@@ -16,5 +16,5 @@ description: >-
 - 日历：`fetch_market_cal`
 - 宏观：`fetch_market_macro`
 
-参数只有 `ts_code`。数字只用返回的 text / facts。对用户可见正文不要写 `mk.` 编号。
+`ts_code` 可省略；不要填无关个股。数字只用返回的 text / facts。对用户可见正文不要写 `mk.` 编号。
 末尾可写「可以接着问：」列表。

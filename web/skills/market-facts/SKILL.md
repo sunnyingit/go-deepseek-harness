@@ -7,7 +7,7 @@ description: >-
 
 # 大盘事实
 
-只调用 `fetch_facts`，参数只有 `ts_code`（会话注入；市场级数据与代码无关，但接口需要）。维度已绑定为 market，不要改地址，不要调用 Tushare。
+只调用 `fetch_facts`。市场级数据与个股无关；若会话未绑定股票，不要自己编个股代码。维度已绑定为 market，不要改地址，不要调用 Tushare。
 
 返回 JSON：
 

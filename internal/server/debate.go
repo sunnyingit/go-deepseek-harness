@@ -91,7 +91,20 @@ func (s *Server) finishPoints(cfg agentConfig, code, raw, turnErr string) (map[s
 		} else {
 			file.Bull = points
 		}
-		file.Chief = nil
+		// 只清「同一轮尚未裁决」时的旧 Chief。若存档里已有今天的裁决，
+		// 补采纳标记或同日复用论据时不要把刚写好的结论抹掉。
+		if file.Chief != nil {
+			day := diagnosisDay(time.Now())
+			keep := false
+			for _, line := range s.groupLines(code) {
+				if line.Agent == "chief" && line.Kind == "analysis" && strings.TrimSpace(line.Text) != "" && line.Day == day {
+					keep = true
+				}
+			}
+			if !keep {
+				file.Chief = nil
+			}
+		}
 	})
 	var spoken []string
 	for _, point := range points {

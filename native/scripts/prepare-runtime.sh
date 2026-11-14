@@ -261,7 +261,22 @@ if [[ -n "$BUNDLED_PY" ]]; then
   fi
 fi
 
-# --- skills + config ---
+# --- agents + skills + config ---
+# Analyst prompts/rules live in web/agents; without them the packaged app
+# returns「找不到 Agent 配置目录」on every dimension stream.
+rm -rf "$DEST/agents"
+mkdir -p "$DEST/agents"
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --exclude node_modules --exclude .git "$ROOT/web/agents/" "$DEST/agents/"
+else
+  cp -R "$ROOT/web/agents/." "$DEST/agents/"
+fi
+if [[ ! -f "$DEST/agents/volume_flow/agent.yaml" ]]; then
+  echo "bundled agents missing volume_flow/agent.yaml" >&2
+  exit 1
+fi
+echo "bundled agents: $DEST/agents"
+
 rm -rf "$DEST/skills"
 mkdir -p "$DEST/skills"
 if command -v rsync >/dev/null 2>&1; then
@@ -269,7 +284,34 @@ if command -v rsync >/dev/null 2>&1; then
 else
   cp -R "$ROOT/web/skills/." "$DEST/skills/"
 fi
-cp "$ROOT/web/config.yaml" "$DEST/config.yaml"
+# Never ship the developer's llm.api_key. Prefer the example template; if only
+# web/config.yaml exists, copy it then blank the key and personal paths.
+if [[ -f "$ROOT/web/config.example.yaml" ]]; then
+  cp "$ROOT/web/config.example.yaml" "$DEST/config.yaml"
+else
+  cp "$ROOT/web/config.yaml" "$DEST/config.yaml"
+fi
+# Defense in depth: wipe secrets / machine-local paths even if someone edits the example.
+if command -v python3 >/dev/null 2>&1; then
+  python3 - "$DEST/config.yaml" <<'PY'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = re.sub(r"(?m)^(\s*api_key:\s*).*$", r'\1""', text)
+text = re.sub(r"(?m)^(\s*workspace_dir:\s*).*$", r'\1""', text)
+p.write_text(text, encoding="utf-8")
+PY
+else
+  # Best-effort without Python.
+  sed -i.bak -E 's/^([[:space:]]*api_key:).*/\1 ""/' "$DEST/config.yaml" || true
+  sed -i.bak -E 's/^([[:space:]]*workspace_dir:).*/\1 ""/' "$DEST/config.yaml" || true
+  rm -f "$DEST/config.yaml.bak"
+fi
+if grep -E 'api_key:[[:space:]]*sk-' "$DEST/config.yaml" >/dev/null 2>&1; then
+  echo "refusing to package a config that still contains an api_key" >&2
+  exit 1
+fi
+echo "bundled config (api_key wiped): $DEST/config.yaml"
 
 # --- stock agent (8090 Python data service) ---
 STOCK_SRC="${STOCK_AGENT_DIR:-$ROOT/../stock_agent_assitant}"

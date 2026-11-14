@@ -499,34 +499,52 @@ func (c *Ctx) summaryHeader(t personal.Totals, count int) Map {
 	return h
 }
 
-// warmHoldExtras fetches sector (and market) for every held name in parallel so Summary
+// needsFlow reports whether reason-check for this code will call the shared flow API.
+func (c *Ctx) needsFlow(code string) bool {
+	var invalid []personal.Item
+	if stored, ok := c.Store.ReasonOf(code); ok {
+		invalid = stored.Invalid
+	} else if pos := c.Held()[code]; pos != nil && len(pos.Buys) > 0 {
+		invalid = pos.Buys[0].Invalid
+	}
+	for _, it := range invalid {
+		if str(it["kind"]) == "flow_out" {
+			return true
+		}
+	}
+	return false
+}
+
+// warmHoldExtras fetches market / sector / flow for held names in parallel so Summary
 // does not wait on one shared HTTP call after another on a cold cache.
 func (c *Ctx) warmHoldExtras(rows []personal.Row) {
 	type item struct {
 		key string
 		val any
 	}
-	n := len(rows) + 1
-	ch := make(chan item, n)
+	ch := make(chan item, len(rows)*2+2)
 	var wg sync.WaitGroup
-	if _, ok := c.memo["market"]; !ok {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			ch <- item{"market", c.Data.Market()}
-		}()
-	}
-	for _, r := range rows {
-		key := "sector:" + r.Code
+	start := func(key string, fn func() any) {
 		if _, ok := c.memo[key]; ok {
-			continue
+			return
 		}
 		wg.Add(1)
-		code := r.Code
 		go func() {
 			defer wg.Done()
-			ch <- item{"sector:" + code, c.Data.Sector(code)}
+			ch <- item{key, fn()}
 		}()
+	}
+	start("market", func() any { return c.Data.Market() })
+	start("market_since", func() any { return c.Data.MarketSince() })
+	for _, r := range rows {
+		code := r.Code
+		start("sector:"+code, func() any { return c.Data.Sector(code) })
+		if c.needsFlow(code) {
+			start("flow:"+code, func() any {
+				i, o := c.Data.Flow(code)
+				return flowRun{i, o}
+			})
+		}
 	}
 	go func() {
 		wg.Wait()
@@ -1125,12 +1143,16 @@ func (c *Ctx) structure(withCorr bool) (Conc, map[string]string) {
 	return Concentration(rows, sectorOf, verdicts, corr), sectorOf
 }
 
+func (c *Ctx) marketSince() string {
+	return memo(c, "market_since", func() string { return c.Data.MarketSince() })
+}
+
 func (c *Ctx) fit() Map {
 	m := c.Market()
 	if m == nil {
 		return Map{"known": false, "lines": []Map{{"level": "提示", "title": "没有取到大盘结论", "text": "市场页的结论暂时没取到，这一项先不判断"}}}
 	}
-	since := c.Data.MarketSince()
+	since := c.marketSince()
 	if since == "" {
 		since = c.Today.AddDate(0, 0, -14).Format("2006-01-02")
 	}

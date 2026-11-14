@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	coreagent "go-harness/core/agent"
@@ -292,6 +293,33 @@ func turnReasonString(v any) string {
 	}
 }
 
+// friendlyLLMError turns provider wire errors into actionable Chinese copy.
+// Auth failures should nudge the user to settings, not dump raw DeepSeek text.
+func friendlyLLMError(msg string) string {
+	lower := strings.ToLower(msg)
+	switch {
+	case msg == "":
+		return "模型请求失败，请稍后重试"
+	case strings.Contains(msg, "AUTH") ||
+		strings.Contains(lower, "authentication fails") ||
+		strings.Contains(lower, "authentication fail") ||
+		strings.Contains(lower, "unauthorized") ||
+		strings.Contains(lower, "invalid api key") ||
+		(strings.Contains(lower, "api key") && strings.Contains(lower, "invalid")) ||
+		strings.Contains(lower, "incorrect api key") ||
+		strings.Contains(lower, "api key is required"):
+		return "模型 API Key 无效或未配置，请到「设置」里填写正确的 Key 后再试"
+	case strings.Contains(msg, "QUOTA_EXCEEDED") ||
+		strings.Contains(lower, "insufficient balance") ||
+		strings.Contains(lower, "quota") && strings.Contains(lower, "exceed"):
+		return "模型额度不足，请充值或到「设置」更换可用的 API Key"
+	case strings.Contains(msg, "RATE_LIMIT") || strings.Contains(lower, "rate limit") || strings.Contains(lower, "too many requests"):
+		return "模型请求过于频繁，请稍后再试"
+	default:
+		return msg
+	}
+}
+
 // attachTurnOutcome copies the last turn/end reason onto the SSE done
 // payload. "error" and "max-tokens" both mark the turn failed: a length
 // finish looks like a completed turn to Agent.Status() ("idle") but the
@@ -309,7 +337,7 @@ func attachTurnOutcome(doneData map[string]any, events []session.Event) {
 			errMsg = "the model request failed"
 		}
 		doneData["failed"] = true
-		doneData["errorMessage"] = errMsg
+		doneData["errorMessage"] = friendlyLLMError(errMsg)
 	case "max-tokens":
 		doneData["failed"] = true
 		doneData["errorMessage"] = "本轮输出达到单次生成上限，内容被截断"
@@ -397,7 +425,16 @@ func (s *Server) handleStreamSession(w http.ResponseWriter, r *http.Request) {
 	tokensBefore, _ := tokenmeter.New().Measure(sess, tokenHeader)
 	connStarted := time.Now()
 	if text != "" {
-		ag.Followup(agentloop.Message{Role: agentloop.RoleUser, Content: []agentloop.ContentBlock{{Kind: agentloop.BlockText, Text: text}}})
+		// A mid-turn reconnect with ?text= must not Followup again — that
+		// queues a duplicate turn with the same question while the old one
+		// keeps running, and the client concatenates both answers.
+		if ag.Status() == "running" {
+			if start := openStepStart(sess.Events()); start >= 0 {
+				lastSeq = start
+			}
+		} else {
+			ag.Followup(agentloop.Message{Role: agentloop.RoleUser, Content: []agentloop.ContentBlock{{Kind: agentloop.BlockText, Text: text}}})
+		}
 	}
 
 	writeSSE(w, "metadata", map[string]any{"model": s.cfg.Model})

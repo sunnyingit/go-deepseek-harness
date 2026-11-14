@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Electron client for the go-harness web UI (index, dialog, space)",
-  "author": "PABuddy",
+  "author": "牛宝",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -16,7 +16,7 @@
   },
   "build": {
     "appId": "ai.pabuddy.native",
-    "productName": "PABuddy",
+    "productName": "牛宝",
     "directories": {
       "output": "dist"
     },
@@ -55,8 +55,21 @@
     "win": {
       "icon": "build/icon.png",
       "target": [
-        "zip"
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64"]
+        }
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "牛宝"
     }
   }
 }

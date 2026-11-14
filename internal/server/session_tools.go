@@ -31,15 +31,15 @@ func (s *uiCardStash) put(callID string, card map[string]any) {
 	s.mu.Unlock()
 }
 
+// take returns the card without deleting it. Watch reconnects replay the
+// same tool/result events; deleting on first read left later connections
+// with a bare「工具 完成」row and no stock/analyst card.
 func (s *uiCardStash) take(callID string) (map[string]any, bool) {
 	if s == nil || callID == "" {
 		return nil, false
 	}
 	s.mu.Lock()
 	card, ok := s.m[callID]
-	if ok {
-		delete(s.m, callID)
-	}
 	s.mu.Unlock()
 	return card, ok
 }
@@ -140,9 +140,9 @@ func (s *Server) registerSessionTools(toolRegistry *coretools.Registry) error {
 func (s *Server) toolSearchStock() coretools.ToolDefinition {
 	return coretools.ToolDefinition{
 		Name:        "search_stock",
-		Description: "用股票名称或代码解析 A 股/港股标的，返回 ts_code 与名称。点名分析师或对比前先调用。",
+		Description: "用股票/指数名称或代码解析标的，返回 ts_code 与名称。点名分析师或对比前先调用。支持创业板指、上证、沪深300 等宽基指数别名。",
 		Parameters: coretools.ParameterSchema{
-			"q": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票名或代码，如 兆易创新 / 603986 / 603986.SH"}, Required: true},
+			"q": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票/指数名或代码，如 兆易创新 / 创业板指 / 603986 / 603986.SH"}, Required: true},
 		},
 		Output:            coretools.Output{Schema: coretools.ValueSchema{Kind: coretools.KindString}, Render: renderStringResult},
 		TimeoutMs:         15_000,
@@ -170,11 +170,12 @@ func (s *Server) toolAskAnalyst() coretools.ToolDefinition {
 			"analyst 可选：" + ids + "。" +
 			"对应关系：技术位置/走势/资金=volume_flow，基本面=fundamental，新闻=news，财报=finance，板块=sector，大盘=market。" +
 			"不要用 chief 充当其中一维，也不要把它放在第一位；chief 只在用户明确点名主分析师时使用。综合结论由你自己写。" +
-			"volume_flow / fundamental / finance / sector / market 必须先有明确 ts_code；没有就先 search_stock。" +
-			"news 可以不带 ts_code：主题新闻、财经热点、与个股无关的舆情用 question 说明即可。一次只请一位。",
+			"禁止默认带上会话里上一只个股代码；只有用户本句明确点了股票/指数时才传 ts_code。" +
+			"volume_flow / fundamental / finance / sector：用户点了标的才传 ts_code，否则先 search_stock；不要臆造代码。" +
+			"market / news 可以不带 ts_code（纯大盘、主题新闻、财经热点）。点名创业板指等指数时再 search_stock 传入。一次只请一位。",
 		Parameters: coretools.ParameterSchema{
 			"analyst":  {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "分析师 id：" + ids}, Required: true},
-			"ts_code":  {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，如 603986.SH；新闻主题追问可省略"}},
+			"ts_code":  {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "仅当用户明确点名股票/指数时传入，如 603986.SH、399006.SZ 或创业板指；大盘/主题新闻可省略。禁止沿用上一只个股"}},
 			"question": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "要这位分析师回答的问题，尽量具体"}, Required: true},
 		},
 		Output:    coretools.Output{Schema: coretools.ValueSchema{Kind: coretools.KindString}, Render: renderStringResult},
@@ -193,24 +194,31 @@ func (s *Server) toolAskAnalyst() coretools.ToolDefinition {
 				return "", fmt.Errorf("缺少 question")
 			}
 			if code != "" && !tsCodePattern.MatchString(code) {
-				return "", fmt.Errorf("股票代码无法识别: %s", code)
+				// 模型有时把「创业板指」直接塞进 ts_code，先当名称解析。
+				resolved, _, err := s.resolveStock(fmt.Sprint(args["ts_code"]))
+				if err != nil {
+					return "", fmt.Errorf("股票代码无法识别: %s", code)
+				}
+				code = resolved
 			}
-			if code == "" && id != "news" {
-				return "", fmt.Errorf("%s 需要 ts_code；主题新闻才可以不带股票", sessionAnalystName[id])
+			if code == "" && id != "news" && id != "market" {
+				return "", fmt.Errorf("%s 需要用户明确的 ts_code；不要沿用上一只个股，请先 search_stock", sessionAnalystName[id])
 			}
 			cfg, err := loadAgent(id)
 			if err != nil {
 				return "", err
 			}
+			// Codeless news/market must not share one global lock — that
+			// serializes unrelated topic asks across sessions for up to 5 min.
 			lockKey := code
 			if lockKey == "" {
-				lockKey = "_news_topic_"
+				lockKey = id + ":topic"
 			}
 			unlock := s.lockCode(lockKey)
 			defer unlock()
 			msg, err := s.runAnalyst(ctx, cfg, code, "reply", question)
 			if err != nil {
-				return "", err
+				return "", fmt.Errorf("%s", analystErrText(sessionAnalystName[id], err))
 			}
 			text := strings.TrimSpace(fmt.Sprint(msg["text"]))
 			if text == "" {

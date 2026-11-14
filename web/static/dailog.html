@@ -11,6 +11,7 @@ a{color:inherit}
 button,input,textarea{font:inherit}
 .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
 .nav-a{width:48px;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#5B6372;text-decoration:none;font-size:13px}
+.nav-a:hover{color:#14171F;background:#D8D8D8}
 .nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:500}
 .sess-row{flex:none;display:flex;align-items:center;gap:2px;width:100%;box-sizing:border-box;min-height:36px;border-radius:8px}
 .sess-row:hover{background:#F4F5F7}
@@ -28,6 +29,9 @@ button,input,textarea{font:inherit}
 .av svg{display:block;width:100%;height:100%}
 .cp{border:none;background:transparent;color:#8A919E;font:inherit;font-size:12px;cursor:pointer;padding:2px 8px;border-radius:6px;white-space:nowrap}
 .cp:hover{background:#EEF0F3;color:#3A4250}
+.retryBtn{border:none;background:transparent;color:#2457D6;font:inherit;font-size:12px;cursor:pointer;padding:2px 8px;border-radius:6px;white-space:nowrap}
+.retryBtn:hover{background:#EAF0FD}
+.retryBtn[hidden]{display:none!important}
 .sq{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:6px 12px;border:1px solid #C9D7F5;border-radius:999px;background:#F5F8FF;color:#2457D6;font:inherit;font-size:14px;line-height:1.45;text-align:left;cursor:pointer}
 .sq:hover{background:#EAF0FD;border-color:#2457D6}
 .typing{display:inline-flex;gap:4px;padding:4px 2px}
@@ -136,10 +140,7 @@ button,input,textarea{font:inherit}
 <body>
 <div style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#EEF0F3;font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;color:#14171F;font-size:15px;line-height:1.55">
 <header style="flex:none;display:flex;align-items:center;height:44px;background:#FFFFFF;border-bottom:1px solid #DDE1E7">
-<div style="flex:0 0 64px;display:flex;align-items:center;justify-content:center;border-right:1px solid #EEF0F3;height:44px">
-<div style="width:28px;height:28px;border-radius:8px;background:#2457D6;display:flex;align-items:center;justify-content:center">
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-8"></path><path d="M15 8h5v5"></path></svg>
-</div></div>
+<div style="flex:0 0 64px;border-right:1px solid #DDE1E7;height:44px;background:#FFFFFF" aria-hidden="true"></div>
 <span style="padding:0 16px;font-weight:700;font-size:14px">问问</span>
 <div style="margin-left:auto;display:flex;align-items:center;gap:14px;padding-right:16px">
 <span id="session" style="display:flex;align-items:center;gap:6px;font-size:12px;color:#5B6372"></span>
@@ -147,9 +148,9 @@ button,input,textarea{font:inherit}
 </div>
 </header>
 <div style="flex:1 1 auto;display:flex;min-width:0;min-height:0;overflow:hidden">
-<nav aria-label="主导航" style="flex:0 0 64px;background:#FFFFFF;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;overflow:hidden">
-<a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
+<nav aria-label="主导航" style="flex:0 0 64px;background:#E6E6E6;border-right:1px solid #DDE1E7;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;overflow:hidden">
 <a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
+<a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
 <a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
 <a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
 <a class="nav-a" href="/tasks.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>任务</a>
@@ -172,7 +173,7 @@ button,input,textarea{font:inherit}
 <div style="max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:6px">
 <div class="ask-box">
 <div id="slashMenu" class="slash-menu" hidden role="listbox" aria-label="快捷选择"></div>
-<textarea id="chatInput" class="ask-input" rows="1" placeholder="问点什么… @ 点名分析师，# 选持仓/想买"></textarea>
+<textarea id="chatInput" class="ask-input" rows="1" placeholder="@ 翻起指定的设计师 # 翻起你关注的股票"></textarea>
 <div style="display:flex;align-items:center;gap:6px;position:relative">
 <button type="button" id="attachBtn" aria-label="带上资料" style="width:28px;height:28px;border:1px solid #E3E6EB;border-radius:8px;background:#FFFFFF;font-size:15px;line-height:1;color:#5B6372;cursor:pointer">＋</button>
 <span id="ctxChips" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap"></span>
@@ -227,7 +228,7 @@ button,input,textarea{font:inherit}
   const state = {
     sessions: [], id: params.get('session') || '', streaming: false, es: null, abort: null, streamCard: null, filter: '', lastAnalysts: [], lastCode: '', lastName: '', pickedWho: 'auto',
     slash: { open: false, kind: '', start: 0, query: '', items: [], idx: 0 }, slashStocks: null,
-    ctx: { hold: true, market: true }, attachOpen: false, notif: false, notifTab: 'all', notifs: [], unread: 0,
+    ctx: { hold: true, market: true }, attachOpen: false, notif: false, notifTab: 'alert', notifs: [], unread: 0,
   };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 2200); }
@@ -417,7 +418,7 @@ button,input,textarea{font:inherit}
     "新闻分析师": "<svg viewBox=\"0 0 40 40\" style=\"display: block\"><rect width=\"40\" height=\"40\" fill=\"#E6EEFC\"></rect><path d=\"M5 41 C5 31 11.5 27.5 20 27.5 C28.5 27.5 35 31 35 41 Z\" fill=\"#2457D6\"></path><path d=\"M17 25 H23 V29 C21.5 30 18.5 30 17 29 Z\" fill=\"#E9C2A2\"></path><circle cx=\"20\" cy=\"18\" r=\"8\" fill=\"#F4D6BC\"></circle><path d=\"M11 21 C9.5 7.5 30.5 7.5 29 21 L26.6 21 L26.6 15.5 C22.5 13 17.5 13 13.4 15.5 L13.4 21 Z\" fill=\"#4A3328\"></path><circle cx=\"16.8\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><circle cx=\"23.2\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><path d=\"M17.6 21.4 Q20 23.2 22.4 21.4\" fill=\"none\" stroke=\"#9A4A3A\" stroke-width=\"1.1\" stroke-linecap=\"round\"></path></svg>",
     "板块分析师": "<svg viewBox=\"0 0 40 40\" style=\"display: block\"><rect width=\"40\" height=\"40\" fill=\"#F6E8F4\"></rect><path d=\"M5 41 C5 31 11.5 27.5 20 27.5 C28.5 27.5 35 31 35 41 Z\" fill=\"#9C3591\"></path><path d=\"M17 25 H23 V29 C21.5 30 18.5 30 17 29 Z\" fill=\"#E9C2A2\"></path><circle cx=\"20\" cy=\"18\" r=\"8\" fill=\"#F4D6BC\"></circle><g fill=\"#3A2A20\"><circle cx=\"13.5\" cy=\"13\" r=\"3.2\"></circle><circle cx=\"17.5\" cy=\"10\" r=\"3.4\"></circle><circle cx=\"22.5\" cy=\"10\" r=\"3.4\"></circle><circle cx=\"26.5\" cy=\"13\" r=\"3.2\"></circle><circle cx=\"12.6\" cy=\"17\" r=\"2.4\"></circle><circle cx=\"27.4\" cy=\"17\" r=\"2.4\"></circle></g><circle cx=\"16.8\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><circle cx=\"23.2\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><path d=\"M17.6 21.4 Q20 23.2 22.4 21.4\" fill=\"none\" stroke=\"#9A4A3A\" stroke-width=\"1.1\" stroke-linecap=\"round\"></path></svg>",
     "财报分析师": "<svg viewBox=\"0 0 40 40\" style=\"display: block\"><rect width=\"40\" height=\"40\" fill=\"#FBF1DF\"></rect><path d=\"M5 41 C5 31 11.5 27.5 20 27.5 C28.5 27.5 35 31 35 41 Z\" fill=\"#A86A12\"></path><path d=\"M17 25 H23 V29 C21.5 30 18.5 30 17 29 Z\" fill=\"#E9C2A2\"></path><circle cx=\"20\" cy=\"18\" r=\"8\" fill=\"#F4D6BC\"></circle><circle cx=\"20\" cy=\"7.6\" r=\"3.4\" fill=\"#2E2A26\"></circle><path d=\"M11.5 17 C11 8.5 29 8.5 28.5 17 C26.5 12.5 13.5 12.5 11.5 17 Z\" fill=\"#2E2A26\"></path><circle cx=\"16.8\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><circle cx=\"23.2\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><g fill=\"none\" stroke=\"#1A1A22\" stroke-width=\"1.1\"><circle cx=\"16.6\" cy=\"17.6\" r=\"2.6\"></circle><circle cx=\"23.4\" cy=\"17.6\" r=\"2.6\"></circle><path d=\"M19.2 17.4 H20.8\"></path></g><path d=\"M17.6 21.4 Q20 23.2 22.4 21.4\" fill=\"none\" stroke=\"#9A4A3A\" stroke-width=\"1.1\" stroke-linecap=\"round\"></path></svg>",
-    "基本面分析师": "<svg viewBox=\"0 0 40 40\" style=\"display: block\"><rect width=\"40\" height=\"40\" fill=\"#ECEEF2\"></rect><path d=\"M5 41 C5 31 11.5 27.5 20 27.5 C28.5 27.5 35 31 35 41 Z\" fill=\"#4A5568\"></path><path d=\"M17 25 H23 V29 C21.5 30 18.5 30 17 29 Z\" fill=\"#E9C2A2\"></path><circle cx=\"20\" cy=\"18\" r=\"8\" fill=\"#F4D6BC\"></circle><path d=\"M11.5 17.5 C10.5 8 29.5 8 28.5 17.5 C27.5 13 23 11.6 20 13.6 C17 11.6 12.5 13 11.5 17.5 Z\" fill=\"#6B6F78\"></path><circle cx=\"16.8\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><circle cx=\"23.2\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><g fill=\"none\" stroke=\"#1A1A22\" stroke-width=\"1.1\"><circle cx=\"16.6\" cy=\"17.6\" r=\"2.6\"></circle><circle cx=\"23.4\" cy=\"17.6\" r=\"2.6\"></circle><path d=\"M19.2 17.4 H20.8\"></path></g><path d=\"M17.6 21.4 Q20 23.2 22.4 21.4\" fill=\"none\" stroke=\"#9A4A3A\" stroke-width=\"1.1\" stroke-linecap=\"round\"></path></svg>",
+    "基本面分析师": "<svg viewBox=\"0 0 40 40\" style=\"display: block\"><rect width=\"40\" height=\"40\" fill=\"#E6E6E6\"></rect><path d=\"M5 41 C5 31 11.5 27.5 20 27.5 C28.5 27.5 35 31 35 41 Z\" fill=\"#4A5568\"></path><path d=\"M17 25 H23 V29 C21.5 30 18.5 30 17 29 Z\" fill=\"#E9C2A2\"></path><circle cx=\"20\" cy=\"18\" r=\"8\" fill=\"#F4D6BC\"></circle><path d=\"M11.5 17.5 C10.5 8 29.5 8 28.5 17.5 C27.5 13 23 11.6 20 13.6 C17 11.6 12.5 13 11.5 17.5 Z\" fill=\"#6B6F78\"></path><circle cx=\"16.8\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><circle cx=\"23.2\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><g fill=\"none\" stroke=\"#1A1A22\" stroke-width=\"1.1\"><circle cx=\"16.6\" cy=\"17.6\" r=\"2.6\"></circle><circle cx=\"23.4\" cy=\"17.6\" r=\"2.6\"></circle><path d=\"M19.2 17.4 H20.8\"></path></g><path d=\"M17.6 21.4 Q20 23.2 22.4 21.4\" fill=\"none\" stroke=\"#9A4A3A\" stroke-width=\"1.1\" stroke-linecap=\"round\"></path></svg>",
     "大盘分析师": "<svg viewBox=\"0 0 40 40\" style=\"display: block\"><rect width=\"40\" height=\"40\" fill=\"#E8F0FE\"></rect><path d=\"M5 41 C5 31 11.5 27.5 20 27.5 C28.5 27.5 35 31 35 41 Z\" fill=\"#2457D6\"></path><path d=\"M17 25 H23 V29 C21.5 30 18.5 30 17 29 Z\" fill=\"#E9C2A2\"></path><circle cx=\"20\" cy=\"18\" r=\"8\" fill=\"#F4D6BC\"></circle><path d=\"M12 22 L16 16 L20 19 L24 12 L28 15\" fill=\"none\" stroke=\"#2457D6\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path><circle cx=\"16.8\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><circle cx=\"23.2\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><path d=\"M17.6 21.4 Q20 23.2 22.4 21.4\" fill=\"none\" stroke=\"#9A4A3A\" stroke-width=\"1.1\" stroke-linecap=\"round\"></path></svg>",
     "看多分析师": "<svg viewBox=\"0 0 40 40\" style=\"display: block\"><rect width=\"40\" height=\"40\" fill=\"#FDECEA\"></rect><path d=\"M5 41 C5 31 11.5 27.5 20 27.5 C28.5 27.5 35 31 35 41 Z\" fill=\"#C8312B\"></path><path d=\"M17 25 H23 V29 C21.5 30 18.5 30 17 29 Z\" fill=\"#E9C2A2\"></path><circle cx=\"20\" cy=\"18\" r=\"8\" fill=\"#F4D6BC\"></circle><path d=\"M11.6 16.5 L12.6 9.5 L15.6 12 L17.6 7 L20.6 10.8 L23.6 7 L24.8 11.6 L28 9.6 L28.4 16.5 C25.5 12.4 14.5 12.4 11.6 16.5 Z\" fill=\"#2B2B33\"></path><circle cx=\"16.8\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><circle cx=\"23.2\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><path d=\"M17.6 21.4 Q20 23.2 22.4 21.4\" fill=\"none\" stroke=\"#9A4A3A\" stroke-width=\"1.1\" stroke-linecap=\"round\"></path></svg>",
     "看空分析师": "<svg viewBox=\"0 0 40 40\" style=\"display: block\"><rect width=\"40\" height=\"40\" fill=\"#E5F3EB\"></rect><path d=\"M5 41 C5 31 11.5 27.5 20 27.5 C28.5 27.5 35 31 35 41 Z\" fill=\"#1E6B44\"></path><path d=\"M17 25 H23 V29 C21.5 30 18.5 30 17 29 Z\" fill=\"#E9C2A2\"></path><circle cx=\"20\" cy=\"18\" r=\"8\" fill=\"#F4D6BC\"></circle><path d=\"M11.5 15.5 C12 8.5 28 8.5 28.5 15.5 Z\" fill=\"#2B2B33\"></path><rect x=\"10\" y=\"14.4\" width=\"20\" height=\"2.2\" rx=\"1.1\" fill=\"#2B2B33\"></rect><circle cx=\"16.8\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><circle cx=\"23.2\" cy=\"17.8\" r=\"1\" fill=\"#1A1A22\"></circle><path d=\"M17.6 21.4 Q20 23.2 22.4 21.4\" fill=\"none\" stroke=\"#9A4A3A\" stroke-width=\"1.1\" stroke-linecap=\"round\"></path></svg>"
@@ -443,7 +444,8 @@ button,input,textarea{font:inherit}
     finance: ['财报', '营收', '利润', '净利', '现金流', '季报', '年报', '同比', '环比'],
     fundamental: ['基本面', '估值', '市盈', '市净', '股东', '解禁', '分红', '调研', '业绩预告', '业绩快报', '主营', '产业链', '上下游'],
   };
-  const MENTIONABLE = ['chief'].concat(DOMAIN, ['bull', 'bear']);
+  // 看多/看空只在研判辩论里用；问问的 ask_analyst 不接受 bull/bear，勿放进点名与侧栏。
+  const MENTIONABLE = ['chief'].concat(DOMAIN);
   const WHO_OF = {};
   MENTIONABLE.forEach((k) => { WHO_OF[ROLE[k].name] = k; WHO_OF[ROLE[k].short] = k; });
   const MENTION_RE = new RegExp('@(' + [].concat.apply([], MENTIONABLE.map((k) => [ROLE[k].name, ROLE[k].short])).sort((a, b) => b.length - a.length).join('|') + ')');
@@ -675,7 +677,8 @@ button,input,textarea{font:inherit}
   const mdBox = (text, who, hideSuggest) => {
     const sp = splitSuggestions(text);
     let qs = sp.qs;
-    if (!hideSuggest && !qs.length && FALLBACK_SQ[who]) qs = FALLBACK_SQ[who].map(withSubject);
+    // 追问芯片不要默认拼上一只个股；大盘/新闻尤其保持中性。
+    if (!hideSuggest && !qs.length && FALLBACK_SQ[who]) qs = FALLBACK_SQ[who].slice();
     return '<div style="display:flex;flex-direction:column;gap:12px;min-width:0">' + mdHTML(sp.body) + (hideSuggest ? '' : suggestChips(qs, who)) + '</div>';
   };
   // 流式文本的最后一对加粗可能还没写完，补上闭合再渲染，避免星号露在外面。
@@ -711,11 +714,103 @@ button,input,textarea{font:inherit}
       '<div class="hd" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:15px;color:#5B6372">' +
       '<span class="whoName" style="font-weight:600;color:#3A4250">' + esc(r.name) + '</span>' +
       '<span class="status" style="color:#A1A7B2">正在输入…</span>' +
-      '<button type="button" class="cp cpm copyBtn" hidden title="复制这条回答">复制</button></div>' +
+      '<button type="button" class="cp cpm copyBtn" hidden title="复制这条回答">复制</button>' +
+      '<button type="button" class="retryBtn" hidden title="用同一问题再试一次">↻ 重试</button></div>' +
       '<div class="body" style="' + BUBBLE + '"><span class="typing" aria-label="正在输入"><i></i><i></i><i></i></span></div></div>';
     $('msgs').appendChild(wrap);
     $('thread').scrollTop = $('thread').scrollHeight;
     return wrap;
+  }
+
+  function hideRetry(card) {
+    const btn = card && card.querySelector('.retryBtn');
+    if (btn) btn.hidden = true;
+  }
+  function showRetry(card) {
+    const btn = card && card.querySelector('.retryBtn');
+    if (!btn || !(card._retryAsk || card._retryUser)) return;
+    btn.hidden = false;
+    let settings = card.querySelector('.settingsBtn');
+    if (isAuthModelError(card._buf) || isAuthModelError(card._lastError)) {
+      if (!settings) {
+        settings = document.createElement('a');
+        settings.className = 'retryBtn settingsBtn';
+        settings.href = '/settings.html';
+        settings.textContent = '去设置';
+        settings.title = '打开设置，配置模型 API Key';
+        btn.after(settings);
+      }
+      settings.hidden = false;
+    } else if (settings) {
+      settings.hidden = true;
+    }
+  }
+  function resetCardForRetry(card) {
+    if (!card) return;
+    card._buf = '';
+    card._seal = 0;
+    hideRetry(card);
+    const copyBtn = card.querySelector('.copyBtn');
+    if (copyBtn) { copyBtn.hidden = true; copyBtn.onclick = null; }
+    const col = ensureRail(card);
+    if (col) {
+      Array.from(col.children).forEach((el) => {
+        if (!el.classList || !el.classList.contains('hd')) el.remove();
+      });
+      const body = document.createElement('div');
+      body.className = 'body';
+      body.style.cssText = BUBBLE;
+      body.innerHTML = '<span class="typing" aria-label="正在输入"><i></i><i></i><i></i></span>';
+      col.appendChild(body);
+    }
+    const status = card.querySelector('.status');
+    if (status) {
+      status.style.cssText = '';
+      status.style.color = '#A1A7B2';
+      status.textContent = '正在回答…';
+    }
+  }
+  function failCard(card, msg) {
+    if (!card) return;
+    state.streaming = false;
+    if (state.streamCard === card) state.streamCard = null;
+    if (state.es) { try { state.es.close(); } catch (_) {} state.es = null; }
+    if (state.abort) { try { state.abort.abort(); } catch (_) {} state.abort = null; }
+    const text = String(msg || '本轮失败');
+    card._lastError = text;
+    card._buf = text;
+    card._seal = 0;
+    const col = ensureRail(card);
+    if (col) {
+      Array.from(col.children).forEach((el) => {
+        if (!el.classList || !el.classList.contains('hd')) el.remove();
+      });
+      const body = document.createElement('div');
+      body.className = 'body';
+      body.style.cssText = BUBBLE;
+      body.innerHTML = '<span style="color:#7A4A00">' + esc(text) + '</span>';
+      col.appendChild(body);
+    }
+    const status = card.querySelector('.status');
+    if (status) {
+      status.style.cssText = MONO + ';font-size:13px;color:#7A4A00';
+      status.textContent = '失败';
+    }
+    const copyBtn = card.querySelector('.copyBtn');
+    if (copyBtn) copyBtn.hidden = true;
+    showRetry(card);
+    syncSend();
+    scrollThread();
+  }
+  function retryCard(card) {
+    if (!card || state.streaming) { toast('等这轮写完再试'); return; }
+    const ask = card._retryAsk || card._retryUser;
+    if (!ask) { toast('没有可重试的问题'); return; }
+    if (!state.id) { toast('会话还没准备好'); return; }
+    resetCardForRetry(card);
+    state.streaming = true;
+    syncSend();
+    sendSession(ask, card);
   }
   function setAIWho(wrap, who) {
     if (!wrap || !ROLE[who]) return;
@@ -787,6 +882,19 @@ button,input,textarea{font:inherit}
   function stripCtxPrefix(text) {
     return String(text || '').replace(/^【带上：[^\]]*】\s*/u, '').trim();
   }
+  // 历史/跳转里可能带着「请调用 ask_analyst：…」编排指令；气泡只给人话问题。
+  function prettyUserText(text) {
+    let t = stripCtxPrefix(text);
+    t = t.replace(/^【上下文：[^\]]*】\s*/u, '').trim();
+    // 兼容「无 ts_code 时夹一句先 search_stock」的括号说明。
+    const m = t.match(/^请(?:调用|优先调用)\s*ask_analyst[：:]\s*analyst=\w+[\s\S]*?(?:question\s*=|回答\s*[：:])([\s\S]+)$/i);
+    if (m) return String(m[1] || '').trim();
+    return t;
+  }
+  function parseAskAnalystRoute(text) {
+    const m = String(text || '').trim().match(/^请(?:调用|优先调用)\s*ask_analyst[：:]\s*analyst=(\w+)/i);
+    return m && ROLE[m[1]] ? m[1] : '';
+  }
 
   async function openSession(id, opts) {
     opts = opts || {};
@@ -810,7 +918,7 @@ button,input,textarea{font:inherit}
         const text = stripCtxPrefix(messageText(m));
         if (!text) return;
         if (role === 'user' || role === 'human') {
-          addUser(text, { ctx: [], at: m.createdAt || m.ts });
+          addUser(prettyUserText(text), { ctx: [], at: m.createdAt || m.ts });
           const codes = extractCodes(text);
           if (codes[0]) state.lastCode = codes[0];
         } else if (role === 'assistant' || role === 'ai' || role === 'model' || !role) {
@@ -836,9 +944,40 @@ button,input,textarea{font:inherit}
       });
       if (!shown && !opts.text) emptyState();
     } catch (e) {
+      const msg = String((e && e.message) || e || '');
+      // 会话已被删/不存在：清掉死 id，避免后续 stream 一直「连接中断」。
+      if (/not found|no such session|404|HTTP 404/i.test(msg)) {
+        state.id = '';
+        const url = new URL(location.href);
+        url.searchParams.delete('session');
+        history.replaceState(null, '', url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : ''));
+        toast('对话不存在，已回到新对话');
+        await loadSessions();
+        if (state.sessions[0]) { await openSession(state.sessions[0].id, opts); return; }
+        emptyState();
+        if (opts.text) send(opts.text);
+        return;
+      }
       toast('历史消息加载失败');
     }
     if (opts.text) send(opts.text);
+    else await resumeIfRunning(id);
+  }
+
+  async function resumeIfRunning(id) {
+    if (!id || state.streaming) return;
+    try {
+      const meta = await api('/sessions/' + encodeURIComponent(id));
+      const st = String((meta && meta.status) || '');
+      if (!st || st === 'idle') return;
+      const host = addAI('assistant');
+      const whoLabel = host.querySelector('.whoName');
+      if (whoLabel) whoLabel.textContent = '主理人';
+      host.querySelector('.status').textContent = '正在回答…';
+      state.streaming = true;
+      syncSend();
+      sendSession('', host);
+    } catch (e) { /* 接不上就当已结束 */ }
   }
 
   async function newChat(seedText) {
@@ -1287,11 +1426,17 @@ button,input,textarea{font:inherit}
   }
   function friendlyModelError(raw) {
     const t = String(raw || '').trim();
-    if (/QUOTA_EXCEEDED|Insufficient Balance/i.test(t)) {
-      return '模型额度不足（DeepSeek 余额不够），请充值或更换 API Key 后再试。';
+    if (/QUOTA_EXCEEDED|Insufficient Balance|额度不足/i.test(t)) {
+      return '模型额度不足，请充值或到「设置」更换可用的 API Key 后再试。';
     }
-    if (/rate.?limit|429/i.test(t)) return '模型请求过于频繁，请稍后再试。';
+    if (/AUTH|Authentication Fails|Unauthorized|api key.*invalid|invalid.*api.?key|incorrect api key|API Key 无效|未配置/i.test(t)) {
+      return '模型 API Key 无效或未配置，请到「设置」里填写正确的 Key 后再试。';
+    }
+    if (/rate.?limit|429|过于频繁/i.test(t)) return '模型请求过于频繁，请稍后再试。';
     return t || '本轮失败';
+  }
+  function isAuthModelError(msg) {
+    return /API Key 无效|未配置|Authentication Fails|AUTH|invalid.*api.?key/i.test(String(msg || ''));
   }
   function finishStep(rail, callId, text, carded) {
     if (carded) {
@@ -1501,8 +1646,10 @@ button,input,textarea{font:inherit}
     // EventSource 在服务端正常关掉连接后也会触发 onerror，且带 text= 的 URL
     // 若自动重连会再跑一轮 Followup；所以 done/error 后必须立刻 close，并忽略晚到的 onerror。
     state.streamCard = card;
+    if (card) card._retryAsk = text;
     card._buf = '';
     card._seal = 0;
+    hideRetry(card);
     const firstBody = card.querySelector('.body');
     if (firstBody) firstBody.classList.add('live');
     const carded = {};
@@ -1510,7 +1657,7 @@ button,input,textarea{font:inherit}
       const panel = card && card.querySelector('.elicit');
       if (panel) panel.remove();
     };
-    const finish = (finalText) => {
+    const finish = (finalText, failed) => {
       if (finished) return;
       finished = true;
       clearElicit();
@@ -1522,12 +1669,20 @@ button,input,textarea{font:inherit}
       paintTail(card, true);
       const status = card.querySelector('.status');
       const copyBtn = card.querySelector('.copyBtn');
-      if (status) { status.style.cssText = MONO + ';font-size:13px;color:#A1A7B2'; status.textContent = hhmm(); }
-      if (copyBtn) {
-        copyBtn.hidden = !card._buf;
-        copyBtn.onclick = () => {
-          navigator.clipboard.writeText(card._buf || '').then(() => toast('已复制')).catch(() => toast('复制失败'));
-        };
+      if (failed) {
+        card._lastError = card._buf;
+        if (status) { status.style.cssText = MONO + ';font-size:13px;color:#7A4A00'; status.textContent = '失败'; }
+        if (copyBtn) copyBtn.hidden = true;
+        showRetry(card);
+      } else {
+        if (status) { status.style.cssText = MONO + ';font-size:13px;color:#A1A7B2'; status.textContent = hhmm(); }
+        if (copyBtn) {
+          copyBtn.hidden = !card._buf;
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(card._buf || '').then(() => toast('已复制')).catch(() => toast('复制失败'));
+          };
+        }
+        hideRetry(card);
       }
       syncSend();
       loadSessions();
@@ -1600,10 +1755,23 @@ button,input,textarea{font:inherit}
         try { data = e && e.data ? JSON.parse(e.data) : null; } catch {}
         if (data && data.failed) {
           const msg = friendlyModelError(data.errorMessage || data.message || '本轮失败');
-          finish(buf ? (buf + '\n\n' + msg) : msg);
+          finish(buf ? (buf + '\n\n' + msg) : msg, true);
           return;
         }
-        finish(buf || '（没有正文）');
+        const empty = !String(buf || '').trim();
+        // 接流晚了一拍、回合已 idle：服务端发空 done，不要画成「失败 / 没有正文」。
+        if (empty && !text) {
+          finished = true;
+          clearElicit();
+          if (es) { try { es.close(); } catch (_) {} }
+          state.es = null;
+          state.streaming = false;
+          if (state.streamCard === card) state.streamCard = null;
+          try { card.remove(); } catch (_) {}
+          syncSend();
+          return;
+        }
+        finish(buf || '（没有正文）', empty);
       });
       on('error', (e) => {
         let data = null;
@@ -1618,7 +1786,7 @@ button,input,textarea{font:inherit}
           const raw = (data && (data.errorMessage || data.message || data.error)) || '出错了';
           buf += (buf ? '\n' : '') + friendlyModelError(raw);
         } catch {}
-        finish(buf || '出错了');
+        finish(buf || '出错了', true);
       });
       source.onerror = () => {
         if (finished) return;
@@ -1641,18 +1809,28 @@ button,input,textarea{font:inherit}
             openWatch();
             return;
           }
-          finish(buf || '连接中断，请再试一次');
+          finish(buf || '连接中断，请再试一次', true);
         }, 80);
       };
     };
     const openWatch = () => {
       if (finished) return;
       if (state.es) return;
+      // 服务端会从本步 step/start 重放；清掉已收内容，避免正文叠两遍。
+      buf = '';
+      card._buf = '';
+      card._seal = 0;
+      Object.keys(carded).forEach((k) => { delete carded[k]; });
+      const body = card.querySelector('.body');
+      if (body) { body.innerHTML = ''; body.classList.add('live'); }
+      const rail = card.querySelector('.rail');
+      if (rail) rail.innerHTML = '';
       es = new EventSource('/sessions/' + encodeURIComponent(state.id) + '/stream');
       state.es = es;
       bind(es);
     };
-    es = new EventSource('/sessions/' + encodeURIComponent(state.id) + '/stream?text=' + encodeURIComponent(text));
+    const q = text ? ('?text=' + encodeURIComponent(text)) : '';
+    es = new EventSource('/sessions/' + encodeURIComponent(state.id) + '/stream' + q);
     state.es = es;
     bind(es);
   }
@@ -1662,85 +1840,101 @@ button,input,textarea{font:inherit}
     const mentioned = parseMention(text);
     const question = mentioned.question || text;
     const host = addAI('assistant');
+    host._retryUser = text;
+    host._retryAsk = text;
     host.querySelector('.status').textContent = '正在安排…';
     setAIWho(host, 'assistant');
     const whoLabel = host.querySelector('.whoName');
     if (whoLabel) whoLabel.textContent = '主理人';
 
-    // @ 点名已定路由，跳过意图识别，少一次阻塞模型调用。
-    const intent = (mentioned.forced && mentioned.who && ROLE[mentioned.who])
-      ? null
-      : await classifyAsk(question);
-    let ask = (intent && intent.ask) || question;
-    let tipText = (intent && intent.note) || '';
-    let code = '';
+    try {
+      // @ 点名已定路由，跳过意图识别，少一次阻塞模型调用。
+      const intent = (mentioned.forced && mentioned.who && ROLE[mentioned.who])
+        ? null
+        : await classifyAsk(question);
+      let ask = (intent && intent.ask) || question;
+      let tipText = (intent && intent.note) || '';
+      let code = '';
 
-    if (intent && intent.reuse_last && state.lastCode) {
-      code = state.lastCode;
-      if (!/\d{6}/.test(ask)) {
-        ask = '【上下文：上一只股票 ' + (state.lastName ? state.lastName + ' ' : '') + state.lastCode + '】\n' + ask;
+      // 只有意图明确点了标的 / 明确 reuse 时才带代码；禁止把上一只个股默认塞给分析师。
+      const freeAnalyst = (who) => who === 'news' || who === 'market';
+      if (intent && intent.reuse_last && state.lastCode) {
+        code = state.lastCode;
+        if (!/\d{6}/.test(ask)) {
+          ask = '【上下文：上一只股票 ' + (state.lastName ? state.lastName + ' ' : '') + state.lastCode + '】\n' + ask;
+        }
+      } else if (intent && intent.stock_query) {
+        try { code = await resolveStock(intent.stock_query); } catch (e) {}
+      } else if (intent && (intent.intent === 'stock_new' || intent.intent === 'stock_followup')) {
+        try { code = await resolveStock(question); } catch (e) {}
       }
-    } else if (intent && intent.intent === 'stock_new' && intent.stock_query) {
-      try { code = await resolveStock(intent.stock_query); } catch (e) {}
-    } else if (intent && intent.stock_query) {
-      try { code = await resolveStock(intent.stock_query); } catch (e) {}
-    } else {
-      try { code = await resolveStock(question); } catch (e) {}
-    }
-    if (code) {
-      state.lastCode = code;
-      if (!state.lastName) {
-        try {
-          const hit = await searchStockHit(code);
-          if (hit && hit.name) state.lastName = hit.name;
-        } catch (e) {}
+      if (code) {
+        state.lastCode = code;
+        if (!state.lastName) {
+          try {
+            const hit = await searchStockHit(code);
+            if (hit && hit.name) state.lastName = hit.name;
+          } catch (e) {}
+        }
       }
-    }
 
-    // @点名或侧栏指定：写成明确指令，让主理人用 ask_analyst 召唤
-    // 新闻分析师可不带股票（主题/市场舆情）；其他维度仍要代码。
-    if (mentioned.forced && mentioned.who && ROLE[mentioned.who]) {
-      const need = code || state.lastCode || '';
-      if (mentioned.who === 'news' && !need) {
-        ask = '请调用 ask_analyst：analyst=news，question=' + question;
-      } else {
-        ask = '请调用 ask_analyst：analyst=' + mentioned.who +
-          (need ? '，ts_code=' + need : '（若还没有代码先 search_stock）') +
-          '，question=' + question;
+      // @点名或侧栏指定：写成明确指令，让主理人用 ask_analyst 召唤。
+      // 大盘/新闻可不带代码；其他维度仅在本句已解析出代码时才带，绝不回落上一只个股。
+      if (mentioned.forced && mentioned.who && ROLE[mentioned.who]) {
+        const need = code || '';
+        if (freeAnalyst(mentioned.who) && !need) {
+          ask = '请调用 ask_analyst：analyst=' + mentioned.who + '，question=' + question;
+        } else {
+          ask = '请调用 ask_analyst：analyst=' + mentioned.who +
+            (need ? '，ts_code=' + need : '（若还没有代码先 search_stock，禁止沿用上一只个股）') +
+            '，question=' + question;
+        }
+        tipText = tipText || ('点名 ' + ROLE[mentioned.who].name);
+      } else if (state.pickedWho && state.pickedWho !== 'auto' && ROLE[state.pickedWho]) {
+        const need = code || '';
+        if (freeAnalyst(state.pickedWho) && !need) {
+          ask = '请优先调用 ask_analyst：analyst=' + state.pickedWho + '，回答：' + ask;
+        } else {
+          ask = '请优先调用 ask_analyst：analyst=' + state.pickedWho +
+            (need ? '，ts_code=' + need : '') +
+            '，回答：' + ask;
+        }
       }
-      tipText = tipText || ('点名 ' + ROLE[mentioned.who].name);
-    } else if (state.pickedWho && state.pickedWho !== 'auto' && ROLE[state.pickedWho]) {
-      const need = code || state.lastCode || '';
-      if (state.pickedWho === 'news' && !need) {
-        ask = '请优先调用 ask_analyst：analyst=news，回答：' + ask;
-      } else {
-        ask = '请优先调用 ask_analyst：analyst=' + state.pickedWho +
-          (need ? '，ts_code=' + need : '') +
-          '，回答：' + ask;
-      }
-    }
 
-    if (tipText) {
-      const tip = document.createElement('div');
-      tip.style.cssText = 'font-size:13px;color:#8A919E;padding:0 0 4px 44px';
-      tip.textContent = tipText;
-      host.before(tip);
+      const ctxLabels = activeCtxLabels();
+      if (ctxLabels.length) {
+        ask = '【带上：' + ctxLabels.join('、') + '】\n' + ask;
+      }
+      if (tipText) {
+        const tip = document.createElement('div');
+        tip.style.cssText = 'font-size:13px;color:#8A919E;padding:0 0 4px 44px';
+        tip.textContent = tipText;
+        host.before(tip);
+      }
+      host._retryAsk = ask;
+      host.querySelector('.status').textContent = '正在回答…';
+      sendSession(ask, host);
+    } catch (err) {
+      failCard(host, friendlyModelError((err && err.message) || '发送失败'));
     }
-    host.querySelector('.status').textContent = '正在回答…';
-    sendSession(ask, host);
   }
 
   function send(text) {
     text = (text || '').trim();
     if (!text || state.streaming) return;
-    if (!state.id) { newChat(text); return; }
+    const routed = parseAskAnalystRoute(text);
+    if (routed) {
+      state.pickedWho = routed;
+      syncPicker();
+      const who = routed === 'auto' ? 'chief' : routed;
+      $('pickerAv').innerHTML = avatarHTML(who, 18);
+    }
+    const shown = prettyUserText(text);
+    if (!state.id) { newChat(shown); return; }
     if (!$('msgs').querySelector('.msg')) $('msgs').innerHTML = '';
-    addUser(text);
+    addUser(shown);
     state.streaming = true; syncSend();
-    sendRouted(text).catch((err) => {
-      toast(err.message || '发送失败');
-      state.streaming = false; syncSend();
-    });
+    sendRouted(shown);
   }
 
   /* ---------- 通知抽屉 ---------- */
@@ -1752,21 +1946,27 @@ button,input,textarea{font:inherit}
     $('notifDrawer').classList.toggle('open', state.notif);
   }
   function renderNotif() {
-    const tabs = [['all', '全部'], ['alert', '提醒'], ['change', '判断变化'], ['settle', '战绩']];
+    // 与市场/持仓等同：提醒、判断、战绩、系统（不要「全部」）
+    const tabs = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩'], ['system', '系统']];
+    if (state.notifTab === 'all') state.notifTab = 'alert';
     $('notifTabs').innerHTML = tabs.map(([k, lab]) =>
       '<button type="button" data-ntab="' + k + '" style="padding:0 10px;height:36px;border:none;background:transparent;font:inherit;font-size:13px;cursor:pointer;' +
       (state.notifTab === k ? 'color:#2457D6;font-weight:600;box-shadow:inset 0 -2px 0 #2457D6' : 'color:#5B6372') + '">' + lab + '</button>'
     ).join('');
     const items = state.notifs.filter((n) => {
-      if (state.notifTab === 'all') return true;
       const t = String(n.type || n.kind || '');
-      if (state.notifTab === 'alert') return /alert|price|remind|calendar/i.test(t);
+      if (state.notifTab === 'alert') return /alert|price|remind|calendar|upcoming|ann|move/i.test(t);
       if (state.notifTab === 'change') return /change|judgment|verdict/i.test(t);
       if (state.notifTab === 'settle') return /settle|outcome|战绩/i.test(t);
-      return true;
+      if (state.notifTab === 'system') return /system|sys/i.test(t) || (!t && !n.code);
+      return false;
     });
     if (!items.length) {
-      $('notifBody').innerHTML = '<div style="padding:28px 20px;color:#8A919E">现在没有通知。到价、AI 改判、披露和解禁这些事会出现在这里。</div>';
+      const empty = state.notifTab === 'alert' ? '近两周没有涉及自选的事件。'
+        : state.notifTab === 'settle' ? '还没有战绩结算。'
+        : state.notifTab === 'system' ? '还没有系统通知。'
+        : '现在没有通知。到价、AI 改判、披露和解禁这些事会出现在这里。';
+      $('notifBody').innerHTML = '<div style="padding:28px 20px;color:#8A919E">' + empty + '</div>';
       return;
     }
     $('notifBody').innerHTML = items.map((n) => {
@@ -1950,6 +2150,12 @@ button,input,textarea{font:inherit}
     openSession(b.dataset.id);
   });
   $('msgs').addEventListener('click', (e) => {
+    const retry = e.target.closest('.retryBtn');
+    if (retry) {
+      e.preventDefault();
+      retryCard(retry.closest('.msg'));
+      return;
+    }
     const chip = e.target.closest('[data-ask-chip],[data-ask]');
     if (!chip) return;
     let q = chip.dataset.q || chip.dataset.ask;
@@ -1957,13 +2163,16 @@ button,input,textarea{font:inherit}
     if (state.streaming) { toast('等这轮写完再点'); return; }
     const who = chip.dataset.who || '';
     if (who && who !== 'assistant' && ROLE[who]) {
-      const code = state.lastCode || '';
-      const named = (state.lastName && q.indexOf(state.lastName) >= 0) || (code && q.indexOf(code.slice(0, 6)) >= 0);
-      if (!named) q = withSubject(q);
       if (DOMAIN.indexOf(who) >= 0 || who === 'chief') {
-        q = '请调用 ask_analyst：analyst=' + who + (code ? '，ts_code=' + code : '') + '，question=' + q;
+        state.pickedWho = who;
+        syncPicker();
+        $('pickerAv').innerHTML = avatarHTML(who, 18);
       }
-    } else if (state.lastCode && q.indexOf(state.lastCode.slice(0, 6)) < 0 && !(state.lastName && q.indexOf(state.lastName) >= 0) && (q.length <= 16 || /它|这只|该股|这票|上面|刚才/.test(q))) {
+      // 仅代词追问才补标的；分析师芯片默认不拼上一只个股。
+      if (who !== 'market' && who !== 'news' && state.lastCode && /它|这只|该股|这票|上面|刚才/.test(q)) {
+        q = withSubject(q);
+      }
+    } else if (state.lastCode && q.indexOf(state.lastCode.slice(0, 6)) < 0 && !(state.lastName && q.indexOf(state.lastName) >= 0) && /它|这只|该股|这票|上面|刚才/.test(q)) {
       q = withSubject(q);
     }
     $('chatInput').value = q;
@@ -2096,11 +2305,27 @@ button,input,textarea{font:inherit}
   (async function boot() {
     await loadSessions();
     loadNotif();
-    const seed = params.get('text') || '';
+    const seedAnalyst = (params.get('analyst') || '').trim();
+    if (seedAnalyst && ROLE[seedAnalyst] && MENTIONABLE.indexOf(seedAnalyst) >= 0) {
+      state.pickedWho = seedAnalyst;
+      syncPicker();
+      $('pickerAv').innerHTML = avatarHTML(seedAnalyst, 18);
+    } else if (seedAnalyst === 'bull' || seedAnalyst === 'bear') {
+      toast('看多/看空请到研判页使用');
+    }
+    const seed = prettyUserText(params.get('text') || '');
     if (state.id) await openSession(state.id, { text: seed });
     else if (seed) await newChat(seed);
     else if (state.sessions[0]) await openSession(state.sessions[0].id);
     else emptyState();
+    // 吃掉 text/analyst，避免刷新又发一遍
+    if (params.get('text') || params.get('analyst')) {
+      const url = new URL(location.href);
+      url.searchParams.delete('text');
+      url.searchParams.delete('analyst');
+      const q = url.searchParams.toString();
+      history.replaceState(null, '', url.pathname + (q ? '?' + q : '') + url.hash);
+    }
     syncSend();
   })();
 })();

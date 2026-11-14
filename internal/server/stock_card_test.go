@@ -34,8 +34,9 @@ func TestWriteStreamEventEmitsStockCardAndKeepsToolText(t *testing.T) {
 	if !strings.Contains(body, "event: tool-result\n") || !strings.Contains(body, text) {
 		t.Fatalf("model-visible text must still stream, got %q", body)
 	}
-	if _, ok := cards.take("c9"); ok {
-		t.Fatal("stash should be consumed")
+	// Stash is kept so a watch reconnect can re-emit the same card.
+	if got, ok := cards.take("c9"); !ok || got["code"] != "603986.SH" {
+		t.Fatal("stash should still be readable after emit")
 	}
 }
 

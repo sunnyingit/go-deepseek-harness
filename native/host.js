@@ -86,7 +86,7 @@ function init({ app, electron, pageBase, showMainWindow, loadPage, iconPath, use
 
   function refreshTray() {
     if (!state.tray) return;
-    state.tray.setToolTip(state.unread ? `PABuddy · ${state.unread} 条未读` : 'PABuddy');
+    state.tray.setToolTip(state.unread ? `牛宝 · ${state.unread} 条未读` : '牛宝');
     if (process.platform === 'darwin') {
       state.tray.setTitle(state.unread ? ` ${state.unread}` : '');
       app.dock && app.dock.setBadge(state.unread ? String(state.unread) : '');
@@ -97,12 +97,12 @@ function init({ app, electron, pageBase, showMainWindow, loadPage, iconPath, use
 
   function open(url) {
     showMainWindow();
-    if (url) loadPage(url);
+    loadPage(url || `${pages}/market.html`);
   }
 
   function buildMenu() {
     return Menu.buildFromTemplate([
-      { label: '打开 PABuddy', click: () => open() },
+      { label: '打开牛宝', click: () => open() },
       { label: state.unread ? `未读通知 ${state.unread} 条` : '没有未读通知', enabled: false },
       { type: 'separator' },
       { label: '市场', click: () => open(`${pages}/market.html`) },

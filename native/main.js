@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, BrowserView, Menu, shell, dialog } = require('electron');
 const { spawn, execSync } = require('child_process');
 const http = require('http');
 const fs = require('fs');
@@ -10,6 +10,7 @@ const PORT = process.env.PORT || '8081';
 const BASE = (process.env.HARNESS_URL || `http://127.0.0.1:${PORT}`).replace(/\/$/, '');
 
 const PAGES = {
+  market: `${BASE}/market.html`,
   index: `${BASE}/`,
   dialog: `${BASE}/dialog.html`,
   space: `${BASE}/space.html`,
@@ -22,6 +23,9 @@ let splash = null;
 let backend = null;
 let spawnedBackend = false;
 let hostApi = null;
+// 常驻页面：切走不销毁，问问/研判的流式输出可继续，回来接着看。
+const pageViews = Object.create(null);
+let activePageKey = '';
 
 // 单实例：必须赶在启动后端之前。第二个实例会杀掉占着端口的第一个实例的后端，所以直接退出。
 const gotLock = app.requestSingleInstanceLock();
@@ -192,14 +196,52 @@ function readApiKeyFromFile(p) {
 
 function readConfiguredApiKey() {
   if (process.env.DEEPSEEK_API_KEY) return process.env.DEEPSEEK_API_KEY.trim();
-  const candidates = [
-    userConfigPath(),
-    path.join(runtimeRoot(), 'config.yaml'),
-    path.resolve(__dirname, '..', 'web', 'config.yaml'),
-  ];
+  // Packaged installs only read the user-data config — never the bundle copy
+  // (prepare-runtime ships an empty api_key; older zips may still have a key).
+  const candidates = app.isPackaged
+    ? [userConfigPath()]
+    : [
+      userConfigPath(),
+      path.resolve(__dirname, '..', 'web', 'config.yaml'),
+      path.join(runtimeRoot(), 'config.yaml'),
+    ];
   for (const p of candidates) {
     const key = readApiKeyFromFile(p);
     if (key) return key;
+  }
+  return '';
+}
+
+function parseEnvFileValue(text, key) {
+  const re = new RegExp(`^\\s*${key}\\s*=\\s*(.*)$`, 'm');
+  const m = String(text || '').match(re);
+  if (!m) return '';
+  return m[1].trim().replace(/^["']|["']$/g, '');
+}
+
+function readEnvFileKey(filePath, key) {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) return '';
+    return parseEnvFileValue(fs.readFileSync(filePath, 'utf8'), key);
+  } catch {
+    return '';
+  }
+}
+
+/** Tushare token stays out of the .app; prefer env / userData / sibling repo .env. */
+function readConfiguredTushareToken() {
+  if (process.env.TUSHARE_TOKEN) return process.env.TUSHARE_TOKEN.trim();
+  const candidates = [
+    path.join(stockDataDir(), '.env'),
+    path.join(app.getPath('userData'), '.env'),
+  ];
+  if (!app.isPackaged) {
+    candidates.push(path.join(stockAgentDir(), '.env'));
+    candidates.push(path.resolve(__dirname, '..', '..', 'stock_agent_assitant', '.env'));
+  }
+  for (const p of candidates) {
+    const token = readEnvFileKey(p, 'TUSHARE_TOKEN');
+    if (token) return token;
   }
   return '';
 }
@@ -239,8 +281,11 @@ function backendEnv(apiKey) {
   env.PATH = env[pathKey];
   env.PORT = String(new URL(BASE).port || PORT);
   if (apiKey) env.DEEPSEEK_API_KEY = apiKey;
+  // Prefer the writable user config so keys never need to live inside the .app.
+  const userCfg = userConfigPath();
   const bundledConfig = path.join(runtimeRoot(), 'config.yaml');
-  if (fs.existsSync(bundledConfig)) env.WEB_DEMO_CONFIG = bundledConfig;
+  if (fs.existsSync(userCfg)) env.WEB_DEMO_CONFIG = userCfg;
+  else if (fs.existsSync(bundledConfig)) env.WEB_DEMO_CONFIG = bundledConfig;
   env.WEB_DEMO_DATA_DIR = path.join(app.getPath('userData'), 'data');
   env.WEB_DEMO_LOG_FILE = webLogPath();
   env.WEB_DEMO_PYTHON_CACHE_DIR = path.join(app.getPath('userData'), 'python-venv');
@@ -248,6 +293,8 @@ function backendEnv(apiKey) {
   if (fs.existsSync(py)) env.HARNESS_PYTHON_BIN = py;
   const skills = path.join(runtimeRoot(), 'skills');
   if (fs.existsSync(skills)) env.HARNESS_SKILLS_DIR = skills;
+  const agents = path.join(runtimeRoot(), 'agents');
+  if (fs.existsSync(agents)) env.HARNESS_AGENTS_DIR = agents;
   const wheels = path.join(runtimeRoot(), 'wheels');
   if (fs.existsSync(wheels)) env.PIP_FIND_LINKS = wheels;
   env.npm_config_prefix = npmPrefix();
@@ -339,12 +386,12 @@ function startBackend(apiKey) {
 function showSplash() {
   if (splash && !splash.isDestroyed()) return;
   splash = new BrowserWindow({
-    width: 420,
-    height: 220,
+    width: 400,
+    height: 240,
     resizable: false,
     frame: false,
-    title: 'PABuddy AI',
-    backgroundColor: '#f4f6fa',
+    title: '牛宝',
+    backgroundColor: '#ffe8e4',
     icon: path.join(__dirname, 'icon.png'),
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
@@ -364,15 +411,149 @@ function showMainWindow() {
   win.focus();
 }
 
+function pageKeyFromUrl(url) {
+  let u;
+  try { u = new URL(String(url || ''), BASE); } catch { return 'other'; }
+  const p = (u.pathname || '/').replace(/\/+$/, '') || '/';
+  if (p.endsWith('market.html') || p.endsWith('/market')) return 'market';
+  if (p.endsWith('dialog.html') || p.endsWith('dailog.html')) return 'dialog';
+  if (p.endsWith('space.html')) return 'space';
+  if (p.endsWith('settings.html')) return 'settings';
+  if (p.endsWith('holdings.html')) return 'holdings';
+  if (p.endsWith('scan.html')) return 'scan';
+  if (p.endsWith('tasks.html')) return 'tasks';
+  if (p === '/' || p.endsWith('index.html')) return 'index';
+  return p;
+}
+
+function isAppPageUrl(url) {
+  try {
+    const u = new URL(String(url || ''), BASE);
+    if (u.origin !== new URL(BASE).origin) return false;
+    return pageKeyFromUrl(u.href) !== 'other' || /\.html$/i.test(u.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function urlIntent(url) {
+  try {
+    const u = new URL(String(url || ''), BASE);
+    return {
+      text: u.searchParams.get('text') || '',
+      session: u.searchParams.get('session') || '',
+      stock: u.searchParams.get('stock') || u.searchParams.get('code') || '',
+      hash: u.hash || '',
+    };
+  } catch {
+    return { text: '', session: '', stock: '', hash: '' };
+  }
+}
+
+function shouldReloadPage(key, url) {
+  const view = pageViews[key];
+  if (!view || !view.webContents || view.webContents.isDestroyed()) return true;
+  const next = urlIntent(url);
+  if (next.text) return true;
+  let curUrl = '';
+  try { curUrl = view.webContents.getURL(); } catch { return true; }
+  const cur = urlIntent(curUrl);
+  if (next.session && next.session !== cur.session) return true;
+  if (next.stock && next.stock !== cur.stock) return true;
+  if (next.hash && next.hash !== cur.hash) return true;
+  return false;
+}
+
+function insertChromeCSS(wc) {
+  if (!wc || wc.isDestroyed()) return;
+  wc.insertCSS(`
+    html { --electron-title-pad: 72px; }
+    .navbar { padding-left: var(--electron-title-pad) !important; -webkit-app-region: drag; }
+    .navbar .brand, .navbar .nav-right, .navbar .back-btn,
+    .navbar .nav-tabs, .navbar button { -webkit-app-region: no-drag; }
+    body > div > header {
+      padding-left: var(--electron-title-pad) !important;
+      box-sizing: border-box !important;
+      -webkit-app-region: drag;
+    }
+    body > div > header a,
+    body > div > header button,
+    body > div > header input,
+    body > div > header textarea,
+    body > div > header select { -webkit-app-region: no-drag; }
+  `).catch(() => {});
+}
+
+function layoutActivePage() {
+  if (!win || win.isDestroyed() || !activePageKey) return;
+  const view = pageViews[activePageKey];
+  if (!view) return;
+  const b = win.getContentBounds();
+  view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
+  view.setAutoResize({ width: true, height: true });
+}
+
+function attachPageView(view) {
+  const wc = view.webContents;
+  wc.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  wc.on('will-navigate', (event, url) => {
+    if (!isAppPageUrl(url)) return;
+    event.preventDefault();
+    const key = pageKeyFromUrl(url);
+    // 同页无新意图：留在常驻实例，避免把进行中的流拆掉。
+    if (key === activePageKey && !shouldReloadPage(key, url)) return;
+    loadPage(url);
+  });
+  wc.on('did-finish-load', () => insertChromeCSS(wc));
+}
+
+function makePageView() {
+  const view = new BrowserView({
+    webPreferences: {
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      // 切走页面时勿节流定时器/动画，否则问问/研判 SSE 渲染会卡住。
+      backgroundThrottling: false,
+    },
+  });
+  attachPageView(view);
+  return view;
+}
+
 function loadPage(url) {
-  if (win && !win.isDestroyed()) win.loadURL(url);
+  if (!win || win.isDestroyed()) return;
+  const target = String(url || PAGES.market);
+  const key = pageKeyFromUrl(target);
+  let view = pageViews[key];
+  const first = !view || !view.webContents || view.webContents.isDestroyed();
+  if (first) {
+    view = makePageView();
+    pageViews[key] = view;
+  }
+  if (activePageKey && activePageKey !== key && pageViews[activePageKey]) {
+    try { win.removeBrowserView(pageViews[activePageKey]); } catch { /* ignore */ }
+  }
+  win.setBrowserView(view);
+  activePageKey = key;
+  layoutActivePage();
+  if (first || shouldReloadPage(key, target)) {
+    view.webContents.loadURL(target);
+  } else {
+    insertChromeCSS(view.webContents);
+  }
+  if (!win.isVisible() && !startHidden) win.show();
 }
 
 function buildMenu() {
   const pageItems = [
-    { label: '工作台', accelerator: 'CmdOrCtrl+1', click: () => loadPage(PAGES.index) },
-    { label: '对话', accelerator: 'CmdOrCtrl+2', click: () => loadPage(PAGES.dialog) },
-    { label: '个人工作区', accelerator: 'CmdOrCtrl+3', click: () => loadPage(PAGES.space) },
+    { label: '市场', accelerator: 'CmdOrCtrl+1', click: () => loadPage(PAGES.market) },
+    { label: '工作台', accelerator: 'CmdOrCtrl+2', click: () => loadPage(PAGES.index) },
+    { label: '对话', accelerator: 'CmdOrCtrl+3', click: () => loadPage(PAGES.dialog) },
+    { label: '个人工作区', accelerator: 'CmdOrCtrl+4', click: () => loadPage(PAGES.space) },
     { label: '设置', accelerator: 'CmdOrCtrl+,', click: () => loadPage(PAGES.settings) },
     { label: '运行日志', accelerator: 'CmdOrCtrl+Shift+L', click: () => loadPage(PAGES.logs) },
   ];
@@ -416,11 +597,12 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     backgroundColor: '#ffffff',
-    title: 'PABuddy AI',
+    title: '牛宝',
     icon: path.join(__dirname, 'icon.png'),
     show: false,
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
-    trafficLightPosition: { x: 16, y: 14 },
+    // Keep traffic lights clear of the 44px header logo (left rail starts after this).
+    trafficLightPosition: { x: 12, y: 14 },
     ...(isMac ? {} : {
       titleBarOverlay: { color: '#ffffff', symbolColor: '#1c2a44', height: 44 },
     }),
@@ -431,17 +613,20 @@ function createWindow() {
     },
   });
 
-  win.webContents.on('did-finish-load', () => {
-    win.webContents.insertCSS(`
-      html { --electron-title-pad: 78px; }
-      .navbar { padding-left: 78px !important; -webkit-app-region: drag; }
-      .navbar .brand, .navbar .nav-right, .navbar .back-btn,
-      .navbar .nav-tabs, .navbar button { -webkit-app-region: no-drag; }
-    `).catch(() => {});
-  });
-
   win.once('ready-to-show', () => { if (!startHidden) win.show(); });
-  win.on('closed', () => { win = null; });
+  win.on('resize', () => layoutActivePage());
+  win.on('closed', () => {
+    Object.keys(pageViews).forEach((k) => {
+      try {
+        if (pageViews[k] && pageViews[k].webContents && !pageViews[k].webContents.isDestroyed()) {
+          pageViews[k].webContents.destroy();
+        }
+      } catch { /* ignore */ }
+      delete pageViews[k];
+    });
+    activePageKey = '';
+    win = null;
+  });
   // 托盘常驻：关窗口只是藏起来，定时任务和提醒继续跑；从托盘菜单退出才真退出
   win.on('close', (event) => {
     if (hostApi && hostApi.shouldHideOnClose()) {
@@ -450,12 +635,7 @@ function createWindow() {
     }
   });
 
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  loadPage(PAGES.index);
+  loadPage(PAGES.market);
 }
 
 // 股票数据服务（Python，8090）：安装包自带 stock-agent + stock-venv；开发时也可旁路仓库。
@@ -490,11 +670,14 @@ async function ensureStockBackend() {
     STOCK_DATA_DIR: dataDir,
     PYTHONUNBUFFERED: '1',
   };
+  const tushare = readConfiguredTushareToken();
+  if (tushare) env.TUSHARE_TOKEN = tushare;
+  else log.write('[stock] warn: TUSHARE_TOKEN missing; ETF 份额/国家队等会取不到\n');
   if (stockSiteReady()) {
     const site = stockSitePackages();
     env.PYTHONPATH = [site, process.env.PYTHONPATH || ''].filter(Boolean).join(path.delimiter);
   }
-  log.write(`[stock] spawn ${py} -m app.main cwd=${dir} PORT=${port} STOCK_DATA_DIR=${dataDir}\n`);
+  log.write(`[stock] spawn ${py} -m app.main cwd=${dir} PORT=${port} STOCK_DATA_DIR=${dataDir} tushare=${tushare ? 'yes' : 'no'}\n`);
   stockBackend = spawn(py, ['-m', 'app.main'], {
     cwd: dir,
     env,
@@ -529,7 +712,7 @@ async function boot() {
     if (!startBackend(apiKey)) {
       closeSplash();
       dialog.showErrorBox(
-        'PABuddy AI',
+        '牛宝',
         '安装包里缺少 web 运行时。请用 make mac / make win 重新打包。',
       );
       app.quit();
@@ -539,7 +722,7 @@ async function boot() {
     if (!ok) {
       closeSplash();
       dialog.showErrorBox(
-        'PABuddy AI',
+        '牛宝',
         '无法启动内置服务。请查看日志：\n' + webLogPath(),
       );
       app.quit();
@@ -547,7 +730,7 @@ async function boot() {
     }
   } catch (err) {
     closeSplash();
-    dialog.showErrorBox('PABuddy AI', '启动失败：' + (err && err.message ? err.message : err));
+    dialog.showErrorBox('牛宝', '启动失败：' + (err && err.message ? err.message : err));
     app.quit();
     return;
   }

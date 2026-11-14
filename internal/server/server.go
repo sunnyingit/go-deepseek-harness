@@ -70,8 +70,9 @@ func (s *Server) buildSystemPrompt(cwd string) (string, error) {
 		b.Section(systemprompt.Section{
 			Name: "role:orchestrator", Order: systemprompt.OrderDeploymentPersona + 2,
 			Text: "编排原则：\n" +
-				"1. 股票名不明确时先 search_stock；有代码再 ask_analyst / compare_stocks。问「我的持仓 / 拿了哪些」先 list_holdings，不要凭记忆列举。\n" +
-				"   例外：新闻分析师（analyst=news）可以不带 ts_code——主题新闻、财经热点、与个股无关的舆情，直接用 question 说明即可。\n" +
+				"1. 股票/指数名不明确时先 search_stock（含创业板指、上证、沪深300 等）；有代码再 ask_analyst / compare_stocks。问「我的持仓 / 拿了哪些」先 list_holdings，不要凭记忆列举。\n" +
+				"   禁止把会话里上一只个股代码默认带给任何分析师；只有用户本句明确点了标的才传 ts_code。\n" +
+				"   新闻（news）与大盘（market）可以不带 ts_code：主题新闻、财经热点、纯大盘问题直接用 question。点名创业板指等指数时再 search_stock 传入。\n" +
 				"2. 你就是主理人，负责综合。不要调用 analyst=chief，除非用户原文点名「主分析师」。\n" +
 				"   维度对应：技术位置/走势/资金 → volume_flow；基本面 → fundamental；新闻 → news；财报 → finance；板块 → sector；大盘 → market。\n" +
 				"   用户要几个维度，就按这个对应各请一次，一次一位，不要先请主分析师垫场。最后由你写成一段话。\n" +

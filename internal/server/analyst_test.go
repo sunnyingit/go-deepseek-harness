@@ -91,6 +91,37 @@ func TestHeadlineRejectsUnknownFactID(t *testing.T) {
 	}
 }
 
+func TestHeadlineKeepsReplyToolFactAliases(t *testing.T) {
+	flowCat := map[string]factRow{
+		"fr.path": {ID: "fr.path", Label: "路径", Text: "资金转出"},
+		"fl.path": {ID: "fl.path", Label: "路径", Text: "资金转出（切片）"},
+	}
+	flowSpeak := analystSpeak{Text: "近窗资金转出，力度不强。", Status: "warn", FactIDs: []string{"fl.path", "fd.value"}}
+	out, ok := headlineFromSpeak(flowSpeak, flowCat, agentConfig{ID: "volume_flow", FactPrefix: "fr."})
+	if !ok {
+		t.Fatal("flow reply-tool fact id fl.* should be accepted")
+	}
+	facts := out["facts"].([]map[string]string)
+	if len(facts) != 1 || facts[0]["id"] != "fl.path" {
+		t.Fatalf("flow facts = %+v", facts)
+	}
+
+	secCat := map[string]factRow{"sm.stage": {ID: "sm.stage", Label: "阶段", Text: "没有明确阶段"}}
+	secSpeak := analystSpeak{Text: "板块没有明确阶段，对个股暂不构成支撑。", Status: "neutral", FactIDs: []string{"sm.stage"}}
+	if _, ok := headlineFromSpeak(secSpeak, secCat, agentConfig{ID: "sector", FactPrefix: "sp."}); !ok {
+		t.Fatal("sector reply-tool fact id sm.* should be accepted")
+	}
+}
+
+func TestMissingFactTextAliases(t *testing.T) {
+	for _, text := range []string{"这次没取到板块数据", "本轮未取到资金流", "数据未获取，无法判断", "均无事实可用"} {
+		speak := analystSpeak{Text: text, Status: "neutral"}
+		if _, ok := headlineFromSpeak(speak, map[string]factRow{"fr.x": {ID: "fr.x"}}, agentConfig{FactPrefix: "fr."}); !ok {
+			t.Fatalf("missing wording %q should pass with empty fact_ids", text)
+		}
+	}
+}
+
 func TestHeadlineUsesCatalogText(t *testing.T) {
 	catalog := map[string]factRow{"fr.big_net_5d": {ID: "fr.big_net_5d", Label: "近5日大单", Text: "净流入 1.2 亿元"}}
 	speak := analystSpeak{Text: "近5日大单净流入 1.2 亿元", Status: "warn", FactIDs: []string{"fr.big_net_5d"}}

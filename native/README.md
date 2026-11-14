@@ -26,10 +26,10 @@ make start          # 若还没有 runtime，会先下载 Python/Node 并编译 
 
 ```sh
 make mac          # 下载当前 Mac 架构的 Python/Node，go build web，打出 .zip
-make win          # 下载 win-x64 运行时并交叉编译 web，打出 .zip
+make win          # 下载 win-x64 运行时并交叉编译 web；打出 Setup.exe（nsis）和 .zip
 ```
 
-产物在 `native/dist/`。体积会比较大（Python + Node + wheels）。下载的 `.tar.gz` / `.zip` 默认留在 `native/runtime/` 供下次复用（不会打进安装包）。要解压后删掉压缩包：`make mac PRUNE_ARCHIVES=1`。
+产物在 `native/dist/`。体积会比较大（Python + Node + wheels）。Windows 安装包是 `PABuddy Setup *.exe`（也可解压 zip 里的 `PABuddy.exe` 直接跑）。在 Mac 上交叉打 nsis 需要本机有 Wine；没有 Wine 时 zip 里仍然带可执行的 `PABuddy.exe`。下载的 `.tar.gz` / `.zip` 默认留在 `native/runtime/` 供下次复用（不会打进安装包）。要解压后删掉压缩包：`make mac PRUNE_ARCHIVES=1`。
 
 用户第一次打开：
 
@@ -42,7 +42,7 @@ make win          # 下载 win-x64 运行时并交叉编译 web，打出 .zip
 未签名包在 macOS 上需要在 Finder 里右键「打开」一次。
 
 - `PORT`（默认 `8081`）和 `HARNESS_URL`（默认 `http://127.0.0.1:$PORT`）可覆盖地址。
-- 快捷键：`Cmd/Ctrl+1` 工作台，`+2` 对话，`+3` 个人工作区。
+- 启动默认打开市场页。快捷键：`Cmd/Ctrl+1` 市场，`+2` 工作台，`+3` 对话，`+4` 个人工作区。
 
 ## 托盘常驻、开机自启、定时任务与通知
 

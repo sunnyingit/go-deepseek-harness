@@ -42,9 +42,23 @@ func (s *Server) lockCode(code string) func() {
 	return mu.Unlock
 }
 
-// bullBearJudgedToday 看多、看空已经在今天的主分析师之前说过。
-// 页面补采纳标记时可以直接用存档；换一天必须重新说，不能因为上一轮的裁决还在就跳过。
+// bullBearJudgedToday 今天已有主分析师裁决，且辩论存档里还有看多/看空论据。
+// 同日「重新分析」可能只重跑维度与主分析师、复用看多看空；此时群记录里 bull/bear
+// 会落在上一轮 chief 之前，旧的「必须夹在两轮 chief 之间」判定会误判为未说过，
+// 触发再跑一遍并在 finishPoints 里把刚写好的 Chief 清掉。
 func (s *Server) bullBearJudgedToday(code, day string) bool {
+	file := s.loadDebate(code)
+	if file.Chief != nil && len(file.Bull) > 0 && len(file.Bear) > 0 {
+		chiefDay := ""
+		for _, line := range s.groupLines(code) {
+			if line.Agent == "chief" && line.Kind == "analysis" && strings.TrimSpace(line.Text) != "" {
+				chiefDay = line.Day
+			}
+		}
+		if chiefDay == day {
+			return true
+		}
+	}
 	lastBull, lastBear := -1, -1
 	var chiefs []int
 	chiefDay := ""

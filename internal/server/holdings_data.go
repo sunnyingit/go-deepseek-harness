@@ -106,7 +106,8 @@ func (d holdingsData) IndexCloses() holdings.Series {
 }
 
 func (d holdingsData) Flow(code string) (int, int) {
-	b := d.s.shared("/flow/"+url.PathEscape(code), 5*time.Minute)
+	// 持仓页会并行预热；缓存稍长，避免 20 秒轮询又打冷路径。
+	b := d.s.shared("/flow/"+url.PathEscape(code), 15*time.Minute)
 	in, _ := b["in"].(float64)
 	out, _ := b["out"].(float64)
 	return int(in), int(out)

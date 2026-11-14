@@ -38,6 +38,14 @@ exports.default = async function afterPack(context) {
     }
   }
 
+  const cfg = path.join(runtime, 'config.yaml');
+  if (fs.existsSync(cfg)) {
+    const text = fs.readFileSync(cfg, 'utf8');
+    if (/api_key:\s*sk-/i.test(text)) {
+      throw new Error(`bundled config.yaml still contains an api_key; refuse to ship secrets (${cfg})`);
+    }
+  }
+
   const stockMain = path.join(runtime, 'stock-agent', 'app', 'main.py');
   if (!fs.existsSync(stockMain)) {
     throw new Error(`bundled stock-agent missing at ${stockMain}`);

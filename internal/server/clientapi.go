@@ -208,13 +208,43 @@ func (s *Server) handleConclusionCommit(w http.ResponseWriter, r *http.Request) 
 
 var plainCode = regexp.MustCompile(`^([0-9]{6}\.(SH|SZ|BJ)|[0-9]{5}\.HK)$`)
 
+// knownIndexByAlias maps common A-share index nicknames to ts_code.
+// Stock search only covers listed equities, so 创业板指 / 上证 等宽基名必须本地解析。
+var knownIndexByAlias = map[string]string{
+	"上证指数": "000001.SH", "上证综指": "000001.SH", "上证": "000001.SH", "沪指": "000001.SH",
+	"深证成指": "399001.SZ", "深成指": "399001.SZ", "深成": "399001.SZ", "深指": "399001.SZ",
+	"创业板指": "399006.SZ", "创业板指数": "399006.SZ", "创业板": "399006.SZ", "创指": "399006.SZ",
+	"沪深300": "000300.SH", "沪深 300": "000300.SH", "HS300": "000300.SH",
+	"中证500": "000905.SH", "中证 500": "000905.SH",
+	"中证1000": "000852.SH", "中证 1000": "000852.SH",
+	"上证50": "000016.SH", "上证 50": "000016.SH",
+	"科创50": "000688.SH", "科创 50": "000688.SH", "科创板指": "000688.SH",
+}
+
+var knownIndexNameByCode = map[string]string{
+	"000001.SH": "上证指数",
+	"399001.SZ": "深证成指",
+	"399006.SZ": "创业板指",
+	"000300.SH": "沪深300",
+	"000905.SH": "中证500",
+	"000852.SH": "中证1000",
+	"000016.SH": "上证50",
+	"000688.SH": "科创50",
+}
+
 // resolveStock turns what the user typed into a ts_code and a name. A ts_code is used as it is; a name or
-// bare number is looked up in the shared stock service.
+// bare number is looked up in the shared stock service. Common index aliases resolve locally.
 func (s *Server) resolveStock(q string) (string, string, error) {
 	q = strings.TrimSpace(q)
 	upper := strings.ToUpper(q)
 	if plainCode.MatchString(upper) {
 		return upper, s.lookupName(upper), nil
+	}
+	if code, ok := knownIndexByAlias[q]; ok {
+		return code, knownIndexNameByCode[code], nil
+	}
+	if code, ok := knownIndexByAlias[upper]; ok {
+		return code, knownIndexNameByCode[code], nil
 	}
 	var found struct {
 		Items []struct {
@@ -229,8 +259,15 @@ func (s *Server) resolveStock(q string) (string, string, error) {
 }
 
 func (s *Server) lookupName(code string) string {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	if name, ok := knownIndexNameByCode[code]; ok {
+		return name
+	}
 	if n := s.stockName(code); n != code {
 		return n
+	}
+	if len(code) < 6 {
+		return code
 	}
 	var found struct {
 		Items []struct {
