@@ -45,10 +45,11 @@ div.srow:hover{background:#F7F8FA}
 <body>
 <div style="height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #F2F2F2; font-family: 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif; color: #14171F; font-size: 13px; line-height: 1.55">
 
-<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8">
+<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8;gap:12px;min-width:0;overflow:hidden">
 <div style="flex:0 0 64px;border-right:1px solid #E8E8E8;height:48px;background:#FAFAFA" aria-hidden="true"></div>
-<span style="padding:0 16px;font-size:15px;font-weight:600;letter-spacing:-.01em;color:#14171F">战绩</span>
-<div style="margin-left: auto; display: flex; align-items: center; gap: 14px; padding-right: 16px"><span id="session" style="display: flex; align-items: center; gap: 6px; font-size:13px;color:#6B7280"></span><button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="position: relative; width: 32px; height: 32px; border: none; border-radius: 8px; background: transparent; color: #3A4250; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position: absolute; top: 2px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #D9483F; color: #FFFFFF; font-size: 10px; font-weight: 600; line-height: 16px; text-align: center"></span></button></div>
+<div id="head" style="flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding-left:4px;overflow:hidden;white-space:nowrap"></div>
+<span id="session" style="flex:none;display:flex;align-items:center;gap:6px;font-size:13px;color:#6B7280;white-space:nowrap"></span>
+<button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="flex:none;position:relative;width:32px;height:32px;margin-right:12px;border:none;border-radius:8px;background:transparent;color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
 </header>
 
 <div style="flex: 1 1 auto; display: flex; flex-wrap: nowrap; align-items: stretch; min-width: 0; min-height: 0; overflow: hidden">
@@ -64,16 +65,16 @@ div.srow:hover{background:#F7F8FA}
 </nav>
 
 <main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; overflow: hidden">
-<div style="flex: none; padding: 12px 28px 0; background: #FFFFFF; border-bottom: 1px solid #DDE1E7"><div style="max-width: 1240px"><div id="head" style="display: flex; align-items: center; gap: 22px; flex-wrap: wrap"></div><div id="tabs" role="tablist" aria-label="战绩" style="display: flex; align-items: center; gap: 24px; margin-top: 6px"></div></div></div>
-<div id="scroll" style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px 28px 24px; box-sizing: border-box"><div id="body" style="max-width: 1240px"><div class="skeleton">正在读取预测记录…</div></div></div>
+<div style="flex: none; padding: 0 20px; background: #FFFFFF; border-bottom: 1px solid #DDE1E7"><div id="tabs" role="tablist" aria-label="战绩" style="display: flex; align-items: center; gap: 24px"></div></div>
+<div id="scroll" style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px 20px 24px; box-sizing: border-box"><div id="body" style="width: 100%; min-width: 0"><div class="skeleton">正在读取预测记录…</div></div></div>
 </main>
 
-<aside id="aside" aria-label="股票详情" style="flex: 0 0 400px; width: 400px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box"></aside>
+<aside id="aside" aria-label="股票详情" style="flex: 0 0 320px; width: 320px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box"></aside>
 <div id="aiConcl"></div>
-<aside id="notifAside" aria-label="通知" hidden style="flex: 0 0 400px; width: 400px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; flex-direction: column; font-size: 13px"></aside>
+<aside id="notifAside" aria-label="通知" hidden style="flex: 0 0 320px; width: 320px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; flex-direction: column; font-size: 13px"></aside>
 </div>
 
-<footer style="flex: none; height: 26px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 0 12px; border-top:1px solid #E8E8E8;background:#FAFAFA;font-size:12px;color:#9CA3AF; white-space: nowrap; overflow: hidden"><div style="display: flex; align-items: center; gap: 18px; min-width: 0; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display: flex; gap: 18px"></span></div><span role="note" style="text-align: center">研究分析，不构成投资建议</span><div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px; min-width: 0; overflow: hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div></footer>
+<footer style="flex: none; height: 26px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 0 12px; border-top:1px solid #E8E8E8;background:#FAFAFA;font-size:12px;color:#9CA3AF; white-space: nowrap; overflow: hidden"><div style="display: flex; align-items: center; gap: 14px; min-width: 0; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footSum" style="color: #8A919E"></span><span id="footIndexes" style="display: flex; gap: 14px"></span></div><span role="note" style="text-align: center">研究分析，不构成投资建议</span><div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px; min-width: 0; overflow: hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div></footer>
 </div>
 <div id="modal"></div>
 <script>
@@ -157,11 +158,18 @@ function setStatus(ok, text) { $('dot').style.background = ok ? '#2E8B57' : '#B4
 /* ---------- 头部、页签 ---------- */
 function renderHead() {
   const s = S.sum, m = s && s.market;
-  $('head').innerHTML = '<h1 style="margin: 0; font-size: 20px; font-weight: 700">战绩</h1>' +
-    '<span style="font-size: 13px; color: #5B6372">' + (s ? esc(s.next_run) : '') + '</span>' +
-    (m ? '<span style="font-size: 13px; color: #5B6372">市场环境 <b style="color: #7A4A00">' + esc(m.level) + (m.tilt ? ' · ' + esc(m.tilt) : '') + '</b></span>' : '') +
-    '<span style="margin-left: auto; display: flex; gap: 8px; align-items: center">' + (DEMO ? '<span class="pill" style="background: #F1F2F4; color: #5B6372">示意数据</span>' : '') +
-    '<button type="button" data-act="rules" style="height: 32px; padding: 0 12px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">统计口径</button></span>';
+  const foot = $('footSum');
+  if (foot) {
+    const bits = [];
+    if (s && s.next_run) bits.push(esc(s.next_run));
+    if (s && s.accuracy != null) bits.push('命中率 <b style="' + MONO_F + '; color: #5B6372">' + rate(s.accuracy) + '</b>' + (s.accuracy_n != null ? ' · n=' + s.accuracy_n : ''));
+    foot.innerHTML = bits.join('　');
+  }
+  $('head').innerHTML = '<b style="flex: none; font-size: 15px; font-weight: 600; color: #14171F">战绩</b>' +
+    (m ? '<span style="font-size: 12px; color: #8A919E">市场环境 <b style="color: #7A4A00">' + esc(m.level) + (m.tilt ? ' · ' + esc(m.tilt) : '') + '</b></span>' : '') +
+    '<span style="flex: 1; min-width: 8px"></span>' +
+    '<span style="flex: none; display: flex; gap: 8px; align-items: center">' + (DEMO ? '<span class="pill" style="background: #F1F2F4; color: #5B6372">示意数据</span>' : '') +
+    '<button type="button" data-act="rules" style="height: 28px; padding: 0 12px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; cursor: pointer">统计口径</button></span>';
 }
 function renderTabs() {
   const s = S.sum;
@@ -181,10 +189,21 @@ function emptyCard() {
   return '<div style="' + CARD + '"><div class="empty"><b style="font-size: 15px">还没有预测</b><span style="max-width: 520px; line-height: 1.7">战绩只看你的持仓和想买：夜间任务跑完或你在研判页「重新分析」后会记一条。第一批要等任务跑完，满 5 个交易日才开始结算。</span>' +
     '<span style="display: flex; gap: 8px"><a href="/holdings.html" style="' + LINKBTN + '">去交易页</a><a href="/scan.html?demo=1" style="' + LINKBTN + '">看示例数据</a></span></div></div>';
 }
-const TCOL = 'grid-template-columns: 148px 72px 110px 88px 88px minmax(0, 1fr) 84px 96px';
+const TCOL = 'grid-template-columns: minmax(120px, 1fr) 64px 96px 108px minmax(160px, 1.6fr) 72px 88px';
 const tierPill = (m) => m.held ? pl('#EAF0FD', '#1F3F8A', '持仓') : m.wish ? pl('#F1E9FB', '#5B3A8C', '想买') : '';
 const analysing = (code) => ((S.sum && S.sum.running) || []).indexOf(code) >= 0;
 const px2 = (v) => v == null || v !== v || !(+v) ? '—' : Number(v).toFixed(2);
+function evidenceCell(text) {
+  const t = text || '—';
+  return '<span title="' + esc(t) + '" style="min-width:0;font-size:12px;color:#3A4250;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + esc(t) + '</span>';
+}
+function closeCell(r) {
+  const same = r.price != null && r.base_close != null && Number(r.price) === Number(r.base_close);
+  if (same || r.price == null) {
+    return '<span style="display:flex;flex-direction:column;gap:2px;min-width:0" title="AI 出结论那天的收盘价；最新日线尚未变动时两者相同"><span style="font-size:11px;color:#8A919E">发出收盘</span><b style="' + MONO_F + ';font-size:14px">' + px2(r.base_close) + '</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + day5(r.base_day) + (same ? ' · 最新同' : '') + '</span></span>';
+  }
+  return '<span style="display:flex;flex-direction:column;gap:2px;min-width:0" title="发出日收盘 / 最新日线收盘"><span style="font-size:11px;color:#8A919E">发出 → 最新</span><b style="' + MONO_F + ';font-size:14px">' + px2(r.base_close) + ' → ' + px2(r.price) + '</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + day5(r.base_day) + '</span></span>';
+}
 // 一行的操作：去诊断，其余收进「⋯」（data-stop 避免点按钮时选中整行）
 function rowActions(r, kind) {
   return '<span data-stop="1" style="display: flex; gap: 6px; align-items: center; justify-content: flex-end"><a href="' + diagnoseHref(r.ts_code) + '" style="' + LINKBTN + '">诊断</a>' +
@@ -202,10 +221,9 @@ function todayRow(r) {
   return '<div class="row srow' + (S.sel === r.ts_code ? ' sel' : '') + '" role="button" tabindex="0" data-act="sel" data-code="' + esc(r.ts_code) + '" style="display: grid; ' + TCOL + '; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #F1F2F4;' + selBg(r.ts_code) + '">' +
     '<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><b style="font-size: 15px">' + esc(r.name || r.ts_code) + '</b><span style="font-size: 11px; color: #8A919E">' + esc(r.sector || '—') + (analysing(r.ts_code) ? ' · 正在重新分析…' : '') + '</span></span>' +
     '<span>' + tierPill(m) + '</span>' +
-    '<span style="display: flex; flex-direction: column; gap: 3px"><span>' + dirPill(r) + '</span>' + (r.source === 'diagnose' ? '<span style="font-size: 11px; color: #2457D6">你诊断</span>' : '') + (conflict ? '<span style="font-size: 11px; color: #7A4A00">与打算相反</span>' : '') + '</span>' +
-    '<span style="display: flex; flex-direction: column; gap: 2px" title="AI 出结论那天的收盘价，不是你的成本或想买价"><span style="font-size: 11px; color: #8A919E">AI 发出收盘</span><b style="' + MONO_F + '; font-size: 14px">' + px2(r.base_close) + '</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + day5(r.base_day) + '</span></span>' +
-    '<span style="display: flex; flex-direction: column; gap: 2px" title="目前最新一根日线收盘，收盘前常与发出日相同"><span style="font-size: 11px; color: #8A919E">最新收盘</span><b style="' + MONO_F + '; font-size: 14px">' + px2(r.price) + '</b></span>' +
-    '<span style="font-size: 12px; color: #3A4250; line-height: 1.5">' + esc(r.evidence || '—') + '</span>' +
+    '<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span>' + dirPill(r) + '</span>' + (r.source === 'diagnose' ? '<span style="font-size: 11px; color: #2457D6">你诊断</span>' : '') + (conflict ? '<span style="font-size: 11px; color: #7A4A00">与打算相反</span>' : '') + '</span>' +
+    closeCell(r) +
+    evidenceCell(r.evidence) +
     '<span style="' + MONO_F + '; font-size: 11px; color: #8A919E; text-align: right">' + (unclear ? '不结算' : day5(r.due['5']) + '<br>' + day5(r.due['20'])) + '</span>' + rowActions(r, 'today') + '</div>';
 }
 function renderToday() {
@@ -217,7 +235,7 @@ function renderToday() {
   return '<div style="display: flex; flex-direction: column; gap: 14px">' +
     '<div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><b style="font-size: 15px">今天要看的' + (n ? ' ' + n + ' 条' : '') + '</b><span style="font-size: 12px; color: #8A919E">' + esc(day5(s.day)) + ' · 持仓/想买 · 偏多 ' + fn.bullish + ' · 偏空 ' + fn.bearish + ' · 不明 ' + fn.unclear + '</span>' +
     '<span style="margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap">' + kindSegs() + '</span></div>' +
-    '<div style="margin: 0 -16px -14px; border-top: 1px solid #EEF0F3"><div style="display: grid; ' + TCOL + '; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA"><span>股票</span><span>类型</span><span>AI 预测</span><span title="AI 出结论那天的收盘价">AI 发出收盘</span><span title="最新日线收盘">最新收盘</span><span>主要依据</span><span style="text-align: right">到期 5 / 20</span><span></span></div>' +
+    '<div style="margin: 0 -16px -14px; border-top: 1px solid #EEF0F3"><div style="display: grid; ' + TCOL + '; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA"><span>股票</span><span>类型</span><span>AI 预测</span><span title="发出日收盘；未变时与最新相同">收盘</span><span>主要依据</span><span style="text-align: right">到期 5 / 20</span><span></span></div>' +
     (d ? (shown.length ? shown.map(todayRow).join('') : '<div class="empty" style="padding: 24px">持仓和想买今天还没有新结论</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
     (rows.length > shown.length ? '<div style="padding: 10px 16px; border-top: 1px solid #F1F2F4"><button type="button" data-act="more" data-k="today" style="' + LINKBTN + '">查看全部 ' + rows.length + ' 条 →</button></div>' : '') + '</div></div></div>';
 }
@@ -234,7 +252,7 @@ function settleText(r) {
   const rel = r.settle_day === tm ? ' 今天' : (next && r.settle_day === next) ? ' 明天' : '';
   return day5(r.settle_day) + rel + ' 结算';
 }
-const TROW = 'grid-template-columns: minmax(160px, 1.1fr) 108px minmax(220px, 1.2fr) minmax(180px, 1fr) 120px 96px';
+const TROW = 'grid-template-columns: minmax(140px, 1.1fr) 96px minmax(180px, 1.2fr) minmax(150px, 1fr) 108px 88px';
 function horizonProg(x) {
   const day = Math.max(0, Number(x.day) || 0), h = Number(x.horizon) || 5;
   const bars = Array.from({ length: h }, (_, i) => '<span style="height: 6px; border-radius: 2px; background: ' + (i < day ? '#2457D6' : '#E3E6EB') + '"></span>').join('');
@@ -250,7 +268,7 @@ function predRow(p, nested) {
   const now = r.now ? NOW[r.now] : null;
   const note = r.close_call ? '<span style="font-size: 11px; color: #7A4A00">差距很小，可能翻</span>' : '';
   const prog = rows.length ? rows.map(horizonProg).join('') : '<span class="sub">还没有 5/20 天进度</span>';
-  return '<div class="row srow' + (S.sel === r.ts_code ? ' sel' : '') + '" role="button" tabindex="0" data-act="sel" data-code="' + esc(r.ts_code) + '" style="display: grid; ' + TROW + '; gap: 12px; align-items: start; padding: 12px 16px' + (nested ? '; padding-left: 32px; background: #FBFBFD' : '') + '; border-top: 1px solid #F1F2F4; font-size: 13px;' + selBg(r.ts_code) + '">' +
+  return '<div class="row srow' + (S.sel === r.ts_code ? ' sel' : '') + '" role="button" tabindex="0" data-act="sel" data-code="' + esc(r.ts_code) + '" style="display: grid; ' + TROW + '; gap: 10px; align-items: start; padding: 12px 16px' + (nested ? '; padding-left: 32px; background: #FBFBFD' : '') + '; border-top: 1px solid #F1F2F4; font-size: 13px;' + selBg(r.ts_code) + '">' +
     '<span style="display: flex; flex-direction: column; gap: 4px; min-width: 0"><b style="font-size: 15px">' + esc(r.name || r.ts_code) + '</b><span style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap">' + tierPill(r.mine || {}) + '<span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + day5(r.base_day) + ' 发出</span></span><span style="font-size: 11px; color: #8A919E" title="AI 出结论那天的收盘价">AI 发出收盘 <b style="' + MONO_F + '; color: #14171F">' + px2(r.base_close) + '</b>' + (r.price != null ? ' · 最新 ' + px2(r.price) : '') + '</span></span>' +
     '<span style="display: flex; flex-direction: column; gap: 4px"><span>' + dirPill(r) + '</span><span style="font-size: 11px; color: #8A919E">' + esc(r.sector || '') + '</span></span>' +
     '<span style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">' + prog + '</span>' +
@@ -283,7 +301,7 @@ function groupRow(g) {
   const tally = { hit: 0, miss: 0, flat: 0 };
   g.preds.forEach((p) => { const k = p.rows[0].now; if (k) tally[k]++; });
   const tallyText = ['hit', 'miss', 'flat'].filter((k) => tally[k]).map((k) => '<span style="color: ' + (k === 'hit' ? '#1E6B44' : k === 'miss' ? '#B42318' : '#5B6372') + '">' + NOW[k][2] + ' ' + tally[k] + '</span>').join(' · ');
-  const head = '<div class="srow' + (S.sel === g.code ? ' sel' : '') + '" data-act="tgroup" data-k="' + esc(g.code) + '" data-code="' + esc(g.code) + '" style="display: grid; ' + TROW + '; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #F1F2F4; font-size: 13px; cursor: pointer; background: ' + (S.sel === g.code ? '#F1F5FE' : open ? '#F7FAFF' : '#FFFFFF') + '">' +
+  const head = '<div class="srow' + (S.sel === g.code ? ' sel' : '') + '" data-act="tgroup" data-k="' + esc(g.code) + '" data-code="' + esc(g.code) + '" style="display: grid; ' + TROW + '; gap: 10px; align-items: center; padding: 12px 16px; border-top: 1px solid #F1F2F4; font-size: 13px; cursor: pointer; background: ' + (S.sel === g.code ? '#F1F5FE' : open ? '#F7FAFF' : '#FFFFFF') + '">' +
     '<span style="display: flex; flex-direction: column; gap: 3px"><span style="display: flex; align-items: center; gap: 6px"><span style="color: #8A919E; font-size: 12px">' + (open ? '▾' : '▸') + '</span><b style="font-size: 15px">' + esc(g.name || g.code) + '</b></span><span style="font-size: 11px; color: #8A919E; padding-left: 18px">' + g.preds.length + ' 条预测在跟踪</span></span>' +
     '<span style="display: flex; flex-direction: column; gap: 3px"><span>' + dirPill(latest) + '</span><span style="font-size: 11px; color: #8A919E">最近一条 · ' + esc(g.sector || '') + '</span></span>' +
     '<span style="font-size: 12px; color: #5B6372">最近结算日 ' + day5(g.settle) + ' · 点开看 5/20 天进度</span><span style="font-size: 12px">' + (tallyText || '<span style="color: #8A919E">还没有数据</span>') + '</span>' +
@@ -302,7 +320,7 @@ function renderTrack() {
     '<div style="' + CARD + '"><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><b style="font-size: 15px">还没到期的预测</b>' + help +
     (d ? '<span style="font-size: 12px; color: #8A919E">' + groups.length + ' 只股票 · ' + nPreds + ' 条 · 目前算对 ' + d.now_right + ' 条 · 明天结算 ' + d.tomorrow + ' 条</span>' : '') + '<span style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap">' +
     segs([['all', '全部到期日'], ['tomorrow', '明天'], ['week', '本周'], ['next', '下周']], S.f.track.due, 'tdue') + kindSegs() + '</span></div>' +
-    '<div style="margin: 0 -16px -14px; overflow-x: auto"><div style="min-width: 960px"><div style="display: grid; ' + TROW + '; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>股票 · 发出</span><span>AI 说</span><span>5 天 / 20 天进度</span><span>发出后：本股 vs 板块</span><span>现在</span><span></span></div>' +
+    '<div style="margin: 0 -16px -14px; overflow-x: auto"><div style="min-width: 820px"><div style="display: grid; ' + TROW + '; gap: 10px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>股票 · 发出</span><span>AI 说</span><span>5 天 / 20 天进度</span><span>发出后：本股 vs 板块</span><span>现在</span><span></span></div>' +
     (d ? (shown.length ? shown.map(groupRow).join('') : '<div class="empty" style="padding: 24px">没有符合条件的预测</div>') : '<div class="skeleton" style="padding: 16px">读取中…</div>') +
     ((groups.length > shown.length || nh) ? '<div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid #F1F2F4">' + (groups.length > shown.length ? '<button type="button" data-act="more" data-k="track" style="' + LINKBTN + '">再加载 ' + Math.min(15, groups.length - shown.length) + ' 只股票</button><span style="font-size: 11px; color: #A1A7B2">已显示 ' + shown.length + ' / ' + groups.length + ' 只</span>' : '') +
       (nh ? '<button type="button" class="xbtn" data-act="showhidden" style="margin-left: auto; color: #5B6372">已隐藏 ' + nh + ' 只股票 · 查看</button>' : '') + '</div>' : '') + '</div></div></div></div>';

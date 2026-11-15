@@ -16,7 +16,7 @@ button,input,textarea{font:inherit}
 .sess-row{flex:none;display:flex;align-items:center;gap:2px;width:100%;box-sizing:border-box;min-height:36px;border-radius:8px}
 .sess-row:hover{background:#F4F5F7}
 .sess-row.on{background:#EAF0FD}
-.sess{flex:1;min-width:0;display:block;box-sizing:border-box;min-height:36px;padding:8px 6px 8px 10px;border:none;border-radius:8px;background:transparent;font:inherit;font-size:13px;line-height:20px;color:#14171F;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.sess{flex:1;min-width:0;display:block;box-sizing:border-box;min-height:36px;padding:8px 6px 8px 10px;border:none;border-radius:8px;background:transparent;font:inherit;font-size:15px;line-height:20px;color:#14171F;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .sess-row.on .sess{color:#2457D6;font-weight:600}
 .sess-del{flex:none;opacity:0;width:28px;height:28px;margin-right:4px;border:none;border-radius:6px;background:transparent;color:#8A919E;font:inherit;font-size:16px;line-height:1;cursor:pointer}
 .sess-row:hover .sess-del,.sess-row.on .sess-del{opacity:1}
@@ -110,6 +110,13 @@ button,input,textarea{font:inherit}
 .tlab.bad{color:#B42318;white-space:normal}
 .tevbtn{margin-left:auto;border:none;background:transparent;color:#2457D6;font:inherit;font-size:12px;cursor:pointer;padding:0 2px}
 .tev{margin:0;padding:8px 10px;border-radius:8px;background:#F4F5F7;color:#3A4250;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px;line-height:1.5;white-space:pre-wrap;overflow:auto;max-height:220px}
+/* 请分析师进行中：只露身份 + 动画，不刷草稿正文 */
+.awork{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #DCE6FA;border-radius:12px;background:#F5F8FF;max-width:280px;box-sizing:border-box;animation:aworkPulse 1.8s ease-in-out infinite}
+.awork .awmeta{min-width:0;display:flex;flex-direction:column;gap:4px}
+.awork .awho{font-size:13px;font-weight:600;color:#14171F}
+.awork .astat{font-size:12px;color:#5B6372;display:flex;align-items:center;gap:8px;min-width:0}
+.awork .astat .aphase{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@keyframes aworkPulse{0%,100%{box-shadow:0 0 0 0 rgba(36,87,214,.16)}50%{box-shadow:0 0 0 7px rgba(36,87,214,0)}}
 .wbox{padding:10px 12px;border:1px solid #E3E6EB;border-radius:12px;background:#FFFFFF}
 .wcap{font-size:13px;font-weight:600;color:#14171F;margin-bottom:8px}
 .wtab{width:100%;border-collapse:collapse;font-size:13px}
@@ -1408,7 +1415,7 @@ button,input,textarea{font:inherit}
   function findStep(rail, callId) {
     if (!rail || !callId || !window.CSS || !CSS.escape) return null;
     const row = rail.querySelector('.tstep[data-call="' + CSS.escape(callId) + '"]');
-    const pre = rail.querySelector('.tev[data-for="' + CSS.escape(callId) + '"]');
+    const pre = rail.querySelector('.tev[data-for="' + CSS.escape(callId) + '"], .awork[data-for="' + CSS.escape(callId) + '"]');
     return row ? { row: row, pre: pre } : null;
   }
   function addStep(rail, callId, label) {
@@ -1419,6 +1426,33 @@ button,input,textarea{font:inherit}
     row.querySelector('.tlab').textContent = label;
     place(rail, row);
     return { row: row, pre: null };
+  }
+  // 请分析师进行中：头像 + 名字 + 打点动画，不展示草稿正文。
+  function mountAnalystWork(rail, callId, who, phase) {
+    if (!rail || !callId) return null;
+    const id = ROLE[who] ? who : '';
+    const name = (ROLE[id] && ROLE[id].name) || '分析师';
+    let box = rail.querySelector('.awork[data-for="' + (window.CSS && CSS.escape ? CSS.escape(callId) : callId) + '"]');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'awork';
+      box.dataset.for = callId;
+      box.innerHTML = (id ? avatarHTML(id, 28) : '<span class="av" style="width:28px;height:28px;border-radius:50%;background:#E8ECF2"></span>') +
+        '<div class="awmeta"><span class="awho"></span><span class="astat"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span><span class="aphase"></span></span></div>';
+      const hit = findStep(rail, callId);
+      if (hit && hit.row) {
+        hit.row.hidden = true; // 有工作卡后收起一行小进度，避免重复
+        hit.row.after(box);
+      } else {
+        place(rail, box);
+      }
+    }
+    const whoEl = box.querySelector('.awho');
+    if (whoEl) whoEl.textContent = name;
+    const ph = box.querySelector('.aphase');
+    if (ph) ph.textContent = String(phase || '正在分析…').replace(/^正在/, '') || '分析中…';
+    scrollThread();
+    return box;
   }
   function isShortError(text) {
     const t = String(text || '').trim();
@@ -1447,6 +1481,8 @@ button,input,textarea{font:inherit}
     }
     let hit = findStep(rail, callId);
     if (!hit) hit = addStep(rail, callId, '工具');
+    if (hit.pre) hit.pre.remove(); // 收起工作卡，露出一行结果
+    hit.row.hidden = false;
     const dot = hit.row.querySelector('.tdot');
     const lab = hit.row.querySelector('.tlab');
     const t = String(text || '').trim();
@@ -1721,9 +1757,31 @@ button,input,textarea{font:inherit}
           const rail = ensureRail(card);
           if (!rail) return;
           sealText(card);
-          addStep(rail, data.callId, toolTag(data.toolName, data.args));
+          const label = toolTag(data.toolName, data.args);
+          const hit = addStep(rail, data.callId, label);
+          if (hit && hit.row) {
+            hit.row.dataset.base = label;
+            if (data.toolName === 'ask_analyst') {
+              hit.row.dataset.analyst = (data.args && data.args.analyst) || '';
+              mountAnalystWork(rail, data.callId, hit.row.dataset.analyst, '正在请分析师…');
+            }
+          }
           const status = card.querySelector('.status');
-          if (status) { status.textContent = toolTag(data.toolName, data.args) + '…'; status.style.color = '#A1A7B2'; }
+          if (status) { status.textContent = label + '…'; status.style.color = '#A1A7B2'; }
+        } catch {}
+      });
+      on('analyst-progress', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          const rail = ensureRail(card);
+          if (!rail || !data.callId) return;
+          const hit = findStep(rail, data.callId);
+          const who = (hit && hit.row && hit.row.dataset.analyst) || '';
+          const phase = String(data.status || '').trim() || '正在分析…';
+          // 只更新工作卡动画与阶段文案，绝不把草稿正文刷出来
+          mountAnalystWork(rail, data.callId, who, phase);
+          const status = card.querySelector('.status');
+          if (status && data.status) { status.textContent = data.status; status.style.color = '#A1A7B2'; }
         } catch {}
       });
       on('tool-result', (e) => {
@@ -1731,6 +1789,9 @@ button,input,textarea{font:inherit}
           const data = JSON.parse(e.data);
           const rail = ensureRail(card);
           if (!rail) return;
+          const sel = window.CSS && CSS.escape ? CSS.escape(data.callId || '') : (data.callId || '');
+          const draft = rail.querySelector('.tev.tdraft[data-for="' + sel + '"], .awork[data-for="' + sel + '"]');
+          if (draft) draft.remove();
           finishStep(rail, data.callId, data.text, !!carded[data.callId]);
         } catch {}
       });

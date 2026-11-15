@@ -20,12 +20,9 @@ a{color:inherit}
 .wl .dn{color:#1E6B44}
 .wl .sub{grid-column:1/-1;font-size:14px;color:#8A919E}
 .wl .sub.warn{color:#9A5B00}
-.wl .wl-more,.wl .wl-x{position:absolute;display:none;width:22px;height:22px;padding:0;border:none;border-radius:6px;background:#EEF0F3;color:#5B6372;font:inherit;font-size:15px;line-height:22px;cursor:pointer}
-.wl .wl-more{right:30px;bottom:7px}
-.wl .wl-x{right:6px;bottom:7px;font-size:14px}
-.wl:hover .wl-more,.wl:focus-within .wl-more,.wl:hover .wl-x,.wl:focus-within .wl-x{display:block}
+.wl .wl-more{position:absolute;right:6px;bottom:7px;display:none;width:22px;height:22px;padding:0;border:none;border-radius:6px;background:#EEF0F3;color:#5B6372;font:inherit;font-size:15px;line-height:22px;cursor:pointer}
+.wl:hover .wl-more,.wl:focus-within .wl-more{display:block}
 .wl .wl-more:hover{background:#EAF0FD;color:#2457D6}
-.wl .wl-x:hover{background:#E3E6EB;color:#B42318}
 .wl.drag-src{opacity:.45}
 .wl.drop-top{box-shadow:inset 0 2px 0 #2457D6}
 .wl.drop-bot{box-shadow:inset 0 -2px 0 #2457D6}
@@ -47,7 +44,8 @@ a{color:inherit}
 .seg button[aria-pressed="true"]{background:#14171F;color:#FFFFFF}
 .mini{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;background:#FFFFFF;color:#2457D6;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s}
 .mini:hover{background:#EAF0FD;border-color:#2457D6}
-.cta{display:inline-flex;align-items:center;height:30px;padding:0 12px;border:1px solid #14171F;border-radius:8px;background:#14171F;color:#FFFFFF;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s}
+.cta{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid #14171F;border-radius:8px;background:#14171F;color:#FFFFFF;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none;box-sizing:border-box;transition:background .15s,border-color .15s,color .15s}
+header .cta{height:26px;padding:0 8px;font-size:11px}
 .cta:hover{background:#2457D6;border-color:#2457D6;color:#FFFFFF}
 .cta:disabled{opacity:.55;cursor:default}
 
@@ -159,10 +157,11 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 <body>
 <div style="height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #F2F2F2; font-family: 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif; color: #14171F; font-size: 15px; line-height: 1.55">
 
-<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8">
+<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8;gap:10px;min-width:0;overflow:hidden">
 <div style="flex:0 0 64px;border-right:1px solid #E8E8E8;height:48px;background:#FAFAFA" aria-hidden="true"></div>
-<span style="padding:0 16px;font-size:15px;font-weight:600;letter-spacing:-.01em;color:#14171F">研判</span>
-<div style="margin-left: auto; display: flex; align-items: center; gap: 14px; padding-right: 16px"><span id="session" style="display: flex; align-items: center; gap: 6px; font-size:13px;color:#6B7280"></span><button type="button" aria-label="通知" title="通知" data-click="toggleNotif" style="position: relative; width: 32px; height: 32px; border: none; border-radius: 8px; background: var(--notif-bg, transparent); color: #3A4250; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position: absolute; top: 2px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #D9483F; color: #FFFFFF; font-size: 10px; font-weight: 600; line-height: 16px; text-align: center"></span></button></div>
+<div id="stockHead" style="flex:1;min-width:0;padding-left:4px;overflow:hidden"></div>
+<span id="session" style="flex:none;display:flex;align-items:center;gap:6px;font-size:13px;color:#6B7280;white-space:nowrap"></span>
+<button type="button" aria-label="通知" title="通知" data-click="toggleNotif" style="flex:none;position:relative;width:32px;height:32px;margin-right:12px;border:none;border-radius:8px;background:var(--notif-bg, transparent);color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
 </header>
 
 <div style="flex: 1 1 auto; display: flex; flex-wrap: nowrap; align-items: stretch; min-width: 0; min-height: 0; overflow: hidden">
@@ -182,8 +181,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 <div id="watchList" style="flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 14px; display: flex; flex-direction: column"></div>
 </aside>
 
-<main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; overflow: hidden">
-<div aria-label="当前股票" style="flex: none; position: relative; padding: 12px 28px 10px; background: #ffffff; border-bottom: 1px solid #E8ECF2"><div id="stockHead" style="max-width: 1120px"></div><div id="conclRoot"></div></div>
+<main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; position: relative">
+<div id="conclRoot" style="flex: none"></div>
 <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px 28px 24px; box-sizing: border-box; background: #ffffff">
 <div style="max-width: 1120px; display: flex; flex-direction: column; gap: 16px">
 
@@ -4012,20 +4011,29 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       })
       .catch((err) => toast('加入自选失败：' + err.message));
   }
-  // ---- 自选的操作：右键菜单（打开 / 重新诊断 / 置顶 / 移出）、拖动排序 ----
-  // 排序只在这个浏览器里记：「需要留意」（有提醒、判断刚变过）的股票始终在最上面，其余按你拖的顺序；置顶放到它们之后的第一位。
+  // ---- 自选的操作：右键菜单（打开 / 重新诊断 / 置顶 / 移出）----
+  // 列表按研判时间倒序：最新有结论的在最前；正在诊断的优先；没研判过的垫底。
   const watchOrder = { list: Array.isArray(keep.get('diag.watchOrder')) ? keep.get('diag.watchOrder') : [] };
   const rediag = {}; // code -> { since, judged, seen }：正在后台重新诊断的股票
   const isAttention = (s) => { const k = (s.subtitle || {}).kind; return k === 'alert' || k === 'change'; };
+  function judgedTs(s) {
+    const t = s && s.judged_at;
+    if (!t) return 0;
+    const ms = Date.parse(String(t).replace(/-/g, '/'));
+    return ms === ms ? ms : 0;
+  }
   function orderedWatch() {
-    const top = [], rest = [];
-    watchState.items.forEach((s, i) => (isAttention(s) ? top : rest).push({ s: s, i: i }));
-    const pos = (x) => { const k = watchOrder.list.indexOf(x.s.ts_code); return k < 0 ? 1e6 + x.i : k; };
-    rest.sort((a, b) => pos(a) - pos(b));
-    return top.concat(rest).map((x) => x.s);
+    return watchState.items.slice().sort((a, b) => {
+      const ca = (a.computing || rediag[a.ts_code]) ? 1 : 0;
+      const cb = (b.computing || rediag[b.ts_code]) ? 1 : 0;
+      if (ca !== cb) return cb - ca;
+      const ta = judgedTs(a), tb = judgedTs(b);
+      if (ta !== tb) return tb - ta;
+      return String(a.name || a.ts_code || '').localeCompare(String(b.name || b.ts_code || ''), 'zh');
+    });
   }
   const saveOrder = (codes) => { watchOrder.list = codes; keep.set('diag.watchOrder', codes); };
-  const restCodes = () => orderedWatch().filter((s) => !isAttention(s)).map((s) => s.ts_code);
+  const restCodes = () => orderedWatch().map((s) => s.ts_code);
 
   function settleRediag() {
     Object.keys(rediag).forEach((code) => {
@@ -4191,7 +4199,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (!root) return;
     const list = orderedWatch();
     const key = [state.stock, watchState.status, watchState.error && watchState.error.at].concat(list.map((i) =>
-      [i.ts_code, i.name, i.price, i.change_pct, (i.subtitle || {}).text, (i.subtitle || {}).tone, i.computing, rediag[i.ts_code] ? 'r' : ''].join(':'))).join('|');
+      [i.ts_code, i.name, i.price, i.change_pct, i.judged_at, (i.subtitle || {}).text, (i.subtitle || {}).tone, i.computing, rediag[i.ts_code] ? 'r' : ''].join(':'))).join('|');
     if (root.dataset.key === key) return;
     root.dataset.key = key;
     if (watchState.status === 'loading') {
@@ -4209,13 +4217,12 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     root.innerHTML = list.map((s) => {
       const sel = s.ts_code === state.stock, sub = s.subtitle || {}, diag = s.computing || rediag[s.ts_code];
       const ok = num(s.price) != null, pct = num(s.change_pct);
-      return '<a role="button" tabindex="0" class="wl" data-click="pickStock" data-code="' + esc(s.ts_code) + '"' + (isAttention(s) ? '' : ' draggable="true" data-drop="1"') + (sel ? ' aria-current="true"' : '') +
+      return '<a role="button" tabindex="0" class="wl" data-click="pickStock" data-code="' + esc(s.ts_code) + '"' + (sel ? ' aria-current="true"' : '') +
         ' title="右键或点 ⋯ 打开操作" style="cursor:pointer"><span>' + esc(s.name || s.ts_code) + '</span>' +
         '<span class="px">' + (ok ? s.price.toFixed(2) : '—') + '</span>' +
         '<span class="chg ' + (pct > 0 ? 'up' : pct < 0 ? 'dn' : '') + '">' + (pct != null ? fmtSigned(pct, 2) + '%' : '') + '</span>' +
         '<span class="sub' + (sub.tone === 'warn' && !diag ? ' warn' : '') + '">' + (diag ? '<span class="dc-spin" style="display:inline-block;margin-right:4px;color:#2457D6">⟳</span>诊断中…' : esc(sub.text || '')) + '</span>' +
-        '<button type="button" class="wl-more" data-click="wlMore" data-code="' + esc(s.ts_code) + '" title="更多操作（也可右键）" aria-label="更多操作">⋯</button>' +
-        '<button type="button" class="wl-x" data-click="unwatch" data-code="' + esc(s.ts_code) + '" title="移出自选" aria-label="移出自选">×</button></a>';
+        '<button type="button" class="wl-more" data-click="wlMore" data-code="' + esc(s.ts_code) + '" title="更多操作（也可右键）" aria-label="更多操作">⋯</button></a>';
     }).join('');
   }
 
@@ -4234,21 +4241,21 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const key = [st.code, st.name, q && q.price, q && q.pct, phase, verdict && verdict.label, verdict && verdict.text, state.concl, we && we.status, pe && pe.wish, pe && pe.held].join('|');
     if (root.dataset.key === key) return;
     root.dataset.key = key;
-    root.innerHTML = '<div style="display:flex;align-items:center;gap:12px;min-height:34px;padding:0 4px;white-space:nowrap">' +
-      '<h1 style="margin:0;flex:none;font-size:20px;font-weight:700">' + esc(st.name || st.code) + '</h1>' +
-      '<span style="' + MONO + ';flex:none;color:#5B6372;font-size:15px">' + esc(st.code) + '</span>' +
-      '<span style="' + MONO + ';flex:none;font-size:20px;font-weight:600">' + (q ? q.price.toFixed(2) : '—') + '</span>' +
-      (q && q.pct != null ? '<span style="' + MONO + ';flex:none;font-size:14px;color:' + moveColor(q.pct) + '">' + (q.chg != null ? fmtSigned(q.chg, 2) + ' ' : '') + fmtSigned(q.pct, 2) + '%</span>' : '') +
-      (phase ? '<span style="flex:none;width:1px;height:22px;background:#DDE1E7;margin:0 2px"></span>' + avatarHTML('chief', 24) +
-        (verdict ? '<span style="flex:none;font-size:17px;font-weight:700;color:' + verdict.color + '">' + esc(verdict.label) + '</span>' +
-          '<span title="' + esc(verdict.text) + '" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:14px;font-weight:600">' + esc(verdict.text) + '</span>' +
+    root.innerHTML = '<div style="display:flex;align-items:center;gap:10px;min-height:28px;padding:0 2px;white-space:nowrap">' +
+      '<h1 style="margin:0;flex:none;font-size:17px;font-weight:700">' + esc(st.name || st.code) + '</h1>' +
+      '<span style="' + MONO + ';flex:none;color:#5B6372;font-size:13px">' + esc(st.code) + '</span>' +
+      '<span style="' + MONO + ';flex:none;font-size:17px;font-weight:600">' + (q ? q.price.toFixed(2) : '—') + '</span>' +
+      (q && q.pct != null ? '<span style="' + MONO + ';flex:none;font-size:13px;color:' + moveColor(q.pct) + '">' + (q.chg != null ? fmtSigned(q.chg, 2) + ' ' : '') + fmtSigned(q.pct, 2) + '%</span>' : '') +
+      (phase ? '<span style="flex:none;width:1px;height:18px;background:#DDE1E7;margin:0 2px"></span>' + avatarHTML('chief', 22) +
+        (verdict ? '<span style="flex:none;font-size:15px;font-weight:700;color:' + verdict.color + '">' + esc(verdict.label) + '</span>' +
+          '<span title="' + esc(verdict.text) + '" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:13px;font-weight:600">' + esc(verdict.text) + '</span>' +
           '<span style="flex:none;display:inline-flex;align-items:center;gap:6px">' + wishBtnHTML(st.code) +
           '<button type="button" class="cta" data-click="toggleConcl">结论详情 →</button></span>'
-          : phase === 'failed' ? '<span style="flex:1;min-width:0;font-size:15px;color:#8A919E">主分析师这次没有给出裁决，点“重新分析”再试一次</span>'
-          : '<span style="flex:1;min-width:0;display:inline-flex;align-items:center;gap:8px;font-size:15px;color:#8A919E"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>结论正在生成…</span>')
+          : phase === 'failed' ? '<span style="flex:1;min-width:0;font-size:13px;color:#8A919E">主分析师这次没有给出裁决，点“重新分析”再试一次</span>'
+          : '<span style="flex:1;min-width:0;display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#8A919E"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>结论正在生成…</span>')
         : '<span style="flex:1"></span>') +
       '<button type="button" class="cta" data-click="reanalyze" style="flex:none">重新分析</button>' +
-      '<a href="/scan.html" title="在战绩中心查看这只股票的全部研判" style="flex:none;display:flex;align-items:baseline;gap:6px;font-size:15px;text-decoration:none;color:#5B6372">战绩<span style="color:#2457D6">→</span></a></div>';
+      '<a href="/scan.html" title="在战绩中心查看这只股票的全部研判" style="flex:none;display:flex;align-items:baseline;gap:6px;font-size:13px;text-decoration:none;color:#5B6372">战绩<span style="color:#2457D6">→</span></a></div>';
   }
 
   // ---- 问问 ----

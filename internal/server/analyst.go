@@ -430,6 +430,12 @@ func (c agentConfig) oneShot() bool {
 // stays keyed by the stock code, so a later analyst on the same stock sees
 // this speech and does not open another session.
 func (s *Server) runAnalyst(ctx context.Context, cfg agentConfig, code, kind, question string) (map[string]any, error) {
+	return s.runAnalystLive(ctx, cfg, code, kind, question, nil)
+}
+
+// runAnalystLive is runAnalyst with an optional live hook used by ask_analyst
+// so the chief SSE can show nested tool status and draft text.
+func (s *Server) runAnalystLive(ctx context.Context, cfg agentConfig, code, kind, question string, live func(status, draft string, tools []map[string]string)) (map[string]any, error) {
 	ag, charts, err := s.prepareAnalyst(ctx, cfg, code, kind, question)
 	if err != nil {
 		return nil, err
@@ -447,9 +453,83 @@ func (s *Server) runAnalyst(ctx context.Context, cfg agentConfig, code, kind, qu
 		case <-stopped:
 		}
 	}()
-	ag.WhenIdle()
+	if live == nil {
+		ag.WhenIdle()
+		close(stopped)
+		return s.concludeAnalyst(cfg, code, kind, question, ag.Session(), charts)
+	}
+	msg, err := s.tailAnalystLive(ctx, ag, charts, cfg, code, kind, question, live)
 	close(stopped)
-	return s.concludeAnalyst(cfg, code, kind, question, ag.Session(), charts)
+	return msg, err
+}
+
+// tailAnalystLive mirrors watchAnalyst but pushes to a callback instead of SSE.
+func (s *Server) tailAnalystLive(ctx context.Context, ag *agentloop.Agent, charts *chartBox, cfg agentConfig, code, kind, question string, live func(status, draft string, tools []map[string]string)) (map[string]any, error) {
+	if live == nil {
+		ag.WhenIdle()
+		return s.concludeAnalyst(cfg, code, kind, question, ag.Session(), charts)
+	}
+	live("正在思考…", "", nil)
+	sess := ag.Session()
+	ticker := time.NewTicker(16 * time.Millisecond)
+	defer ticker.Stop()
+	lastSeq := 0
+	stepText := ""
+	lastDraft := ""
+	lastStatus := "正在思考…"
+	var draftTools []map[string]string
+	started := time.Now()
+	done := ctx.Done()
+	for {
+		select {
+		case <-done:
+			// Tool ctx cancelled: stop waiting; conclude whatever is there.
+			return s.concludeAnalyst(cfg, code, kind, question, sess, charts)
+		case <-ticker.C:
+			events := sess.Events()
+			for ; lastSeq < len(events); lastSeq++ {
+				ev := events[lastSeq]
+				data, _ := ev.Data.(map[string]any)
+				switch ev.Type {
+				case "step/start":
+					stepText = ""
+				case "assistant/chunk":
+					block, ok := data["chunk"].(session.ContentBlock)
+					if !ok || block.Kind != session.BlockText || block.Text == "" {
+						continue
+					}
+					stepText += block.Text
+					draft := visibleDraft(stepText)
+					if draft != lastDraft {
+						lastDraft = draft
+						live(lastStatus, draft, draftTools)
+					}
+				case "tool/call":
+					call, ok := data["call"].(session.ContentBlock)
+					if !ok {
+						continue
+					}
+					if label := analystToolLabel(call.ToolName); label != "" {
+						row := map[string]string{"name": call.ToolName, "label": label}
+						if note := toolArgsNote(call.Args); note != "" {
+							row["note"] = note
+						}
+						draftTools = append(draftTools, row)
+					}
+					if status := analystToolStatus(call.ToolName); status != "" {
+						lastStatus = status
+					}
+					live(lastStatus, lastDraft, draftTools)
+				}
+			}
+			if ag.Status() == "idle" && (len(sess.Events()) > 0 || time.Since(started) > 2*time.Second) {
+				if lastDraft != "" {
+					live("正在收尾…", lastDraft, draftTools)
+				}
+				return s.concludeAnalyst(cfg, code, kind, question, sess, charts)
+			}
+		}
+	}
 }
 
 // prepareAnalyst starts one utterance. A nil agent means the reply was

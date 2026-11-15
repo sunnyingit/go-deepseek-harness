@@ -41,7 +41,7 @@ func TestSessionAnalystIDsAreLoadable(t *testing.T) {
 func TestRegisterSessionTools(t *testing.T) {
 	s := &Server{}
 	reg := coretools.NewRegistry()
-	if err := s.registerSessionTools(reg); err != nil {
+	if err := s.registerSessionTools(reg, "test-session"); err != nil {
 		t.Fatal(err)
 	}
 	schemas := reg.Schemas()

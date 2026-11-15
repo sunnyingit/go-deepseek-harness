@@ -58,6 +58,44 @@ func callIDOf(run *coretools.RunContext) string {
 	return run.CallID
 }
 
+// analystProg is live status from a nested ask_analyst turn, drained by
+// handleStreamSession so the 问问 UI is not stuck on「请分析师…」with silence.
+type analystProg struct {
+	CallID string
+	Status string
+	Draft  string
+	Tools  []map[string]string
+}
+
+type progressBus struct {
+	mu sync.Mutex
+	q  map[string][]analystProg // sessionID → pending
+}
+
+func newProgressBus() *progressBus {
+	return &progressBus{q: map[string][]analystProg{}}
+}
+
+func (b *progressBus) push(sessionID string, p analystProg) {
+	if b == nil || sessionID == "" {
+		return
+	}
+	b.mu.Lock()
+	b.q[sessionID] = append(b.q[sessionID], p)
+	b.mu.Unlock()
+}
+
+func (b *progressBus) drain(sessionID string) []analystProg {
+	if b == nil || sessionID == "" {
+		return nil
+	}
+	b.mu.Lock()
+	out := b.q[sessionID]
+	delete(b.q, sessionID)
+	b.mu.Unlock()
+	return out
+}
+
 func excerptRunes(s string, n int) string {
 	s = strings.TrimSpace(s)
 	r := []rune(s)
@@ -116,10 +154,10 @@ var sessionAnalystName = map[string]string{
 
 // registerSessionTools mounts the orchestrator toolkit on the 问问 session agent:
 // search stocks, summon analysts, compare a basket, manage wishlist, glance hot boards.
-func (s *Server) registerSessionTools(toolRegistry *coretools.Registry) error {
+func (s *Server) registerSessionTools(toolRegistry *coretools.Registry, sessionID string) error {
 	for _, def := range []coretools.ToolDefinition{
 		s.toolSearchStock(),
-		s.toolAskAnalyst(),
+		s.toolAskAnalyst(sessionID),
 		s.toolCompareStocks(),
 		s.toolListHoldings(),
 		s.toolListWishlist(),
@@ -162,7 +200,7 @@ func (s *Server) toolSearchStock() coretools.ToolDefinition {
 	}
 }
 
-func (s *Server) toolAskAnalyst() coretools.ToolDefinition {
+func (s *Server) toolAskAnalyst(sessionID string) coretools.ToolDefinition {
 	ids := strings.Join(sessionAnalystIDs, ", ")
 	return coretools.ToolDefinition{
 		Name: "ask_analyst",
@@ -216,20 +254,30 @@ func (s *Server) toolAskAnalyst() coretools.ToolDefinition {
 			}
 			unlock := s.lockCode(lockKey)
 			defer unlock()
-			msg, err := s.runAnalyst(ctx, cfg, code, "reply", question)
+			callID := callIDOf(run)
+			name := sessionAnalystName[id]
+			live := func(status, draft string, tools []map[string]string) {
+				if s.progress == nil {
+					return
+				}
+				s.progress.push(sessionID, analystProg{
+					CallID: callID, Status: status, Draft: draft, Tools: tools,
+				})
+			}
+			live("正在请"+name+"…", "", nil)
+			msg, err := s.runAnalystLive(ctx, cfg, code, "reply", question, live)
 			if err != nil {
-				return "", fmt.Errorf("%s", analystErrText(sessionAnalystName[id], err))
+				return "", fmt.Errorf("%s", analystErrText(name, err))
 			}
 			text := strings.TrimSpace(fmt.Sprint(msg["text"]))
 			if text == "" {
-				return "", fmt.Errorf("%s 没有写出正文", sessionAnalystName[id])
+				return "", fmt.Errorf("%s 没有写出正文", name)
 			}
-			name := sessionAnalystName[id]
 			stock := ""
 			if code != "" {
 				stock = s.lookupName(code)
 			}
-			s.stashCard(callIDOf(run), map[string]any{
+			s.stashCard(callID, map[string]any{
 				"kind": "analyst", "analyst": id, "name": name, "code": code, "stock": stock,
 				"excerpt": excerptRunes(text, 180),
 			})

@@ -471,6 +471,17 @@ func (s *Server) handleStreamSession(w http.ResponseWriter, r *http.Request) {
 				flusher.Flush()
 				lastActivity = time.Now()
 			}
+			if s.progress != nil {
+				for _, p := range s.progress.drain(id) {
+					payload := map[string]any{"callId": p.CallID, "status": p.Status, "text": p.Draft}
+					if len(p.Tools) > 0 {
+						payload["tools"] = p.Tools
+					}
+					writeSSE(w, "analyst-progress", payload)
+					flusher.Flush()
+					lastActivity = time.Now()
+				}
+			}
 			if ag.Status() == "idle" {
 				// No explicit syncPersistence here: Hooks.TurnEnded (see
 				// buildAgent) already synced the turn to disk unconditionally

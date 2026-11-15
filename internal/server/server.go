@@ -155,6 +155,9 @@ type Server struct {
 	// the tool call id. The model still sees the Chinese text result;
 	// writeStreamEvent emits the payload as a stock-card and then drops it.
 	cards *uiCardStash
+	// progress carries nested ask_analyst live drafts/status to the watching
+	// session SSE (keyed by chief session id).
+	progress *progressBus
 	// groups is the spoken transcript of one stock's 研判群. Keyed only by
 	// ts_code: switching analysts appends to the same log. Tool traces and
 	// fact JSON are not stored here.
@@ -244,6 +247,7 @@ func New(ctx context.Context, cfg appconfig.Config) (*Server, error) {
 		persistence:    persistence,
 		answers:        newAnswerRegistry(),
 		cards:          newUICardStash(),
+		progress:       newProgressBus(),
 		groups:         map[string][]groupLine{},
 		debates:        map[string]*debateFile{},
 	}
@@ -431,7 +435,7 @@ func (s *Server) buildAgent(sess *session.Session) (*agentloop.Agent, error) {
 	if _, err := toolRegistry.Register(newAskUserQuestionTool(s.answers, string(sess.ID()))); err != nil {
 		return nil, err
 	}
-	if err := s.registerSessionTools(toolRegistry); err != nil {
+	if err := s.registerSessionTools(toolRegistry, string(sess.ID())); err != nil {
 		return nil, err
 	}
 

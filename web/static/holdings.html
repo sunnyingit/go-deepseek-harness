@@ -34,7 +34,7 @@ button,input,textarea{font:inherit}
 .tab{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 2px;border:none;background:transparent;font-size:13px;color:#6B7280;cursor:pointer}
 .tab[aria-selected="true"]{color:#2457D6;font-weight:600;box-shadow:inset 0 -2px 0 #2457D6}
 .tab .n{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;color:#8A919E}
-.grid-h{display:grid;grid-template-columns:132px 150px 80px minmax(0,1fr) minmax(0,1fr) 96px 64px;gap:14px;align-items:center}
+.grid-h{display:grid;grid-template-columns:minmax(100px,1.05fr) minmax(118px,140px) 72px minmax(0,1.15fr) minmax(0,1.35fr) minmax(72px,0.95fr) 52px;gap:10px 12px;align-items:start;width:100%;box-sizing:border-box}
 .hrow{padding:12px 16px;border-top:1px solid #EEF0F3;cursor:pointer;color:#14171F}
 .hrow:hover{background:#F7F8FA}
 .hrow.sel{background:#F1F5FE}
@@ -75,21 +75,19 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 .chk-det>.in{display:flex;flex-direction:column;gap:8px;padding:0 16px 14px}
 .todo{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-top:1px solid #F1F2F4}
 .todo .n{flex:none;width:22px;height:22px;border-radius:50%;background:#14171F;color:#FFFFFF;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
-.dw{flex:0 0 420px;width:420px}
-@media (min-width:1400px){.dw{flex-basis:460px;width:460px}}
+.dw{flex:0 0 400px;width:400px;min-width:0;transition:flex-basis .18s ease,width .18s ease}
+.dw.empty{flex-basis:0;width:0;border-left-width:0;overflow:hidden;padding:0}
 .toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:60;padding:9px 16px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:13px;max-width:80vw}
 .toast.err{background:#B42318}
 </style>
 </head>
 <body>
 <div style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#F2F2F2;font-family:'PingFang SC','Noto Sans SC','Microsoft YaHei',system-ui,sans-serif;color:#14171F;font-size:13px;line-height:1.55">
-<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8">
+<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8;gap:12px;min-width:0;overflow:hidden">
 <div style="flex:0 0 64px;border-right:1px solid #E8E8E8;height:48px;background:#FAFAFA" aria-hidden="true"></div>
-<span style="padding:0 16px;font-size:15px;font-weight:600;letter-spacing:-.01em;color:#14171F">交易</span>
-<div style="margin-left:auto;display:flex;align-items:center;gap:14px;padding-right:16px">
-<span id="session" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6B7280"></span>
-<button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="position:relative;width:32px;height:32px;border:none;border-radius:8px;background:transparent;color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
-</div>
+<div id="head" style="flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding-left:4px;overflow:hidden;white-space:nowrap"></div>
+<span id="session" style="flex:none;display:flex;align-items:center;gap:6px;font-size:13px;color:#6B7280;white-space:nowrap"></span>
+<button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="flex:none;position:relative;width:32px;height:32px;margin-right:12px;border:none;border-radius:8px;background:transparent;color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
 </header>
 <div style="flex:1 1 auto;display:flex;flex-wrap:nowrap;align-items:stretch;min-width:0;min-height:0;overflow:hidden;position:relative">
 <nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#EFEFEF;border-right:1px solid #E8E8E8;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0">
@@ -102,20 +100,19 @@ table.tb td{padding:8px 4px;border-top:1px solid #F1F2F4;font-size:12px;vertical
 <a class="nav-a" href="/settings.html" style="margin-top:auto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>设置</a>
 </nav>
 <main style="flex:999 1 640px;min-width:0;display:flex;flex-direction:column;overflow:hidden;position:relative">
-<div style="flex:none;padding:12px 28px 0;background:#FFFFFF;border-bottom:1px solid #DDE1E7">
+<div style="flex:none;padding:0 28px;background:#FFFFFF;border-bottom:1px solid #DDE1E7">
 <div style="max-width:1240px">
-<div id="head" style="display:flex;align-items:center;gap:22px;flex-wrap:wrap"></div>
-<div id="tabs" role="tablist" aria-label="持仓" style="display:flex;align-items:center;gap:24px;margin-top:6px"></div>
+<div id="tabs" role="tablist" aria-label="持仓" style="display:flex;align-items:center;gap:24px"></div>
 </div>
 </div>
 <div id="scroll" style="flex:1;min-height:0;overflow-y:auto;padding:16px 28px 24px;box-sizing:border-box">
 <div id="body" style="max-width:1240px;display:flex;flex-direction:column;gap:14px"><div class="skeleton">正在取现价、AI 判断和板块…第一次会稍久，之后很快。</div></div>
 </div>
 </main>
-<aside id="aside" class="dw" aria-label="详情" style="align-self:stretch;overflow-y:auto;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;font-size:13px"></aside>
+<aside id="aside" class="dw empty" aria-label="详情" aria-hidden="true" style="align-self:stretch;overflow-y:auto;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;font-size:13px"></aside>
 </div>
 <footer style="flex:none;height:26px;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;padding:0 12px;border-top:1px solid #E8E8E8;background:#FAFAFA;font-size:12px;color:#9CA3AF;white-space:nowrap;overflow:hidden">
-<div style="display:flex;align-items:center;gap:18px;min-width:0;overflow:hidden"><span style="display:flex;align-items:center;gap:6px"><span id="dot" style="width:7px;height:7px;border-radius:50%;background:#A1A7B2"></span><span id="status">正在连接</span></span><span id="footIndexes" style="display:flex;gap:18px"></span></div>
+<div style="display:flex;align-items:center;gap:14px;min-width:0;overflow:hidden"><span style="display:flex;align-items:center;gap:6px"><span id="dot" style="width:7px;height:7px;border-radius:50%;background:#A1A7B2"></span><span id="status">正在连接</span></span><span id="footSum" style="color:#8A919E"></span><span id="footIndexes" style="display:flex;gap:14px"></span></div>
 <span role="note" style="text-align:center">研究分析，不构成投资建议</span>
 <div style="display:flex;align-items:center;justify-content:flex-end;gap:18px;min-width:0;overflow:hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div>
 </footer>
@@ -401,27 +398,32 @@ function setStatus(ok, text) { $('dot').style.background = ok ? '#2E8B57' : '#B4
 
 /* ---------- 头部、页签 ---------- */
 // 总资金：你自己填的一个数；有了它，每只票占多少、总仓位多少才算得出来
-function capitalStat(h) {
-  const lbl = (t) => '<span class="lbl">' + t + '</span>';
-  if (!h.capital) return '<span style="display:flex;flex-direction:column">' + lbl('总资金') + '<button type="button" class="mini" data-act="capital" title="填一个总资金，就能看到每只票占多少、总仓位多少">设置总资金</button></span>';
-  const over = h.over ? ' <span style="color:#B42318;font-size:11px">超出总资金</span>' : '';
-  return '<span style="display:flex;flex-direction:column">' + lbl('总资金 <button type="button" class="x" data-act="capital" title="改总资金" style="font-size:11px;color:#2457D6">编辑</button>') + '<b ' + MONO + ' style="font-size:16px;font-weight:600">' + money(h.capital) + '</b></span>' +
-    '<span style="display:flex;flex-direction:column">' + lbl('仓位') + '<b ' + MONO + ' style="font-size:16px;font-weight:600">' + (h.invested_pct * 100).toFixed(1) + '%</b></span>' +
-    '<span style="display:flex;flex-direction:column">' + lbl('现金') + '<b ' + MONO + ' style="font-size:16px;font-weight:600;color:' + (h.cash < 0 ? '#B42318' : '#14171F') + '">' + money(h.cash) + '</b>' + over + '</span>';
+function renderFootSum(h) {
+  const el = $('footSum');
+  if (!el) return;
+  if (!h) { el.innerHTML = ''; return; }
+  if (!h.capital) {
+    el.innerHTML = '<button type="button" data-act="capital" style="border:none;background:transparent;color:#2457D6;font:inherit;font-size:12px;cursor:pointer;padding:0">设置总资金</button>';
+    return;
+  }
+  const over = h.over ? ' <span style="color:#B42318">超出</span>' : '';
+  el.innerHTML = '总资金 <b ' + MONO + ' style="color:#5B6372">' + money(h.capital) + '</b>　仓位 <b ' + MONO + ' style="color:#5B6372">' + (h.invested_pct * 100).toFixed(1) + '%</b>　现金 <b ' + MONO + ' style="color:' + (h.cash < 0 ? '#B42318' : '#5B6372') + '">' + money(h.cash) + '</b>' + over +
+    ' <button type="button" data-act="capital" title="改总资金" style="border:none;background:transparent;color:#2457D6;font:inherit;font-size:11px;cursor:pointer;padding:0 0 0 4px">编辑</button>';
 }
 function renderHead() {
   const s = S.summary, h = s ? s.header : null;
-  const stat = (label, body) => '<span style="display:flex;flex-direction:column"><span class="lbl">' + label + '</span>' + body + '</span>';
-  const big = 'font-family:\'IBM Plex Mono\',monospace;font-weight:700;font-size:16px';
-  $('head').innerHTML = '<h1 style="margin:0;font-size:20px;font-weight:700">交易</h1>' +
-    (h ? stat('持仓市值', '<b style="' + big.replace('font-weight:700', 'font-weight:600') + '">' + money(h.mv) + '</b>') +
-      stat('今天', '<span class="' + cls(h.day_pnl) + '" style="' + big + '">' + money(h.day_pnl, true) + ' <span style="font-size:11px">' + pct(h.day_pct) + '</span></span>') +
-      stat('总盈亏', '<span class="' + cls(h.pnl) + '" style="' + big + '">' + money(h.pnl, true) + ' <span style="font-size:11px">' + pct(h.pnl_pct) + '</span></span>') : '') +
-    (h ? capitalStat(h) : '') +
-    '<span style="margin-left:auto;display:flex;gap:8px;align-items:center">' +
-    '<button type="button" class="btn" data-act="import">导入券商持仓</button>' +
-    '<button type="button" class="btn" data-act="checkup" style="position:relative">仓位体检' + checkupBadge() + '</button>' +
-    '<button type="button" class="btn pri" data-act="rec">＋ 记一笔</button></span>';
+  const mono = 'font-family:\'IBM Plex Mono\',monospace;font-weight:600;font-size:13px';
+  const chip = (label, body) => '<span style="display:inline-flex;align-items:baseline;gap:4px;font-size:12px;color:#8A919E">' + label + ' ' + body + '</span>';
+  $('head').innerHTML = '<b style="flex:none;font-size:15px;font-weight:600;color:#14171F">交易</b>' +
+    (h ? chip('市值', '<b style="' + mono + ';color:#14171F">' + money(h.mv) + '</b>') +
+      chip('今天', '<span class="' + cls(h.day_pnl) + '" style="' + mono + '">' + money(h.day_pnl, true) + ' <span style="font-size:11px">' + pct(h.day_pct) + '</span></span>') +
+      chip('总盈亏', '<span class="' + cls(h.pnl) + '" style="' + mono + '">' + money(h.pnl, true) + ' <span style="font-size:11px">' + pct(h.pnl_pct) + '</span></span>') : '') +
+    '<span style="flex:1;min-width:8px"></span>' +
+    '<span style="flex:none;display:flex;gap:8px;align-items:center">' +
+    '<button type="button" class="btn" data-act="import" style="height:28px">导入券商持仓</button>' +
+    '<button type="button" class="btn" data-act="checkup" style="height:28px;position:relative">仓位体检' + checkupBadge() + '</button>' +
+    '<button type="button" class="btn pri" data-act="rec" style="height:28px">＋ 记一笔</button></span>';
+  renderFootSum(h);
 }
 function checkupCount() {
   const t = S.summary ? S.summary.tabs : null;
@@ -474,9 +476,9 @@ function renderNow() {
   if (!s.rows.length) return '<div class="card"><div class="empty"><b>现在手里没有持仓</b><span>想买里有计划的话，条件到了提醒你；买了就「记一笔」。</span><button type="button" class="btn pri" data-act="rec">＋ 记一笔</button></div></div>';
   const head = '<div style="display:flex;justify-content:flex-end;gap:8px;align-items:center"><button type="button" class="btn" data-act="import">导入券商持仓</button><button type="button" class="btn pri" data-act="rec">＋ 记一笔</button></div>';
   return '<div style="display:flex;flex-direction:column;gap:12px">' + head +
-    '<div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;overflow:auto"><div style="min-width:900px">' +
+    '<div style="background:#FFFFFF;border:1px solid #E3E6EB;border-radius:14px;overflow:hidden">' +
     '<div class="grid-h" style="padding:10px 16px;font-size:11px;color:#8A919E;background:#F7F8FA"><span>股票 · 要处理的在前</span><span>盈亏</span><span>占总资金</span><span>你的理由</span><span>AI 现在怎么看</span><span>板块</span><span></span></div>' +
-    s.rows.map(holdRow).join('') + '</div></div>' +
+    s.rows.map(holdRow).join('') + '</div>' +
     '<div style="display:flex;align-items:center;gap:12px;font-size:13px;color:#3A4250;flex-wrap:wrap">' + marketLine(s.market) + '</div></div>';
 }
 
@@ -852,7 +854,11 @@ function renderNotif() {
 }
 function renderAside() {
   const el = $('aside');
+  const open = !!(S.notif || S.sel);
+  el.classList.toggle('empty', !open);
+  el.setAttribute('aria-hidden', open ? 'false' : 'true');
   if (S.notif) { el.innerHTML = renderNotif(); return; }
+  if (!open) { el.innerHTML = ''; return; }
   el.innerHTML = '<div style="display:flex;flex-direction:column;min-height:100%">' + renderDetail() + '</div>';
   paintSdChart();
   if (S.sel) loadKline(S.sel);
