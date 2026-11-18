@@ -1,8 +1,9 @@
 // Package scan keeps the AI's predictions and checks them later. Every conclusion the client makes is
 // written down once, with its direction, strength and the day it started from; five and twenty trading days
 // on, the stock is compared with its sector, and the prediction counts as right, wrong or a draw. A written
-// prediction's content is never edited; a newer conclusion for the same stock supersedes any still-open
-// older one so that only the latest call stays in tracking.
+// prediction's content is never edited. Stocks are judged every day: a newer conclusion with the *same*
+// direction leaves the open call alone (so the 5/20-day clock is not reset); only a *changed* direction
+// supersedes the still-open older call.
 package scan
 
 import (
@@ -138,13 +139,28 @@ func (st *Store) save() {
 }
 
 // Add writes a prediction unless the same conclusion was already written for the same source.
-// A new call for the same stock supersedes any older call that still has open horizons, so only the latest stays in tracking.
+// Same stock + same direction while a call is still open: keep that call (no new row, clock unchanged).
+// Same stock + changed direction: supersede the open call and start a new one from today's base day.
 func (st *Store) Add(p Prediction) (*Prediction, bool) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	for _, x := range st.Items {
 		if p.BundleID != 0 && x.BundleID == p.BundleID && x.Source == p.Source && x.Code == p.Code {
 			return x, false
+		}
+	}
+	for _, x := range st.Items {
+		if x.Code != p.Code || x.SupersededAt != 0 || !x.openHorizons() {
+			continue
+		}
+		if x.Direction == p.Direction {
+			cp := *x
+			cp.Results = map[string]*Result{}
+			for k, v := range x.Results {
+				r := *v
+				cp.Results[k] = &r
+			}
+			return &cp, false
 		}
 	}
 	st.Seq++
@@ -160,7 +176,7 @@ func (st *Store) Add(p Prediction) (*Prediction, bool) {
 	return &cp, true
 }
 
-// supersedeOlderLocked keeps only keepID as the open call for code; older unfinished calls are marked superseded.
+// supersedeOlderLocked marks unfinished open calls for code as superseded, except keepID.
 func (st *Store) supersedeOlderLocked(code, keepID string) {
 	now := st.now().UnixMilli()
 	for _, x := range st.Items {
@@ -171,29 +187,47 @@ func (st *Store) supersedeOlderLocked(code, keepID string) {
 	}
 }
 
-// collapseOpenLocked is for stores loaded from disk: per stock, only the latest unfinished call stays active.
+// collapseOpenLocked replays direction rules on a legacy file: same direction keeps the earliest
+// open call; a later changed direction supersedes what came before.
 func (st *Store) collapseOpenLocked() {
-	latest := map[string]*Prediction{}
+	type openRec struct {
+		p *Prediction
+	}
+	byCode := map[string][]openRec{}
 	for _, p := range st.Items {
 		if p.SupersededAt != 0 || !p.openHorizons() {
 			continue
 		}
-		if cur, ok := latest[p.Code]; !ok || p.MadeAt >= cur.MadeAt || (p.MadeAt == cur.MadeAt && p.ID > cur.ID) {
-			latest[p.Code] = p
-		}
+		byCode[p.Code] = append(byCode[p.Code], openRec{p})
 	}
-	if len(latest) == 0 {
+	if len(byCode) == 0 {
 		return
 	}
 	now := st.now().UnixMilli()
 	changed := false
-	for _, p := range st.Items {
-		keep := latest[p.Code]
-		if keep == nil || p.ID == keep.ID || p.SupersededAt != 0 || !p.openHorizons() {
-			continue
+	for _, list := range byCode {
+		sort.SliceStable(list, func(i, j int) bool {
+			if list[i].p.MadeAt != list[j].p.MadeAt {
+				return list[i].p.MadeAt < list[j].p.MadeAt
+			}
+			return list[i].p.ID < list[j].p.ID
+		})
+		var keep *Prediction
+		for _, rec := range list {
+			p := rec.p
+			if keep == nil {
+				keep = p
+				continue
+			}
+			if p.Direction == keep.Direction {
+				p.SupersededAt = now
+				changed = true
+				continue
+			}
+			keep.SupersededAt = now
+			changed = true
+			keep = p
 		}
-		p.SupersededAt = now
-		changed = true
 	}
 	if changed {
 		st.save()

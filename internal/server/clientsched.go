@@ -545,10 +545,13 @@ func (s *Server) evaluateAlerts(c *sched.JobCtx, confirm string) (any, error) {
 var stateText = map[string]string{"succeeded": "成功", "skipped": "已跳过", "expired": "已过期", "partial": "部分失败", "failed": "失败"}
 var triggerText = map[string]string{"schedule": "定时", "catchup": "补跑", "manual": "手动"}
 
-// onRunFinished writes the receipt of a finished run into the inbox, so the user can see that a task
-// really ran. Failures are loud (a desktop pop-up); successes only go into the inbox.
+// onRunFinished writes the receipt of a finished custom (mine) run into the inbox.
+// System scheduled tasks no longer leave task.completed / task.failed notifications.
 func (s *Server) onRunFinished(run sched.Run, sp *sched.Spec) {
-	if s.inbox == nil {
+	if s.inbox == nil || sp == nil {
+		return
+	}
+	if sp.Category != sched.CatMine && !strings.HasPrefix(sp.ID, "custom.") {
 		return
 	}
 	jobs := s.sch.Store.Jobs(run.ID)
@@ -566,6 +569,10 @@ func (s *Server) onRunFinished(run sched.Run, sp *sched.Spec) {
 		_, _, _ = s.inbox.Publish("task.failed", "system", run.TaskID, map[string]any{
 			"task_id": run.TaskID, "title": sp.Title, "run_id": run.ID, "dead": dead, "total": len(jobs), "first_error": first,
 		}, run.ID, inbox.Options{})
+		// Partial scans may still have per-stock hits worth summarizing.
+		if run.State == "partial" {
+			s.publishCustomScanResult(run, sp, jobs)
+		}
 	case "succeeded", "skipped", "expired":
 		payload := map[string]any{
 			"task_id": run.TaskID, "title": sp.Title, "run_id": run.ID, "state": run.State, "state_text": stateText[run.State],
@@ -581,7 +588,51 @@ func (s *Server) onRunFinished(run sched.Run, sp *sched.Spec) {
 			key = fmt.Sprintf("client:daily:%s:%s:%s", run.TaskID, sched.Day(time.UnixMilli(run.FinishedAt)), run.State)
 		}
 		_, _, _ = s.inbox.Publish("task.completed", "system", run.TaskID, payload, key, inbox.Options{})
+		s.publishCustomScanResult(run, sp, jobs)
 	}
+}
+
+// publishCustomScanResult leaves one 提醒-tab summary for a finished condition-scan run,
+// including the zero-hit case (per-stock custom.hit is only created when something matches).
+func (s *Server) publishCustomScanResult(run sched.Run, sp *sched.Spec, jobs []sched.Job) {
+	if s.custom == nil || !strings.HasPrefix(sp.ID, "custom.") {
+		return
+	}
+	t, ok := s.custom.Get(strings.TrimPrefix(sp.ID, "custom."))
+	if !ok || t.Kind != custom.Scan {
+		return
+	}
+	total, hitNames := 0, []string{}
+	for _, j := range jobs {
+		total++
+		m, _ := j.Output.(map[string]any)
+		if m == nil {
+			continue
+		}
+		if hit, _ := m["hit"].(bool); !hit {
+			continue
+		}
+		name := strings.TrimSpace(fmt.Sprint(m["name"]))
+		if name == "" || name == "<nil>" {
+			name = s.stockName(j.UnitKey)
+		}
+		if name == "" {
+			name = j.UnitKey
+		} else if j.UnitKey != "" && !strings.Contains(name, j.UnitKey) {
+			name = name + "（" + j.UnitKey + "）"
+		}
+		hitNames = append(hitNames, name)
+	}
+	lines := []string{}
+	if len(hitNames) == 0 {
+		lines = append(lines, fmt.Sprintf("扫了 %d 只，没有符合条件的。", total))
+	} else {
+		lines = append(lines, fmt.Sprintf("扫了 %d 只，命中 %d 只：", total, len(hitNames)))
+		lines = append(lines, hitNames...)
+	}
+	_, _, _ = s.inbox.Publish("custom.scan_result", "system", sp.ID, map[string]any{
+		"task": t.Title, "task_id": sp.ID, "run_id": run.ID, "total": total, "hits": len(hitNames), "lines": lines,
+	}, fmt.Sprintf("custom.scan_result:%s:%s", sp.ID, run.ID), inbox.Options{})
 }
 
 // attachJobResult copies human-readable result fields from job outputs into the receipt.

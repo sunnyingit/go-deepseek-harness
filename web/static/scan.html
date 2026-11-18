@@ -277,7 +277,7 @@ function predRow(p, nested) {
     '<span style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start"><span>' + (now ? pl(now[0], now[1], now[2]) : '<span style="font-size: 11px; color: #8A919E">还没有数据</span>') + '</span>' + note + '</span>' +
     rowActions(r, 'track') + '</div>';
 }
-// 同一只股票的预测合成一组：夜间任务每天一条，再加你诊断的，不合起来会一只票占好几屏
+// 同一只股票的预测合成一组（同向不重置后通常一条；方向变过会留下已结算/已作废记录）
 function groupTrack(rows) {
   const by = new Map();
   rows.forEach((r) => {
@@ -713,7 +713,7 @@ function wishBtnInConcl(code, d) {
 /* ---------- 口径 ---------- */
 function openTrackHelp() {
   const steps = [
-    ['1', '发出', '记下方向和起点价，不能改。起点价是发出那一刻最近的一个收盘价，本股和板块用同一天。同一只票只保留最新一条；新结论会顶替还在跟踪的旧结论。'],
+    ['1', '发出', '记下方向和起点价，不能改。起点价是发出那一刻最近的一个收盘价，本股和板块用同一天。同一只票方向没变就继续跟这条；只有方向变了，才作废旧的、从新发出日重算。'],
     ['2', '跟踪', '每天收盘后算：从起点到今天，这只票比同板块多涨（少跌）了多少。'],
     ['3', '5 天结算', '看第 5 个交易日的收盘价，不是第二天。偏多跑赢板块算对，偏空跑输算对；差不到 0.5 个点算持平，不计。'],
     ['4', '20 天再结算', '同一条预测看第 20 个交易日收盘，两次分开算命中率。'],
@@ -726,7 +726,7 @@ function openRules() {
   const rows = [
     ['看哪些票', '只看你的持仓和想买，不含自选。'],
     ['预测从哪来', '夜里自动给持仓/想买出结论，或你在研判页点「重新分析」。同一份只记一次。'],
-    ['同一只票', '同时只跟踪最新一条；新结论进来，旧的未到期作废，不算进战绩。'],
+    ['同一只票', '方向没变：继续跟原预测的 5/20 天，不重置。方向变了：旧的未到期作废，按新发出日重开。'],
     ['比什么', '不是你赚没赚钱，也不是跟大盘比。是：到期后，这只票相对它所在板块（申万）跑赢还是跑输。'],
     ['怎样算对', '偏多 → 要比板块强才算对；偏空 → 要比板块弱才算对。差不到 0.5 个百分点算持平，不计入对错。「不明」不结算。'],
     ['何时结算', '从发出日起满 5 个、再满 20 个交易日各算一次，两套数字分开看。'],
@@ -745,7 +745,7 @@ function openScope() {
 }
 
 /* ---------- 通知（和设计稿一样的抽屉） ---------- */
-const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩'], ['system', '系统']];
+const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩']];
 const NOTIF_ALERT_KINDS = { alert: 1, upcoming: 1, move: 1, ann: 1 };
 const NOTIF_ICON = { alert: ['🔔', '#FDECEA'], change: ['⇄', '#FFF4E0'], upcoming: ['📅', '#F1F2F4'], settle: ['★', '#EDF7F1'], ann: ['📢', '#F1F2F4'], move: ['📈', '#F1F2F4'], system: ['⚙', '#F1F2F4'] };
 function notifMatch(tab, kind) {
@@ -774,6 +774,7 @@ function renderNotif() {
   el.hidden = !S.notif;
   el.style.display = S.notif ? 'flex' : 'none';
   if (!S.notif) return;
+  if (S.nTab === 'system' || S.nTab === 'all') S.nTab = 'alert';
   const d = S.nData;
   const items = d ? d.items.filter((i) => notifMatch(S.nTab, i.kind)) : [];
   const groups = ['今天', '即将发生', '昨天', '更早'].map((g) => [g, items.filter((i) => i.group === g)]).filter((x) => x[1].length);

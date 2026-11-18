@@ -831,7 +831,7 @@ function renderDetail() {
 function invalidText(i) {
   return i.kind === 'close_below' ? '收盘跌破 ' + Number(i.value).toFixed(2) : i.kind === 'sector_out' ? '板块转为在流出' : i.kind === 'flow_out' ? '大资金连续 ' + i.days + ' 天流出' : i.text;
 }
-const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩'], ['system', '系统']];
+const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩']];
 const NOTIF_ALERT_KINDS = { alert: 1, upcoming: 1, move: 1, ann: 1 };
 const NOTIF_ICON = { alert: ['🔔', '#FDECEA'], change: ['⇄', '#FFF4E0'], upcoming: ['📅', '#F1F2F4'], settle: ['★', '#EDF7F1'], ann: ['📢', '#F1F2F4'], move: ['📈', '#F1F2F4'], system: ['⚙', '#F1F2F4'] };
 function notifMatch(tab, kind) {
@@ -852,6 +852,7 @@ async function markNotifRead(ids) {
   updateBell();
 }
 function renderNotif() {
+  if (S.nTab === 'system' || S.nTab === 'all') S.nTab = 'alert';
   const d = S.nData;
   const items = d ? d.items.filter((i) => notifMatch(S.nTab, i.kind)) : [];
   const groups = ['今天', '即将发生', '昨天', '更早'].map((g) => [g, items.filter((i) => i.group === g)]).filter((x) => x[1].length);

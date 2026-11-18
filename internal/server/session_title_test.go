@@ -79,6 +79,19 @@ func TestSessionTitleEmptySession(t *testing.T) {
 	}
 }
 
+func TestSessionTitleKeepsScheduledAskPrefix(t *testing.T) {
+	s := session.New("s1", session.Header{})
+	s.Append("user/message", session.Message{
+		Role: session.RoleUser,
+		Content: []session.ContentBlock{{Kind: session.BlockText, Text: scheduledAskTitlePrefix + "午前看一眼 · 招商银行\n\n今天有没有新公告？"}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	got := sessionTitle(s)
+	want := scheduledAskTitlePrefix + "午前看一眼 · 招商银行"
+	if got != want {
+		t.Fatalf("title = %q, want %q", got, want)
+	}
+}
+
 func TestSessionTitleSkipsUploadedFileNotice(t *testing.T) {
 	s := session.New("s1", session.Header{})
 	s.Append("user/message", session.Message{

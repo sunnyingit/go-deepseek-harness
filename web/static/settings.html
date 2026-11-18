@@ -151,6 +151,8 @@ button,input,select,textarea{font:inherit}
 <div class="banner" id="serviceBanner"></div>
 <div class="row"><span><span class="lbl">服务地址</span><div class="hint">留空就用本机 http://127.0.0.1:8090</div></span>
 <input class="inp mono" id="svc_url" placeholder="http://127.0.0.1:8090" autocomplete="off" style="width:100%;max-width:420px"></div>
+<div class="row"><span><span class="lbl">本机客户端 ID</span><div class="hint">首次启动生成，打数据服务时带在 X-User-Id 里</div></span>
+<span style="display:flex;gap:8px;align-items:center;min-width:0;max-width:420px;width:100%"><code id="svc_user_id" class="mono" style="flex:1;min-width:0;padding:8px 10px;border:1px solid #DDE1E7;border-radius:8px;background:#F7F8FA;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</code><button type="button" class="btn" id="svcCopyId">复制</button></span></div>
 <div id="svcInfo" class="hint"></div>
 <div style="display:flex;gap:8px"><button type="button" class="btn" id="svcTest">测试连接</button><button type="button" class="btn pri" id="svcSave">保存地址</button></div>
 </section>
@@ -618,7 +620,7 @@ button,input,select,textarea{font:inherit}
     'announcement.published': '公告', 'news.item': '新闻', 'calendar.upcoming': '日历提醒',
     'outcome.settled': '个股战绩', 'scan.settled': '战绩结算',
     'reason.status_changed': '买入理由变化', 'wish.condition_met': '想买条件到了',
-    'custom.hit': '自定义条件命中', 'custom.analysis': '自定义分析', 'custom.answer': '自定义问答',
+    'custom.hit': '自定义条件命中', 'custom.scan_result': '条件扫描结果', 'custom.analysis': '自定义分析', 'custom.answer': '自定义问答',
     'quality.redline': '质地红线', 'quality.picks': '质地关注',
   };
   const CH_NAME = { desktop: '桌面通知', wecom_webhook: '企业微信', bark: 'Bark', serverchan: 'Server酱' };
@@ -675,12 +677,24 @@ button,input,select,textarea{font:inherit}
   function svcBanner(text, kind) { const b = q('serviceBanner'); b.textContent = text || ''; b.className = 'banner' + (text ? ' show ' + (kind || '') : ''); }
   function svcRender(v) {
     q('svc_url').value = v.base_url || '';
+    q('svc_user_id').textContent = v.user_id || '—';
+    q('svc_user_id').title = v.user_id || '';
     q('svcInfo').textContent = '现在在用：' + v.effective + '（' + (SVC_SRC[v.source] || v.source) + '）。页面要刷新一下才会换到新地址。';
   }
   async function svcLoad() { try { svcRender(await call('GET', '/api/v1/settings/service')); } catch (e) { svcBanner('读不出来：' + e.message, 'err'); } }
   q('svcSave').addEventListener('click', async () => {
     try { svcRender(await call('PUT', '/api/v1/settings/service', { base_url: q('svc_url').value })); svcBanner('已保存。分析师和定时任务马上用新地址；打开着的页面刷新一下。', 'ok'); }
     catch (e) { svcBanner(e.message, 'err'); }
+  });
+  q('svcCopyId').addEventListener('click', async () => {
+    const id = (q('svc_user_id').textContent || '').trim();
+    if (!id || id === '—') return;
+    try {
+      await navigator.clipboard.writeText(id);
+      svcBanner('已复制客户端 ID', 'ok');
+    } catch (e) {
+      svcBanner('复制失败，请手动选中复制', 'err');
+    }
   });
   q('svcTest').addEventListener('click', async () => {
     svcBanner('正在连接…');

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, BrowserView, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, BrowserView, Menu, shell, dialog, ipcMain } = require('electron');
 const { spawn, execSync } = require('child_process');
 const http = require('http');
 const fs = require('fs');
@@ -20,6 +20,8 @@ const PAGES = {
 
 let win = null;
 let splash = null;
+let setupWin = null;
+let setupResolve = null;
 let backend = null;
 let spawnedBackend = false;
 let hostApi = null;
@@ -211,6 +213,113 @@ function readConfiguredApiKey() {
   }
   return '';
 }
+
+/** Write llm.api_key (+ optional model) into userData/config.yaml. */
+function writeUserApiKey(apiKey, opts = {}) {
+  const key = String(apiKey || '').trim();
+  if (!key) throw new Error('API Key 为空');
+  const p = userConfigPath();
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  let text = '';
+  try {
+    if (fs.existsSync(p)) text = fs.readFileSync(p, 'utf8');
+  } catch {
+    text = '';
+  }
+  const keyLine = `  api_key: ${JSON.stringify(key)}`;
+  if (/^\s*api_key:\s*/m.test(text)) {
+    text = text.replace(/^\s*api_key:\s*.*$/m, keyLine);
+  } else if (/^llm:/m.test(text)) {
+    text = text.replace(/^(llm:)\s*$/m, `llm:\n${keyLine}`);
+    if (!/^\s*api_key:\s*/m.test(text)) {
+      text = text.replace(/^(llm:)/m, `llm:\n${keyLine}`);
+    }
+  } else {
+    text += `${text && !text.endsWith('\n') ? '\n' : ''}llm:\n${keyLine}\n`;
+  }
+  const model = String((opts && opts.model) || '').trim();
+  if (model) {
+    const modelLine = `  model: ${model}`;
+    if (/^\s*model:\s*/m.test(text)) {
+      text = text.replace(/^\s*model:\s*.*$/m, modelLine);
+    } else {
+      text = text.replace(/^\s*api_key:\s*.*$/m, (m) => `${m}\n${modelLine}`);
+    }
+  }
+  fs.writeFileSync(p, text, { encoding: 'utf8', mode: 0o600 });
+}
+
+function showSetupWindow() {
+  return new Promise((resolve) => {
+    if (setupWin && !setupWin.isDestroyed()) {
+      setupWin.focus();
+      setupResolve = resolve;
+      return;
+    }
+    setupResolve = resolve;
+    const isMac = process.platform === 'darwin';
+    setupWin = new BrowserWindow({
+      width: 980,
+      height: 700,
+      minWidth: 720,
+      minHeight: 560,
+      resizable: true,
+      title: '牛宝',
+      backgroundColor: '#ffffff',
+      icon: path.join(__dirname, 'icon.png'),
+      titleBarStyle: isMac ? 'hiddenInset' : 'default',
+      trafficLightPosition: isMac ? { x: 14, y: 14 } : undefined,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    setupWin.loadFile(path.join(__dirname, 'setup.html'));
+    setupWin.on('closed', () => {
+      setupWin = null;
+      if (setupResolve) {
+        const done = setupResolve;
+        setupResolve = null;
+        done({ skipped: true, closed: true });
+      }
+    });
+  });
+}
+
+function closeSetupWindow(result) {
+  if (setupResolve) {
+    const done = setupResolve;
+    setupResolve = null;
+    done(result || { skipped: false });
+  }
+  if (setupWin && !setupWin.isDestroyed()) {
+    setupWin.close();
+  }
+  setupWin = null;
+}
+
+ipcMain.handle('save-api-key', async (_evt, key, opts) => {
+  try {
+    writeUserApiKey(key, opts || {});
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+});
+
+ipcMain.handle('finish-setup', async (_evt, opts) => {
+  closeSetupWindow({ skipped: !!(opts && opts.skipped) });
+  return { ok: true };
+});
+
+ipcMain.handle('open-external', async (_evt, url) => {
+  if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+    await shell.openExternal(url);
+  }
+  return { ok: true };
+});
 
 function parseEnvFileValue(text, key) {
   const re = new RegExp(`^\\s*${key}\\s*=\\s*(.*)$`, 'm');
@@ -703,6 +812,12 @@ async function ensureStockBackend() {
 
 async function boot() {
   buildMenu();
+  // 开机自启时只带托盘起来，不抢焦点弹窗口
+  startHidden = process.argv.includes('--hidden') || (app.getLoginItemSettings && app.getLoginItemSettings().wasOpenedAsHidden);
+  // 没有模型 Key 时先走启动引导（可跳过）；有 Key / 隐藏启动则直接拉服务。
+  if (!startHidden && !readConfiguredApiKey()) {
+    await showSetupWindow();
+  }
   showSplash();
   const apiKey = readConfiguredApiKey();
   try {
@@ -735,8 +850,6 @@ async function boot() {
     return;
   }
   closeSplash();
-  // 开机自启时只带托盘起来，不抢焦点弹窗口
-  startHidden = process.argv.includes('--hidden') || (app.getLoginItemSettings && app.getLoginItemSettings().wasOpenedAsHidden);
   await ensureStockBackend();
   createWindow();
   hostApi = host.init({

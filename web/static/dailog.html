@@ -43,8 +43,6 @@ button,input,textarea{font:inherit}
 .nl:hover{text-decoration:underline}
 .mdt th,.mdt td{transition:background .1s}
 .mdt tbody tr:hover td{background:#FAFBFD}
-.chip{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 9px;border-radius:8px;background:#EAF0FD;font-size:12px;color:#2457D6;cursor:pointer;border:none}
-.chip .x{opacity:.6}
 .toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:60;padding:9px 16px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 .ask-modal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(20,23,31,.42);backdrop-filter:blur(2px)}
@@ -183,12 +181,9 @@ button,input,textarea{font:inherit}
 <div id="slashMenu" class="slash-menu" hidden role="listbox" aria-label="快捷选择"></div>
 <textarea id="chatInput" class="ask-input" rows="1" placeholder="@ 翻起指定的设计师 # 翻起你关注的股票"></textarea>
 <div style="display:flex;align-items:center;gap:6px;position:relative">
-<button type="button" id="attachBtn" aria-label="带上资料" style="width:28px;height:28px;border:1px solid #E3E6EB;border-radius:8px;background:#FFFFFF;font-size:15px;line-height:1;color:#5B6372;cursor:pointer">＋</button>
-<span id="ctxChips" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap"></span>
 <span style="margin-left:auto;position:relative"><button type="button" id="pickerBtn" style="display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px;border:1px solid #E3E6EB;border-radius:8px;background:#FFFFFF;font-size:12px;color:#5B6372;cursor:pointer"><span id="pickerAv" style="width:18px;height:18px;border-radius:50%;overflow:hidden;display:inline-flex"></span><span id="pickerLabel">自动选分析师</span> <span style="color:#8A919E">▾</span></button><div id="pickerMenu" class="attach-menu" style="right:0;left:auto;min-width:200px" hidden></div></span>
 <button type="button" id="sendBtn" class="send" aria-label="发送" title="发送"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="M6 11l6-6 6 6"></path></svg></button>
 <button type="button" id="stopBtn" class="send ready" hidden aria-label="停止" title="停止" style="background:#5B6372;border-radius:10px;font-size:12px">停</button>
-<div id="attachMenu" class="attach-menu" hidden></div>
 </div>
 </div>
 <div style="align-self:center;font-size:11px;color:#8A919E">AI 会出错，数字请点依据核对 · 不预测涨跌，不替你决定买卖</div>
@@ -227,16 +222,12 @@ button,input,textarea{font:inherit}
   const $ = (id) => document.getElementById(id);
   const MONO = "font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace";
   const API = ((document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
-  const CTX_OPTS = [
-    { id: 'hold', label: '我的持仓' },
-    { id: 'market', label: '市场今天' },
-  ];
   const SUGGEST = ['银行还能买吗？', '两融是什么意思', '我的持仓风险大吗', '芯片为什么只热不增'];
   const params = new URLSearchParams(location.search);
   const state = {
     sessions: [], id: params.get('session') || '', streaming: false, es: null, abort: null, streamCard: null, filter: '', lastAnalysts: [], lastCode: '', lastName: '', pickedWho: 'auto',
-    slash: { open: false, kind: '', start: 0, query: '', items: [], idx: 0 }, slashStocks: null,
-    ctx: { hold: true, market: true }, attachOpen: false, notif: false, notifTab: 'alert', notifs: [], unread: 0,
+    slash: { open: false, kind: '', start: 0, q: '', items: [], idx: 0 }, slashStocks: null,
+    notif: false, notifTab: 'alert', notifs: [], unread: 0,
   };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 2200); }
@@ -292,16 +283,6 @@ button,input,textarea{font:inherit}
     } catch (e) { $('dot').style.background = '#D9483F'; $('status').textContent = '没有连上行情服务'; }
   }
   setInterval(clock, 1000); clock(); loadIndexes();
-
-  function renderCtx() {
-    $('ctxChips').innerHTML = CTX_OPTS.filter((o) => state.ctx[o.id]).map((o) =>
-      '<button type="button" class="chip" data-rm="' + o.id + '">' + esc(o.label) + '<span class="x">×</span></button>'
-    ).join('');
-    $('attachMenu').innerHTML = CTX_OPTS.map((o) =>
-      '<button type="button" class="' + (state.ctx[o.id] ? 'on' : '') + '" data-tog="' + o.id + '">' + (state.ctx[o.id] ? '✓ ' : '') + esc(o.label) + '</button>'
-    ).join('');
-  }
-  function activeCtxLabels() { return CTX_OPTS.filter((o) => state.ctx[o.id]).map((o) => o.label); }
 
   function dayLabel(ts) {
     const d = new Date(ts), now = new Date();
@@ -1963,10 +1944,6 @@ button,input,textarea{font:inherit}
         }
       }
 
-      const ctxLabels = activeCtxLabels();
-      if (ctxLabels.length) {
-        ask = '【带上：' + ctxLabels.join('、') + '】\n' + ask;
-      }
       if (tipText) {
         const tip = document.createElement('div');
         tip.style.cssText = 'font-size:13px;color:#8A919E;padding:0 0 4px 44px';
@@ -2007,26 +1984,29 @@ button,input,textarea{font:inherit}
     $('bell').style.background = state.notif ? '#EAF0FD' : 'transparent';
     $('notifDrawer').classList.toggle('open', state.notif);
   }
+  function isSystemNotif(n) {
+    const t = String(n.type || n.kind || '');
+    return /^(task\.|digest\.|market\.brief)/i.test(t);
+  }
   function renderNotif() {
-    // 与市场/持仓等同：提醒、判断、战绩、系统（不要「全部」）
-    const tabs = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩'], ['system', '系统']];
-    if (state.notifTab === 'all') state.notifTab = 'alert';
+    // 与市场/持仓等同：提醒、判断、战绩（不要「全部」/「系统」）
+    const tabs = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩']];
+    if (state.notifTab === 'all' || state.notifTab === 'system') state.notifTab = 'alert';
     $('notifTabs').innerHTML = tabs.map(([k, lab]) =>
       '<button type="button" data-ntab="' + k + '" style="padding:0 10px;height:36px;border:none;background:transparent;font:inherit;font-size:13px;cursor:pointer;' +
       (state.notifTab === k ? 'color:#2457D6;font-weight:600;box-shadow:inset 0 -2px 0 #2457D6' : 'color:#5B6372') + '">' + lab + '</button>'
     ).join('');
     const items = state.notifs.filter((n) => {
+      if (isSystemNotif(n)) return false;
       const t = String(n.type || n.kind || '');
-      if (state.notifTab === 'alert') return /alert|price|remind|calendar|upcoming|ann|move/i.test(t);
+      if (state.notifTab === 'alert') return /alert|price|remind|calendar|upcoming|ann|move|custom\.(hit|scan_result)|quality\.redline/i.test(t);
       if (state.notifTab === 'change') return /change|judgment|verdict/i.test(t);
       if (state.notifTab === 'settle') return /settle|outcome|战绩/i.test(t);
-      if (state.notifTab === 'system') return /system|sys/i.test(t) || (!t && !n.code);
       return false;
     });
     if (!items.length) {
       const empty = state.notifTab === 'alert' ? '近两周没有涉及自选的事件。'
         : state.notifTab === 'settle' ? '还没有战绩结算。'
-        : state.notifTab === 'system' ? '还没有系统通知。'
         : '现在没有通知。到价、AI 改判、披露和解禁这些事会出现在这里。';
       $('notifBody').innerHTML = '<div style="padding:28px 20px;color:#8A919E">' + empty + '</div>';
       return;
@@ -2047,9 +2027,9 @@ button,input,textarea{font:inherit}
     try {
       const data = await api('/notify/inbox').catch(() => api('/api/v1/notify/inbox').catch(() => null));
       if (!data) { state.notifs = []; state.unread = 0; renderNotif(); updateBell(); return; }
-      state.notifs = data.items || data.notifications || data || [];
+      state.notifs = (data.items || data.notifications || data || []).filter((n) => !isSystemNotif(n));
       if (!Array.isArray(state.notifs)) state.notifs = [];
-      state.unread = data.unread != null ? data.unread : state.notifs.filter((n) => !(n.read || n.is_read)).length;
+      state.unread = state.notifs.filter((n) => !(n.read || n.is_read)).length;
       renderNotif(); updateBell();
     } catch (e) {
       state.notifs = [];
@@ -2284,23 +2264,7 @@ button,input,textarea{font:inherit}
     send(t);
   });
   $('stopBtn').addEventListener('click', stop);
-  $('attachBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    state.attachOpen = !state.attachOpen;
-    $('attachMenu').hidden = !state.attachOpen;
-  });
-  $('attachMenu').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-tog]'); if (!b) return;
-    state.ctx[b.dataset.tog] = !state.ctx[b.dataset.tog];
-    renderCtx();
-  });
-  $('ctxChips').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-rm]'); if (!b) return;
-    state.ctx[b.dataset.rm] = false;
-    renderCtx();
-  });
   document.addEventListener('click', (e) => {
-    if (state.attachOpen) { state.attachOpen = false; $('attachMenu').hidden = true; }
     if (state.slash.open && !e.target.closest('.ask-box')) hideSlash();
   });
   $('bell').addEventListener('click', () => {
@@ -2363,7 +2327,7 @@ button,input,textarea{font:inherit}
   $('pickerAv').innerHTML = avatarHTML('chief', 18);
   syncPicker();
 
-  renderCtx(); updateBell();
+  updateBell();
   (async function boot() {
     await loadSessions();
     loadNotif();

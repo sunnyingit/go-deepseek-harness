@@ -416,8 +416,11 @@ button.ans:hover{filter:brightness(0.97)}
 .blk>button>.blk-chev{grid-column:3;grid-row:1;margin-top:26px}
 #drawerBody{padding:14px 18px 24px;box-sizing:border-box}
 #aside{overflow-x:hidden}
-.dw{flex:0 0 384px;width:384px}
-@media (min-width:1400px){.dw{flex-basis:422px;width:422px}}
+.dw{flex:0 0 384px;width:384px;min-width:0;transition:flex-basis .18s ease,width .18s ease,border-left-width .18s ease}
+.dw.empty{flex-basis:0!important;width:0!important;border-left-width:0;overflow:hidden;padding:0;pointer-events:none}
+.rail{flex:0 0 44px;width:44px;min-width:0;padding:10px 0;transition:flex-basis .18s ease,width .18s ease,border-left-width .18s ease,opacity .18s ease;opacity:1}
+.rail.empty{flex-basis:0!important;width:0!important;border-left-width:0;overflow:hidden;padding:0;opacity:0;pointer-events:none}
+@media (min-width:1400px){.dw:not(.empty){flex-basis:422px;width:422px}}
 table.tb{width:100%;border-collapse:collapse;table-layout:fixed}
 table.tb th{padding:6px 2px;font-size:11px;font-weight:500;color:#8A919E;text-align:right;white-space:nowrap}
 table.tb th:first-child,table.tb th.l{text-align:left}
@@ -498,13 +501,13 @@ table.tb tr.grp td{background:#F7F8FA;text-align:left;padding:8px 6px;border-top
 </div>
 </main>
 <aside id="aside" class="dw" aria-label="依据" style="align-self:stretch;overflow-y:auto;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;display:flex;flex-direction:column;font-size:13px">
-<div style="position:sticky;top:0;z-index:2;background:#FFFFFF;border-bottom:1px solid #E3E6EB;padding:0 8px 0 12px;display:flex;align-items:center">
+<div style="position:sticky;top:0;z-index:2;background:#FFFFFF;border-bottom:1px solid #E3E6EB;padding:0 8px 0 12px;display:flex;align-items:center;min-width:220px">
 <div id="drawerTabs" role="tablist" aria-label="依据" style="display:flex;gap:6px;min-width:0;overflow-x:auto"></div>
 <button type="button" id="foldBtn" aria-label="收起" title="收起" style="margin-left:auto;flex:none;width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:16px;cursor:pointer">⇥</button>
 </div>
-<div id="drawerBody"></div>
+<div id="drawerBody" style="min-width:220px"></div>
 </aside>
-<aside id="rail" aria-label="依据（已收起）" style="flex:0 0 44px;width:44px;align-self:stretch;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;display:none;flex-direction:column;align-items:center;gap:4px;padding:10px 0">
+<aside id="rail" class="rail empty" aria-label="依据（已收起）" aria-hidden="true" style="align-self:stretch;background:#FFFFFF;border-left:1px solid #DDE1E7;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:4px">
 <button type="button" id="unfoldBtn" aria-label="展开" title="展开" style="width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:16px;cursor:pointer">⇤</button>
 <button type="button" data-tab="fund" title="市场资金" style="width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:12px;cursor:pointer">资</button>
 <button type="button" data-tab="team" title="国家队" style="width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:12px;cursor:pointer">国</button>
@@ -2378,8 +2381,10 @@ function etfView(d) {
 function applyFold() {
   const aside = $('aside'), rail = $('rail');
   if (!aside || !rail) return;
-  aside.style.display = state.fold ? 'none' : 'flex';
-  rail.style.display = state.fold ? 'flex' : 'none';
+  aside.classList.toggle('empty', !!state.fold);
+  rail.classList.toggle('empty', !state.fold);
+  aside.setAttribute('aria-hidden', state.fold ? 'true' : 'false');
+  rail.setAttribute('aria-hidden', state.fold ? 'false' : 'true');
 }
 async function openEtf(code, days) {
   state.fold = false;
@@ -3132,7 +3137,7 @@ async function loadNotif() {
   updateBell();
   if (state.notif) renderNotif();
 }
-const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩'], ['system', '系统']];
+const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩']];
 const NOTIF_ALERT_KINDS = { alert: 1, upcoming: 1, move: 1, ann: 1 };
 const NOTIF_ICON = { alert: ['🔔', '#FDECEA'], change: ['⇄', '#FFF4E0'], upcoming: ['📅', '#F1F2F4'], settle: ['★', '#EDF7F1'], ann: ['📢', '#F1F2F4'], move: ['📈', '#F1F2F4'], system: ['⚙', '#F1F2F4'] };
 function notifMatch(tab, kind) {
@@ -3149,6 +3154,7 @@ function nItem(i) {
 }
 function renderNotif() {
   const aside = $('aside'); aside.style.flex = ''; aside.style.width = '';
+  if (state.nTab === 'system' || state.nTab === 'all') state.nTab = 'alert';
   const d = state.nData, tab = state.nTab;
   $('drawerTabs').innerHTML = '<div style="flex:1;display:flex;flex-direction:column;min-width:0"><div style="display:flex;align-items:center;gap:12px;padding:14px 12px 0 20px"><span style="font-size:16px;font-weight:700">通知</span><button type="button" data-nread="1" style="margin-left:auto;font-size:12px;color:#2457D6;border:none;background:transparent;cursor:pointer">全部已读</button><button type="button" data-nclose="1" aria-label="关闭（Esc）" style="width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font:inherit;font-size:18px;cursor:pointer">×</button></div>' +
     '<div style="display:flex;padding:0 10px;border-bottom:1px solid #EEF0F3">' + NOTIF_TABS.map(([k, n]) => '<button type="button" data-ntabbtn="' + k + '" style="padding:0 10px;height:36px;display:inline-flex;align-items:center;font-size:13px;border:none;background:transparent;cursor:pointer;' + (tab === k ? 'color:#2457D6;font-weight:600;box-shadow:inset 0 -2px 0 #2457D6' : 'color:#5B6372') + '">' + n + '</button>').join('') + '</div></div>';
@@ -3157,7 +3163,7 @@ function renderNotif() {
   const groups = ['今天', '即将发生', '昨天', '更早'].map((g) => [g, items.filter((i) => i.group === g)]).filter((x) => x[1].length);
   let html = groups.length
     ? groups.map(([g, list]) => '<span style="display:block;padding:10px 16px 2px 32px;font-size:11px;font-weight:600;color:#8A919E">' + g + '</span>' + list.map(nItem).join('')).join('')
-    : '<div style="padding:28px 20px;color:#8A919E">' + (tab === 'alert' ? '近两周没有涉及自选的事件。' : tab === 'settle' ? '还没有战绩结算。' : tab === 'system' ? '还没有系统通知。' : '现在没有通知。到价、AI 改判、披露和解禁这些事会出现在这里。') + '</div>';
+    : '<div style="padding:28px 20px;color:#8A919E">' + (tab === 'alert' ? '近两周没有涉及自选的事件。' : tab === 'settle' ? '还没有战绩结算。' : '现在没有通知。到价、AI 改判、披露和解禁这些事会出现在这里。') + '</div>';
   $('drawerBody').style.padding = '0';
   $('drawerBody').innerHTML = '<div style="display:flex;flex-direction:column;min-height:100%">' + html +
     '<div style="display:flex;align-items:center;gap:12px;margin-top:auto;padding:12px 20px;border-top:1px solid #EEF0F3;background:#F7F8FA;font-size:12px;color:#5B6372"><span>系统通知 · 仅交易时间提醒</span><a href="/settings.html" style="margin-left:auto;color:#2457D6;text-decoration:none">通知设置</a></div></div>';

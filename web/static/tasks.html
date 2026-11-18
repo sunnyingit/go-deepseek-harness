@@ -197,24 +197,81 @@ function ioBlock(label, value, open) {
     apisLine(value) +
     '<pre style="margin:6px 0 0;padding:8px;background:#F7F8FA;border-radius:8px;font-size:11px;overflow:auto;max-height:220px;white-space:pre-wrap">' + esc(prettyJSON(value)) + '</pre></details>';
 }
+function customKindOf(t) {
+  if (t && t.kind) return t.kind;
+  const id = String((t && t.task_id) || '').replace(/^custom\./, '');
+  const cu = (S.data.custom && S.data.custom.tasks || []).find((x) => x.id === id);
+  return cu ? cu.kind : '';
+}
+function jobName(j) {
+  const out = j.output || {};
+  return out.name || j.unit_key || '—';
+}
+function scanJobCard(j) {
+  const out = j.output || {};
+  const hit = !!out.hit;
+  const failed = Array.isArray(out.failed) ? out.failed : [];
+  const passed = Array.isArray(out.passed) ? out.passed : [];
+  const pill = hit ? pl('#EDF7F1', '#1E6B44', '符合') : pl('#FDECEA', '#B42318', '不符合');
+  let body = '';
+  if (j.error) body += '<div style="font-size:12px;color:#B42318;margin-top:4px">' + esc(j.error.message || '') + '</div>';
+  if (failed.length) body += '<div style="margin-top:6px;font-size:12px;color:#5B6372;line-height:1.55"><span style="color:#B42318;font-weight:600">未满足</span><ul style="margin:4px 0 0;padding-left:18px">' + failed.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
+  if (passed.length) body += '<div style="margin-top:6px;font-size:12px;color:#5B6372;line-height:1.55"><span style="color:#1E6B44;font-weight:600">已满足</span><ul style="margin:4px 0 0;padding-left:18px">' + passed.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
+  if (!failed.length && !passed.length && !j.error) body += '<div style="margin-top:6px;font-size:12px;color:#8A919E">' + esc(out.summary || (hit ? '符合条件' : '不符合条件')) + '</div>';
+  return '<div style="padding:10px 0;border-top:1px solid #F4F5F7"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="font-size:13px">' + esc(jobName(j)) + '</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + esc(j.unit_key || '') + '</span>' + pill + '</div>' + body + '</div>';
+}
+function askJobCard(j) {
+  const out = j.output || {};
+  const href = out.link || (out.session_id ? ('/dialog.html?session=' + encodeURIComponent(out.session_id)) : '');
+  const summary = out.summary || out.detail || out.text || '';
+  return '<div style="padding:12px 0;border-top:1px solid #F4F5F7"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="font-size:13px">' + esc(jobName(j)) + '</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + esc(j.unit_key || '') + '</span>' +
+    (href ? '<a href="' + esc(href) + '" style="margin-left:auto;font-size:12px;color:#2457D6;text-decoration:none;white-space:nowrap">详情 · 去问问 →</a>' : '') + '</div>' +
+    (out.question ? '<div style="margin-top:6px;font-size:12px;color:#8A919E">问：' + esc(out.question) + '</div>' : '') +
+    (summary ? '<div style="margin-top:8px;padding:10px 12px;background:#F7F8FA;border-radius:10px;font-size:13px;line-height:1.65;color:#14171F;white-space:pre-wrap">' + esc(summary) + '</div>' : '<div style="margin-top:6px;font-size:12px;color:#8A919E">还没有摘要</div>') +
+    (j.error ? '<div style="font-size:12px;color:#B42318;margin-top:6px">' + esc(j.error.message || '') + '</div>' : '') + '</div>';
+}
 function jobBlock(j) {
   const sc = STATE_COLOR[j.state] || ['#F1F2F4', '#5B6372'];
-  return '<div style="padding:8px 0;border-top:1px solid #F4F5F7"><div style="display:flex;gap:8px;align-items:baseline"><b style="' + MONO_F + ';font-size:12px">' + esc(j.unit_key || '—') + '</b>' + pl(sc[0], sc[1], STATE_TEXT[j.state] || j.state) + '</div>' +
+  const out = j.output || {};
+  const dialogHref = out.link || (out.session_id ? ('/dialog.html?session=' + encodeURIComponent(out.session_id)) : '');
+  return '<div style="padding:8px 0;border-top:1px solid #F4F5F7"><div style="display:flex;gap:8px;align-items:baseline"><b style="' + MONO_F + ';font-size:12px">' + esc(j.unit_key || '—') + '</b>' + pl(sc[0], sc[1], STATE_TEXT[j.state] || j.state) +
+    (dialogHref ? '<a href="' + esc(dialogHref) + '" style="margin-left:auto;font-size:12px;color:#2457D6;text-decoration:none">去问问看 →</a>' : '') + '</div>' +
     (j.error ? '<div style="font-size:12px;color:#B42318;margin-top:4px">' + esc(j.error.message || '') + '</div>' : '') +
     ioBlock('输入', j.input, false) + ioBlock('输出', j.output, true) + '</div>';
+}
+function latestResultHTML(t, runs) {
+  if (!runs) return '<div class="skeleton" style="padding:12px">读取结果…</div>';
+  if (!runs.length) return '<div style="padding:12px 0;font-size:12px;color:#8A919E">还没有跑过，点「现在跑」后这里会出结果</div>';
+  const r = runs[0];
+  const jobs = S.detailJobs[r.run_id];
+  const kind = customKindOf(t);
+  const head = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="font-size:13px">最近结果</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + esc(r.at || '') + (r.trigger === 'manual' ? ' · 手动' : '') + '</span>' + pl((STATE_COLOR[r.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[r.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[r.state] || r.state) + '</div>';
+  if (!jobs) return head + '<div class="skeleton" style="padding:8px">读取输出…</div>';
+  if (!jobs.length) return head + '<div style="font-size:12px;color:#8A919E;padding:8px 0">这次没有分单位的作业</div>';
+  if (kind === 'scan') {
+    const hits = jobs.filter((j) => j.output && j.output.hit).length;
+    return head + '<div style="font-size:12px;color:#5B6372;margin-bottom:4px">扫了 ' + jobs.length + ' 只，命中 ' + hits + ' 只</div>' + jobs.map(scanJobCard).join('');
+  }
+  if (kind === 'ask') {
+    return head + '<div style="font-size:12px;color:#5B6372;margin-bottom:4px">共 ' + jobs.length + ' 条回答，点「详情」进问问看全文</div>' + jobs.map(askJobCard).join('');
+  }
+  return head + jobs.map(jobBlock).join('');
 }
 function runBlock(r) {
   const open = S.openRun === r.run_id;
   const jobs = S.detailJobs[r.run_id];
   const sc = STATE_COLOR[r.state] || ['#F1F2F4', '#5B6372'];
+  const kind = customKindOf(S.detail || {});
   let jobsHTML = '';
   if (open) {
     if (!jobs) jobsHTML = '<div class="skeleton" style="padding:8px">读取输出…</div>';
     else if (!jobs.length) jobsHTML = '<span style="font-size:12px;color:#8A919E">这次没有分单位的作业（或已跳过）</span>';
+    else if (kind === 'scan') jobsHTML = jobs.map(scanJobCard).join('');
+    else if (kind === 'ask') jobsHTML = jobs.map(askJobCard).join('');
     else jobsHTML = jobs.map(jobBlock).join('');
   }
   return '<div style="border-top:1px solid #EEF0F3"><button type="button" data-act="sysrunopen" data-run="' + esc(r.run_id) + '" style="display:flex;width:100%;gap:8px;align-items:center;padding:10px 0;border:none;background:transparent;text-align:left;font:inherit;cursor:pointer"><span style="color:#8A919E;font-size:12px">' + (open ? '▾' : '▸') + '</span><span style="' + MONO_F + ';font-size:12px">' + esc(r.at || '') + '</span>' + pl(sc[0], sc[1], STATE_TEXT[r.state] || r.state) + '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + esc(r.trigger || '') + '</span></button>' +
-    (open ? '<div style="padding:0 0 10px 18px">' + ioBlock('Run 输入', r.input, false) + jobsHTML + '</div>' : '') + '</div>';
+    (open ? '<div style="padding:0 0 10px 18px">' + jobsHTML + '</div>' : '') + '</div>';
 }
 function renderDetailAside() {
   const el = $('detailAside');
@@ -222,14 +279,24 @@ function renderDetailAside() {
   if (S.notif || !S.detail) { el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
   const t = S.detail, runs = S.detailRuns;
+  const kind = customKindOf(t);
   let runsHTML = '<div class="skeleton" style="padding:12px">读取运行记录…</div>';
   if (runs) {
     runsHTML = runs.length ? runs.map(runBlock).join('') : '<span class="sub" style="padding:8px 0">还没有运行记录</span>';
   }
+  const showResult = kind === 'scan' || kind === 'ask' || kind === 'analyze';
+  const isCustom = String(t.task_id || '').indexOf('custom.') === 0;
+  const cuId = isCustom ? String(t.task_id).replace(/^custom\./, '') : '';
+  const actions = t.deleted
+    ? sysBtn('sysrestore', t.task_id, '恢复')
+    : (isCustom
+      ? sysBtn('curun', cuId, '现在跑') + sysBtn('cuedit', cuId, '编辑') + sysBtn('cudel', cuId, '删除', '#B42318')
+      : sysBtn('sysrun', t.task_id, '现在跑') + sysBtn('sysedit', t.task_id, '编辑') + sysBtn('sysdel', t.task_id, '删除', '#B42318'));
   el.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px;padding:16px 18px"><div style="display:flex;align-items:flex-start;gap:8px"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><b style="font-size:16px">' + esc(t.title || t.task_id) + '</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + esc(t.task_id) + '</span><span style="font-size:12px;color:#5B6372">' + esc(t.trigger_text || '') + (t.paused ? ' · 已停用' : '') + '</span></div><button type="button" data-act="sysdetailclose" style="margin-left:auto;border:none;background:transparent;font-size:18px;color:#8A919E;cursor:pointer">×</button></div>' +
     (t.note ? '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(t.note) + '</span>' : '') +
     apisLine(t.trace) +
-    '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (t.deleted ? sysBtn('sysrestore', t.task_id, '恢复') : sysBtn('sysrun', t.task_id, '现在跑') + sysBtn('sysedit', t.task_id, '编辑') + sysBtn('sysdel', t.task_id, '删除', '#B42318')) + '</div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">' + actions + '</div>' +
+    (showResult ? '<div style="padding-top:4px;border-top:1px solid #EEF0F3">' + latestResultHTML(t, runs) + '</div>' : '') +
     '<div><b style="font-size:13px">最近执行</b><div style="margin-top:6px">' + runsHTML + '</div></div></div>';
 }
 function findSysTask(id) {
@@ -245,9 +312,10 @@ async function openSysDetail(id) {
   let t = findSysTask(id);
   if (!t && id.indexOf('custom.') === 0) {
     const cu = (S.data.custom && S.data.custom.tasks || []).find((x) => ('custom.' + x.id) === id || x.id === id.replace(/^custom\./, ''));
-    if (cu) t = { task_id: 'custom.' + cu.id, title: cu.title, trigger_text: cu.schedule_text, note: '你自己建的定时任务', paused: !cu.enabled };
+    if (cu) t = { task_id: 'custom.' + cu.id, title: cu.title, trigger_text: cu.schedule_text, note: '你自己建的定时任务', paused: !cu.enabled, kind: cu.kind };
   }
   if (!t) { toast('没有这个任务', true); return; }
+  if (!t.kind && String(t.task_id || '').indexOf('custom.') === 0) t.kind = customKindOf(t);
   S.detail = t; S.detailRuns = null; S.detailJobs = {}; S.openRun = null;
   renderBody();
   try {
@@ -257,9 +325,20 @@ async function openSysDetail(id) {
     S.detailRuns = j.runs || [];
   } catch (e) { S.detailRuns = []; toast(e.message, true); }
   renderDetailAside();
+  if (S.detailRuns && S.detailRuns[0]) {
+    const rid = S.detailRuns[0].run_id;
+    const kind = customKindOf(t);
+    // For scan/ask/analyze, results live in「最近结果」— keep the run list collapsed to avoid duplicating the same cards.
+    if (kind === 'scan' || kind === 'ask' || kind === 'analyze') {
+      await loadRunJobs(rid);
+    } else {
+      S.openRun = rid;
+      await loadRunJobs(rid);
+    }
+  }
 }
 async function loadRunJobs(runId) {
-  if (S.detailJobs[runId]) return;
+  if (S.detailJobs[runId]) { renderDetailAside(); return; }
   try {
     const res = await fetch('/api/scan/sys/runs/' + encodeURIComponent(runId) + '/jobs');
     const j = await res.json();
@@ -301,7 +380,7 @@ function renderSysEdit() {
 }
 
 /* ---------- 通知（和设计稿一样的抽屉） ---------- */
-const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩'], ['system', '系统']];
+const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩']];
 const NOTIF_ALERT_KINDS = { alert: 1, upcoming: 1, move: 1, ann: 1 };
 const NOTIF_ICON = { alert: ['🔔', '#FDECEA'], change: ['⇄', '#FFF4E0'], upcoming: ['📅', '#F1F2F4'], settle: ['★', '#EDF7F1'], ann: ['📢', '#F1F2F4'], move: ['📈', '#F1F2F4'], system: ['⚙', '#F1F2F4'] };
 function notifMatch(tab, kind) {
@@ -331,12 +410,13 @@ function renderNotif() {
   el.style.display = S.notif ? 'flex' : 'none';
   if (S.notif) renderDetailAside();
   if (!S.notif) return;
+  if (S.nTab === 'system' || S.nTab === 'all') S.nTab = 'alert';
   const d = S.nData;
   const items = d ? d.items.filter((i) => notifMatch(S.nTab, i.kind)) : [];
   const groups = ['今天', '即将发生', '昨天', '更早'].map((g) => [g, items.filter((i) => i.group === g)]).filter((x) => x[1].length);
   el.innerHTML = '<div style="display: flex; align-items: center; gap: 12px; padding: 14px 12px 0 20px"><span style="font-size: 16px; font-weight: 700">通知</span><button type="button" data-act="notifread" style="margin-left: auto; font-size: 12px; color: #2457D6; border: none; background: transparent; cursor: pointer">全部已读</button><button type="button" aria-label="关闭（Esc）" data-act="notif" style="width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: #5B6372; font: inherit; font-size: 18px; cursor: pointer">×</button></div>' +
     '<div style="display: flex; padding: 0 10px; border-bottom: 1px solid #EEF0F3">' + NOTIF_TABS.map(([k, n]) => '<button type="button" data-act="ntab" data-k="' + k + '" style="padding: 0 10px; height: 36px; display: inline-flex; align-items: center; font-size: 13px; border: none; background: transparent; cursor: pointer; ' + (S.nTab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : 'color: #5B6372') + '">' + n + '</button>').join('') + '</div>' +
-    (!d ? '<div class="skeleton" style="padding: 20px">正在取通知…</div>' : groups.length ? groups.map(([g, list]) => '<span style="padding: 10px 16px 2px 32px; font-size: 11px; font-weight: 600; color: #8A919E">' + g + '</span>' + list.map((i) => { const ic = NOTIF_ICON[i.kind] || ['•', '#F1F2F4']; return '<button type="button" data-act="nsel" data-id="' + esc(i.id || '') + '" data-kind="' + esc(i.kind) + '" data-code="' + esc(i.code) + '" style="display: grid; grid-template-columns: 6px 28px minmax(0, 1fr) auto; align-items: start; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: transparent; text-align: left; font: inherit; color: #14171F; cursor: pointer">' + (i.unread ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #D9483F; margin-top: 7px"></span>' : '<span style="width: 6px"></span>') + '<span style="width: 28px; height: 28px; border-radius: 8px; background: ' + ic[1] + '; display: flex; align-items: center; justify-content: center; font-size: 13px">' + ic[0] + '</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 11px; color: #8A919E">' + esc(i.title) + '</span><span style="font-weight: 600">' + esc(i.text) + '</span>' + (i.sub ? '<span style="font-size: 12px; color: #5B6372; white-space: pre-line">' + esc(i.sub) + '</span>' : '') + '</span><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(i.when) + '</span></button>'; }).join('')).join('') : '<div style="padding: 28px 20px; color: #8A919E">现在没有通知。</div>') +
+    (!d ? '<div class="skeleton" style="padding: 20px">正在取通知…</div>' : groups.length ? groups.map(([g, list]) => '<span style="padding: 10px 16px 2px 32px; font-size: 11px; font-weight: 600; color: #8A919E">' + g + '</span>' + list.map((i) => { const ic = NOTIF_ICON[i.kind] || ['•', '#F1F2F4']; const page = (i.link && i.link.page) || ''; const taskId = (i.link && i.link.task_id) || ''; return '<button type="button" data-act="nsel" data-id="' + esc(i.id || '') + '" data-kind="' + esc(i.kind) + '" data-code="' + esc(i.code) + '" data-page="' + esc(page) + '" data-task="' + esc(taskId) + '" style="display: grid; grid-template-columns: 6px 28px minmax(0, 1fr) auto; align-items: start; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: transparent; text-align: left; font: inherit; color: #14171F; cursor: pointer">' + (i.unread ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #D9483F; margin-top: 7px"></span>' : '<span style="width: 6px"></span>') + '<span style="width: 28px; height: 28px; border-radius: 8px; background: ' + ic[1] + '; display: flex; align-items: center; justify-content: center; font-size: 13px">' + ic[0] + '</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 11px; color: #8A919E">' + esc(i.title) + '</span><span style="font-weight: 600">' + esc(i.text) + '</span>' + (i.sub ? '<span style="font-size: 12px; color: #5B6372; white-space: pre-line">' + esc(i.sub) + '</span>' : '') + '</span><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(i.when) + '</span></button>'; }).join('')).join('') : '<div style="padding: 28px 20px; color: #8A919E">现在没有通知。</div>') +
     '<div style="display: flex; align-items: center; gap: 12px; margin-top: auto; padding: 12px 20px; border-top: 1px solid #EEF0F3; background: #F7F8FA; font-size: 12px; color: #5B6372"><span>系统通知 · 仅交易时间提醒</span><a href="/settings.html" style="margin-left: auto; color: #2457D6; text-decoration: none">通知设置</a></div>';
 }
 async function loadNotif() {
@@ -442,6 +522,7 @@ const ACT = {
     clearTimeout(nItemTimer);
     nItemTimer = setTimeout(() => {
       S.notif = false; renderNotif();
+      if (el.dataset.page === 'tasks' && el.dataset.task) { openSysDetail(el.dataset.task); return; }
       if (el.dataset.kind === 'settle' && !el.dataset.code) location.href = '/scan.html';
       else if (el.dataset.code) location.href = diagnoseHref(el.dataset.code);
     }, 280);
@@ -536,7 +617,7 @@ let nItemTimer = 0;
 /* ---------- 自定义任务：自己定时间、定范围、定做什么 ---------- */
 const CU_KIND = {
   analyze: ['定时分析', '#EAF0FD', '#2457D6', '到点让分析师给这些股票重新出一份结论，记成预测去跟踪', '用你的模型'],
-  ask: ['定时提问', '#FFF1D6', '#7A4A00', '到点把你写的问题问主分析师，回答放进通知', '用你的模型'],
+  ask: ['定时提问', '#FFF1D6', '#7A4A00', '到点把你写的问题问分析师，回答放进问问会话', '用你的模型'],
   scan: ['条件扫描', '#EDF7F1', '#1E6B44', '到点检查这些股票满不满足你设的条件，满足的才通知你', '不用模型'],
 };
 const CU_SCOPE = [['all', '我的全部标的'], ['hold', '我的持仓'], ['wish', '我想买的'], ['watch', '我的自选'], ['codes', '指定股票…']];
@@ -545,7 +626,7 @@ const CU_TEMPLATES = {
   dims: { title: '午后看资金、新闻、板块', kind: 'analyze', scope: 'hold', at: '14:00', days: 'trading', analysts: ['volume_flow', 'news', 'sector'], desc: '每个交易日 14:00，只让资金流、新闻、板块三位分析师各说一次，结论进通知' },
   hold: { title: '收盘后再分析持仓', kind: 'analyze', scope: 'hold', at: '15:40', days: 'trading', desc: '每个交易日收盘后，把持仓的票各重新分析一遍' },
   ma: { title: '跌破 20 日线提醒', kind: 'scan', scope: 'all', at: '15:40', days: 'trading', match: 'all', rules: [{ kind: 'below_ma', value: 20 }], desc: '收盘后看哪些标的收盘跌破了 20 日线' },
-  ask: { title: '午前看有没有新消息', kind: 'ask', scope: 'hold', at: '11:00', days: 'trading', question: '今天有没有新公告、新闻或者资金异动，对这只票是利好还是利空？', desc: '午休前问主分析师一句，回答直接进通知' },
+  ask: { title: '午前看有没有新消息', kind: 'ask', scope: 'hold', at: '11:00', days: 'trading', question: '今天有没有新公告、新闻或者资金异动，对这只票是利好还是利空？', desc: '午休前问分析师一句，回答放进问问会话' },
 };
 const cuKinds = () => (S.data.custom && S.data.custom.kinds) || [];
 const cuKindOf = (k) => cuKinds().find((x) => x.kind === k) || { kind: k, label: k, unit: '' };
@@ -591,7 +672,7 @@ const CU_ICON = {
 };
 const CU_WORDS = {
   analyze: ['定时分析', '到点让分析师把这些股票重新分析一遍。不用你写问题，按他们固定的分析流程来。', '例：每天收盘后，把持仓再分析一遍'],
-  ask: ['定时提问', '到点把你写的一个问题问分析师，每只股票各问一遍，回答放进通知。', '例：午休前问「今天有没有新公告和资金异动？」'],
+  ask: ['定时提问', '到点把你写的一个问题问分析师，每只股票各问一遍，回答放进问问会话列表。', '例：午休前问「今天有没有新公告和资金异动？」'],
   scan: ['条件扫描', '到点检查这些股票满不满足你设的条件，满足的才通知你。', '例：收盘跌破 20 日线，且大资金连续流出'],
 };
 function cuAutoTitle(f) {
@@ -609,7 +690,7 @@ function cuSentence(f) {
   const who = (ids, dflt) => ids.length ? ids.map((a) => ({ volume_flow: '资金流', market: '大盘', sector: '板块', news: '新闻', finance: '财报', fundamental: '基本面', chief: '主分析师' }[a])).join('、') : dflt;
   let what;
   if (f.kind === 'analyze') what = f.analysts.length ? '让 ' + who(f.analysts) + ' 分析师各分析一次，结论放进通知（不出裁决，不记预测）' : '各出一份完整结论（五位分析师、看多看空、主分析师裁决），并记成预测去跟踪';
-  else if (f.kind === 'ask') what = '问 ' + who(f.analysts, '主分析师').replace(/(资金流|板块|新闻|财报|基本面)/g, '$1分析师') + '：「' + (f.question.trim() || '……') + '」，回答放进通知';
+  else if (f.kind === 'ask') what = '问 ' + who(f.analysts, '主分析师').replace(/(资金流|板块|新闻|财报|基本面)/g, '$1分析师') + '：「' + (f.question.trim() || '……') + '」，回答放进问问会话';
   else what = '检查是否 ' + f.rules.map((r) => cuRuleWords(r)).join(f.match === 'any' ? ' 或 ' : ' 且 ') + '，符合的才通知你（同一只票一天一次）';
   return when + '，对 ' + scope + ' ' + what + '。';
 }
@@ -768,7 +849,12 @@ Object.assign(ACT, {
     if (DEMO) return;
     const t = S.data.custom.tasks.find((x) => x.id === el.dataset.id); if (!t) return;
     if (!confirm('删掉任务「' + t.title + '」？它不会再自动跑；已经发出的通知不受影响。')) return;
-    try { await cuCall('DELETE', '/' + encodeURIComponent(t.id)); await cuReload(); toast('已删掉'); } catch (e) { toast(e.message, true); }
+    try {
+      await cuCall('DELETE', '/' + encodeURIComponent(t.id));
+      if (S.detail && S.detail.task_id === 'custom.' + t.id) { S.detail = null; S.detailRuns = null; S.detailJobs = {}; S.openRun = null; }
+      await cuReload();
+      toast('已删掉');
+    } catch (e) { toast(e.message, true); }
   },
   curun: async (el) => {
     if (DEMO) { toast('示例数据里不能运行'); return; }
@@ -777,8 +863,11 @@ Object.assign(ACT, {
     try {
       const j = await cuCall('POST', '/' + encodeURIComponent(t.id) + '/run');
       toast('已开始，共 ' + j.queued + ' 只');
-      [2500, 8000, 20000, 45000].forEach((ms) => setTimeout(() => { cuReload().catch(() => {}); }, ms));
-      setTimeout(() => cuReload().catch(() => {}), 1200);
+      const refresh = async () => {
+        await cuReload().catch(() => {});
+        if (S.detail && S.detail.task_id === 'custom.' + t.id) await openSysDetail('custom.' + t.id);
+      };
+      [1200, 2500, 8000, 20000, 45000].forEach((ms) => setTimeout(() => { refresh().catch(() => {}); }, ms));
     } catch (e) { toast(e.message, true); }
   },
 });

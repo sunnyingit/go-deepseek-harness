@@ -100,15 +100,41 @@ func TestCustomScanTellsOnlyWhatMatchesAndOnlyOncePerDay(t *testing.T) {
 	if len(hits) != 1 || hits[0]["subject"] != "600036.SH" || !strings.Contains(hits[0]["title"].(string), "跌破五日线 · 招商银行") || !strings.Contains(hits[0]["body"].(string), "跌破 5 日均线") {
 		t.Fatalf("hits = %v", hits)
 	}
+	summary := inboxTypes(s, "custom.scan_result")
+	if len(summary) != 1 || !strings.Contains(summary[0]["title"].(string), "条件扫描") || !strings.Contains(summary[0]["body"].(string), "命中 1 只") || !strings.Contains(summary[0]["body"].(string), "招商银行") {
+		t.Fatalf("scan summary = %v", summary)
+	}
 	// the same condition on the same day is not announced twice
 	a.call("POST", "/api/scan/custom/"+id+"/run", "")
 	s.sch.TickSync()
 	if n := len(inboxTypes(s, "custom.hit")); n != 1 {
 		t.Fatalf("announced %d times", n)
 	}
+	if n := len(inboxTypes(s, "custom.scan_result")); n != 2 {
+		t.Fatalf("scan summary should still appear each run, got %d", n)
+	}
 }
 
-func TestCustomAskPutsTheAnswerInTheInbox(t *testing.T) {
+func TestCustomScanPostsASummaryEvenWhenNothingHits(t *testing.T) {
+	ds := &dataService{closes: map[string][][2]any{"600036.SH": series("2026-10-26", 12, 10, 0.2)}}
+	ds.start(t)
+	s, _ := newClientServer(t, zoneTime("2026-11-09", "16:00"))
+	s.personal.WatchAdd("600036.SH", "招商银行")
+	a := newCustomAPI(t, s)
+	_, out := a.call("POST", "/api/scan/custom", `{"title":"跌破五日线","kind":"scan","scope":"watch","at":"15:40","rules":[{"kind":"below_ma","value":5}]}`)
+	id := out["task"].(map[string]any)["id"].(string)
+	a.call("POST", "/api/scan/custom/"+id+"/run", "")
+	s.sch.TickSync()
+	if n := len(inboxTypes(s, "custom.hit")); n != 0 {
+		t.Fatalf("unexpected hits = %d", n)
+	}
+	summary := inboxTypes(s, "custom.scan_result")
+	if len(summary) != 1 || !strings.Contains(summary[0]["body"].(string), "没有符合条件的") {
+		t.Fatalf("zero-hit summary = %v", summary)
+	}
+}
+
+func TestCustomAskPutsTheAnswerInADialogSession(t *testing.T) {
 	s, _ := newClientServer(t, zoneTime("2026-11-09", "10:00"))
 	s.personal.WatchAdd("600036.SH", "招商银行")
 	var asked []string
@@ -121,9 +147,24 @@ func TestCustomAskPutsTheAnswerInTheInbox(t *testing.T) {
 	id := out["task"].(map[string]any)["id"].(string)
 	a.call("POST", "/api/scan/custom/"+id+"/run", "")
 	s.sch.TickSync()
-	got := inboxTypes(s, "custom.answer")
-	if len(asked) != 1 || asked[0] != "600036.SH|chief|今天有没有新公告和资金异动？" || len(got) != 1 || got[0]["body"] != "今天没有新公告，资金小幅流入。" || !strings.Contains(got[0]["title"].(string), "午前看一眼 · 招商银行") {
-		t.Fatalf("asked %v, inbox %v", asked, got)
+	if len(asked) != 1 || asked[0] != "600036.SH|chief|今天有没有新公告和资金异动？" {
+		t.Fatalf("asked %v", asked)
+	}
+	if got := inboxTypes(s, "custom.answer"); len(got) != 0 {
+		t.Fatalf("ask answers must not go to the inbox anymore: %v", got)
+	}
+	ids := s.agents.List()
+	if len(ids) != 1 {
+		t.Fatalf("dialog sessions = %v", ids)
+	}
+	ag, _ := s.agents.Get(ids[0])
+	title := sessionTitle(ag.Session())
+	if !strings.HasPrefix(title, scheduledAskTitlePrefix) || !strings.Contains(title, "午前看一眼") || !strings.Contains(title, "招商银行") {
+		t.Fatalf("title = %q", title)
+	}
+	msgs := ag.Session().DeriveMessages()
+	if len(msgs) != 2 || !strings.Contains(msgs[0].Content[0].Text, "今天有没有新公告和资金异动？") || msgs[1].Content[0].Text != "今天没有新公告，资金小幅流入。" {
+		t.Fatalf("messages = %+v", msgs)
 	}
 }
 
@@ -210,9 +251,17 @@ func TestCustomAskCanAskSeveralAnalystsAndAnalysisCanBeLimitedToSomeOfThem(t *te
 	}
 	a.call("POST", "/api/scan/custom/"+task["id"].(string)+"/run", "")
 	s.sch.TickSync()
-	answers := inboxTypes(s, "custom.answer")
-	if strings.Join(asked, ",") != "news,volume_flow" || len(answers) != 1 || !strings.Contains(answers[0]["body"].(string), "【新闻】news的回答") || !strings.Contains(answers[0]["body"].(string), "【资金流】volume_flow的回答") {
-		t.Fatalf("asked %v answers %v", asked, answers)
+	if strings.Join(asked, ",") != "news,volume_flow" {
+		t.Fatalf("asked %v", asked)
+	}
+	ids := s.agents.List()
+	if len(ids) != 1 {
+		t.Fatalf("dialog sessions = %v", ids)
+	}
+	ag, _ := s.agents.Get(ids[0])
+	msgs := ag.Session().DeriveMessages()
+	if len(msgs) < 2 || !strings.Contains(msgs[1].Content[0].Text, "【新闻】news的回答") || !strings.Contains(msgs[1].Content[0].Text, "【资金流】volume_flow的回答") {
+		t.Fatalf("dialog messages = %+v", msgs)
 	}
 	// an analysis of two sides only: each one speaks, nobody weighs them, nothing is written down as a prediction
 	_, out = a.call("POST", "/api/scan/custom", `{"title":"只看资金和板块","kind":"analyze","scope":"watch","at":"14:30","analysts":["volume_flow","sector"]}`)

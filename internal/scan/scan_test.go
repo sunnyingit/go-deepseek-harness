@@ -96,10 +96,23 @@ func TestStoreNeverChangesAWrittenPredictionOrResultAndDedupesByConclusion(t *te
 	}
 }
 
-func TestAddKeepsOnlyTheLatestOpenCallPerStock(t *testing.T) {
+func TestAddKeepsSameDirectionAndOnlySupersedesOnChange(t *testing.T) {
 	st := Open("", func() time.Time { return time.Unix(1_800_000_000, 0) })
-	old, _ := st.Add(Prediction{Code: "A", Source: "scan", Direction: Bullish, BundleID: 1, MadeAt: 100})
-	neu, _ := st.Add(Prediction{Code: "A", Source: "diagnose", Direction: Bearish, BundleID: 2, MadeAt: 200})
+	old, made := st.Add(Prediction{Code: "A", Source: "scan", Direction: Bullish, BundleID: 1, MadeAt: 100, BaseDay: "2026-10-26"})
+	if !made {
+		t.Fatal("first call should be written")
+	}
+	again, made := st.Add(Prediction{Code: "A", Source: "scan", Direction: Bullish, BundleID: 2, MadeAt: 200, BaseDay: "2026-10-27"})
+	if made || again.ID != old.ID || again.BaseDay != "2026-10-26" {
+		t.Fatalf("same direction must keep original call: made=%v again=%+v old=%+v", made, again, old)
+	}
+	if n := len(st.All()); n != 1 {
+		t.Fatalf("same-direction reaffirm must not append a row: %d", n)
+	}
+	neu, made := st.Add(Prediction{Code: "A", Source: "diagnose", Direction: Bearish, BundleID: 3, MadeAt: 300, BaseDay: "2026-10-28"})
+	if !made {
+		t.Fatal("direction change should open a new call")
+	}
 	all := st.All()
 	if len(all) != 2 || all[0].ID != old.ID || all[0].SupersededAt == 0 || all[1].ID != neu.ID || all[1].SupersededAt != 0 {
 		t.Fatalf("want old superseded and new active: %+v %+v", all[0], all[1])
@@ -118,7 +131,18 @@ func TestAddKeepsOnlyTheLatestOpenCallPerStock(t *testing.T) {
 	raw.save()
 	got := Open(path, func() time.Time { return time.Unix(1_800_000_001, 0) }).All()
 	if len(got) != 2 || got[0].SupersededAt == 0 || got[1].SupersededAt != 0 {
-		t.Fatalf("reload must collapse open calls per stock: %+v %+v", got[0], got[1])
+		t.Fatalf("reload must collapse on direction change: %+v %+v", got[0], got[1])
+	}
+	path2 := t.TempDir() + "/collapse-same.json"
+	same := Open(path2, func() time.Time { return time.Unix(1_800_000_000, 0) })
+	same.Add(Prediction{Code: "Y", Source: "scan", Direction: Bullish, BundleID: 20, MadeAt: 10, BaseDay: "2026-10-01"})
+	// force a second same-direction row as if an older build wrote both
+	same.Items = append(same.Items, &Prediction{ID: "p99", Code: "Y", Source: "scan", Direction: Bullish, BundleID: 21, MadeAt: 20, BaseDay: "2026-10-02"})
+	same.Seq = 99
+	same.save()
+	collapsed := Open(path2, func() time.Time { return time.Unix(1_800_000_001, 0) }).All()
+	if len(collapsed) != 2 || collapsed[0].SupersededAt != 0 || collapsed[0].BaseDay != "2026-10-01" || collapsed[1].SupersededAt == 0 {
+		t.Fatalf("reload must keep earliest same-direction call: %+v %+v", collapsed[0], collapsed[1])
 	}
 }
 

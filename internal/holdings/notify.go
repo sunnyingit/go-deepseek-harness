@@ -13,7 +13,7 @@ import (
 var inboxKinds = map[string]string{
 	"price.alert.fired": "alert", "price.move": "move", "limit.hit": "move", "price.extreme": "move", "flow.streak": "move",
 	"judgment.changed": "change", "reason.status_changed": "change", "wish.condition_met": "change",
-	"announcement.published": "ann", "news.item": "ann", "calendar.upcoming": "upcoming", "outcome.settled": "settle", "scan.settled": "settle", "custom.hit": "alert", "custom.answer": "ann", "custom.analysis": "ann", "quality.redline": "alert", "quality.picks": "ann",
+	"announcement.published": "ann", "news.item": "ann", "calendar.upcoming": "upcoming", "outcome.settled": "settle", "scan.settled": "settle", "custom.hit": "alert", "custom.scan_result": "alert", "custom.answer": "ann", "custom.analysis": "ann", "quality.redline": "alert", "quality.picks": "ann",
 	"task.failed": "system", "task.overdue": "system", "task.completed": "system", "digest.summary": "system",
 	"market.brief": "system",
 }
@@ -37,7 +37,8 @@ func (c *Ctx) groupOf(t time.Time) string {
 	return "更早"
 }
 
-// inboxRows are the inbox items the holdings drawer shows: what concerns the followed stocks, plus system notices.
+// inboxRows are the inbox items the holdings drawer shows: followed stocks, settle, custom/quality.
+// System receipts (task.* / digest / market.brief) stay out of the drawer — no「系统」tab.
 func (c *Ctx) inboxRows() []inbox.Item {
 	if c.Inbox == nil {
 		return nil
@@ -51,11 +52,11 @@ func (c *Ctx) inboxRows() []inbox.Item {
 	var out []inbox.Item
 	for _, it := range c.Inbox.List("", false, 120) {
 		kind, ok := inboxKinds[it.Type]
-		if !ok {
+		if !ok || kind == "system" {
 			continue
 		}
-		// system + scan 战绩汇总 always shown; custom/quality too; other stock events only for followed codes
-		if kind == "system" || kind == "settle" || strings.HasPrefix(it.Type, "custom.") || strings.HasPrefix(it.Type, "quality.") || (it.Group == "stock" && names[it.SubjectID] != "") {
+		// settle + custom/quality always shown; other stock events only for followed codes
+		if kind == "settle" || strings.HasPrefix(it.Type, "custom.") || strings.HasPrefix(it.Type, "quality.") || (it.Group == "stock" && names[it.SubjectID] != "") {
 			out = append(out, it)
 		}
 	}
@@ -81,8 +82,8 @@ func (c *Ctx) inboxView(it inbox.Item) Map {
 	if len(lines) > 1 {
 		end := len(lines)
 		max := 3
-		if isSystem(it.Type) || inboxKinds[it.Type] == "settle" {
-			max = 8 // task receipts / digests / market briefs / settle lines carry the result
+		if isSystem(it.Type) || inboxKinds[it.Type] == "settle" || it.Type == "custom.scan_result" {
+			max = 8 // task receipts / digests / market briefs / settle / scan summary carry the result
 		}
 		if end > max {
 			end = max
@@ -94,8 +95,8 @@ func (c *Ctx) inboxView(it inbox.Item) Map {
 		when = created.Format("15:04")
 	}
 	code := it.SubjectID
-	if isSystem(it.Type) || it.Type == "scan.settled" {
-		code = ""
+	if isSystem(it.Type) || it.Type == "scan.settled" || it.Type == "custom.scan_result" {
+		code = "" // task id / run summary — not a stock code
 	}
 	tab := ""
 	if it.Link != nil {

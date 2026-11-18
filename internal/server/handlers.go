@@ -852,7 +852,7 @@ func (s *Server) sessionDTO(sess *session.Session, ag *agentloop.Agent) sessionD
 func (s *Server) sessionDTOFromHandle(id string, ag coreagent.Agent) sessionDTO {
 	header := ag.Session().Header()
 	active := false
-	if concrete, ok := ag.(*agentloop.Agent); ok {
+	if concrete, ok := ag.(*agentloop.Agent); ok && s.planController != nil {
 		active, _ = s.planController.Get(concrete)
 	}
 	sess := ag.Session()
