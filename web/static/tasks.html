@@ -564,7 +564,7 @@ function cuRow(t) {
 }
 function renderCustom() {
   const d = S.data.custom;
-  const head = '<div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">我的任务</b><span style="font-size: 12px; color: #8A919E">自己定时间、定范围、定做什么' + (d ? ' · 最多 ' + d.limit + ' 个' : '') + '</span><button type="button" data-act="cunew" style="margin-left: auto; height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">＋ 新建任务</button></div>';
+  const head = '<div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">我的任务</b><span style="font-size: 12px; color: #8A919E">自己定时间、定范围、定做什么' + (d ? ' · 最多 ' + d.limit + ' 个' : '') + '</span><button type="button" data-act="cunew" style="margin-left: auto; height: 32px; padding: 0 14px; border: 1px solid #14171F; border-radius: 8px; background: #14171F; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">＋ 新建任务</button></div>';
   if (!d) return '<div style="' + CARD + '">' + head + '<div class="skeleton" style="padding: 16px">读取中…</div></div>';
   const note = d.model ? '' : '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF8EC; font-size: 12px; color: #7A4A00">没有配置模型密钥：「定时分析」和「定时提问」要用到你的模型，先到设置里配好；「条件扫描」不受影响。</div>';
   const list = d.tasks.length ? '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 150px 120px auto; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>任务</span><span>范围</span><span>什么时候跑</span><span>上次</span><span></span></div>' + d.tasks.map(cuRow).join('') + '</div>'

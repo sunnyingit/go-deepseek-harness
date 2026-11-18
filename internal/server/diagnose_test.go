@@ -1,6 +1,9 @@
 package server
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestRoundFreshNeedsEveryAnalystOnTheSameDay(t *testing.T) {
 	s := &Server{}
@@ -85,5 +88,38 @@ func TestChiefDetailReadsTheSavedDebate(t *testing.T) {
 	bear := points["bear"].(map[string]any)["points"].([]map[string]any)
 	if bull[0]["state"] != "rejected" || bear[0]["state"] != "adopted" {
 		t.Fatalf("bull %#v bear %#v", bull, bear)
+	}
+}
+
+func TestFinishPointsDoesNotDeadlockWhenChiefExists(t *testing.T) {
+	// 回归：updateDebate 持锁时再 groupLines 会自死锁，大盘等分析师随后全部卡住。
+	s := &Server{}
+	day := diagnosisDay(time.Now())
+	code := "600011.SH"
+	s.appendGroup(code, groupLine{Agent: "volume_flow", Kind: "analysis", Text: "资金偏多", StatusText: "偏多", Day: day})
+	s.appendGroup(code, groupLine{Agent: "chief", Kind: "analysis", Text: "先裁一次", StatusText: "偏多", Day: day})
+	s.updateDebate(code, func(file *debateFile) {
+		file.Chief = &chiefDecision{Verdict: "偏多", Text: "先裁一次"}
+	})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		cfg := agentConfig{ID: "bull", Name: "看多", Speak: "points"}
+		raw := `{"points":[{"text":"近5日大单净流入","dimension":"volume_flow","weight":2}]}`
+		if _, err := s.finishPoints(cfg, code, raw, ""); err != nil {
+			t.Errorf("finishPoints: %v", err)
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("finishPoints deadlocked on groupsMu (groupLines inside updateDebate)")
+	}
+	file := s.loadDebate(code)
+	if file.Chief == nil || file.Chief.Verdict != "偏多" {
+		t.Fatalf("today chief should be kept, got %#v", file.Chief)
+	}
+	if len(file.Bull) != 1 {
+		t.Fatalf("bull points %#v", file.Bull)
 	}
 }

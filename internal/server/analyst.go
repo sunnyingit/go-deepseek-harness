@@ -2096,7 +2096,7 @@ func headlineFromSpeak(speak analystSpeak, catalog map[string]factRow, cfg agent
 		return nil, false
 	}
 	text := speak.Text
-	// 开场 text 软截：资金流约 120 字、板块约 150 字、新闻约 100 字；优先在句号处截断
+	// 开场 text 软截：资金流约 120 字、板块约 150 字、新闻约 100 字、大盘六维约 280 字；优先在句号处截断
 	if cfg.ID == "volume_flow" {
 		text = trimSummaryRunes(text, 120)
 	}
@@ -2113,7 +2113,7 @@ func headlineFromSpeak(speak analystSpeak, catalog map[string]factRow, cfg agent
 		text = trimSummaryRunes(text, 100)
 	}
 	if cfg.ID == "market" {
-		text = trimSummaryRunes(text, 100)
+		text = trimSummaryRunes(text, 280)
 	}
 	pack := func(facts []map[string]string) map[string]any {
 		out := map[string]any{

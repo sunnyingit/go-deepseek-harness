@@ -322,34 +322,37 @@ button.ans:hover{filter:brightness(0.97)}
 .kv .meter{flex-direction:row;align-items:baseline;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #F4F5F7}
 .kv .meter:last-child:nth-child(odd){grid-column:1 / -1}
 .kv .meter b{font-size:13px;font-weight:600}
-/* 板块四格：与能不能做同款素底 */
-.sq-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-.sq{min-width:0;padding:10px 12px;border:1px solid #EEF0F3;border-radius:10px;background:#F7F8FA;display:flex;flex-direction:column;gap:5px}
-.sq-h{display:flex;align-items:center;gap:6px;min-width:0}
-.sq-tag{flex:none;display:inline-flex;align-items:center;justify-content:center;height:18px;padding:0 6px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:0.02em;background:#FFFFFF;border:1px solid #E3E6EB}
-.sq-tag.in{color:#B42318}
-.sq-tag.out{color:#1E6B44}
-.sq-title{font-size:12px;font-weight:600;color:#5B6372;letter-spacing:-0.01em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sq-n{margin-left:auto;flex:none;min-width:20px;height:20px;padding:0 6px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px;font-weight:650;background:#FFFFFF;color:#5B6372;border:1px solid #EEF0F3}
-.sq-n.hot-in,.sq-n.hot-out,.sq-n.mute{background:#FFFFFF;color:#5B6372}
-.sq-row{display:grid;grid-template-columns:minmax(48px,68px) minmax(0,1fr) auto auto;align-items:center;gap:6px 8px;min-height:26px}
-.sq-name{border:none;background:transparent;padding:0;font:inherit;font-size:13px;font-weight:600;color:#14171F;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sq-name:hover{color:#2457D6}
-.sq-track{height:6px;border-radius:999px;background:#EEF0F3;overflow:hidden;min-width:0}
-.sq-bar{height:100%;border-radius:999px;max-width:100%}
-.sq-bar.in-hot{background:#C97A72}
-.sq-bar.in-cool{background:#D9B4B0}
-.sq-bar.out-hot{background:#6A9A7E}
-.sq-bar.out-cool{background:#B5C9BC}
-.sq-px{display:flex;flex-direction:column;align-items:flex-end;gap:0;line-height:1.15;flex:none;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;min-width:46px}
-.sq-px b{font-size:12px;font-weight:650;letter-spacing:-0.01em}
-.sq-px span{font-size:10px;font-weight:500;color:#8A919E}
-.sq-nums{display:flex;flex-direction:column;align-items:flex-end;gap:0;line-height:1.15;flex:none;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;min-width:48px}
-.sq-nums b{font-size:12px;font-weight:650;letter-spacing:-0.01em}
-.sq-nums span{font-size:10px;font-weight:500;color:#8A919E}
-.sq-empty{font-size:12px;color:#A1A7B2;padding:4px 0}
-.sq-more{align-self:flex-start;border:none;background:transparent;padding:2px 0 0;font:inherit;font-size:12px;color:#5B6372;cursor:pointer}
-.sq-more:hover{color:#2457D6}
+/* 板块双榜：顶对齐；默认各露 4 条，其余点展开，避免 1 对 8 留白 */
+.sb-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;align-items:start}
+.sb{min-width:0;padding:10px 12px;border:1px solid #EEF0F3;border-radius:10px;background:#F7F8FA;display:flex;flex-direction:column;gap:4px}
+.sb-h{display:flex;align-items:center;gap:6px;min-width:0;flex:none}
+.sb-tag{flex:none;display:inline-flex;align-items:center;justify-content:center;height:18px;padding:0 6px;border-radius:5px;font-size:11px;font-weight:600;letter-spacing:0.02em;background:#FFFFFF;border:1px solid #E3E6EB}
+.sb-tag.in{color:#B42318}
+.sb-tag.out{color:#1E6B44}
+.sb-tag.up{color:#B42318}
+.sb-tag.dn{color:#1E6B44}
+.sb-wrap{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.sb-wrap .sb-grid{margin-top:0}
+.sb-sec{font-size:11px;font-weight:650;color:#8A919E;letter-spacing:0.02em;padding:0 2px}
+.sb-title{font-size:12px;font-weight:600;color:#5B6372;letter-spacing:-0.01em;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-n{margin-left:auto;flex:none;min-width:20px;height:20px;padding:0 6px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:11px;font-weight:650;background:#FFFFFF;color:#5B6372;border:1px solid #EEF0F3}
+.sb-body{display:flex;flex-direction:column}
+.sb-body[data-collapsed="1"] .sb-row[data-extra="1"]{display:none}
+.sb-more{align-self:flex-start;margin-top:2px;border:none;background:transparent;padding:4px 0 0;font:inherit;font-size:12px;font-weight:600;color:#5B6372;cursor:pointer}
+.sb-more:hover{color:#2457D6}
+.sb-body[data-collapsed="1"] .sb-row[data-extra="1"]{display:none}
+.sb-row{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-top:1px solid #EEF0F3}
+.sb-row:first-of-type{border-top:none;padding-top:2px}
+.sb-top{display:flex;align-items:baseline;gap:8px;min-width:0}
+.sb-name{border:none;background:transparent;padding:0;font:inherit;font-size:13px;font-weight:650;color:#14171F;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42%}
+.sb-name:hover{color:#2457D6}
+.sb-badge{flex:none;font-size:11px;font-weight:600;color:#5B6372}
+.sb-badge.hot{color:#B42318}
+.sb-ret{margin-left:auto;flex:none;font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;font-weight:650}
+.sb-meta{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:11px;color:#5B6372;line-height:1.45}
+.sb-meta b{font-weight:600;color:#3A4250}
+.sb-meta .mute{color:#8A919E}
+.sb-empty{font-size:12px;color:#A1A7B2;padding:8px 0}
 .spulse{display:flex;align-items:baseline;gap:8px 12px;flex-wrap:wrap;margin-top:8px;padding:8px 10px;border-radius:8px;background:#F7F8FA;border:1px solid #EEF0F3;font-size:12px;color:#5B6372}
 .spulse-k{font-weight:600;color:#8A919E}
 .spulse-n{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-weight:650;color:#3A4250}
@@ -359,6 +362,7 @@ button.ans:hover{filter:brightness(0.97)}
 .spulse-fig{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12px;font-weight:600;color:#5B6372}
 .spulse-hint{color:#A1A7B2}
 .sector-card .card-hint{color:#8A919E;font-size:12px;padding:0 0 2px}
+.sector-card .sb-sum{margin:4px 0 2px;font-size:13px;font-weight:600;line-height:1.55;color:#3A4250}
 .sector-card > .scope{margin-top:8px;padding-top:0;border-top:none}
 .spicks{display:flex;flex-direction:column;gap:8px;margin:10px 0 8px}
 .spicks-row{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;padding:10px 12px;border-radius:12px;background:#F7F8FA;font-size:12px;color:#5B6372}
@@ -391,7 +395,7 @@ button.ans:hover{filter:brightness(0.97)}
 .spicks-row.mood-concl .spicks-items{width:100%;display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
 .spicks-row.mood-concl .spicks-item,
 .spicks-row.mood-concl .spicks-item[data-focus="1"]{min-width:0;padding:10px 12px;border:1px solid #EEF0F3;border-radius:10px;background:#F7F8FA}
-.spicks-row.mood-concl .spicks-name{font-size:15px;font-weight:700;letter-spacing:-0.01em;cursor:default;line-height:1.25}
+.spicks-row.mood-concl .spicks-name{font-size:13px;font-weight:600;letter-spacing:-0.01em;cursor:default;line-height:1.25}
 .spicks-row.mood-concl .spicks-name.good{color:#B42318}
 .spicks-row.mood-concl .spicks-name.bad{color:#1E6B44}
 .spicks-row.mood-concl .spicks-name.warn{color:#7A4A00}
@@ -476,7 +480,7 @@ table.tb tr.grp td{background:#F7F8FA;text-align:left;padding:8px 6px;border-top
 <span><span class="pill s t-good">顺</span> 利于做多　<span class="pill s t-flat">平</span> 看不出方向　<span class="pill s t-bad">逆</span> 不利</span></div>
 <div style="display:flex;flex-direction:column;gap:6px;font-size:13px"><span style="font-size:12px;color:#8A919E">板块分桶</span>
 <span><span class="pill s t-good">主升</span> 强势；待资金 / 换手上行也在这一侧</span>
-<span><span class="pill s t-blue">钱先到·潜伏</span> 钱领先，等价格确认</span>
+<span><span class="pill s t-blue">净申购先到·潜伏</span> 净申购领先，等价格确认</span>
 <span><span class="pill s t-warn">派发·分歧</span> 高位没钱或只热</span>
 <span><span class="pill s t-bad">退潮·撤</span> 钱在出</span></div>
 <div style="display:flex;flex-direction:column;gap:6px;font-size:13px"><span style="font-size:12px;color:#8A919E">数据龄</span>
@@ -1673,37 +1677,92 @@ function sectorChip(r, withMoney) {
   const flow = r.flow == null ? '' : yi(r.flow, true).replace(' 亿', '亿');
   return '<span class="chip ' + tone + '" title="' + esc(r.phase + '：' + r.why) + '"><b>' + esc(r.name) + '</b>' + (withMoney ? '<i>' + [mz, flow].filter(Boolean).join(' · ') + '</i>' : '') + '</span>';
 }
-function sectorQuadrant(c, list, days) {
-  const cap = 5;
-  const show = list.slice(0, cap);
-  const maxAbs = Math.max(1.5, ...show.map((r) => Math.abs(r.money_z || 0)));
-  const barCls = (c.inn ? 'in' : 'out') + '-' + (c.hot ? 'hot' : 'cool');
-  const numCls = c.hot ? (c.inn ? 'hot-in' : 'hot-out') : 'mute';
-  const ink = c.inn ? '#B42318' : '#1E6B44';
-  const rows = show.map((r) => {
-    const pct = Math.max(8, Math.round(Math.abs(r.money_z || 0) / maxAbs * 100));
-    const flow = r.flow == null ? '' : yi(r.flow, true).replace(' 亿', '亿');
-    const ret = r.ret5;
-    const weak = ret != null && ret < 0;
-    const pxTip = (r.phase || r.name) + (r.price_z == null ? '' : ' · 价Mz ' + mzNum(r.price_z)) + (weak ? ' · 价弱' : '');
-    const px = '<div class="sq-px" title="' + esc(pxTip) + '">' +
-      '<b class="' + cls(ret) + '">' + (ret == null ? '—' : srate(ret, 1)) + '</b>' +
-      '<span>涨跌' + (weak ? '<i class="sq-weak">价弱</i>' : '') + '</span></div>';
-    return '<div class="sq-row">' +
-      '<button type="button" class="sq-name" data-secpop="' + esc(r.name) + '" title="' + esc(r.phase || r.name) + '">' + esc(r.name) + '</button>' +
-      '<div class="sq-track"><div class="sq-bar ' + barCls + '" style="width:' + pct + '%"></div></div>' +
-      px +
-      '<div class="sq-nums"><b style="color:' + ink + '">' + mzNum(r.money_z) + '</b>' +
-      (flow ? '<span>' + flow + '</span>' : '<span>钱Mz</span>') + '</div></div>';
+const SB_PREVIEW = 4;
+function sectorWinDays(sec) {
+  const n = Number((sec && (sec.conclusion_days || (sec.thresholds && sec.thresholds.conclusion_days))) || 3);
+  return n > 0 ? n : 3;
+}
+function sectorBoardTip(r, nDays) {
+  const n = nDays || 3;
+  const bits = [];
+  if (r.ret5 != null) {
+    bits.push('右上角涨跌＝板块自己近 ' + n + ' 个交易日累计涨了/跌了多少。');
+  }
+  if (r.money_z != null) {
+    const a = Math.abs(r.money_z).toFixed(1);
+    bits.push('「资金」数字（现在 ' + (r.money_z > 0 ? '+' : r.money_z < 0 ? '−' : '') + a + '）＝近 ' + n + ' 日相对自己近两个月平时更进还是更出；到约 1 算偏，到 3 算明显。');
+  }
+  if (r.flow != null) {
+    bits.push('「亿」＝近 ' + n + ' 日净流入金额，负号就是净流出，只看多少钱。');
+  }
+  if (r.heat != null) {
+    bits.push('热度 ' + Number(r.heat).toFixed(2) + '×＝近 ' + n + ' 日成交相对沪深300吵不吵；≥1.25 才算放量。');
+  }
+  if (r.price_z != null) {
+    const a = Math.abs(r.price_z).toFixed(1);
+    bits.push('「跟大盘」数字（现在 ' + (r.price_z > 0 ? '+' : r.price_z < 0 ? '−' : '') + a + '）＝近 ' + n + ' 日涨跌相对沪深300强不强；接近 0＝差不多，正＝跑赢，负＝跑输。');
+  }
+  if (r.phase) bits.push('状态：' + r.phase + '。');
+  return bits.join(' ');
+}
+function sectorBoardBadge(kind, r, nDays) {
+  const n = nDays || 3;
+  if (kind === 'rising') {
+    return { text: r.up_days >= 2 ? (r.up_text || ('连涨 ' + r.up_days + ' 日')) : (r.hot ? '放量' : '价强'), hot: !!r.hot };
+  }
+  if (kind === 'exiting') return { text: r.weak_price ? '价弱' : '钱出', hot: false };
+  if (kind === 'up') {
+    return { text: r.up_days >= 2 ? (r.up_text || ('连涨 ' + r.up_days + ' 日')) : ('近 ' + n + ' 日涨'), hot: false };
+  }
+  return { text: '近 ' + n + ' 日跌', hot: false };
+}
+function sectorBoardCol(kind, title, list, nDays) {
+  const tagMap = { rising: ['in', '攻'], exiting: ['out', '出'], up: ['up', '涨'], down: ['dn', '跌'] };
+  const tag = tagMap[kind] || ['in', '·'];
+  const items = list || [];
+  const extra = Math.max(0, items.length - SB_PREVIEW);
+  const rows = items.map((r, i) => {
+    const tip = sectorBoardTip(r, nDays);
+    const badge = sectorBoardBadge(kind, r, nDays);
+    const flow = r.flow_text ? String(r.flow_text).replace(' 亿', '亿') : '';
+    return '<div class="sb-row"' + (i >= SB_PREVIEW ? ' data-extra="1"' : '') + ' title="' + esc(tip) + '">' +
+      '<div class="sb-top">' +
+        '<button type="button" class="sb-name" data-secpop="' + esc(r.name) + '">' + esc(r.name) + '</button>' +
+        '<span class="sb-badge' + (badge.hot ? ' hot' : '') + '">' + esc(badge.text) + '</span>' +
+        '<b class="sb-ret ' + cls(r.ret5) + '">' + (r.ret5 == null ? '—' : srate(r.ret5, 1)) + '</b>' +
+      '</div>' +
+      '<div class="sb-meta">' +
+        '<span><b>' + esc(r.money_tip || '资金 —') + '</b>' + (flow ? '<span class="mute"> · ' + esc(flow) + '</span>' : '') + '</span>' +
+        '<span>' + esc(r.heat_text || '热度 —') + '</span>' +
+        (r.price_tip ? '<span class="mute">' + esc(r.price_tip) + '</span>' : '') +
+      '</div></div>';
   }).join('');
-  const more = list.length > cap
-    ? '<button type="button" class="sq-more" data-tab="sector">还有 ' + (list.length - cap) + ' 个 →</button>'
+  const more = extra
+    ? '<button type="button" class="sb-more" data-sb-toggle="1" aria-expanded="false">还有 ' + extra + ' 个 · 展开</button>'
     : '';
-  return '<div class="sq">' +
-    '<div class="sq-h"><span class="sq-tag ' + (c.inn ? 'in' : 'out') + '">' + (c.inn ? '进' : '出') + '</span>' +
-    '<span class="sq-title">' + esc(c.title) + '</span>' +
-    '<span class="sq-n ' + numCls + '">' + list.length + '</span></div>' +
-    (rows || '<div class="sq-empty">没有</div>') + more + '</div>';
+  const body = items.length
+    ? '<div class="sb-body" data-collapsed="1" aria-label="' + esc(title) + '列表">' + rows + more + '</div>'
+    : '<div class="sb-body"><div class="sb-empty">没有</div></div>';
+  return '<div class="sb">' +
+    '<div class="sb-h"><span class="sb-tag ' + tag[0] + '">' + tag[1] + '</span>' +
+    '<span class="sb-title">' + esc(title) + '</span>' +
+    '<span class="sb-n">' + items.length + '</span></div>' +
+    body + '</div>';
+}
+function sectorBoardsBlock(boards, nDays) {
+  const b = boards || {};
+  const n = nDays || 3;
+  return '<div class="sb-wrap">' +
+    '<div class="sb-sec">自身涨跌 · 近 ' + n + ' 个交易日</div>' +
+    '<div class="sb-grid">' +
+      sectorBoardCol('up', '涨 · 近 ' + n + ' 日上涨', b.up, n) +
+      sectorBoardCol('down', '跌 · 近 ' + n + ' 日下跌', b.down, n) +
+    '</div>' +
+    '<div class="sb-sec">资金攻出 · 量价钱（同近 ' + n + ' 日）</div>' +
+    '<div class="sb-grid">' +
+      sectorBoardCol('rising', '在攻 · 量价钱同向', b.rising, n) +
+      sectorBoardCol('exiting', '在出 · 钱在撤', b.exiting, n) +
+    '</div></div>';
 }
 function sectorPicksStrip(sec) {
   const picks = sec.picks || [];
@@ -1750,30 +1809,16 @@ function sectorPulseStrip(sec) {
     '<span class="spulse-hint">· 看近几日迁桶</span></div>';
 }
 function sectorCard(sec) {
-  const days = sec.conclusion_days || 3;
-  const cells = [
-    { title: '钱进 · 热', inn: true, hot: true },
-    { title: '钱进 · 不热', inn: true, hot: false },
-    { title: '钱出 · 热', inn: false, hot: true },
-    { title: '钱出 · 不热', inn: false, hot: false },
-  ];
-  const grid = cells.map((c) => {
-    const list = sec.rows.filter((r) => {
-      if (r.money_z == null) return false;
-      const dir = r.money_z >= 1.0 ? 'in' : r.money_z <= -1.0 ? 'out' : '';
-      if (dir !== (c.inn ? 'in' : 'out')) return false;
-      return (r.heat != null && r.heat >= 1.25) === c.hot;
-    }).sort((a, b) => c.inn ? b.money_z - a.money_z : a.money_z - b.money_z);
-    return sectorQuadrant(c, list, days);
-  }).join('');
-  const scope = '上方推荐 · 四格只看钱往哪去 · 涨跌近 ' + days + ' 日';
-  return '<section class="card sector-card" aria-label="板块：推荐、资金地图与涨跌">' +
+  const scopeHtml = '<div class="scope"><span style="flex:none;color:#5B6372;font-weight:600">口径</span>' +
+    '<span style="flex:1;min-width:0">上方推荐 · 点标题问号看算法</span>' +
+    age(age_of(sec.date || sec.updated)) + '</div>';
+  return '<section class="card sector-card" aria-label="板块：涨跌与攻出双榜">' +
     '<div class="can-do-head"><span class="card-title">板块</span>' + qmark('sector') +
     '<span class="card-meta">' + stamp(sec) + '<button type="button" class="link" data-tab="sector">看全部 ' + sec.rows.length + ' →</button></span></div>' +
     sectorPicksStrip(sec) +
-    '<div class="sq-grid">' + grid + '</div>' +
+    sectorBoardsBlock(sec.boards, sectorWinDays(sec)) +
     sectorPulseStrip(sec) +
-    scopeRow(scope, age_of(sec.date || sec.updated)) + '</section>';
+    scopeHtml + '</section>';
 }
 function sectorCardOrWait(sec) {
   if (!sec) return skeletonCard('', '板块');
@@ -1810,7 +1855,7 @@ function phaseBanner(s) {
   } else detail = '计划处理了 ' + done + ' / ' + (total || open + done) + ' 条 · 收盘后看复盘与明日计划。';
   const clock = (s.generated_at || '').slice(11) || '';
   return '<div class="wb-phase"><span class="dot ' + esc(phase) + '" aria-hidden="true"></span><b>' + esc(label) + (clock ? ' · ' + esc(clock) : '') + '</b><span class="txt">' + esc(detail) + '</span>' +
-    (phase === 'post' ? '<a href="/holdings.html">写今天的复盘 →</a>' : '') + '</div>';
+    (phase === 'post' ? '<a href="/holdings.html?tab=rev">写今天的复盘 →</a>' : '') + '</div>';
 }
 function indexCodeOf(row) {
   return (row && (row.ts_code || row.code)) || ({ '上证指数': '000001.SH', '沪深300': '000300.SH', '中证1000': '000852.SH', '创业板指': '399006.SZ', '深证成指': '399001.SZ' }[row && row.name] || '');
@@ -2171,18 +2216,21 @@ function sectorRow(r) {
   const detail = open ? '<div class="sdetail"><b>' + esc(r.phase) + '</b>：' + esc(r.meaning || '') +
     '<div class="swhy">' + esc(r.why) + '</div>' +
     '<div class="smeta">' +
-      '<div class="cell"><span>钱 Mz · 近几日</span><b>' + mzTrail + '</b>' + mzSpark(r.mz_hist, 120, 18) + '</div>' +
-      '<div class="cell"><span>超额 Mz · 近几日</span><b>' + pzTrail + '</b>' + mzSpark(r.price_z_hist, 120, 18) + '</div>' +
+      '<div class="cell"><span>资金强弱 · 近几日</span><b>' + mzTrail + '</b>' + mzSpark(r.mz_hist, 120, 18) + '</div>' +
+      '<div class="cell"><span>相对大盘 · 近几日</span><b>' + pzTrail + '</b>' + mzSpark(r.price_z_hist, 120, 18) + '</div>' +
     '</div>' +
     '<div class="sfoot">' +
-      (r.flow_rate == null ? '' : '<span>近几日份额占规模 ' + srate(r.flow_rate) + (r.ex5 == null ? '' : ' · 超额收益 ' + srate(r.ex5)) + '</span>') +
+      (r.flow_rate == null ? '' : '<span>近几日净申购约占规模 ' + srate(r.flow_rate) + (r.ex5 == null ? '' : ' · 相对沪深300 ' + srate(r.ex5)) + '</span>') +
       (r.lever_word && r.lever_word !== '—' ? '<span>行业两融 30 日：' + esc(r.lever_word) + (r.lever == null ? '' : '（相对中位 ' + srate(r.lever) + '）') + '</span>' : '') +
       (r.catalyst ? '<span>近期线索：' + catalystCell(r.catalyst) + '</span>' : '') +
       '<span>' + (r.source === 'etf' ? '代表 ETF ' + etfLink(r.code) : '没有合适 ETF，钱按行业主力资金估算') + '</span>' +
     '</div></div>' : '';
   return head + detail;
 }
-const SUM_DOT = [['钱进 · 热', '#C9CED6'], ['钱进 · 不热', '#C9CED6'], ['钱出 · 热', '#C9CED6'], ['钱出 · 不热', '#C9CED6']];
+const SUM_DOT = [
+  ['值得跟踪', '#B42318'], ['在攻未进推荐', '#7A4A00'], ['偏危险', '#1E6B44'],
+  ['可能启动', '#2457D6'], ['可能在退', '#7A4A00'], ['在攻', '#B42318'], ['在出', '#1E6B44'],
+];
 // 头区与市场资金 headBox 同一套：13 标题 / 18 结论 / 12 分述
 function sectorHead(t) {
   const lines = String(t.summary || '').split('；').map((x) => x.trim()).filter(Boolean).map((x) => {
@@ -2190,11 +2238,24 @@ function sectorHead(t) {
     return i > 0 ? [x.slice(0, i), x.slice(i + 1)] : [null, x];
   });
   const hasParts = lines.length > 0 && lines.every((l) => l[0]);
-  const inn = hasParts && lines.some((l) => l[0].indexOf('钱进') >= 0);
-  const out = hasParts && lines.some((l) => l[0].indexOf('钱出') >= 0);
-  const headline = hasParts
-    ? (inn && out ? '钱有进有出，板块在分化' : inn ? '钱在往几个方向进' : out ? '钱在往外走' : '板块之间没有拉开差距')
-    : (t.summary || '没有取到板块数据');
+  const track = hasParts && lines.some((l) => l[0].indexOf('值得跟踪') >= 0);
+  const risingOnly = hasParts && lines.some((l) => l[0].indexOf('在攻未进推荐') >= 0);
+  const danger = hasParts && lines.some((l) => l[0].indexOf('偏危险') >= 0 || l[0].indexOf('在出') >= 0);
+  const start = hasParts && lines.some((l) => l[0].indexOf('可能启动') >= 0);
+  const fade = hasParts && lines.some((l) => l[0].indexOf('可能在退') >= 0);
+  let headline = t.summary || '没有取到板块数据';
+  if (hasParts) {
+    if (track && danger) headline = '有可跟踪，也有要回避的方向';
+    else if (track && start) headline = '有方向可跟，也有刚启动的苗头';
+    else if (track) headline = '有几个方向值得跟踪';
+    else if (risingOnly && danger) headline = '有在攻方向，但还不宜当推荐追';
+    else if (risingOnly) headline = '量价在攻，却还没进今日关注';
+    else if (danger && fade) headline = '撤出较多，部分可能在退';
+    else if (danger) headline = '资金在撤，先避开这些方向';
+    else if (start) headline = '有板块刚启动的迹象';
+    else if (fade) headline = '有板块可能在退潮';
+    else headline = '今天轮动不鲜明，先别急着追';
+  }
   const dot = (label) => { const hit = SUM_DOT.find((d) => label.indexOf(d[0]) >= 0); return hit ? hit[1] : '#C9CED6'; };
   const means = hasParts
     ? '<div class="ssum">' + lines.map((l) => '<div class="r"><i style="--c:' + dot(l[0]) + '">' + esc(l[0]) + '</i><span>' + esc(l[1].split('、').join(' · ')) + '</span></div>').join('') + '</div>'
@@ -2217,7 +2278,7 @@ function sectorTab(t) {
   const cur = state.secGroup || '全部';
   const rows = t.rows.filter((r) => cur === '全部' || r.group === cur);
   const filters = '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 4px">' + groups.map((g) => '<button type="button" class="fchip" data-secgroup="' + esc(g) + '" aria-pressed="' + (g === cur) + '">' + esc(g) + '</button>').join('') + '</div>';
-  const colHead = '<div class="shead"><span>板块</span><span>钱 Mz</span><span>超额 Mz</span><span>热</span></div>';
+  const colHead = '<div class="shead"><span>板块</span><span>资金</span><span>相对大盘</span><span>热</span></div>';
   const body = t.buckets.map((g) => {
     const items = rows.filter((r) => r.bucket === g.key);
     if (!items.length) return '';
@@ -2230,17 +2291,18 @@ function sectorTab(t) {
     cov.map((c) => '<div class="row" style="font-size:12px"><span>' + esc(c.l1) + '</span><span style="text-align:right;color:#5B6372">' + (c.etf.length ? esc(c.etf.join('、')) + (c.estimated ? ' · 其余估算' : '') : (c.estimated ? '行业资金估算' : '—')) + '</span></div>').join('') + '</details></div>';
   const th = t.thresholds || {};
   const nDays = th.conclusion_days || t.conclusion_days || 3;
+  const boards = t.boards || { rising: [], exiting: [] };
+  const boardHtml = '<div style="padding:0 2px 4px">' + sectorBoardsBlock(boards, nDays) + '</div>';
   const rule = '<div style="font-size:11px;color:#8A919E;line-height:1.6;padding:2px 2px 0"><b style="color:#5B6372">怎么判定：</b>' +
-    '钱 Mz 用近 ' + nDays + ' 日比率相对约 60 日常态；超额同口径对照沪深 300；热≥1.25。' +
-    '四格只看钱×热，不是买卖名单。今日关注=可跟/可盯（价不明显跌、净额不在出、Mz≥0.5）；dip 只观察。' +
-    '列表先价×热再钱、连两日确认；刚启动/可能在退看迁桶。' +
+    '涨/跌：自身近 ' + nDays + ' 个交易日累计涨跌排序。在攻=钱进且（连涨≥2 或价偏强），放量优先；在出=钱出。' +
+    '今日关注=可跟/可盯；dip 只观察。列表仍按相位分组。' +
     '<details style="margin-top:6px"><summary style="cursor:pointer;font-weight:650;color:#5B6372">展开细则</summary><div style="padding-top:4px">' +
-    '钱 Mz＝比自己近两个月偏了多少（细则点 Mz 问号）。进≥+1、出≤−1。' +
-    '今日关注硬过滤：涨跌≥−1%、净额≥0、Mz≥0.5。左侧观察=价跌钱进。刚启动=flat/next→main；可能在退=main→hot_only/out。</div></details></div>';
+    '钱进≥+1（行业估算约+1.3）、钱出≤对称门槛。今日关注硬过滤：涨跌≥−1%、净额≥0、Mz≥0.5。' +
+    '刚启动=flat/next→main；可能在退=main→hot_only/out。</div></details></div>';
   return sectorHead(t) +
-    sectorSecLabel('钱 × 热度', '悬停看依据') +
-    '<div style="padding:0 2px 4px">' + quadrant(t.rows, 390, 290, { labels: 9 }) + '</div>' +
-    sectorSecLabel('全部板块', '点开看依据') +
+    sectorSecLabel('涨跌 / 攻出', '点名字看明细') +
+    boardHtml +
+    sectorSecLabel('全部板块', '按相位分组') +
     '<div style="padding:0 2px">' + filters + colHead + body + '</div>' +
     sectorSecLabel('规则') +
     rule + coverage +
@@ -2621,37 +2683,65 @@ const RULES = {
     ['追涨', '昨天涨停的今天平均赚钱，并且炸板率低于 30%，是能 +1。平均亏过 0.5%，或者炸板率高于 40%，是难 −1。其余是一般 0。'],
     ['涨停主线', '看今天涨停前三行业占比，以及昨涨停 / 昨天主线今天赚不赚钱。前三占 35% 以上且追涨没在亏，才算有主线；够集中但昨涨停整体或主线今天翻绿，只写有集中；20% 以下没主线；主线今天平均亏过 1.5% 算主线在退。只展示，不进总档。'],
   ]},
+  sectorMoney: { title: '钱进 / 钱出', items: [
+    ['一句话', '「钱」不是买入成交量，是净申购（或主力净流入）：进来的份额减出去的份额。正＝净流入，负＝净流出。'],
+    ['怎么算', [
+      '有代表 ETF：看净申购相对规模大不大；没有 ETF 的行业/题材：看主力净流入占成交额大不大。',
+      '再跟自己近两个月平时比：正＝比平时更在进，负＝比平时更在出。旁边亿元只是金额对照。',
+    ]],
+    ['行上怎么读', [
+      '绝对值 < 1 → 和自己平时差不多；1～3 → 偏进/偏出；大于 3 → 明显偏进/偏出。',
+      '在攻要资金偏进（约 ≥ +1，行业估算约 +1.3）；在出要对称偏出。',
+    ]],
+  ]},
+  sectorHeat: { title: '热度', items: [
+    ['一句话', '热度看成交额有没有比大盘更吵，不是涨跌，也不是钱进了多少。'],
+    ['怎么算', [
+      '板块：近 3 日日均成交额 ÷ 此前约 60 日日均，得到自身放大倍数。',
+      '沪深 300 同样算一遍。热度 = 板块倍数 ÷ 沪深 300 倍数。',
+    ]],
+    ['双榜怎么用', [
+      '≥ 1.25 标「放量」，在攻排序靠前；不到写「不热」；≤ 0.85 写「偏冷」。',
+      '放量不是在攻的硬门槛，只影响排序和标签。',
+    ]],
+  ]},
+  sectorPrice: { title: '股价波动', items: [
+    ['一句话', '两层一起看：① 板块自己近 3 个交易日涨没涨；② 相对沪深300强不强。「超额」只是第②层，不是额外赚了多少钱。'],
+    ['怎么算', [
+      '相对大盘：近 3 日板块涨跌 − 沪深300，再跟自己平时比；正＝比大盘强，负＝比大盘弱。',
+      '自身涨跌：近 3 个交易日板块自己的累计涨跌。自身在跌时，即使相对大盘还行，也不能叫「涨」，进不了强势主升。',
+    ]],
+    ['双榜怎么用', [
+      '在攻：连涨不够时，可用「相对大盘偏强」（约 ≥ +1）代替「连涨≥2」；自身明显跌的不进。',
+      '行上红绿是板块自己近 3 日涨跌了多少；在出且近窗下跌会标「价弱」。',
+    ]],
+  ]},
+  sectorStreak: { title: '连涨', items: [
+    ['一句话', '从最近一个交易日往回数，收盘价连续比前一天高的天数。'],
+    ['双榜怎么用', [
+      '连涨 ≥ 2 日，且资金在进，即可进「在攻」。',
+      '未连涨时：相对大盘偏强，或「放量且近 3 日不明显跌」，也可进在攻。',
+    ]],
+  ]},
   sector: { title: '板块', items: [
-    ['数据时效（兜底）', '板块「钱」按 ETF 份额算，份额末日是哪天卡就标到哪天（通常 T+1）。价/热度也会裁到同一天，避免和份额错位。'],
-    ['先分清三套口径', [
-      '今日关注 = 真正推荐：可跟（main）与可盯（next）；近几日涨跌约 −1% 以下、净额在出、或钱 Mz 低于 0.5 的不进；dip 永不进推荐。',
-      '四格 = 资金地图：只看「钱偏不偏、成交热不热」，不是买卖名单；价跌会标「价弱」。',
-      '左侧观察 = dip（价跌钱进），等放量止跌，不当买入推荐。',
-      '列表状态机：先价×热再钱，连着两天确认；与四格可以暂时不一致。',
+    ['数据时效（兜底）', '板块「资金」按 ETF 份额算，份额末日是哪天卡就标到哪天（通常 T+1）。价/热度也会裁到同一天，避免和份额错位。'],
+    ['先看懂双榜', [
+      '涨 / 跌：只看板块自己近 3 个交易日累计涨跌，按幅度排序；和资金攻出可以不完全重合。',
+      '在攻：资金在进，且满足其一——连涨≥2、相对大盘偏强、或放量且近 3 日不明显跌；放量的排前面。',
+      '在出：资金在出。默认各露 4 条，点「展开」看其余。',
     ]],
-    ['四格怎么进', [
-      '进格只看两件事：钱 Mz、相对沪深 300 的热度。每格最多 5 个名字。',
-      '每行另写近几日涨跌幅（红涨绿跌），悬停可见价 Mz；涨跌不参与进格，只帮助对照「钱进了有没有涨」。价跌标「价弱」。',
-      '钱进：钱 Mz ≥ +1.0；钱出：钱 Mz ≤ −1.0。条长与右侧大字是钱 Mz，小字是近几日净额。',
-      '热：近几日成交 ÷ 沪深 300 同口径 ≥ 1.25；不到就是不热。四格 = 钱进/出 × 热/不热。',
-    ]],
-    ['钱 Mz 怎么来', [
-      'Mz 问的是：这几天资金进出，离「它自己平时」有多远——不是进了多少亿。',
-      '日度比率：有代表 ETF 用「净流入 ÷ 前日规模」；行业/题材估算用「主力净流入 ÷ 成交额」。',
-      '平时：结论窗口之前约 60 个交易日，取日度比率的中位数 M，以及离 M 距离的中位数 MAD。',
-      '近 3 日把比率加总：Mz = 0.6745 × (3 日合计 − 3×M) / (MAD×√3)。0≈平时，正=比平时多进，负=多出。行业/题材进出门槛更严一点。',
-      '列表小折线是同一口径连续几天的钱 Mz：往上=相对平时变强，往下=变弱。',
+    ['先分清几套口径', [
+      '今日关注 = 真正推荐：可跟与可盯；明显跌、净额在出、或资金太弱的不进；左侧 dip 永不进推荐。',
+      '涨跌榜 = 谁在涨谁在跌（近 3 个交易日）；攻出榜 = 钱在进还是在撤。都不是买卖指令。',
+      '抽屉列表仍按相位分组（主升/潜伏/退潮等），与双榜可以不完全重合。',
     ]],
     ['列表状态怎么定', [
-      '顺序固定：① 超额（价相对沪深 300）× 热度 → 行情（强势/缓涨/分歧/放量跌/阴跌…）；② 再看钱进/平/出；③ 结合高低位与两融，落成主升、待资金、换手、潜伏、派发、退潮等。',
-      '「强势」那一组里不止「主升」，还包括待资金、换手上行——不等于三层已经同向。',
-      '两融只用来区分主升够不够硬，不单独改桶。状态连确认两天，避免一天一个样。',
+      '顺序固定：① 近 3 日自身涨跌 + 相对大盘强弱 × 热度 → 行情；② 再看资金进/平/出；③ 结合高低位与两融。',
+      '两融不单独改桶。进入主升要连确认两天；退出主升当天改口，避免自身已跌还挂在强势里。',
     ]],
     ['刚启动 / 可能在退', [
-      '这两格看「近约 3 日分组迁了没有」，而且故意避开已经占满上面四格的名字，所以经常是空的。',
-      '刚启动：从观望/潜伏（flat、next）迁到强势（main：主升或待资金）；同时近几日净流入不能为负、钱 Mz 不能已 ≤ −1，且还没进「钱进·热」。换手、派发不算刚启动。',
-      '可能在退：从强势（main）迁到派发/涨势没钱（hot_only）或退潮/钱在撤（out）；同时钱 Mz 还没到 ≤ −1——一到就归「钱出」四格，不再占这里。',
-      '从观望直接掉进钱在撤的，不算「从主升退下来」，只出现在列表或钱出格。',
+      '看近约 3 日相位分组迁了没有。',
+      '刚启动：观望/潜伏 → 强势；可能在退：强势 → 派发或退潮类。',
     ]],
   ]},
 };
@@ -2752,8 +2842,8 @@ function sectorPopHtml(d) {
   return '<div style="display:flex;align-items:center;gap:8px"><b style="font-size:16px">' + esc(d.name) + '</b>' + (d.phase ? '<span class="pill s t-' + (d.tone || 'flat') + '">' + esc(d.phase) + '</span>' : '') + '<button type="button" data-closesector="1" aria-label="关闭" style="margin-left:auto;width:28px;height:28px;border:none;border-radius:6px;background:transparent;color:#5B6372;font-size:18px;cursor:pointer">×</button></div>' +
     (d.why ? '<p style="margin:0;font-size:13px;line-height:1.6;color:#3A4250">' + esc(d.why) + '</p>' : '') +
     '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
-      '<div style="padding:8px 10px;border-radius:8px;background:#F7F8FA"><span style="font-size:11px;color:#8A919E">钱 Mz</span><b ' + MONO + ' class="' + cls(d.money_z) + '" style="display:block;font-size:16px;margin-top:2px">' + money + '</b></div>' +
-      '<div style="padding:8px 10px;border-radius:8px;background:#F7F8FA"><span style="font-size:11px;color:#8A919E">超额 Mz</span><b ' + MONO + ' class="' + cls(d.price_z) + '" style="display:block;font-size:16px;margin-top:2px">' + price + '</b></div>' +
+      '<div style="padding:8px 10px;border-radius:8px;background:#F7F8FA"><span style="font-size:11px;color:#8A919E">资金（净流入）</span><b ' + MONO + ' class="' + cls(d.money_z) + '" style="display:block;font-size:16px;margin-top:2px">' + money + '</b></div>' +
+      '<div style="padding:8px 10px;border-radius:8px;background:#F7F8FA"><span style="font-size:11px;color:#8A919E">相对大盘</span><b ' + MONO + ' class="' + cls(d.price_z) + '" style="display:block;font-size:16px;margin-top:2px">' + price + '</b></div>' +
       '<div style="padding:8px 10px;border-radius:8px;background:#F7F8FA"><span style="font-size:11px;color:#8A919E">热度</span><b ' + MONO + ' style="display:block;font-size:16px;margin-top:2px">' + heat + '</b></div>' +
     '</div>' +
     (bits.length ? '<span style="font-size:12px;color:#5B6372">' + esc(bits.join(' · ')) + '</span>' : '') +
@@ -2815,6 +2905,23 @@ document.body.addEventListener('mouseout', (e) => {
 $('rulePop').addEventListener('mouseenter', () => { clearTimeout(ruleHoverTimer); });
 $('rulePop').addEventListener('mouseleave', () => { scheduleCloseRule(); });
 document.body.addEventListener('click', (e) => {
+  const sbMore = e.target.closest('[data-sb-toggle]');
+  if (sbMore) {
+    const body = sbMore.closest('.sb-body');
+    if (!body) return;
+    const open = body.getAttribute('data-collapsed') !== '1';
+    if (open) {
+      body.setAttribute('data-collapsed', '1');
+      sbMore.setAttribute('aria-expanded', 'false');
+      const n = body.querySelectorAll('.sb-row[data-extra="1"]').length;
+      sbMore.textContent = '还有 ' + n + ' 个 · 展开';
+    } else {
+      body.setAttribute('data-collapsed', '0');
+      sbMore.setAttribute('aria-expanded', 'true');
+      sbMore.textContent = '收起';
+    }
+    return;
+  }
   const tipBtn = e.target.closest('[data-mztop]');
   if (tipBtn) {
     if (!$('tipPop').hidden && tipBtn.getAttribute('aria-expanded') === 'true') { closeTipPop(); tipBtn.removeAttribute('aria-expanded'); return; }

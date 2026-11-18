@@ -1,0 +1,17 @@
+id: news
+name: 新闻分析师
+dimension: news
+skills:
+  - news-facts
+  - news-raw
+  - baidu-board
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+detail_query:
+  days: "3"
+max_steps: 8
+opening: 请给出这只股票近 3 日新闻的结论。只 load news-facts 再 fetch_facts，不要调 baidu-board/news-raw。输出 stance/strength/text（≤100字，正文禁用英文引号）/fact_ids/suggested_questions；取到事实后立刻结束。

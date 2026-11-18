@@ -2884,7 +2884,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       }
       const m = { id: ++chatSeq, who: who, kind: 'analysis', round: true, text: line.text || '', headline: headlineOf(line), tools: line.tools || null, at: new Date() };
       if (who === 'bull' || who === 'bear') {
-        m.points = debate[who] || String(line.text || '').split('；').filter(Boolean).map((text) => ({ text: text }));
+        m.points = normalizeSidePoints(debate[who] || String(line.text || '').split('；').filter(Boolean).map((text) => ({ text: text })));
         c.results[who] = { msg: { points: m.points, text: line.text || '' } };
       } else if (who === 'chief') {
         const card = Object.assign({}, debate.chief || {}, { text: line.text || '', verdict: (debate.chief && debate.chief.verdict) || line.status_text || '不明' });
@@ -2912,8 +2912,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         if (at >= 0) c.msgs.splice(at, 0, divider);
         else c.msgs.push(divider);
       }
-      const m = { id: ++chatSeq, who: who, kind: 'analysis', round: true, points: points, at: new Date() };
-      c.results[who] = { msg: { points: points } };
+      const m = { id: ++chatSeq, who: who, kind: 'analysis', round: true, points: normalizeSidePoints(points), at: new Date() };
+      c.results[who] = { msg: { points: m.points } };
       const at = c.msgs.findIndex((m) => m.who === 'chief' && m.card);
       if (at >= 0) c.msgs.splice(at, 0, m);
       else c.msgs.push(m);
@@ -3121,7 +3121,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     m.headline = res.headline || null;
     m.quote = m.hideQuote ? '' : (res.quote || '');
     m.text = res.text || '';
-    m.points = res.points || null;
+    m.points = res.points ? normalizeSidePoints(res.points) : null;
     m.chartHTML = res.chart_html || '';
     m.chartHTMLs = res.chart_htmls || (res.chart_html ? [res.chart_html] : []);
     m.errors = res.errors || null;
@@ -3147,6 +3147,22 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (who === 'chief') job.then(() => { if (liveChat(code, gen)) refreshVerdicts(code); });
   }
 
+  // chief/detail 用 claim/state；群记录与开场 SSE 用 text/verdict。统一成气泡可读的形状。
+  function normalizeSidePoints(pts) {
+    return (pts || []).map((p) => {
+      if (!p || typeof p !== 'object') return { text: String(p || '') };
+      const text = p.text || p.claim || '';
+      const out = Object.assign({}, p, { text: text });
+      if (!out.verdict && (p.state === 'adopted' || p.state === 'rejected')) {
+        out.verdict = {
+          adopt: p.state === 'adopted',
+          text: p.reason || (p.state === 'adopted' ? '采纳' : '未采纳'),
+        };
+      }
+      return out;
+    });
+  }
+
   function refreshVerdicts(code) {
     const c = chats[code];
     if (!c || c.verdictsRefreshed || !c.results.chief || !c.results.chief.msg) return;
@@ -3161,7 +3177,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         const pts = pack && (pack.points || pack);
         if (!pts || !pts.length) return;
         const m = cur.msgs.find((x) => x.round && x.who === side);
-        if (m && m.kind === 'analysis') m.points = pts;
+        if (m && m.kind === 'analysis') m.points = normalizeSidePoints(pts);
       });
       renderChat();
     }).catch(() => {});
@@ -3352,7 +3368,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     return '<span>' + (m.kind === 'reply' ? '' : atName('主分析师') + ' 我的 ' + pts.length + ' 条：') + '</span>' + pts.map((p, i) => {
       const by = p.analyst && ROLE[p.analyst.dimension];
       const v = p.verdict;
-      return '<div style="display:flex;flex-direction:column;gap:4px;padding-top:4px"><div style="display:flex;gap:8px"><span style="flex:none;color:#2457D6;font-weight:600">' + (CIRCLED[i] || (i + 1)) + '</span><span style="min-width:0;overflow-wrap:anywhere">' + esc(p.text) +
+      return '<div style="display:flex;flex-direction:column;gap:4px;padding-top:4px"><div style="display:flex;gap:8px"><span style="flex:none;color:#2457D6;font-weight:600">' + (CIRCLED[i] || (i + 1)) + '</span><span style="min-width:0;overflow-wrap:anywhere">' + esc(p.text || p.claim || '') +
         (by ? ' <span style="color:#8A919E">— 依据 <button type="button" class="ev" style="height:20px;padding:0 8px" data-click="' + by.drawer + '"><span>@' + esc(by.name) + '</span></button></span>' : '') + '</span></div>' +
         (v ? '<span style="align-self:flex-start;margin-left:24px;display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:13px;' + (v.adopt ? 'background:#EAF0FD;color:#1F3F8A' : 'background:#F4F5F7;color:#5B6372') + '">' + (v.adopt ? '✓ ' : '✗ ') + esc(v.text || (v.adopt ? '采纳' : '未采纳')) + '</span>' : '') + '</div>';
     }).join('');
@@ -3904,7 +3920,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   function plainOf(m) {
     if (!m) return '';
     if (m.text) return String(m.text);
-    if (m.points && m.points.length) return m.points.map((p, i) => (i + 1) + '. ' + (p.text || '')).join('\n');
+    if (m.points && m.points.length) return m.points.map((p, i) => (i + 1) + '. ' + (p.text || p.claim || '')).join('\n');
     if (m.card && m.card.text) return String(m.card.verdict || '') + '\n' + String(m.card.text);
     return '';
   }
