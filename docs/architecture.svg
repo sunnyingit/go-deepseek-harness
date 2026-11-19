@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="930" viewBox="0 0 1200 930" font-family="'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif">
+  <desc>牛宝架构：客户端 → 核心层（定时任务驱动 → 多Agent机制 → 分析师+数据源 → 交易闭环 → 通知），harness 工程为运行时底座</desc>
+
+  <rect width="1200" height="930" fill="#FFFFFF"/>
+
+  <!-- 标题 -->
+  <text x="48" y="44" font-size="24" font-weight="700" fill="#14171F">牛宝 · 架构设计</text>
+  <text x="48" y="68" font-size="13" fill="#8A919E">一次研判的旅程为主干：定时任务驱动 → 多 Agent 机制组织分析师取数发言 → 裁决进交易闭环 → 通知送达</text>
+
+  <!-- ============ 客户端薄壳 ============ -->
+  <rect x="48" y="80" width="1104" height="56" rx="12" fill="#F7F8FA" stroke="#E3E6EB"/>
+  <text x="72" y="105" font-size="13" font-weight="700" fill="#14171F">桌面客户端　<tspan fill="#8A919E" font-weight="500" font-size="11">native/ · Electron</tspan></text>
+  <text x="72" y="124" font-size="11" fill="#5B6372">托盘常驻 · 关窗不停 · 桌面通知　｜　页面：研判 · 市场 · 问问 · 持仓 · 战绩 · 任务 · 设置</text>
+  <text x="1120" y="112" font-size="11" fill="#2457D6" text-anchor="end" font-weight="600">⌘/Ctrl+1..4 切页</text>
+
+  <line x1="590" y1="136" x2="590" y2="160" stroke="#2457D6" stroke-width="1.6"/>
+  <path d="M585 156 L590 165 L595 156 Z" fill="#2457D6"/>
+  <text x="604" y="152" font-size="11" fill="#8A919E">页面 ↔ 服务</text>
+
+  <!-- ============ 核心层容器 ============ -->
+  <rect x="48" y="166" width="1104" height="628" rx="14" fill="#FBFCFE" stroke="#C9D7F5"/>
+  <text x="72" y="192" font-size="13" font-weight="700" fill="#1F3F8A">核心层　<tspan fill="#2457D6" font-size="11" font-weight="600">:8083</tspan><tspan fill="#8A919E" font-size="11" font-weight="500">　internal/ + web/</tspan></text>
+
+  <!-- 定时任务（琥珀） -->
+  <rect x="72" y="204" width="1056" height="64" rx="12" fill="#FFF1D6" stroke="#E0A030" stroke-opacity=".45"/>
+  <text x="92" y="228" font-size="14" font-weight="700" fill="#7A4A00">定时任务</text>
+  <text x="92" y="250" font-size="11" fill="#7A4A00">定时分析（到点重跑结论）· 定时提问（按问题逐只问）· 条件扫描（满足才通知，可不跑模型）</text>
+  <text x="1108" y="240" font-size="11" fill="#7A4A00" text-anchor="end">范围：持仓 / 想买 / 点名 · 休眠补跑</text>
+
+  <!-- 触发箭头 -->
+  <line x1="590" y1="268" x2="590" y2="296" stroke="#B87400" stroke-width="1.6"/>
+  <path d="M585 292 L590 301 L595 292 Z" fill="#B87400"/>
+  <text x="604" y="288" font-size="11" fill="#B87400">到点触发</text>
+
+  <!-- 侧触发：收盘后复看（虚线弯到交易模块） -->
+  <path d="M1128 236 C 1160 236, 1160 556, 1124 566" fill="none" stroke="#B87400" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <path d="M1119 560 L1126 568 L1131 560 Z" fill="#B87400"/>
+  <text x="1166" y="404" font-size="11" fill="#B87400" transform="rotate(90 1166 404)" text-anchor="middle">15:40 复看持仓 / 想买</text>
+
+  <!-- 多 Agent 机制横带（蓝） -->
+  <rect x="72" y="304" width="1056" height="64" rx="12" fill="#EAF0FD" stroke="#C9D7F5"/>
+  <text x="92" y="328" font-size="14" font-weight="700" fill="#1F3F8A">多 Agent 机制</text>
+  <text x="92" y="350" font-size="11" fill="#1F3F8A">固定议程（维度 → 对辩 → 裁决）· 论据核对（过不了核对不上桌）· 裁决卡（方向 · 得分 · 如果我错了）· SSE 流式 · @ 追问</text>
+
+  <line x1="590" y1="368" x2="590" y2="392" stroke="#2457D6" stroke-width="1.6"/>
+  <path d="M585 388 L590 397 L595 388 Z" fill="#2457D6"/>
+  <text x="604" y="384" font-size="11" fill="#2457D6">组织</text>
+
+  <!-- 分析师实现 + 数据源 -->
+  <rect x="72" y="398" width="628" height="108" rx="12" fill="#FFFFFF" stroke="#E3E6EB"/>
+  <text x="92" y="422" font-size="14" font-weight="700" fill="#14171F">分析师实现　<tspan fill="#8A919E" font-size="11" font-weight="500">web/agents/*.yaml 提示词可改</tspan></text>
+  <text x="92" y="444" font-size="11" fill="#5B6372">六维度：大盘 · 资金流 · 基本面 · 财报 · 新闻 · 板块</text>
+  <text x="92" y="462" font-size="11" fill="#5B6372">看多 / 看空 对辩　→　主分析师裁决（采纳 / 未采纳写明）</text>
+  <text x="92" y="480" font-size="11" fill="#5B6372">＋ 持仓分析师（组合体检 / 多只对比）· 模型缺席时规则版兜底</text>
+  <text x="92" y="498" font-size="11" fill="#2457D6">结论分级 · 弱信号直说「凑不齐」</text>
+
+  <rect x="788" y="398" width="340" height="108" rx="12" fill="#FFFFFF" stroke="#E3E6EB"/>
+  <text x="808" y="422" font-size="14" font-weight="700" fill="#14171F">数据源　<tspan fill="#2457D6" font-size="11" font-weight="600">:8090</tspan></text>
+  <text x="808" y="444" font-size="11" fill="#5B6372">stock_agent_assitant</text>
+  <text x="808" y="462" font-size="11" fill="#5B6372">market_tape 统一口径 · 两级缓存 · 并发去重</text>
+  <text x="808" y="480" font-size="11" fill="#5B6372">Mz 常态偏离 · ETF 份额 T+1 · 维度 detail / reply</text>
+  <text x="808" y="498" font-size="11" fill="#2457D6">缺数时明说「判不了」，不编造</text>
+
+  <!-- 取数箭头 -->
+  <line x1="700" y1="452" x2="784" y2="452" stroke="#8A919E" stroke-width="1.4"/>
+  <path d="M780 447 L788 452 L780 457 Z" fill="#8A919E"/>
+  <text x="742" y="442" font-size="11" fill="#8A919E" text-anchor="middle">取数</text>
+
+  <!-- 裁决结论 -->
+  <line x1="168" y1="506" x2="168" y2="532" stroke="#2457D6" stroke-width="2"/>
+  <path d="M162 528 L168 538 L174 528 Z" fill="#2457D6"/>
+  <text x="184" y="524" font-size="11" fill="#2457D6" font-weight="600">裁决结论（加入想买）</text>
+
+  <!-- 交易模块闭环 -->
+  <text x="72" y="566" font-size="14" font-weight="700" fill="#14171F">交易模块　<tspan fill="#8A919E" font-size="11" font-weight="500">internal/holdings · scan</tspan></text>
+  <g>
+    <rect x="72"  y="576" width="192" height="52" rx="10" fill="#FFFFFF" stroke="#E3E6EB"/>
+    <text x="88"  y="598" font-size="13" font-weight="700" fill="#14171F">想买</text>
+    <text x="88"  y="616" font-size="11" fill="#5B6372">记理由 + 失效条件</text>
+
+    <rect x="286" y="576" width="192" height="52" rx="10" fill="#FFFFFF" stroke="#E3E6EB"/>
+    <text x="302" y="598" font-size="13" font-weight="700" fill="#14171F">持有</text>
+    <text x="302" y="616" font-size="11" fill="#5B6372">对照买入逻辑</text>
+
+    <rect x="500" y="576" width="192" height="52" rx="10" fill="#FFFFFF" stroke="#E3E6EB"/>
+    <text x="516" y="598" font-size="13" font-weight="700" fill="#14171F">交易计划</text>
+    <text x="516" y="616" font-size="11" fill="#5B6372">只记打算，不算成交</text>
+
+    <rect x="714" y="576" width="192" height="52" rx="10" fill="#FFFFFF" stroke="#E3E6EB"/>
+    <text x="730" y="598" font-size="13" font-weight="700" fill="#14171F">复盘</text>
+    <text x="730" y="616" font-size="11" fill="#5B6372">对照执行记偏差</text>
+
+    <rect x="928" y="576" width="192" height="52" rx="10" fill="#FFFFFF" stroke="#C9D7F5"/>
+    <text x="944" y="598" font-size="13" font-weight="700" fill="#1F3F8A">战绩</text>
+    <text x="944" y="616" font-size="11" fill="#5B6372">5 / 20 个交易日结算</text>
+
+    <line x1="264" y1="602" x2="282" y2="602" stroke="#8A919E" stroke-width="1.4"/><path d="M278 597 L286 602 L278 607 Z" fill="#8A919E"/>
+    <line x1="478" y1="602" x2="496" y2="602" stroke="#8A919E" stroke-width="1.4"/><path d="M492 597 L500 602 L492 607 Z" fill="#8A919E"/>
+    <line x1="692" y1="602" x2="710" y2="602" stroke="#8A919E" stroke-width="1.4"/><path d="M706 597 L714 602 L706 607 Z" fill="#8A919E"/>
+    <line x1="906" y1="602" x2="924" y2="602" stroke="#8A919E" stroke-width="1.4"/><path d="M920 597 L928 602 L920 607 Z" fill="#8A919E"/>
+  </g>
+  <!-- 闭环回环 -->
+  <path d="M1024 628 C 1024 652, 168 652, 168 634" fill="none" stroke="#2457D6" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <path d="M163 638 L168 628 L174 638 Z" fill="#2457D6"/>
+  <rect x="414" y="638" width="364" height="17" fill="#FBFCFE"/>
+  <text x="596" y="651" font-size="11" fill="#2457D6" text-anchor="middle">对账 · 改判回流（判断过期标旧，理由失效重估）</text>
+  <text x="72" y="676" font-size="11" fill="#5B6372">仓位体检（集中度 / 待办）　·　提醒：到价 / 改判 / 披露解禁</text>
+
+  <!-- 改判/到价 -->
+  <line x1="590" y1="684" x2="590" y2="708" stroke="#2457D6" stroke-width="1.6"/>
+  <path d="M585 704 L590 713 L595 704 Z" fill="#2457D6"/>
+  <text x="604" y="700" font-size="11" fill="#2457D6">改判 / 到价</text>
+
+  <!-- 通知 -->
+  <rect x="72" y="714" width="1056" height="56" rx="12" fill="#F7F8FA" stroke="#E3E6EB"/>
+  <text x="92" y="738" font-size="14" font-weight="700" fill="#14171F">通知</text>
+  <text x="92" y="758" font-size="11" fill="#5B6372">收件箱 · 桌面通知 · 企微 webhook　——　定时提问带【定时任务】标记，改判与到价即时送达</text>
+
+  <!-- ============ harness 底座 ============ -->
+  <rect x="48" y="810" width="1104" height="66" rx="12" fill="#14171F"/>
+  <text x="72" y="837" font-size="14" font-weight="700" fill="#FFFFFF">harness 工程　<tspan fill="#9CA3AF" font-size="11" font-weight="500">运行时底座 · 撑起上面全部模块</tspan></text>
+  <g font-size="11" fill="#FFFFFF">
+    <rect x="72"  y="846" width="150" height="22" rx="11" fill="#2A3350"/><text x="147"  y="861" text-anchor="middle">session 会话与恢复</text>
+    <rect x="232" y="846" width="212" height="22" rx="11" fill="#2A3350"/><text x="338" y="861" text-anchor="middle">llm：OpenAI 兼容 · 流式 · 重试</text>
+    <rect x="454" y="846" width="140" height="22" rx="11" fill="#2A3350"/><text x="524" y="861" text-anchor="middle">sandbox 执行沙箱</text>
+    <rect x="604" y="846" width="96"  height="22" rx="11" fill="#2A3350"/><text x="652" y="861" text-anchor="middle">skill 技能</text>
+    <rect x="710" y="846" width="96"  height="22" rx="11" fill="#2A3350"/><text x="758" y="861" text-anchor="middle">tools 工具</text>
+    <rect x="816" y="846" width="150" height="22" rx="11" fill="#2A3350"/><text x="891" y="861" text-anchor="middle">fs · shell · plan</text>
+  </g>
+  <text x="1120" y="861" font-size="11" fill="#9CA3AF" text-anchor="end">本机运行 · 无云端</text>
+
+  <!-- 注脚 -->
+  <text x="48" y="908" font-size="11" fill="#A1A7B2">配色沿用产品端设计令牌（#2457D6 主线 / #FFF1D6 任务 / #EAF0FD 机制 / #14171F 底座） · 研究分析，不构成投资建议</text>
+</svg>
