@@ -83,7 +83,7 @@ func TestWrapOpeningSpeakForcesJSONWithoutTools(t *testing.T) {
 	sess.Append("user/message", map[string]any{
 		"message": session.Message{Role: session.RoleUser, Content: []session.ContentBlock{{Kind: session.BlockText, Text: "开场"}}},
 	}, session.WithSurfaceOp(session.AppendOp()))
-	got, err := s.wrapOpeningSpeak(context.Background(), agentConfig{ID: "volume_flow", Prompt: "你是资金流分析师"}, sess)
+	got, err := s.wrapOpeningSpeak(context.Background(), agentConfig{ID: "volume_flow", Prompt: "你是资金流分析师"}, sess, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,6 +95,25 @@ func TestWrapOpeningSpeakForcesJSONWithoutTools(t *testing.T) {
 	}
 	if saw.Model != "test-model" {
 		t.Fatalf("model = %q", saw.Model)
+	}
+	var saw2 agentloop.GenerateRequest
+	s2 := &Server{llm: wrapSpeakLLM{text: `{"stance":"偏多","strength":"弱","text":"短结论","fact_ids":[],"suggested_questions":[]}`, saw: &saw2}, cfg: appconfig.Config{Model: "test-model"}}
+	if _, err := s2.wrapOpeningSpeak(context.Background(), agentConfig{ID: "finance", Prompt: "你是财报分析师"}, sess, `{"stance":"偏多","text":"被截断`); err != nil {
+		t.Fatal(err)
+	}
+	if msg := saw2.Messages[len(saw2.Messages)-1].Content[0].Text; !strings.Contains(msg, "解不开") {
+		t.Fatalf("broken hint should ask rewrite, got %q", msg)
+	}
+}
+
+func TestParseSpeakSalvagesTruncatedJSON(t *testing.T) {
+	raw := `{"stance":"偏多","strength":"弱","text":"单季营收同比大增，归母扭亏为盈，扣非占主业大头，经营现金流覆盖利润。披露后股价先涨后弱，强度偏弱。要留意毛利率处在历史高位`
+	sp, err := parseSpeak(raw)
+	if err != nil {
+		t.Fatalf("truncated speak should salvage: %v", err)
+	}
+	if sp.Stance != "偏多" || sp.Strength != "弱" || !strings.Contains(sp.Text, "归母扭亏") {
+		t.Fatalf("salvaged speak = %+v", sp)
 	}
 }
 

@@ -696,9 +696,9 @@ func (s *Server) concludeAnalyst(ctx context.Context, cfg agentConfig, code, kin
 	catalog := factsFromMessages(msgs)
 	rawSpeak := lastParseableAssistantText(msgs)
 	speak, speakErr := parseSpeak(rawSpeak)
-	if speakErr != nil && strings.TrimSpace(rawSpeak) == "" && len(tools) > 0 {
-		// 步数用尽时常停在 tool_call、没有正文；再逼一轮无工具 JSON。
-		if wrapped, wrapErr := s.wrapOpeningSpeak(ctx, cfg, sess); wrapErr == nil {
+	if speakErr != nil {
+		// 步数用尽无正文，或写了超长/破引号 JSON 解不开：禁用工具再逼一轮短结论。
+		if wrapped, wrapErr := s.wrapOpeningSpeak(ctx, cfg, sess, rawSpeak); wrapErr == nil {
 			if sp, err := parseSpeak(wrapped); err == nil {
 				rawSpeak, speak, speakErr = wrapped, sp, nil
 			}
@@ -736,8 +736,9 @@ func (s *Server) concludeAnalyst(ctx context.Context, cfg agentConfig, code, kin
 	return withChart(withTools(analystMessage(cfg, kind, question, text, headline), tools), charts), nil
 }
 
-// wrapOpeningSpeak 在开场已有工具结果但没有 JSON 正文时，禁用工具再逼一轮结论。
-func (s *Server) wrapOpeningSpeak(ctx context.Context, cfg agentConfig, sess *session.Session) (string, error) {
+// wrapOpeningSpeak 在开场解不出 JSON 时，禁用工具再逼一轮短结论。
+// brokenHint 非空时说明上一轮写了正文但解不开（截断/引号），提示重写短 JSON。
+func (s *Server) wrapOpeningSpeak(ctx context.Context, cfg agentConfig, sess *session.Session, brokenHint string) (string, error) {
 	if s == nil || s.llm == nil {
 		return "", errors.New("模型还没有配置")
 	}
@@ -746,12 +747,16 @@ func (s *Server) wrapOpeningSpeak(ctx context.Context, cfg agentConfig, sess *se
 	}
 	wrapCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
+	prompt := "已有工具结果。禁止再调用任何工具。立刻只输出开场 JSON：stance、strength、text、fact_ids、suggested_questions。text 控制在 150～350 字，禁用英文双引号。"
+	if strings.TrimSpace(brokenHint) != "" {
+		prompt = "上一轮开场 JSON 解不开（常见：正文太长被截断，或英文引号弄破）。禁止再调用任何工具。按已有工具结果重写一段短开场 JSON：stance、strength、text（150～350 字，禁用英文双引号）、fact_ids、suggested_questions。"
+	}
 	msgs := append([]session.Message(nil), sess.DeriveMessages()...)
 	msgs = append(msgs, session.Message{
 		Role: session.RoleUser,
 		Content: []session.ContentBlock{{
 			Kind: session.BlockText,
-			Text: "已有工具结果。禁止再调用任何工具。立刻只输出开场 JSON：stance、strength、text、fact_ids、suggested_questions。text 内禁用英文双引号。",
+			Text: prompt,
 		}},
 	})
 	temp := 0.2
@@ -2010,38 +2015,115 @@ func parseSpeak(raw string) (analystSpeak, error) {
 	if soft := softenSpeakJSONPunctuation(text); soft != text {
 		candidates = append(candidates, soft)
 	}
-	for _, cand := range candidates {
+	try := func(cand string) (analystSpeak, bool) {
 		if speak, ok := decodeSpeakObject(cand); ok {
-			return speak, nil
+			return speak, true
 		}
 		// 顶层 text/summary 与 suggested_questions[].text 里的裸引号都会弄破 JSON（新闻/财报尤甚）
 		if fixed := repairSpeakQuotes(cand); fixed != cand {
 			if speak, ok := decodeSpeakObject(fixed); ok {
-				return speak, nil
+				return speak, true
 			}
 			if trimmed := stripTrailingJSONCommas(fixed); trimmed != fixed {
 				if speak, ok := decodeSpeakObject(trimmed); ok {
-					return speak, nil
+					return speak, true
 				}
 			}
 		}
 		if trimmed := stripTrailingJSONCommas(cand); trimmed != cand {
 			if speak, ok := decodeSpeakObject(trimmed); ok {
-				return speak, nil
+				return speak, true
 			}
 		}
-	}
-	for _, cand := range candidates {
 		if speak, ok := looseSpeak(cand); ok {
-			return speak, nil
+			return speak, true
 		}
 		if fixed := repairSpeakQuotes(cand); fixed != cand {
 			if speak, ok := looseSpeak(fixed); ok {
+				return speak, true
+			}
+		}
+		return analystSpeak{}, false
+	}
+	for _, cand := range candidates {
+		if speak, ok := try(cand); ok {
+			return speak, nil
+		}
+		// 输出被 max_tokens 截断时，补上未闭合的引号与括号再试一次。
+		if closed := closeTruncatedSpeakJSON(cand); closed != cand {
+			if speak, ok := try(closed); ok {
 				return speak, nil
 			}
 		}
 	}
 	return analystSpeak{}, errors.New("没有 JSON 结论")
+}
+
+// closeTruncatedSpeakJSON 把被截断的开场 JSON 尽量补成可解析对象（关字符串、补括号）。
+func closeTruncatedSpeakJSON(s string) string {
+	start := strings.IndexByte(s, '{')
+	if start < 0 {
+		return s
+	}
+	body := s[start:]
+	if json.Valid([]byte(body)) {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(body) + 8)
+	inString := false
+	escape := false
+	depthObj, depthArr := 0, 0
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		b.WriteByte(c)
+		if inString {
+			if escape {
+				escape = false
+				continue
+			}
+			if c == '\\' {
+				escape = true
+				continue
+			}
+			if c == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inString = true
+		case '{':
+			depthObj++
+		case '}':
+			if depthObj > 0 {
+				depthObj--
+			}
+		case '[':
+			depthArr++
+		case ']':
+			if depthArr > 0 {
+				depthArr--
+			}
+		}
+	}
+	if inString {
+		b.WriteByte('"')
+	}
+	for depthArr > 0 {
+		b.WriteByte(']')
+		depthArr--
+	}
+	for depthObj > 0 {
+		b.WriteByte('}')
+		depthObj--
+	}
+	out := b.String()
+	if out == body {
+		return s
+	}
+	return out
 }
 
 // softenSpeakJSONPunctuation 把弯引号/全角引号收成 ASCII，便于再走裸引号修复。
