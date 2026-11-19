@@ -125,4 +125,24 @@ func TestEnsureEnvReusesPreinstalledInterpreter(t *testing.T) {
 	if _, err := os.Stat(cache); err == nil {
 		t.Fatal("preinstalled interpreter should not create a venv")
 	}
+
+	// Desktop bundle marker often lists more packages than DefaultDocumentPackages.
+	if err := writeMarker(root, []string{"Pillow", "PyMuPDF", "httpx", "pandas", "python-docx"}); err != nil {
+		t.Fatal(err)
+	}
+	cache2 := filepath.Join(t.TempDir(), "venv2")
+	env2, err := EnsureEnv(context.Background(), EnvOptions{
+		CacheDir:  cache2,
+		PythonBin: stub,
+		Packages:  []string{"pandas", "Pillow"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if env2.PythonPath != stub {
+		t.Fatalf("superset marker should reuse bundled interpreter, got %q", env2.PythonPath)
+	}
+	if _, err := os.Stat(cache2); err == nil {
+		t.Fatal("superset marker should not create a venv")
+	}
 }

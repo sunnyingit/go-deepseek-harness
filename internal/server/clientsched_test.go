@@ -94,7 +94,7 @@ func seedDebate(s *Server, code string) {
 	})
 }
 
-func TestNightlyMakesOneBundlePerStockAndLeavesAReceipt(t *testing.T) {
+func TestNightlyMakesOneBundlePerStockWithoutAReceipt(t *testing.T) {
 	s, c := newClientServer(t, zoneTime("2026-11-05", "20:00"))
 	sp := &speaker{}
 	s.stepFn = sp.fn
@@ -120,14 +120,10 @@ func TestNightlyMakesOneBundlePerStockAndLeavesAReceipt(t *testing.T) {
 	if pts := b.Debate["bull"].(map[string]any)["points"].([]any); len(pts) != 1 || pts[0].(map[string]any)["text"] != "板块强" {
 		t.Fatalf("bull = %+v", b.Debate["bull"])
 	}
-	var receipts []inbox.Item
 	for _, it := range s.inbox.List("system", false, 10) {
 		if it.SubjectID == nightlyID {
-			receipts = append(receipts, it)
+			t.Fatalf("system nightly must not leave an inbox receipt: %+v", it)
 		}
-	}
-	if len(receipts) != 1 || receipts[0].Type != "task.completed" || !strings.Contains(receipts[0].Body, "单元 2/2") {
-		t.Fatalf("receipts = %+v", receipts)
 	}
 	if len(s.inbox.DesktopPending()) != 0 {
 		t.Fatal("a success popped up on the desktop")
@@ -267,14 +263,10 @@ func TestAlertsFireOncePerDayAndHoldingsGetAMoveAlert(t *testing.T) {
 	if alerts != 1 || moves != 1 {
 		t.Fatalf("alerts=%d moves=%d (the close alert must wait for the close task)", alerts, moves)
 	}
-	var receipts int
 	for _, it := range s.inbox.List("system", false, 20) {
-		if it.Type == "task.completed" && strings.Contains(it.Title, "盘中价格提醒") {
-			receipts++
+		if it.Type == "task.completed" || it.Type == "task.failed" {
+			t.Fatalf("system scheduled tasks must not leave run receipts: %+v", it)
 		}
-	}
-	if receipts != 1 {
-		t.Fatalf("a task that runs every 3 minutes left %d receipts, want the first of the day only", receipts)
 	}
 }
 

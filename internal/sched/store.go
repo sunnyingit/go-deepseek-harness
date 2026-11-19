@@ -64,6 +64,15 @@ func (j *Job) active() bool {
 	return false
 }
 
+// TriggerOverride is a user edit of when a system task runs. Empty fields keep the Spec default.
+type TriggerOverride struct {
+	Kind      string `json:"kind,omitempty"`
+	At        string `json:"at,omitempty"`
+	WindowMin int    `json:"window_min,omitempty"`
+	Days      string `json:"days,omitempty"`
+	EveryMin  int    `json:"every_min,omitempty"`
+}
+
 type state struct {
 	Seq       int                        `json:"seq"`
 	FirstTick int64                      `json:"first_tick"`
@@ -72,6 +81,8 @@ type state struct {
 	Steps     map[string]json.RawMessage `json:"steps"`
 	Usage     map[string]int             `json:"usage"`
 	Paused    map[string]bool            `json:"paused"`
+	Deleted   map[string]bool            `json:"deleted,omitempty"`
+	Overrides map[string]TriggerOverride `json:"overrides,omitempty"`
 	KV        map[string]json.RawMessage `json:"kv"`
 }
 
@@ -85,7 +96,7 @@ type Store struct {
 }
 
 func OpenStore(path string) *Store {
-	st := &Store{path: path, s: state{Steps: map[string]json.RawMessage{}, Usage: map[string]int{}, Paused: map[string]bool{}, KV: map[string]json.RawMessage{}}}
+	st := &Store{path: path, s: state{Steps: map[string]json.RawMessage{}, Usage: map[string]int{}, Paused: map[string]bool{}, Deleted: map[string]bool{}, Overrides: map[string]TriggerOverride{}, KV: map[string]json.RawMessage{}}}
 	if path == "" {
 		return st
 	}
@@ -104,10 +115,38 @@ func OpenStore(path string) *Store {
 	if st.s.Paused == nil {
 		st.s.Paused = map[string]bool{}
 	}
+	if st.s.Deleted == nil {
+		st.s.Deleted = map[string]bool{}
+	}
+	if st.s.Overrides == nil {
+		st.s.Overrides = map[string]TriggerOverride{}
+	}
 	if st.s.KV == nil {
 		st.s.KV = map[string]json.RawMessage{}
 	}
 	return st
+}
+
+// ReclaimInterrupted marks jobs left in "running" after a process exit as dead.
+// Workers live only in memory; a persisted running job will never finish, and
+// ActiveJob would keep pages waiting on "正在分析" forever.
+func (st *Store) ReclaimInterrupted(nowMs int64) int {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	n := 0
+	for _, j := range st.s.Jobs {
+		if j.State != "running" {
+			continue
+		}
+		j.State = "dead"
+		j.Error = &JobError{Kind: KindPermanent, Message: "进程重启，上次任务中断"}
+		j.UpdatedAt = nowMs
+		n++
+	}
+	if n > 0 {
+		st.touch()
+	}
+	return n
 }
 
 func (st *Store) touch() { st.dirty = true }
@@ -311,6 +350,51 @@ func (st *Store) SetPaused(taskID string, paused bool) {
 	}
 	st.touch()
 	st.mu.Unlock()
+}
+
+// Deleted tells whether a system task was soft-deleted (hidden and not planned).
+func (st *Store) Deleted(taskID string) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.s.Deleted[taskID]
+}
+
+// SoftDelete marks a task deleted and paused so it stops running until Restore.
+func (st *Store) SoftDelete(taskID string) {
+	st.mu.Lock()
+	st.s.Deleted[taskID] = true
+	st.s.Paused[taskID] = true
+	st.touch()
+	st.mu.Unlock()
+}
+
+// Restore clears soft-delete and re-enables the task.
+func (st *Store) Restore(taskID string) {
+	st.mu.Lock()
+	delete(st.s.Deleted, taskID)
+	delete(st.s.Paused, taskID)
+	st.touch()
+	st.mu.Unlock()
+}
+
+// Override returns a user's trigger edit for a task, if any.
+func (st *Store) Override(taskID string) (TriggerOverride, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	o, ok := st.s.Overrides[taskID]
+	return o, ok
+}
+
+// SetOverride writes or clears a trigger edit. A zero value clears the override.
+func (st *Store) SetOverride(taskID string, o TriggerOverride) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if o.Kind == "" && o.At == "" && o.Days == "" && o.WindowMin == 0 && o.EveryMin == 0 {
+		delete(st.s.Overrides, taskID)
+	} else {
+		st.s.Overrides[taskID] = o
+	}
+	st.touch()
 }
 
 // prune drops old runs, their jobs and steps. Frequent tasks keep two days, the rest keep thirty.

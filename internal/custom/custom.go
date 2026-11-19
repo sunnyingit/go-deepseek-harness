@@ -18,7 +18,7 @@ import (
 )
 
 // Dimensions are the dimension analysts that each look at one side; the chief weighs them.
-var Dimensions = []string{"volume_flow", "market", "sector", "news", "finance", "fundamental"}
+var Dimensions = []string{"market", "volume_flow", "sector", "news", "finance", "fundamental"}
 
 // AnalystLabel is how an analyst is named in the lists.
 var AnalystLabel = map[string]string{"volume_flow": "资金流", "market": "大盘", "sector": "板块", "news": "新闻", "finance": "财报", "fundamental": "基本面", "chief": "主分析师"}
@@ -390,6 +390,19 @@ type Facts struct {
 	SectorVerd string
 }
 
+func aiLeanText(lean string) string {
+	switch lean {
+	case "bullish":
+		return "偏多"
+	case "bearish":
+		return "偏空"
+	case "unclear":
+		return "不明"
+	default:
+		return lean
+	}
+}
+
 // Eval says whether a rule holds, with a phrase that tells why. known is false when the data to decide is missing.
 func Eval(r Rule, f Facts) (hit bool, why string, known bool) {
 	ma := func(n int) (float64, bool) {
@@ -470,12 +483,18 @@ func Eval(r Rule, f Facts) (hit bool, why string, known bool) {
 		if f.AILean == "" {
 			return false, "", false
 		}
-		return f.AILean == "bullish", "AI 结论偏多", true
+		if f.AILean == "bullish" {
+			return true, "AI 结论偏多", true
+		}
+		return false, "AI 结论是「" + aiLeanText(f.AILean) + "」", true
 	case "ai_bearish":
 		if f.AILean == "" {
 			return false, "", false
 		}
-		return f.AILean == "bearish", "AI 结论偏空", true
+		if f.AILean == "bearish" {
+			return true, "AI 结论偏空", true
+		}
+		return false, "AI 结论是「" + aiLeanText(f.AILean) + "」", true
 	case "sector_is":
 		if f.SectorVerd == "" {
 			return false, "", false
@@ -487,22 +506,34 @@ func Eval(r Rule, f Facts) (hit bool, why string, known bool) {
 
 // Match applies all the rules of a task. why lists what held; unknown lists what could not be decided.
 func Match(t Task, f Facts) (hit bool, why []string, unknown int) {
-	held := 0
+	hit, why, _, _, unknown = Inspect(t, f)
+	return hit, why, unknown
+}
+
+// Inspect is Match plus the rules that failed or could not be judged — for the task result panel.
+func Inspect(t Task, f Facts) (hit bool, passed, failed, missing []string, unknown int) {
 	for _, r := range t.Rules {
 		ok, text, known := Eval(r, f)
+		label := RuleText(r)
 		if !known {
 			unknown++
+			missing = append(missing, label+"：缺数据，无法判断")
 			continue
 		}
 		if ok {
-			held++
-			why = append(why, text)
+			passed = append(passed, text)
+			continue
+		}
+		if text != "" {
+			failed = append(failed, label+"：未满足（"+text+"）")
+		} else {
+			failed = append(failed, label+"：未满足")
 		}
 	}
 	if t.Match == "any" {
-		return held > 0, why, unknown
+		return len(passed) > 0, passed, failed, missing, unknown
 	}
-	return held == len(t.Rules) && len(t.Rules) > 0, why, unknown
+	return len(passed) == len(t.Rules) && len(t.Rules) > 0, passed, failed, missing, unknown
 }
 
 // NeedsCloses etc. say which data a task needs, so only that is fetched.

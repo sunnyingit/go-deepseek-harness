@@ -7,7 +7,7 @@ text 内禁止英文双引号 `"`（用「」），否则 JSON 解析失败。
 
 开场最后一条只能是 JSON（不要代码围栏）：
 {"stance":"偏多|中性|偏空","strength":"强|弱","text":"结论","fact_ids":["id"],"suggested_questions":[]}
-text ≤120 字：先人话结论，再一句关键事实。fact_ids 必须以 fd. 开头且出现在本次 facts。
+text 写透、不追求字数上限：先人话结论，再展开关键依据。fact_ids 必须以 fd. 开头且出现在本次 facts。
 没有事实时 text 说明没取到（computing 写还在整理），stance=中性，strength=弱，fact_ids 与 suggested_questions 用空数组。
 suggested_questions 有条件生成：围绕本轮真实缺口 1～3 条；没有值得追问 → []，禁止凑数。
 开场只允许 fundamental-facts → fetch_facts；禁止分片追问工具 / 画图。拿到事实后立刻结束。

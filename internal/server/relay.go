@@ -314,8 +314,7 @@ func (s *Server) pullRelayEvents() (map[string]any, error) {
 	return map[string]any{"events": len(seqs), "created": created}, nil
 }
 
-// pullSystemEvents brings back the server's own task receipts, so a task that ran on the server can be
-// seen in the inbox too.
+// pullSystemEvents advances the server-task cursor. System task receipts are no longer written to the inbox.
 func (s *Server) pullSystemEvents() (map[string]any, error) {
 	rc := s.relay
 	if rc == nil || !rc.enabled() {
@@ -329,20 +328,14 @@ func (s *Server) pullSystemEvents() (map[string]any, error) {
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("拉取服务端任务回执失败（%d）", status)
 	}
-	last, created := c.SysCursor, 0
+	last := c.SysCursor
 	items, _ := body["items"].([]any)
 	for _, raw := range items {
 		item := asMap(raw)
 		event := asMap(item["event"])
 		typ, _ := event["type"].(string)
-		payload := asMap(event["payload"])
 		if typ != "task.completed" && typ != "task.failed" {
 			continue
-		}
-		payload["host"] = "server"
-		key, _ := event["dedupe_key"].(string)
-		if _, made, err := s.inbox.Publish(typ, "system", fmt.Sprint(payload["task_id"]), payload, key, inbox.Options{NoDesktop: typ == "task.completed", Local: true}); err == nil && made {
-			created++
 		}
 		if seq, ok := item["seq"].(float64); ok && int(seq) > last {
 			last = int(seq)
@@ -354,7 +347,7 @@ func (s *Server) pullSystemEvents() (map[string]any, error) {
 		rc.save()
 		rc.mu.Unlock()
 	}
-	return map[string]any{"events": len(items), "created": created}, nil
+	return map[string]any{"events": len(items), "created": 0}, nil
 }
 
 func (s *Server) relaySyncTask(c *sched.JobCtx) (any, error) {

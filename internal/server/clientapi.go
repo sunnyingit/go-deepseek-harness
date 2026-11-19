@@ -22,11 +22,13 @@ func (s *Server) registerClientRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /notify/inbox", s.handleInbox)
 	mux.HandleFunc("GET /notify/unread", s.handleUnread)
 	mux.HandleFunc("POST /notify/inbox/read", s.handleInboxRead)
+	mux.HandleFunc("POST /notify/inbox/delete", s.handleInboxDelete)
 	mux.HandleFunc("GET /notify/desktop/pending", s.handleDesktopPending)
 	mux.HandleFunc("POST /notify/desktop/ack", s.handleDesktopAck)
 	s.registerHoldingsRoutes(mux)
 	s.registerScanRoutes(mux)
 	s.registerCustomRoutes(mux)
+	s.registerSysRoutes(mux)
 	s.registerServiceRoutes(mux)
 	s.registerNotifySettingsRoutes(mux)
 	mux.HandleFunc("GET /notify/relay", s.handleRelayStatus)
@@ -47,6 +49,7 @@ func (s *Server) registerClientRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/watchlist", s.handleWatchList)
 	mux.HandleFunc("POST /api/v1/watchlist", s.handleWatchAdd)
 	mux.HandleFunc("DELETE /api/v1/watchlist/{code}", s.handleWatchRemove)
+	mux.HandleFunc("GET /api/v1/stocks/search", s.handleStockSearch)
 	mux.HandleFunc("GET /api/v1/stocks/{code}/alerts", s.handleAlertList)
 	mux.HandleFunc("POST /api/v1/stocks/{code}/alerts", s.handleAlertAdd)
 	mux.HandleFunc("DELETE /api/v1/alerts/{id}", s.handleAlertRemove)
@@ -85,6 +88,16 @@ func (s *Server) handleInboxRead(w http.ResponseWriter, r *http.Request) {
 	_ = readJSON(r, &body)
 	n := s.inbox.MarkRead(body.IDs, body.All)
 	writeJSON(w, http.StatusOK, map[string]any{"updated": n, "unread": s.inbox.Unread()})
+}
+
+func (s *Server) handleInboxDelete(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		IDs []string `json:"ids"`
+		All bool     `json:"all"`
+	}
+	_ = readJSON(r, &body)
+	n := s.inbox.Delete(body.IDs, body.All)
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": n, "unread": s.inbox.Unread()})
 }
 
 func (s *Server) handleDesktopPending(w http.ResponseWriter, _ *http.Request) {
@@ -195,13 +208,85 @@ func (s *Server) handleConclusionCommit(w http.ResponseWriter, r *http.Request) 
 
 var plainCode = regexp.MustCompile(`^([0-9]{6}\.(SH|SZ|BJ)|[0-9]{5}\.HK)$`)
 
+// knownIndexByAlias maps common A-share index nicknames to ts_code.
+// Stock search only covers listed equities, so 创业板指 / 上证 等宽基名必须本地解析。
+var knownIndexByAlias = map[string]string{
+	"上证指数": "000001.SH", "上证综指": "000001.SH", "上证": "000001.SH", "沪指": "000001.SH",
+	"深证成指": "399001.SZ", "深成指": "399001.SZ", "深成": "399001.SZ", "深指": "399001.SZ",
+	"创业板指": "399006.SZ", "创业板指数": "399006.SZ", "创业板": "399006.SZ", "创指": "399006.SZ",
+	"沪深300": "000300.SH", "沪深 300": "000300.SH", "HS300": "000300.SH",
+	"中证500": "000905.SH", "中证 500": "000905.SH",
+	"中证1000": "000852.SH", "中证 1000": "000852.SH",
+	"上证50": "000016.SH", "上证 50": "000016.SH",
+	"科创50": "000688.SH", "科创 50": "000688.SH", "科创板指": "000688.SH",
+}
+
+var knownIndexNameByCode = map[string]string{
+	"000001.SH": "上证指数",
+	"399001.SZ": "深证成指",
+	"399006.SZ": "创业板指",
+	"000300.SH": "沪深300",
+	"000905.SH": "中证500",
+	"000852.SH": "中证1000",
+	"000016.SH": "上证50",
+	"000688.SH": "科创50",
+}
+
+// preferHKQuery is true when the user clearly asked for a Hong Kong listing.
+func preferHKQuery(q string) bool {
+	raw := strings.TrimSpace(q)
+	upper := strings.ToUpper(raw)
+	if strings.Contains(upper, ".HK") || strings.HasSuffix(upper, "HK") {
+		return true
+	}
+	for _, tok := range []string{"港股", "港股通", "恒生", "H股", "H 股"} {
+		if strings.Contains(raw, tok) {
+			return true
+		}
+	}
+	// 1–5 digit bare codes are the usual HK ticker form (A-shares are 6 digits).
+	digits := 0
+	for _, r := range raw {
+		if r < '0' || r > '9' {
+			return false
+		}
+		digits++
+	}
+	return digits >= 1 && digits <= 5
+}
+
+func pickSearchHit(q string, items []struct {
+	TSCode string `json:"ts_code"`
+	Name   string `json:"name"`
+}) (string, string) {
+	if len(items) == 0 {
+		return "", ""
+	}
+	if !preferHKQuery(q) {
+		for _, it := range items {
+			c := strings.ToUpper(strings.TrimSpace(it.TSCode))
+			if strings.HasSuffix(c, ".SH") || strings.HasSuffix(c, ".SZ") || strings.HasSuffix(c, ".BJ") {
+				return c, it.Name
+			}
+		}
+	}
+	return strings.ToUpper(items[0].TSCode), items[0].Name
+}
+
 // resolveStock turns what the user typed into a ts_code and a name. A ts_code is used as it is; a name or
-// bare number is looked up in the shared stock service.
+// bare number is looked up in the shared stock service. Common index aliases resolve locally.
+// Name search defaults to A-shares (SH/SZ/BJ); HK only when the query looks like a HK listing.
 func (s *Server) resolveStock(q string) (string, string, error) {
 	q = strings.TrimSpace(q)
 	upper := strings.ToUpper(q)
 	if plainCode.MatchString(upper) {
 		return upper, s.lookupName(upper), nil
+	}
+	if code, ok := knownIndexByAlias[q]; ok {
+		return code, knownIndexNameByCode[code], nil
+	}
+	if code, ok := knownIndexByAlias[upper]; ok {
+		return code, knownIndexNameByCode[code], nil
 	}
 	var found struct {
 		Items []struct {
@@ -212,12 +297,23 @@ func (s *Server) resolveStock(q string) (string, string, error) {
 	if err := s.stockGetJSON("/api/v1/stocks/search?q="+url.QueryEscape(q), &found); err != nil || len(found.Items) == 0 {
 		return "", "", fmt.Errorf("未找到股票: %s", q)
 	}
-	return strings.ToUpper(found.Items[0].TSCode), found.Items[0].Name, nil
+	code, name := pickSearchHit(q, found.Items)
+	if code == "" {
+		return "", "", fmt.Errorf("未找到股票: %s", q)
+	}
+	return code, name, nil
 }
 
 func (s *Server) lookupName(code string) string {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	if name, ok := knownIndexNameByCode[code]; ok {
+		return name
+	}
 	if n := s.stockName(code); n != code {
 		return n
+	}
+	if len(code) < 6 {
+		return code
 	}
 	var found struct {
 		Items []struct {
@@ -355,6 +451,58 @@ func (s *Server) handleWatchRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "ts_code": code})
+}
+
+// handleStockSearch proxies the stock service search and enriches each hit with the local diagnosis lean.
+func (s *Server) handleStockSearch(w http.ResponseWriter, r *http.Request) {
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if q == "" {
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "items": []any{}})
+		return
+	}
+	var found struct {
+		Status string           `json:"status"`
+		Error  string           `json:"error"`
+		Items  []map[string]any `json:"items"`
+	}
+	if err := s.stockGetJSON("/api/v1/stocks/search?q="+url.QueryEscape(q), &found); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"status": "error", "error": "搜索失败: " + err.Error()})
+		return
+	}
+	if found.Items == nil {
+		found.Items = []map[string]any{}
+	}
+	if !preferHKQuery(q) {
+		var aShare, other []map[string]any
+		for _, row := range found.Items {
+			code, _ := row["ts_code"].(string)
+			c := strings.ToUpper(strings.TrimSpace(code))
+			if strings.HasSuffix(c, ".SH") || strings.HasSuffix(c, ".SZ") || strings.HasSuffix(c, ".BJ") {
+				aShare = append(aShare, row)
+			} else {
+				other = append(other, row)
+			}
+		}
+		found.Items = append(aShare, other...)
+	}
+	for i, row := range found.Items {
+		code, _ := row["ts_code"].(string)
+		code = strings.ToUpper(strings.TrimSpace(code))
+		lean, label := "", "还没诊断"
+		verdict := ""
+		if b := s.readBundle(code); b != nil {
+			verdict, _ = b.Chief["verdict"].(string)
+			if verdict != "" {
+				label = verdict
+				lean = leanOf(verdict)
+			}
+		}
+		row["lean"] = lean
+		row["verdict"] = verdict
+		row["diagnosis"] = map[string]any{"lean": lean, "label": label, "verdict": verdict, "has": verdict != ""}
+		found.Items[i] = row
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "items": found.Items})
 }
 
 func alertBody(a personal.Alert) map[string]any {

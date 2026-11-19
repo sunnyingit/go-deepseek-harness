@@ -11,7 +11,7 @@ description: >-
 
 `verdict` 用偏多、偏空或不明。得分由程序按采纳条目的 weight 计算，不要自己写分数。
 
-`text`：**短裁决**，先大盘总档再个股结论，**≤180 字**。不要把证据取舍、分歧、校准、证伪整段写进 `text`（分别用 adopted / rejected / however / if_wrong）；开场不要长 markdown 标题或表格。
+`text`：**短裁决**，先大盘总档再写清个股结论。不要把证据取舍、分歧、校准、证伪整段写进 `text`（分别用 adopted / rejected / however / if_wrong）；开场不要长 markdown 标题或表格。
 
 `if_wrong` 不要编一个群里没出现过的价格。
 

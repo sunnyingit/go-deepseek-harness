@@ -1,0 +1,15 @@
+id: sector
+name: 板块分析师
+dimension: sector
+skills:
+  - sector-facts
+  - sector-reply
+  - answer-outline
+  - answer-table
+  - d3js-visualization
+  - stock-basic
+tools:
+  - fetch_facts
+fact_prefix: "sp."
+max_steps: 14
+opening: 请给出这只股票的板块初始结论。充分挖掘工具事实后再下判断，不要被规则标签绑死。输出 stance/strength/text（写透有效信息，不追求字数上限）/fact_ids/suggested_questions：人话写清偏多/偏空/不明、板块对个股是支撑还是拖累，并展开关键依据。少写行话。关键证据不足时再补追问工具，不要机械全开。

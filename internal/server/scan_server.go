@@ -19,7 +19,12 @@ import (
 
 func (s *Server) registerScanTasks() {
 	s.sch.Register(&sched.Spec{
-		ID: "scan.settle", Title: "预测结算", Queue: "data", Gates: []string{"market_closed"},
+		ID: "scan.settle", Title: "预测结算", Category: sched.CatScan, Note: "结算到期的预测：第 5、20 个交易日对账，写出对错和原因，并发一条战绩通知",
+		Trace: map[string]any{
+			"apis":    []any{"GET /api/v1/shared/closes/{code}", "GET /api/v1/shared/calendar", "inbox.Publish(scan.settled)"},
+			"purpose": "对到期预测按第 5/20 个交易日对账并写战绩通知",
+		},
+		Queue: "data", Gates: []string{"market_closed"},
 		Trigger: sched.Trigger{Kind: "daily", At: "17:30", WindowMin: 240, Days: "trading"}, MaxAttempts: 3, Backoff: []time.Duration{10 * time.Minute, 30 * time.Minute, time.Hour},
 		CatchupTTL: 20 * time.Hour, Timeout: 5 * time.Minute, Handler: s.settleScan,
 	})
@@ -172,7 +177,7 @@ func (s *Server) settleScan(c *sched.JobCtx) (any, error) {
 	}
 	var todo []due
 	for _, p := range preds {
-		if p.Direction == scan.Unclear {
+		if !p.Active() || p.Direction == scan.Unclear {
 			continue
 		}
 		for _, h := range scan.Horizons {
@@ -181,8 +186,12 @@ func (s *Server) settleScan(c *sched.JobCtx) (any, error) {
 			}
 		}
 	}
+	apis := []any{"GET /api/v1/shared/closes/{code}", "GET /api/v1/shared/calendar", "inbox.Publish(scan.settled)"}
 	if len(todo) == 0 {
-		return map[string]any{"settled": 0}, nil
+		return map[string]any{
+			"settled": 0, "apis": apis,
+			"summary": "没有到期待结算的预测", "detail": "没有到期待结算的预测",
+		}, nil
 	}
 	cache := map[string]priced{}
 	stale := false
@@ -249,7 +258,15 @@ func (s *Server) settleScan(c *sched.JobCtx) (any, error) {
 		_, _, _ = s.inbox.Publish("scan.settled", "system", "scan", map[string]any{"n": counts["n"], "hit": counts["hit"], "decided": counts["hit"] + counts["miss"], "lines": lines},
 			"scan:"+sched.Day(now), inbox.Options{TradeDate: want})
 	}
-	return map[string]any{"settled": counts["n"], "hit": counts["hit"], "miss": counts["miss"], "flat": counts["flat"]}, nil
+	summary := fmt.Sprintf("结算 %d · 对 %d · 错 %d · 持平 %d", counts["n"], counts["hit"], counts["miss"], counts["flat"])
+	detail := summary
+	if len(lines) > 0 {
+		detail = summary + "\n" + strings.Join(lines, "\n")
+	}
+	return map[string]any{
+		"settled": counts["n"], "hit": counts["hit"], "miss": counts["miss"], "flat": counts["flat"],
+		"apis": apis, "summary": summary, "detail": detail, "lines": lines,
+	}, nil
 }
 
 func word(direction string) string {
@@ -262,14 +279,21 @@ func word(direction string) string {
 	return "不明"
 }
 
-// relatedCodes are the stocks the user holds, wishes for or follows.
+// relatedCodes are the stocks the user holds or wants to buy (战绩只看这两类，不含自选).
 func (s *Server) relatedCodes() map[string]bool {
 	out := map[string]bool{}
-	for _, sub := range s.personal.Subjects() {
-		out[sub.Code] = true
+	for code := range personal.Held(s.personal.Trades()) {
+		out[code] = true
+	}
+	for _, w := range s.personal.Wishes() {
+		if w.Code != "" {
+			out[w.Code] = true
+		}
 	}
 	return out
 }
+
+func (s *Server) ownedCount() int { return len(s.relatedCodes()) }
 
 // dueDay estimates the day a horizon falls on: n trading days after the base day, by the stock's own
 // bars where they reach, otherwise counting weekdays.
@@ -305,6 +329,18 @@ func (s *Server) mineOf(code string, related map[string]bool) map[string]any {
 	return map[string]any{"held": held, "wish": wish, "related": related[code]}
 }
 
+// kindMatch filters 持仓 / 想买；空或 all 表示两类都要。
+func kindMatch(mine map[string]any, kind string) bool {
+	switch kind {
+	case "held":
+		return mine["held"] == true
+	case "wish":
+		return mine["wish"] == true
+	default:
+		return true
+	}
+}
+
 func localClock(ms int64) time.Time { return time.UnixMilli(ms).In(sched.Zone) }
 
 func (s *Server) predRow(p scan.Prediction, px *priced, related map[string]bool) map[string]any {
@@ -312,10 +348,27 @@ func (s *Server) predRow(p scan.Prediction, px *priced, related map[string]bool)
 	if px != nil {
 		bars = px.stock
 	}
+	baseClose := p.BaseClose
+	if baseClose == 0 {
+		for _, b := range bars {
+			if b.Day == p.BaseDay {
+				baseClose = b.Close
+				break
+			}
+		}
+	}
+	var price any
+	if n := len(bars); n > 0 {
+		price = bars[n-1].Close
+	}
+	var baseCloseV any
+	if baseClose > 0 {
+		baseCloseV = baseClose
+	}
 	row := map[string]any{
 		"id": p.ID, "source": p.Source, "source_text": map[string]string{"scan": "定时扫描", "diagnose": "你诊断"}[p.Source], "ts_code": p.Code, "name": p.Name,
 		"sector": p.Sector, "made_day": localClock(p.MadeAt).Format("2006-01-02"), "made_at": localClock(p.MadeAt).Format("15:04"), "base_day": p.BaseDay,
-		"base_close": p.BaseClose, "verdict": p.Verdict, "direction": p.Direction, "level": p.Level, "evidence": p.Evidence, "mine": s.mineOf(p.Code, related),
+		"base_close": baseCloseV, "price": price, "verdict": p.Verdict, "direction": p.Direction, "level": p.Level, "evidence": p.Evidence, "mine": s.mineOf(p.Code, related),
 		"due": map[string]any{"5": s.dueDay(p.BaseDay, 5, bars), "20": s.dueDay(p.BaseDay, 20, bars)},
 	}
 	return row
@@ -338,15 +391,15 @@ func (s *Server) madeDays(preds []scan.Prediction) []string {
 // scanSummary is the head of the page: the four numbers and what the scan covered.
 func (s *Server) scanSummary() map[string]any {
 	preds := s.scan.All()
-	days := s.madeDays(preds)
 	today := sched.Day(s.now())
-	shown := today
-	if len(days) > 0 && days[len(days)-1] < today {
-		shown = days[len(days)-1]
-	}
+	shown := s.scanShownDay(preds)
+	owned := s.relatedCodes()
 	var made, bull, bear, unclear, scanN, diagN int
 	tracking, settledToday, hitToday := 0, 0, 0
 	for _, p := range preds {
+		if !owned[p.Code] {
+			continue
+		}
 		if localClock(p.MadeAt).Format("2006-01-02") == shown {
 			made++
 			switch p.Direction {
@@ -363,10 +416,11 @@ func (s *Server) scanSummary() map[string]any {
 				diagN++
 			}
 		}
-		if p.Direction != scan.Unclear && !s.hidden.Has(p.Code) {
+		if p.Active() && p.Direction != scan.Unclear && !s.hidden.Has(p.Code) {
 			for _, h := range scan.Horizons {
 				if p.Result(h) == nil {
-					tracking++
+					tracking++ // one call in flight, not one per 5/20-day horizon
+					break
 				}
 			}
 		}
@@ -377,7 +431,13 @@ func (s *Server) scanSummary() map[string]any {
 			}
 		}
 	}
-	acc := scan.Stats(preds, 5, 60, s.now())
+	var ownedPreds []scan.Prediction
+	for _, p := range preds {
+		if owned[p.Code] {
+			ownedPreds = append(ownedPreds, p)
+		}
+	}
+	acc := scan.Stats(ownedPreds, 5, 60, s.now())
 	var pct any
 	if acc.Overall.Pct >= 0 {
 		pct = acc.Overall.Pct
@@ -386,29 +446,62 @@ func (s *Server) scanSummary() map[string]any {
 	if m := (holdingsData{s}).Market(); m != nil {
 		market = map[string]any{"level": m.Level, "tilt": m.Tilt, "text": m.Text}
 	}
+	firstMade, nextSettle, nextSettleN := "", "", 0
+	for _, p := range ownedPreds {
+		if p.BaseDay == "" {
+			continue
+		}
+		if firstMade == "" || p.BaseDay < firstMade {
+			firstMade = p.BaseDay
+		}
+	}
+	if plan := s.settlePlan(); len(plan) > 0 {
+		if day, _ := plan[0]["day"].(string); day != "" {
+			nextSettle = day
+		}
+		if n, ok := plan[0]["count"].(int); ok {
+			nextSettleN = n
+		}
+	}
 	return map[string]any{
 		"day": shown, "today": today, "running": s.analysingNow(), "market": market, "next_run": s.nextRunText(),
 		"made": made, "tracking": tracking, "settled_today": map[string]any{"hit": hitToday, "n": settledToday}, "accuracy": pct, "accuracy_n": acc.Overall.N,
-		"funnel": map[string]any{"subjects": len(s.personal.Subjects()), "researched": made, "bullish": bull, "bearish": bear, "unclear": unclear, "scan": scanN, "diagnose": diagN},
+		"first_made": firstMade, "next_settle": nextSettle, "next_settle_n": nextSettleN,
+		"funnel": map[string]any{"subjects": s.ownedCount(), "researched": made, "bullish": bull, "bearish": bear, "unclear": unclear, "scan": scanN, "diagnose": diagN},
 		"empty":  len(preds) == 0,
 	}
 }
 
-func (s *Server) scanToday(source string) map[string]any {
+// scanShownDay is the "今天" tab's day: today if anything was made today, else the last made day.
+func (s *Server) scanShownDay(preds []scan.Prediction) string {
+	today := sched.Day(s.now())
+	days := s.madeDays(preds)
+	if len(days) > 0 && days[len(days)-1] < today {
+		return days[len(days)-1]
+	}
+	return today
+}
+
+func (s *Server) scanToday(source, kind string) map[string]any {
 	preds := s.scan.All()
-	sum := s.scanSummary()
-	day := sum["day"].(string)
+	day := s.scanShownDay(preds)
 	related := s.relatedCodes()
 	rows := []map[string]any{}
+	seen := map[string]bool{}
 	for i := len(preds) - 1; i >= 0; i-- {
 		p := preds[i]
-		if localClock(p.MadeAt).Format("2006-01-02") != day || (source != "" && source != "all" && p.Source != source) {
+		if !related[p.Code] || seen[p.Code] || localClock(p.MadeAt).Format("2006-01-02") != day || (source != "" && source != "all" && p.Source != source) {
 			continue
 		}
 		px := s.pricesOf(p.Code)
-		rows = append(rows, s.predRow(p, &px, related))
+		row := s.predRow(p, &px, related)
+		if !kindMatch(row["mine"].(map[string]any), kind) {
+			continue
+		}
+		seen[p.Code] = true
+		rows = append(rows, row)
 	}
-	return map[string]any{"day": day, "rows": rows, "total": len(rows), "focus": s.scanFocus(preds, day, related)}
+	return map[string]any{"day": day, "rows": rows, "total": len(rows)}
 }
 
 // analysingNow lists the stocks a conclusion is being made for right now, so the page can show it and keep checking.
@@ -421,70 +514,6 @@ func (s *Server) analysingNow() []string {
 		if _, active := s.sch.Store.ActiveJob(nightlyID, sub.Code); active {
 			out = append(out, sub.Code)
 		}
-	}
-	return out
-}
-
-// scanFocus picks the few conclusions of the day the user should read: one that goes against what they
-// hold or want to buy, one that turned round from the last time, and the ones they asked for themselves.
-func (s *Server) scanFocus(preds []scan.Prediction, day string, related map[string]bool) []map[string]any {
-	latest := map[string]scan.Prediction{}
-	var order []string
-	prev := map[string]scan.Prediction{}
-	for _, p := range preds {
-		d := localClock(p.MadeAt).Format("2006-01-02")
-		switch {
-		case d == day:
-			if _, ok := latest[p.Code]; !ok {
-				order = append(order, p.Code)
-			}
-			latest[p.Code] = p
-		case d < day && p.Direction != scan.Unclear:
-			prev[p.Code] = p
-		}
-	}
-	type item struct {
-		rank int
-		row  map[string]any
-	}
-	var items []item
-	for _, code := range order {
-		p := latest[code]
-		m := s.mineOf(code, related)
-		held, wish := m["held"] == true, m["wish"] == true
-		row := map[string]any{"ts_code": code, "name": p.Name, "direction": p.Direction, "verdict": p.Verdict, "held": held, "wish": wish}
-		rank := 2
-		if held {
-			rank = 0
-		} else if wish {
-			rank = 1
-		}
-		old, hadOld := prev[code]
-		switch {
-		case p.Direction == scan.Bearish && (held || wish):
-			who := "想买"
-			if held {
-				who = "持有"
-			}
-			row["kind"], row["tag"], row["text"] = "conflict", "和你的打算冲突", "你"+who+"，AI 偏空："+firstSentence(p.Evidence)
-		case hadOld && p.Direction != scan.Unclear && old.Direction != p.Direction:
-			row["kind"], row["tag"], row["text"] = "flip", "判断反转", shortDay(localClock(old.MadeAt).Format("2006-01-02"))+" "+word(old.Direction)+" → 今天"+word(p.Direction)+"："+firstSentence(p.Evidence)
-			rank += 10
-		case p.Source == "diagnose":
-			row["kind"], row["tag"], row["text"] = "diagnose", "你刚诊断", "你重新分析过："+p.Verdict+"，"+firstSentence(p.Evidence)
-			rank += 20
-		default:
-			continue
-		}
-		items = append(items, item{rank, row})
-	}
-	sort.SliceStable(items, func(a, b int) bool { return items[a].rank < items[b].rank })
-	out := []map[string]any{}
-	for i, it := range items {
-		if i >= 6 {
-			break
-		}
-		out = append(out, it.row)
 	}
 	return out
 }
@@ -503,19 +532,27 @@ func (s *Server) trackingRow(p scan.Prediction, h int, px priced, related map[st
 	return row
 }
 
-func (s *Server) scanTracking(due string, mineOnly bool, source string) map[string]any {
+func (s *Server) scanTracking(due, source, kind string) map[string]any {
 	preds := s.scan.All()
 	related := s.relatedCodes()
 	cache := map[string]priced{}
 	rows := []map[string]any{}
-	hit, close5 := 0, 0
+	hit := 0
 	byHorizon := map[int]int{}
 	tomorrow := 0
 	mineCount := 0
+	matched := map[string]bool{}
 	today := sched.Day(s.now())
 	tomorrowDay := sched.Day(s.now().AddDate(0, 0, 1))
 	for _, p := range preds {
-		if p.Direction == scan.Unclear || s.hidden.Has(p.Code) {
+		if !p.Active() || p.Direction == scan.Unclear || s.hidden.Has(p.Code) || !related[p.Code] {
+			continue
+		}
+		if source != "" && source != "all" && p.Source != source {
+			continue
+		}
+		mine := s.mineOf(p.Code, related)
+		if !kindMatch(mine, kind) {
 			continue
 		}
 		px, ok := cache[p.Code]
@@ -523,41 +560,45 @@ func (s *Server) scanTracking(due string, mineOnly bool, source string) map[stri
 			px = s.pricesOf(p.Code)
 			cache[p.Code] = px
 		}
+		var open []int
 		for _, h := range scan.Horizons {
-			if p.Result(h) != nil {
-				continue
+			if p.Result(h) == nil {
+				open = append(open, h)
 			}
+		}
+		if len(open) == 0 {
+			continue
+		}
+		primary := open[0]
+		counted := false
+		for _, h := range open {
 			row := s.trackingRow(p, h, px, related)
 			byHorizon[h]++
-			if row["now"] == "hit" {
-				hit++
+			if h == primary {
+				if row["now"] == "hit" {
+					hit++
+				}
+				mineCount++
 			}
 			if sd, _ := row["settle_day"].(string); sd <= tomorrowDay && sd >= today && h == 5 {
 				tomorrow++
-			}
-			if row["mine"].(map[string]any)["related"] == true {
-				mineCount++
-			}
-			if mineOnly && row["mine"].(map[string]any)["related"] != true {
-				continue
-			}
-			if source != "" && source != "all" && p.Source != source {
-				continue
 			}
 			if !dueMatch(due, row["settle_day"].(string), s.now()) {
 				continue
 			}
 			rows = append(rows, row)
+			if !counted {
+				matched[p.ID] = true
+				counted = true
+			}
 		}
 	}
-	_ = close5
 	sort.SliceStable(rows, func(a, b int) bool { return rows[a]["settle_day"].(string) < rows[b]["settle_day"].(string) })
-	total := byHorizon[5] + byHorizon[20]
 	hidden := []map[string]any{}
 	for _, code := range s.hidden.List() {
 		hidden = append(hidden, map[string]any{"ts_code": code, "name": s.stockName(code)})
 	}
-	return map[string]any{"rows": rows, "total": total, "by_horizon": map[string]int{"5": byHorizon[5], "20": byHorizon[20]}, "now_right": hit, "tomorrow": tomorrow, "mine": mineCount, "hidden": hidden}
+	return map[string]any{"rows": rows, "total": len(matched), "by_horizon": map[string]int{"5": byHorizon[5], "20": byHorizon[20]}, "now_right": hit, "tomorrow": tomorrow, "mine": mineCount, "hidden": hidden}
 }
 
 // dueMatch filters tracking rows by when they settle.
@@ -578,9 +619,9 @@ func dueMatch(filter, day string, now time.Time) bool {
 }
 
 type settledFilter struct {
-	From, To, Source, Query string
-	Horizon                 int
-	WrongOnly               bool
+	From, To, Source, Kind, Query string
+	Horizon                       int
+	WrongOnly                     bool
 }
 
 func (s *Server) scanSettled(f settledFilter) map[string]any {
@@ -593,6 +634,13 @@ func (s *Server) scanSettled(f settledFilter) map[string]any {
 	}
 	var items []item
 	for _, p := range preds {
+		if !related[p.Code] {
+			continue
+		}
+		mine := s.mineOf(p.Code, related)
+		if !kindMatch(mine, f.Kind) {
+			continue
+		}
 		for _, h := range scan.Horizons {
 			r := p.Result(h)
 			if r == nil || r.Outcome == "" || (f.Horizon != 0 && h != f.Horizon) {
@@ -648,7 +696,7 @@ func (s *Server) scanSettled(f settledFilter) map[string]any {
 			default:
 				total.Flat++
 			}
-			row := map[string]any{"id": it.p.ID, "horizon": it.h, "source": it.p.Source, "source_text": map[string]string{"scan": "扫描", "diagnose": "你诊断"}[it.p.Source], "ts_code": it.p.Code, "name": it.p.Name,
+			row := map[string]any{"id": it.p.ID, "horizon": it.h, "source": it.p.Source, "source_text": map[string]string{"scan": "定时扫描", "diagnose": "你诊断"}[it.p.Source], "ts_code": it.p.Code, "name": it.p.Name,
 				"verdict": it.p.Verdict, "direction": it.p.Direction, "sector": it.p.Sector, "stock_ret": it.r.StockRet, "sector_ret": it.r.SectorRet, "excess": it.r.Excess,
 				"outcome": it.r.Outcome, "why": it.r.Why, "made_day": it.p.BaseDay, "mine": s.mineOf(it.p.Code, related)}
 			rows = append(rows, row)

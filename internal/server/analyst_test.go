@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"go-harness/core/agentloop"
 	"go-harness/core/session"
 	"go-harness/internal/appconfig"
 	"go-harness/skill/skill"
@@ -59,6 +61,43 @@ func TestParseSpeakAcceptsFencedJSON(t *testing.T) {
 	}
 }
 
+type wrapSpeakLLM struct {
+	text string
+	saw  *agentloop.GenerateRequest
+}
+
+func (w wrapSpeakLLM) Stream(_ context.Context, req agentloop.GenerateRequest) (<-chan agentloop.StreamChunk, error) {
+	if w.saw != nil {
+		*w.saw = req
+	}
+	ch := make(chan agentloop.StreamChunk, 1)
+	ch <- agentloop.StreamChunk{Delta: session.ContentBlock{Kind: session.BlockText, Text: w.text}}
+	close(ch)
+	return ch, nil
+}
+
+func TestWrapOpeningSpeakForcesJSONWithoutTools(t *testing.T) {
+	var saw agentloop.GenerateRequest
+	s := &Server{llm: wrapSpeakLLM{text: `{"stance":"中性","strength":"弱","text":"资金面无明显信号","fact_ids":[],"suggested_questions":[]}`, saw: &saw}, cfg: appconfig.Config{Model: "test-model"}}
+	sess := session.New("wrap-test", session.Header{})
+	sess.Append("user/message", map[string]any{
+		"message": session.Message{Role: session.RoleUser, Content: []session.ContentBlock{{Kind: session.BlockText, Text: "开场"}}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	got, err := s.wrapOpeningSpeak(context.Background(), agentConfig{ID: "volume_flow", Prompt: "你是资金流分析师"}, sess)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseSpeak(got); err != nil {
+		t.Fatalf("wrap text not JSON speak: %v (%q)", err, got)
+	}
+	if len(saw.Tools) != 0 {
+		t.Fatalf("wrap-up must disable tools, got %d", len(saw.Tools))
+	}
+	if saw.Model != "test-model" {
+		t.Fatalf("model = %q", saw.Model)
+	}
+}
+
 func TestOpeningSkillsNewsTrimsReplyOnly(t *testing.T) {
 	cfg := agentConfig{ID: "news", Skills: []string{"news-facts", "news-raw", "baidu-board", "stock-basic", "d3js-visualization"}}
 	got := cfg.openingSkills()
@@ -77,9 +116,9 @@ func TestOpeningSkillsNewsTrimsReplyOnly(t *testing.T) {
 	if got := mkt.openingSkills(); strings.Join(got, ",") != "market-facts,stock-basic" {
 		t.Fatalf("market openingSkills = %v", got)
 	}
-	flow := agentConfig{ID: "volume_flow", Skills: []string{"flow-facts", "d3js-visualization"}}
-	if got := flow.openingSkills(); strings.Join(got, ",") != strings.Join(flow.Skills, ",") {
-		t.Fatalf("non-news openingSkills should be unchanged, got %v", got)
+	flow := agentConfig{ID: "volume_flow", Skills: []string{"flow-facts", "answer-outline", "d3js-visualization", "stock-basic"}}
+	if got := flow.openingSkills(); strings.Join(got, ",") != "flow-facts,stock-basic" {
+		t.Fatalf("volume_flow openingSkills = %v", got)
 	}
 }
 
@@ -88,6 +127,37 @@ func TestHeadlineRejectsUnknownFactID(t *testing.T) {
 	speak := analystSpeak{Text: "近5日净流入 9 亿元", Status: "support", FactIDs: []string{"fr.missing"}}
 	if _, ok := headlineFromSpeak(speak, catalog, agentConfig{FactPrefix: "fr."}); ok {
 		t.Fatal("unknown fact id was accepted")
+	}
+}
+
+func TestHeadlineKeepsReplyToolFactAliases(t *testing.T) {
+	flowCat := map[string]factRow{
+		"fr.path": {ID: "fr.path", Label: "路径", Text: "资金转出"},
+		"fl.path": {ID: "fl.path", Label: "路径", Text: "资金转出（切片）"},
+	}
+	flowSpeak := analystSpeak{Text: "近窗资金转出，力度不强。", Status: "warn", FactIDs: []string{"fl.path", "fd.value"}}
+	out, ok := headlineFromSpeak(flowSpeak, flowCat, agentConfig{ID: "volume_flow", FactPrefix: "fr."})
+	if !ok {
+		t.Fatal("flow reply-tool fact id fl.* should be accepted")
+	}
+	facts := out["facts"].([]map[string]string)
+	if len(facts) != 1 || facts[0]["id"] != "fl.path" {
+		t.Fatalf("flow facts = %+v", facts)
+	}
+
+	secCat := map[string]factRow{"sm.stage": {ID: "sm.stage", Label: "阶段", Text: "没有明确阶段"}}
+	secSpeak := analystSpeak{Text: "板块没有明确阶段，对个股暂不构成支撑。", Status: "neutral", FactIDs: []string{"sm.stage"}}
+	if _, ok := headlineFromSpeak(secSpeak, secCat, agentConfig{ID: "sector", FactPrefix: "sp."}); !ok {
+		t.Fatal("sector reply-tool fact id sm.* should be accepted")
+	}
+}
+
+func TestMissingFactTextAliases(t *testing.T) {
+	for _, text := range []string{"这次没取到板块数据", "本轮未取到资金流", "数据未获取，无法判断", "均无事实可用"} {
+		speak := analystSpeak{Text: text, Status: "neutral"}
+		if _, ok := headlineFromSpeak(speak, map[string]factRow{"fr.x": {ID: "fr.x"}}, agentConfig{FactPrefix: "fr."}); !ok {
+			t.Fatalf("missing wording %q should pass with empty fact_ids", text)
+		}
 	}
 }
 
@@ -282,11 +352,11 @@ func TestAgentConfigsKeepTheirOwnSkills(t *testing.T) {
 }
 
 func TestParseChiefPlanKeepsOnlyDimensionAnalysts(t *testing.T) {
-	ids, note := parseChiefPlan("```json\n{\"analysts\":[\"volume_flow\",\"sector\",\"bull\",\"volume_flow\",\"news\",\"finance\"],\"note\":\"请资金流分析师、板块分析师来回答\"}\n```")
+	ids, note := parseChiefPlan("```json\n{\"analysts\":[\"volume_flow\",\"sector\",\"bull\",\"volume_flow\",\"news\",\"finance\"],\"note\":\"该资金流分析师、板块分析师开麦了\"}\n```")
 	if strings.Join(ids, ",") != "volume_flow,sector,news" {
 		t.Fatalf("ids = %#v", ids)
 	}
-	if note != "请资金流分析师、板块分析师来回答" {
+	if note != "该资金流分析师、板块分析师开麦了" {
 		t.Fatalf("note = %q", note)
 	}
 	empty, self := parseChiefPlan("不是 json")
@@ -395,8 +465,25 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 	if strings.Contains(reply, "## 开场输出") || strings.Contains(reply, "开场工具") {
 		t.Fatal("news reply.md must not drag opening sections")
 	}
-	if cfg.MaxSteps < 5 || cfg.MaxSteps > 10 {
-		t.Fatalf("news max_steps should stay lean but allow fetch+json, got %d", cfg.MaxSteps)
+	if cfg.MaxSteps < 28 {
+		t.Fatalf("news max_steps should allow hot-board + up to 10-event history fetches, got %d", cfg.MaxSteps)
+	}
+	if !strings.Contains(reply, "公司个案") || !strings.Contains(reply, "最多 10") {
+		t.Fatal("news reply.md should prioritize company/overseas cases and allow up to 10 events")
+	}
+	if !strings.Contains(reply, "今日主事件") || !strings.Contains(reply, "历史类比") {
+		t.Fatal("news reply.md should require 5-event impact map with historical analogs")
+	}
+	hotUser := analystUserPrompt(cfg, "", "请根据今天市场热闻，分析对 A 股的影响", nil, nil)
+	if !strings.Contains(hotUser, "硬性任务") || !strings.Contains(hotUser, "今日主事件") {
+		t.Fatalf("unbound hot-news user prompt should inject hard task, got %s", hotUser)
+	}
+	if err := enforceNewsHotReply("一句话：盘面偏弱", "请根据今天市场热闻分析", "", []map[string]string{{"name": "fetch_news"}}); err == nil {
+		t.Fatal("hot reply without board/structure should fail")
+	}
+	okBody := "## 今日主事件（5）\n1. 测试\n### 1. 测试\n- **历史类比**：上次受益半导体、承压贵金属\n- **受益链**：光刻胶\n- **承压链**：贵金属\n"
+	if err := enforceNewsHotReply(okBody, "请根据今天市场热闻分析", "", []map[string]string{{"name": "fetch_baidu_board"}, {"name": "fetch_news"}}); err != nil {
+		t.Fatalf("structured hot reply should pass: %v", err)
 	}
 	got, err := replyAnswer("近几日没有标题写内存的新闻。\n\n| 时间 | 标题 |\n| --- | --- |\n| 11-02 | 主力资金监控 |")
 	if err != nil || !strings.Contains(got, "内存") || !strings.Contains(got, "主力资金监控") {
@@ -457,11 +544,14 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 	if !strings.Contains(flow.systemPrompt(), "stance") || !strings.Contains(flow.systemPrompt(), `"text"`) {
 		t.Fatal("flow opening contract missing from config")
 	}
-	if !strings.Contains(flow.systemPrompt(), "80～120") || strings.Contains(flow.systemPrompt(), "开场只给结论，不展开") {
-		t.Fatal("flow opening should analyze fully then compress to ~80–120字 text")
+	if !strings.Contains(flow.systemPrompt(), "不追求字数上限") || strings.Contains(flow.systemPrompt(), "开场只给结论，不展开") {
+		t.Fatal("flow opening should analyze fully without chasing a short char cap")
 	}
 	if !strings.Contains(flow.systemPrompt(), "0～2") {
 		t.Fatal("flow opening tools should allow limited gap fill like sector")
+	}
+	if flow.MaxSteps < 14 {
+		t.Fatalf("volume_flow max_steps should leave room for gap-fill tools + JSON, got %d", flow.MaxSteps)
 	}
 	if _, err := replyAnswer(`{"stance":"中性","strength":"弱","text":"资金面无明显信号"}`); !errors.Is(err, errOpeningJSONOnReply) {
 		t.Fatalf("opening JSON on reply should be rejected, err=%v", err)
@@ -532,6 +622,9 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if finance.MaxSteps < 14 {
+		t.Fatalf("finance max_steps should leave room for load+fetch+JSON, got %d", finance.MaxSteps)
+	}
 	if strings.TrimSpace(finance.Reply) == "" || !strings.Contains(finance.replyPrompt(), "fetch_facts") || !strings.Contains(finance.replyPrompt(), "可以接着问") {
 		t.Fatal("finance reply.md should list fetch_facts and 可以接着问")
 	}
@@ -589,9 +682,9 @@ func TestVolumeFlowStanceSpeakNormalizes(t *testing.T) {
 	if err != nil || legacy.Text != "近3日净流入明显" || legacy.Status != "support" {
 		t.Fatalf("summary alias = %+v err=%v", legacy, err)
 	}
-	long := "主信号偏多但把握弱：近5日净流入明显。" + strings.Repeat("续", 100) + "大单-0.49亿元独撑而且没有句号"
-	if n := len([]rune(long)); n <= 120 {
-		t.Fatalf("fixture should exceed 120 runes, got %d", n)
+	long := "主信号偏多但把握弱：近5日净流入明显。" + strings.Repeat("续", 580) + "大单-0.49亿元独撑而且没有句号"
+	if n := len([]rune(long)); n <= 600 {
+		t.Fatalf("fixture should exceed 600 runes, got %d", n)
 	}
 	longSpeak, err := parseSpeak(`{"stance":"中性","strength":"弱","text":"` + long + `","fact_ids":["fr.path"]}`)
 	if err != nil {
@@ -602,8 +695,8 @@ func TestVolumeFlowStanceSpeakNormalizes(t *testing.T) {
 		t.Fatal("long headline rejected")
 	}
 	got := fmt.Sprint(longOut["text"])
-	if n := len([]rune(got)); n > 120 {
-		t.Fatalf("volume_flow text soft cap should be ≤120 runes, got %d", n)
+	if n := len([]rune(got)); n > 600 {
+		t.Fatalf("volume_flow text soft cap should be ≤600 runes, got %d", n)
 	}
 	if got != "主信号偏多但把握弱：近5日净流入明显。" || strings.Contains(got, "大单-0.49") {
 		t.Fatalf("should soft-trim at first sentence end, got %q", got)

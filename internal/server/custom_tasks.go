@@ -7,6 +7,9 @@ import (
 	"strings"
 	"time"
 
+	coreagent "go-harness/core/agent"
+	"go-harness/core/agentloop"
+	"go-harness/core/session"
 	"go-harness/internal/custom"
 	"go-harness/internal/inbox"
 	"go-harness/internal/sched"
@@ -48,7 +51,8 @@ func (s *Server) registerCustom(t custom.Task) {
 		}
 	}
 	s.sch.Register(&sched.Spec{
-		ID: customID(id), Title: t.Title, Queue: queue, Frequent: frequent, BudgetCalls: budget,
+		ID: customID(id), Title: t.Title, Category: sched.CatMine, Note: "你自己建的定时任务",
+		Queue: queue, Frequent: frequent, BudgetCalls: budget,
 		Trigger:     trigger,
 		MaxAttempts: attempts, Backoff: backoff, CatchupTTL: 6 * time.Hour, Timeout: 10 * time.Minute,
 		Fanout: func(*sched.PlanCtx) []sched.Unit {
@@ -163,17 +167,97 @@ func (s *Server) customAsk(c *sched.JobCtx, t custom.Task) (any, error) {
 			return nil, err
 		}
 		if len(who) == 1 {
-			parts = append(parts, clipText(text, 600))
+			parts = append(parts, strings.TrimSpace(text))
 		} else {
-			parts = append(parts, "【"+custom.AnalystLabel[id]+"】"+clipText(text, 400))
+			parts = append(parts, "【"+custom.AnalystLabel[id]+"】"+strings.TrimSpace(text))
 		}
 	}
-	_, _, perr := s.inbox.Publish("custom.answer", "stock", code, map[string]any{"task": t.Title, "name": s.stockName(code), "ts_code": code, "text": strings.Join(parts, "\n\n"), "question": t.Question},
-		fmt.Sprintf("custom.answer:%s:%s:%s", t.ID, code, c.RunID()), inbox.Options{})
-	if perr != nil {
-		return nil, perr
+	answer := strings.Join(parts, "\n\n")
+	name := s.stockName(code)
+	userText := scheduledAskTitlePrefix + t.Title + " · " + name + "\n\n" + strings.TrimSpace(t.Question)
+	sid, err := s.saveScheduledAskDialog(userText, answer)
+	if err != nil {
+		return nil, err
 	}
-	return map[string]any{"ts_code": code, "answered": len(who)}, nil
+	summary := clipText(answer, 280)
+	return map[string]any{
+		"ts_code": code, "name": name, "answered": len(who), "session_id": sid,
+		"question": strings.TrimSpace(t.Question),
+		"summary":  summary, "detail": summary, "text": answer,
+		"link": "/dialog.html?session=" + sid,
+	}, nil
+}
+
+// saveScheduledAskDialog writes one 问问 session so the answer shows up in the dialog list.
+// Only surface messages are appended — no fake turn/start — so a later Followup in 问问
+// still starts at turn 1 with a consistent agent phase.
+func (s *Server) saveScheduledAskDialog(userText, answer string) (string, error) {
+	sess, err := s.openScheduledAskSession()
+	if err != nil {
+		return "", err
+	}
+	sess.Append("user/message", session.Message{
+		Role: session.RoleUser, Content: []session.ContentBlock{{Kind: session.BlockText, Text: userText}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	sess.Append("assistant/message", map[string]any{
+		"message": session.Message{
+			Role: session.RoleAssistant, Content: []session.ContentBlock{{Kind: session.BlockText, Text: answer}},
+		},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	s.syncPersistence(sess)
+	return string(sess.ID()), nil
+}
+
+func (s *Server) canBuildDialogAgent() bool {
+	return s.store != nil && s.agents != nil && s.pythonEnv != nil && s.sandboxProv != nil && s.skills != nil
+}
+
+func (s *Server) openScheduledAskSession() (*session.Session, error) {
+	if s.canBuildDialogAgent() {
+		sess, _, err := s.createSession("")
+		return sess, err
+	}
+	s.ensureDialogRegistry()
+	sess, err := s.store.Create("", session.Header{})
+	if err != nil {
+		return nil, err
+	}
+	ag := agentloop.NewAgent(sess, scheduledAskLLM{}, scheduledAskTools{}, "", agentloop.Hooks{
+		TurnEnded: func(context.Context, int, string) { s.syncPersistence(sess) },
+	})
+	if _, err := s.agents.Register(string(sess.ID()), ag, ""); err != nil {
+		return nil, err
+	}
+	return sess, nil
+}
+
+// scheduledAskLLM / scheduledAskTools only back the light test path; production uses createSession.
+type scheduledAskLLM struct{}
+
+func (scheduledAskLLM) Stream(context.Context, agentloop.GenerateRequest) (<-chan agentloop.StreamChunk, error) {
+	ch := make(chan agentloop.StreamChunk)
+	close(ch)
+	return ch, nil
+}
+
+type scheduledAskTools struct{}
+
+func (scheduledAskTools) ExecutionMode(agentloop.ContentBlock) agentloop.ExecutionMode {
+	return agentloop.ModeExclusive
+}
+func (scheduledAskTools) Execute(context.Context, *agentloop.Agent, agentloop.ContentBlock) agentloop.ToolResult {
+	return agentloop.ToolResult{}
+}
+func (scheduledAskTools) Schemas() []agentloop.ToolSchema { return nil }
+
+// ensureDialogRegistry makes sure light-path 问问 sessions can be listed in tests.
+func (s *Server) ensureDialogRegistry() {
+	if s.store == nil {
+		s.store = session.NewStore()
+	}
+	if s.agents == nil {
+		s.agents = coreagent.NewRegistry()
+	}
 }
 
 // customDimensions analyses a stock again from only the chosen sides (money flow, sector, news ...). There is no
@@ -265,19 +349,30 @@ func (s *Server) customFacts(t custom.Task, code string) custom.Facts {
 
 func (s *Server) customScan(c *sched.JobCtx, t custom.Task) (any, error) {
 	code := c.Unit()
+	name := s.stockName(code)
 	f := s.customFacts(t, code)
-	hit, why, unknown := custom.Match(t, f)
-	out := map[string]any{"ts_code": code, "hit": hit, "unknown": unknown}
+	hit, passed, failed, missing, unknown := custom.Inspect(t, f)
+	missed := append(append([]string{}, failed...), missing...)
+	out := map[string]any{
+		"ts_code": code, "name": name, "hit": hit, "unknown": unknown,
+		"passed": passed, "failed": missed, "rules_text": t.RulesText(),
+	}
 	if !hit {
+		out["summary"] = "不符合条件"
+		if len(missed) > 0 {
+			out["detail"] = strings.Join(missed, "\n")
+		}
 		return out, nil
 	}
-	lines := append([]string{"条件：" + t.RulesText()}, why...)
-	_, created, err := s.inbox.Publish("custom.hit", "stock", code, map[string]any{"task": t.Title, "name": s.stockName(code), "ts_code": code, "why": lines},
+	lines := append([]string{"条件：" + t.RulesText()}, passed...)
+	_, created, err := s.inbox.Publish("custom.hit", "stock", code, map[string]any{"task": t.Title, "name": name, "ts_code": code, "why": lines},
 		fmt.Sprintf("custom.hit:%s:%s:%s", t.ID, code, sched.Day(c.Now())), inbox.Options{})
 	if err != nil {
 		return nil, err
 	}
 	out["notified"] = created
+	out["summary"] = "符合条件 · " + strings.Join(passed, "；")
+	out["detail"] = strings.Join(lines, "\n")
 	return out, nil
 }
 
@@ -312,9 +407,36 @@ func (s *Server) customView(t custom.Task) map[string]any {
 		if at == 0 {
 			at = r.ScheduledFor
 		}
-		v["last"] = map[string]any{"state": r.State, "at": time.UnixMilli(at).In(sched.Zone).Format("01-02 15:04"), "counts": r.Counts, "trigger": r.Trigger}
+		last := map[string]any{"state": r.State, "at": time.UnixMilli(at).In(sched.Zone).Format("01-02 15:04"), "counts": r.Counts, "trigger": r.Trigger}
+		if t.Kind == custom.Ask {
+			if links := dialogLinksFromJobs(s.sch.Store.Jobs(r.ID)); len(links) > 0 {
+				last["dialog_links"] = links
+			}
+		}
+		v["last"] = last
 	}
 	return v
+}
+
+func dialogLinksFromJobs(jobs []sched.Job) []map[string]string {
+	var out []map[string]string
+	for _, j := range jobs {
+		m, ok := j.Output.(map[string]any)
+		if !ok || m == nil {
+			continue
+		}
+		sid, _ := m["session_id"].(string)
+		link, _ := m["link"].(string)
+		if sid == "" && link == "" {
+			continue
+		}
+		if link == "" {
+			link = "/dialog.html?session=" + sid
+		}
+		item := map[string]string{"session_id": sid, "link": link, "unit": j.UnitKey}
+		out = append(out, item)
+	}
+	return out
 }
 
 func (s *Server) registerCustomRoutes(mux *http.ServeMux) {

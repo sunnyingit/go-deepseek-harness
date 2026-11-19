@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	coreagent "go-harness/core/agent"
@@ -112,6 +114,19 @@ func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, s.sessionDTOFromHandle(id, ag))
 	}
+	sort.SliceStable(out, func(i, j int) bool {
+		ti, tj := out[i].UpdatedAt, out[j].UpdatedAt
+		if ti == 0 {
+			ti = out[i].CreatedAt
+		}
+		if tj == 0 {
+			tj = out[j].CreatedAt
+		}
+		if ti != tj {
+			return ti > tj
+		}
+		return out[i].ID > out[j].ID
+	})
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -278,6 +293,33 @@ func turnReasonString(v any) string {
 	}
 }
 
+// friendlyLLMError turns provider wire errors into actionable Chinese copy.
+// Auth failures should nudge the user to settings, not dump raw DeepSeek text.
+func friendlyLLMError(msg string) string {
+	lower := strings.ToLower(msg)
+	switch {
+	case msg == "":
+		return "模型请求失败，请稍后重试"
+	case strings.Contains(msg, "AUTH") ||
+		strings.Contains(lower, "authentication fails") ||
+		strings.Contains(lower, "authentication fail") ||
+		strings.Contains(lower, "unauthorized") ||
+		strings.Contains(lower, "invalid api key") ||
+		(strings.Contains(lower, "api key") && strings.Contains(lower, "invalid")) ||
+		strings.Contains(lower, "incorrect api key") ||
+		strings.Contains(lower, "api key is required"):
+		return "模型 API Key 无效或未配置，请到「设置」里填写正确的 Key 后再试"
+	case strings.Contains(msg, "QUOTA_EXCEEDED") ||
+		strings.Contains(lower, "insufficient balance") ||
+		strings.Contains(lower, "quota") && strings.Contains(lower, "exceed"):
+		return "模型额度不足，请充值或到「设置」更换可用的 API Key"
+	case strings.Contains(msg, "RATE_LIMIT") || strings.Contains(lower, "rate limit") || strings.Contains(lower, "too many requests"):
+		return "模型请求过于频繁，请稍后再试"
+	default:
+		return msg
+	}
+}
+
 // attachTurnOutcome copies the last turn/end reason onto the SSE done
 // payload. "error" and "max-tokens" both mark the turn failed: a length
 // finish looks like a completed turn to Agent.Status() ("idle") but the
@@ -295,7 +337,7 @@ func attachTurnOutcome(doneData map[string]any, events []session.Event) {
 			errMsg = "the model request failed"
 		}
 		doneData["failed"] = true
-		doneData["errorMessage"] = errMsg
+		doneData["errorMessage"] = friendlyLLMError(errMsg)
 	case "max-tokens":
 		doneData["failed"] = true
 		doneData["errorMessage"] = "本轮输出达到单次生成上限，内容被截断"
@@ -383,7 +425,16 @@ func (s *Server) handleStreamSession(w http.ResponseWriter, r *http.Request) {
 	tokensBefore, _ := tokenmeter.New().Measure(sess, tokenHeader)
 	connStarted := time.Now()
 	if text != "" {
-		ag.Followup(agentloop.Message{Role: agentloop.RoleUser, Content: []agentloop.ContentBlock{{Kind: agentloop.BlockText, Text: text}}})
+		// A mid-turn reconnect with ?text= must not Followup again — that
+		// queues a duplicate turn with the same question while the old one
+		// keeps running, and the client concatenates both answers.
+		if ag.Status() == "running" {
+			if start := openStepStart(sess.Events()); start >= 0 {
+				lastSeq = start
+			}
+		} else {
+			ag.Followup(agentloop.Message{Role: agentloop.RoleUser, Content: []agentloop.ContentBlock{{Kind: agentloop.BlockText, Text: text}}})
+		}
 	}
 
 	writeSSE(w, "metadata", map[string]any{"model": s.cfg.Model})
@@ -416,9 +467,20 @@ func (s *Server) handleStreamSession(w http.ResponseWriter, r *http.Request) {
 		case <-ticker.C:
 			events := sess.Events()
 			for ; lastSeq < len(events); lastSeq++ {
-				writeStreamEvent(w, events[lastSeq], pendingDisplay)
+				writeStreamEvent(w, events[lastSeq], pendingDisplay, s.cards)
 				flusher.Flush()
 				lastActivity = time.Now()
+			}
+			if s.progress != nil {
+				for _, p := range s.progress.drain(id) {
+					payload := map[string]any{"callId": p.CallID, "status": p.Status, "text": p.Draft}
+					if len(p.Tools) > 0 {
+						payload["tools"] = p.Tools
+					}
+					writeSSE(w, "analyst-progress", payload)
+					flusher.Flush()
+					lastActivity = time.Now()
+				}
 			}
 			if ag.Status() == "idle" {
 				// No explicit syncPersistence here: Hooks.TurnEnded (see
@@ -511,7 +573,7 @@ type displayPending struct {
 // handleStreamSession's reconnect comment: a reconnect always resumes
 // exactly at the currently-open step's own step/start, re-sending
 // everything that step already produced.
-func writeStreamEvent(w http.ResponseWriter, ev session.Event, pending map[string]displayPending) {
+func writeStreamEvent(w http.ResponseWriter, ev session.Event, pending map[string]displayPending, cards *uiCardStash) {
 	data, _ := ev.Data.(map[string]any)
 	switch ev.Type {
 	case "step/start":
@@ -567,6 +629,12 @@ func writeStreamEvent(w http.ResponseWriter, ev session.Event, pending map[strin
 				writeSSE(w, p.eventType, p.payload)
 			}
 			return
+		}
+		if cards != nil {
+			if card, ok := cards.take(callID); ok {
+				card["callId"] = callID
+				writeSSE(w, "stock-card", card)
+			}
 		}
 		writeSSE(w, "tool-result", map[string]any{"text": msg.Content[0].Text, "callId": callID})
 	}
@@ -784,7 +852,7 @@ func (s *Server) sessionDTO(sess *session.Session, ag *agentloop.Agent) sessionD
 func (s *Server) sessionDTOFromHandle(id string, ag coreagent.Agent) sessionDTO {
 	header := ag.Session().Header()
 	active := false
-	if concrete, ok := ag.(*agentloop.Agent); ok {
+	if concrete, ok := ag.(*agentloop.Agent); ok && s.planController != nil {
 		active, _ = s.planController.Get(concrete)
 	}
 	sess := ag.Session()
@@ -794,6 +862,7 @@ func (s *Server) sessionDTOFromHandle(id string, ag coreagent.Agent) sessionDTO 
 		Title:         sessionTitle(sess),
 		QuestionCount: sessionQuestionCount(sess),
 		CreatedAt:     header.CreatedAt,
+		UpdatedAt:     sessionUpdatedAt(sess),
 	}
 	if entries, err := s.listFilesForSession(id); err == nil {
 		dto.FileCount = len(entries)

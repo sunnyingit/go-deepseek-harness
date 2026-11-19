@@ -77,6 +77,47 @@ func TestHoldingsRoutesRecordValueAndRefuseImpossibleSales(t *testing.T) {
 	if code, out := call("POST", "/api/v1/holdings/wishes", `{"ts_code":"600036.SH","reason":"x"}`); code != 400 {
 		t.Fatalf("wish on a held stock = %d %v", code, out)
 	}
+	code, out = call("POST", "/api/v1/holdings/plans", `{"ts_code":"600036.SH","side":"reduce","reason":"冲高减一点","price":12,"qty":50}`)
+	if code != 201 {
+		t.Fatalf("plan add = %d %v", code, out)
+	}
+	planID := int(out["item"].(map[string]any)["id"].(float64))
+	if code, out = call("GET", "/api/v1/holdings/tab/plan", ""); code != 200 || out["open"].(float64) != 1 {
+		t.Fatalf("plan tab = %d %v", code, out)
+	}
+	todos := out["todos"].([]any)
+	todo := todos[0].(map[string]any)
+	if len(todos) != 1 || todo["severity"] != "high" || todo["diagnosis_href"] != "/?stock=600036.SH" || todo["stock"].(map[string]any)["name"] != "招商银行" || !strings.Contains(todo["title"].(string), "减仓") {
+		t.Fatalf("plan todos = %v", out["todos"])
+	}
+	if code, out = call("GET", "/api/v1/holdings/stock/600036.SH/chart-overlay", ""); code != 200 || out["held"] != true || out["cost"].(float64) != 10 {
+		t.Fatalf("chart overlay = %d %v", code, out)
+	}
+	if code, out = call("PUT", "/api/v1/holdings/plans/"+strconv.Itoa(planID)+"/status", `{"status":"done"}`); code != 200 || out["item"].(map[string]any)["status"] != "done" {
+		t.Fatalf("plan status = %d %v", code, out)
+	}
+	if code, _ = call("DELETE", "/api/v1/holdings/plans/"+strconv.Itoa(planID), ""); code != 200 {
+		t.Fatalf("plan delete = %d", code)
+	}
+}
+
+func TestStockSearchEnrichesLocalDiagnosis(t *testing.T) {
+	fakeShared(t)
+	s, _ := newClientServer(t, zoneTime("2026-11-05", "20:00"))
+	mux := http.NewServeMux()
+	s.registerClientRoutes(mux)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/v1/stocks/search?q=招商", nil))
+	var out map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &out)
+	if rec.Code != 200 || out["status"] != "ok" {
+		t.Fatalf("search = %d %v", rec.Code, out)
+	}
+	item := out["items"].([]any)[0].(map[string]any)
+	diag := item["diagnosis"].(map[string]any)
+	if item["ts_code"] != "600036.SH" || diag["label"] != "还没诊断" || diag["has"] != false {
+		t.Fatalf("enriched = %v", item)
+	}
 }
 
 func TestPersonalImportLoadsOnceAndOnlyIntoAnEmptyStore(t *testing.T) {

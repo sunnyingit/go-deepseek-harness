@@ -77,6 +77,22 @@ func flt(p map[string]any, k string) (float64, bool) {
 	return 0, false
 }
 
+func stringList(v any) []string {
+	switch x := v.(type) {
+	case []string:
+		return x
+	case []any:
+		out := make([]string, 0, len(x))
+		for _, e := range x {
+			if s := strings.TrimSpace(fmt.Sprint(e)); s != "" && s != "<nil>" {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
 func num(p map[string]any, k string) string {
 	if v, ok := flt(p, k); ok {
 		return fmt.Sprintf("%.2f", v)
@@ -144,7 +160,7 @@ func init() {
 			}
 			return "定时任务出错：" + t, strings.TrimSpace(fmt.Sprintf("%v/%v 个单元失败。%s", p["dead"], p["total"], str(p, "first_error")))
 		}, Link: func(p map[string]any) map[string]string {
-			return map[string]string{"page": "sched", "run_id": str(p, "run_id")}
+			return map[string]string{"page": "tasks", "task_id": str(p, "task_id"), "run_id": str(p, "run_id")}
 		}}
 	Registry["task.completed"] = Type{TTL: 7 * 24 * time.Hour, Severity: "info", Tone: "good", Group: "system",
 		ToneFn: func(p map[string]any) string {
@@ -166,15 +182,17 @@ func init() {
 			if jobs, _ := flt(p, "jobs"); jobs > 0 {
 				line += fmt.Sprintf(" · 单元 %v/%v", p["succeeded"], p["jobs"])
 			}
+			// Receipts in the notification drawer only show the conclusion — APIs / run input live on the tasks page.
 			lines := []string{line}
-			for _, k := range []string{"summary", "note"} {
+			for _, k := range []string{"detail", "summary", "note"} {
 				if v := str(p, k); v != "" {
 					lines = append(lines, v)
+					break
 				}
 			}
 			return "定时任务" + str(p, "state_text") + "：" + t, strings.Join(lines, "\n")
 		}, Link: func(p map[string]any) map[string]string {
-			return map[string]string{"page": "sched", "run_id": str(p, "run_id")}
+			return map[string]string{"page": "tasks", "task_id": str(p, "task_id"), "run_id": str(p, "run_id")}
 		}}
 }
 
@@ -204,9 +222,20 @@ func init() {
 			lines := list(p, "lines")
 			return title, strings.Join(lines, "\n")
 		}}
-	Registry["custom.hit"] = Type{TTL: 24 * time.Hour, Severity: "normal", Tone: "blue", Group: "stock", Link: stockLink("diagnose", ""),
+	Registry["custom.hit"] = Type{TTL: 24 * time.Hour, Severity: "normal", Tone: "warn", Group: "stock", Link: stockLink("diagnose", ""),
 		Render: func(p map[string]any) (string, string) {
 			return str(p, "task") + " · " + str(p, "name") + " 符合条件", strings.Join(list(p, "why"), "\n")
+		}}
+	Registry["custom.scan_result"] = Type{TTL: 24 * time.Hour, Severity: "normal", Tone: "flat", Group: "system",
+		Link: func(p map[string]any) map[string]string {
+			return map[string]string{"page": "tasks", "task_id": str(p, "task_id"), "run_id": str(p, "run_id")}
+		},
+		Render: func(p map[string]any) (string, string) {
+			t := str(p, "task")
+			if t == "" {
+				t = "条件扫描"
+			}
+			return "条件扫描 · " + t, strings.Join(list(p, "lines"), "\n")
 		}}
 	Registry["custom.analysis"] = Type{TTL: 24 * time.Hour, Severity: "normal", Tone: "flat", Group: "stock", Link: stockLink("diagnose", ""),
 		Render: func(p map[string]any) (string, string) {
@@ -515,6 +544,32 @@ func (in *Inbox) MarkRead(ids []string, all bool) int {
 		}
 	}
 	if n > 0 {
+		in.save()
+	}
+	return n
+}
+
+// Delete removes the given ids (or everything when all is true) and returns
+// how many went away. Deleting is the user saying "seen it, done with it" —
+// stronger than MarkRead, which only clears the badge.
+func (in *Inbox) Delete(ids []string, all bool) int {
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	n := 0
+	keep := in.Items[:0]
+	want := map[string]bool{}
+	for _, id := range ids {
+		want[id] = true
+	}
+	for _, it := range in.Items {
+		if all || want[it.ID] {
+			n++
+			continue
+		}
+		keep = append(keep, it)
+	}
+	if n > 0 {
+		in.Items = keep
 		in.save()
 	}
 	return n

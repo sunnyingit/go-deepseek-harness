@@ -261,7 +261,22 @@ if [[ -n "$BUNDLED_PY" ]]; then
   fi
 fi
 
-# --- skills + config ---
+# --- agents + skills + config ---
+# Analyst prompts/rules live in web/agents; without them the packaged app
+# returns「找不到 Agent 配置目录」on every dimension stream.
+rm -rf "$DEST/agents"
+mkdir -p "$DEST/agents"
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --exclude node_modules --exclude .git "$ROOT/web/agents/" "$DEST/agents/"
+else
+  cp -R "$ROOT/web/agents/." "$DEST/agents/"
+fi
+if [[ ! -f "$DEST/agents/volume_flow/agent.yaml" ]]; then
+  echo "bundled agents missing volume_flow/agent.yaml" >&2
+  exit 1
+fi
+echo "bundled agents: $DEST/agents"
+
 rm -rf "$DEST/skills"
 mkdir -p "$DEST/skills"
 if command -v rsync >/dev/null 2>&1; then
@@ -269,7 +284,90 @@ if command -v rsync >/dev/null 2>&1; then
 else
   cp -R "$ROOT/web/skills/." "$DEST/skills/"
 fi
-cp "$ROOT/web/config.yaml" "$DEST/config.yaml"
+# Never ship the developer's llm.api_key. Prefer the example template; if only
+# web/config.yaml exists, copy it then blank the key and personal paths.
+if [[ -f "$ROOT/web/config.example.yaml" ]]; then
+  cp "$ROOT/web/config.example.yaml" "$DEST/config.yaml"
+else
+  cp "$ROOT/web/config.yaml" "$DEST/config.yaml"
+fi
+# Defense in depth: wipe secrets / machine-local paths even if someone edits the example.
+if command -v python3 >/dev/null 2>&1; then
+  python3 - "$DEST/config.yaml" <<'PY'
+import pathlib, re, sys
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+text = re.sub(r"(?m)^(\s*api_key:\s*).*$", r'\1""', text)
+text = re.sub(r"(?m)^(\s*workspace_dir:\s*).*$", r'\1""', text)
+p.write_text(text, encoding="utf-8")
+PY
+else
+  # Best-effort without Python.
+  sed -i.bak -E 's/^([[:space:]]*api_key:).*/\1 ""/' "$DEST/config.yaml" || true
+  sed -i.bak -E 's/^([[:space:]]*workspace_dir:).*/\1 ""/' "$DEST/config.yaml" || true
+  rm -f "$DEST/config.yaml.bak"
+fi
+if grep -E 'api_key:[[:space:]]*sk-' "$DEST/config.yaml" >/dev/null 2>&1; then
+  echo "refusing to package a config that still contains an api_key" >&2
+  exit 1
+fi
+echo "bundled config (api_key wiped): $DEST/config.yaml"
+
+# --- stock agent (8090 Python data service) ---
+STOCK_SRC="${STOCK_AGENT_DIR:-$ROOT/../stock_agent_assitant}"
+STOCK_SRC="$(cd "$STOCK_SRC" 2>/dev/null && pwd || true)"
+if [[ -z "$STOCK_SRC" || ! -f "$STOCK_SRC/app/main.py" ]]; then
+  echo "stock agent source missing (set STOCK_AGENT_DIR); looked beside go-harness" >&2
+  exit 1
+fi
+echo "bundling stock agent from $STOCK_SRC"
+rm -rf "$DEST/stock-agent"
+mkdir -p "$DEST/stock-agent"
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a \
+    --exclude '__pycache__' --exclude '*.pyc' --exclude '.git' \
+    --exclude 'data' --exclude 'tests' --exclude '.venv' --exclude 'venv' \
+    --exclude '.pytest_cache' --exclude '*.egg-info' \
+    "$STOCK_SRC/app" "$STOCK_SRC/requirements.txt" "$DEST/stock-agent/"
+else
+  cp -R "$STOCK_SRC/app" "$DEST/stock-agent/"
+  cp "$STOCK_SRC/requirements.txt" "$DEST/stock-agent/requirements.txt"
+  find "$DEST/stock-agent" -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
+fi
+# Marker so the host can tell a packaged tree from a bare checkout.
+printf '%s\n' "bundled-from=$STOCK_SRC" "target=$TARGET" > "$DEST/stock-agent/.bundled"
+
+# Separate site-packages tree so document-tool packages and market/LLM deps
+# do not clash. Use pip --target (not a classic venv) so the tree stays
+# relocatable when electron-builder copies runtime/ into the .app.
+STOCK_VENV="$DEST/stock-venv"
+STOCK_SITE="$STOCK_VENV/site-packages"
+STOCK_REQ="$DEST/stock-agent/requirements.txt"
+STOCK_WHEELS="$DEST/stock-wheels"
+mkdir -p "$STOCK_WHEELS"
+if [[ -n "$BUNDLED_PY" ]]; then
+  if [[ -f "$STOCK_VENV/.relocatable" && -d "$STOCK_SITE" ]]; then
+    echo "stock-venv already present"
+  else
+    echo "creating relocatable stock-venv with $BUNDLED_PY"
+    rm -rf "$STOCK_VENV"
+    mkdir -p "$STOCK_SITE" "$STOCK_VENV/bin"
+    # Prefer offline wheels when we have them; fall back to network.
+    "$BUNDLED_PY" -m pip install --upgrade pip
+    "$PIP_PY" -m pip download -d "$STOCK_WHEELS" -r "$STOCK_REQ" \
+      || echo "stock wheel download partial; pip install may hit the network"
+    "$BUNDLED_PY" -m pip install --target "$STOCK_SITE" --find-links "$STOCK_WHEELS" -r "$STOCK_REQ"
+    # Relative symlink so stock-venv/bin/python3 works after the tree is moved.
+    ln -sfn ../../python/bin/python3 "$STOCK_VENV/bin/python3"
+    printf '%s\n' "relocatable=1" "target=$TARGET" > "$STOCK_VENV/.relocatable"
+    echo "stock-venv ready: $STOCK_VENV"
+  fi
+else
+  echo "cross-build: stock-agent copied; stock-venv site-packages filled on first launch"
+  "$PIP_PY" -m pip download -d "$STOCK_WHEELS" --only-binary=:all: \
+    --python-version 312 --platform "$PIP_PLAT" -r "$STOCK_REQ" \
+    || echo "cross stock wheel download failed; first launch will use the network"
+fi
 
 # --- web binary ---
 echo "go build GOOS=$GOOS GOARCH=$GOARCH -> bin/$WEB_NAME"
@@ -294,3 +392,10 @@ test -d "$DEST/node-packages/node_modules/pptxgenjs"
 test -d "$DEST/node-packages/node_modules/react-icons"
 test -d "$DEST/node-packages/node_modules/sharp"
 test -d "$DEST/skills"
+test -f "$DEST/stock-agent/app/main.py"
+test -f "$DEST/stock-agent/requirements.txt"
+if [[ -n "$BUNDLED_PY" ]]; then
+  test -f "$DEST/stock-venv/.relocatable"
+  test -d "$DEST/stock-venv/site-packages"
+  test -x "$DEST/stock-venv/bin/python3" || test -L "$DEST/stock-venv/bin/python3"
+fi

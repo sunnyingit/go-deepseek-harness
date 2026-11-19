@@ -9,7 +9,7 @@ description: >-
 # 资金流事实（开场）
 
 先调用 `fetch_facts`，参数由会话注入。维度和 **`window=3`（short 主窗）** 已绑定，不要改。  
-开场与板块对齐：数据够就直接判断；只补会动摇主信号的关键缺口，默认再调 **0～2** 个业务工具（常用 `fetch_flow_dc`）；禁止机械全开。补完立刻出 JSON。
+开场与板块对齐：数据够就直接判断；只补会动摇主信号的关键缺口，默认再调 **0～2** 个 `fetch_flow_*`（常用 `fetch_flow_dc`）；禁止机械全开。补完立刻出 JSON，不要再 load 展示类技能或空转调工具。
 
 ## 读法（找主信号）
 
@@ -35,5 +35,5 @@ description: >-
 
 ## 开场输出
 
-只输出 prompt.md 规定的 JSON：`stance`、`strength`、`text`（约 80～120 字）、`fact_ids`、`suggested_questions`。  
+只输出 prompt.md 规定的 JSON：`stance`、`strength`、`text`（写透有效信息，不追求字数上限，勿只贴规则标签）、`fact_ids`、`suggested_questions`。  
 完整分析后压缩进字段；不要表格、不要逐步推理、不要 markdown 长文。数字原样引用并进 `fact_ids`。`text` 内禁止英文双引号 `"`。

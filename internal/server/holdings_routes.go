@@ -59,6 +59,8 @@ func (s *Server) registerHoldingsRoutes(mux *http.ServeMux) {
 		switch r.PathValue("name") {
 		case "buy":
 			writeJSON(w, http.StatusOK, ok(ctx.TabBuy()))
+		case "plan":
+			writeJSON(w, http.StatusOK, ok(ctx.TabPlan(r.URL.Query().Get("date"))))
 		case "chk":
 			writeJSON(w, http.StatusOK, ok(ctx.TabCheck(false)))
 		case "rev":
@@ -66,8 +68,59 @@ func (s *Server) registerHoldingsRoutes(mux *http.ServeMux) {
 		case "now":
 			writeJSON(w, http.StatusOK, ok(holdings.Map{}))
 		default:
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "name 必须是 buy、now、chk、rev"})
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "name 必须是 buy、now、plan、chk、rev"})
 		}
+	})
+	mux.HandleFunc("GET "+base+"/stock/{code}/chart-overlay", func(w http.ResponseWriter, r *http.Request) {
+		code := strings.ToUpper(strings.TrimSpace(r.PathValue("code")))
+		if code == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "缺少股票代码"})
+			return
+		}
+		writeJSON(w, http.StatusOK, ok(s.holdingsCtx().ChartOverlay(code)))
+	})
+	mux.HandleFunc("POST "+base+"/plans/preview", func(w http.ResponseWriter, r *http.Request) {
+		body := readMap(r)
+		q, _ := body["ts_code"].(string)
+		if q == "" {
+			q, _ = body["q"].(string)
+		}
+		writeJSON(w, http.StatusOK, ok(s.holdingsCtx().PlanPreview(q)))
+	})
+	mux.HandleFunc("POST "+base+"/plans", func(w http.ResponseWriter, r *http.Request) {
+		item, err := s.holdingsCtx().AddPlanItem(readMap(r))
+		if err != nil {
+			holdingsFail(w, err, "plan add")
+			return
+		}
+		writeJSON(w, http.StatusCreated, holdings.Map{"status": "ok", "item": item})
+	})
+	mux.HandleFunc("PUT "+base+"/plans/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.Atoi(r.PathValue("id"))
+		item, err := s.holdingsCtx().UpdatePlanItem(id, readMap(r))
+		if err != nil {
+			holdingsFail(w, err, "plan update")
+			return
+		}
+		writeJSON(w, http.StatusOK, holdings.Map{"status": "ok", "item": item})
+	})
+	mux.HandleFunc("PUT "+base+"/plans/{id}/status", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.Atoi(r.PathValue("id"))
+		status, _ := readMap(r)["status"].(string)
+		item, err := s.holdingsCtx().SetPlanStatus(id, status)
+		if err != nil {
+			holdingsFail(w, err, "plan status")
+			return
+		}
+		writeJSON(w, http.StatusOK, holdings.Map{"status": "ok", "item": item})
+	})
+	mux.HandleFunc("DELETE "+base+"/plans/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id, _ := strconv.Atoi(r.PathValue("id"))
+		if !s.personal.PlanRemove(id) {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "没有这条计划: " + r.PathValue("id")})
+			return
+		}
+		writeJSON(w, http.StatusOK, holdings.Map{"status": "ok", "id": id})
 	})
 	mux.HandleFunc("POST "+base+"/checkup", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, ok(s.holdingsCtx().TabCheck(true)))
@@ -80,10 +133,23 @@ func (s *Server) registerHoldingsRoutes(mux *http.ServeMux) {
 		}
 		detail := ctx.StockDetail(code)
 		if detail == nil {
-			writeJSON(w, http.StatusNotFound, map[string]any{"error": "持仓和想买里没有: " + code})
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "持仓、想买和交易计划里没有: " + code})
 			return
 		}
 		writeJSON(w, http.StatusOK, ok(detail))
+	})
+	mux.HandleFunc("GET "+base+"/stock/{code}/entries", func(w http.ResponseWriter, r *http.Request) {
+		ctx := s.holdingsCtx()
+		code := strings.ToUpper(r.PathValue("code"))
+		if c, _, found := ctx.Data.Resolve(code); found {
+			code = c
+		}
+		out := ctx.StockEntries(code)
+		if out == nil {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "持仓、想买和交易计划里没有: " + code})
+			return
+		}
+		writeJSON(w, http.StatusOK, ok(out))
 	})
 	mux.HandleFunc("PUT "+base+"/stock/{code}/reason", func(w http.ResponseWriter, r *http.Request) {
 		body := readMap(r)
@@ -259,7 +325,11 @@ func (s *Server) registerHoldingsRoutes(mux *http.ServeMux) {
 		writeJSON(w, http.StatusOK, ok(s.holdingsCtx().Notifications()))
 	})
 	mux.HandleFunc("POST "+base+"/notifications/read", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, holdings.Map{"status": "ok", "count": s.holdingsCtx().MarkRead()})
+		var body struct {
+			IDs []string `json:"ids"`
+		}
+		_ = readJSON(r, &body)
+		writeJSON(w, http.StatusOK, holdings.Map{"status": "ok", "count": s.holdingsCtx().MarkRead(body.IDs)})
 	})
 }
 

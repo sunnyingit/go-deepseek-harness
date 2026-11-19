@@ -14,8 +14,19 @@ import (
 // minSample is how many settled calls a breakdown row needs before its rate means anything.
 const minSample = 20
 
+func (s *Server) ownedPredictions() []scan.Prediction {
+	owned := s.relatedCodes()
+	var out []scan.Prediction
+	for _, p := range s.scan.All() {
+		if owned[p.Code] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func (s *Server) scanAccuracy(horizon, days int) map[string]any {
-	preds := s.scan.All()
+	preds := s.ownedPredictions()
 	acc := scan.Stats(preds, horizon, days, s.now())
 	for i := range acc.Analysts {
 		acc.Analysts[i].Label = dimLabel[acc.Analysts[i].Key]
@@ -102,10 +113,13 @@ func (s *Server) registerScanRoutes(mux *http.ServeMux) {
 	get("/summary", func(r *http.Request) any { return s.scanSummary() })
 	get("/upcoming", func(r *http.Request) any { return s.scanUpcoming() })
 	get("/panel", func(r *http.Request) any { return s.scanDayPanel() })
-	get("/today", func(r *http.Request) any { return s.scanToday(r.URL.Query().Get("source")) })
+	get("/today", func(r *http.Request) any {
+		q := r.URL.Query()
+		return s.scanToday(q.Get("source"), q.Get("kind"))
+	})
 	get("/tracking", func(r *http.Request) any {
 		q := r.URL.Query()
-		return s.scanTracking(q.Get("due"), q.Get("mine") == "1", q.Get("source"))
+		return s.scanTracking(q.Get("due"), q.Get("source"), q.Get("kind"))
 	})
 	get("/settled", func(r *http.Request) any { return s.scanSettled(settledQuery(r, s.now())) })
 	get("/accuracy", func(r *http.Request) any {
@@ -170,7 +184,7 @@ func (s *Server) registerScanRoutes(mux *http.ServeMux) {
 // settledQuery reads the filters of the settled tab; "range" is a shortcut for a settle-day window ending today.
 func settledQuery(r *http.Request, now time.Time) settledFilter {
 	q := r.URL.Query()
-	f := settledFilter{From: q.Get("from"), To: q.Get("to"), Source: q.Get("source"), Query: q.Get("q"), WrongOnly: q.Get("wrong") == "1"}
+	f := settledFilter{From: q.Get("from"), To: q.Get("to"), Source: q.Get("source"), Kind: q.Get("kind"), Query: q.Get("q"), WrongOnly: q.Get("wrong") == "1"}
 	f.Horizon, _ = strconv.Atoi(q.Get("horizon"))
 	if f.From == "" {
 		switch q.Get("range") {

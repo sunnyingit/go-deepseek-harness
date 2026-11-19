@@ -15,9 +15,17 @@ func TestPublishDedupesRendersAndRoutesToTheDesktopByLoudness(t *testing.T) {
 	if _, created, _ := in.Publish("judgment.changed", "stock", "600036.SH", map[string]any{"ts_code": "600036.SH"}, "600036.SH:2026-11-05", Options{}); created {
 		t.Fatal("duplicate key was published twice")
 	}
-	rec, _, _ := in.Publish("task.completed", "system", "stock.nightly", map[string]any{"task_id": "stock.nightly", "title": "每晚个股结论", "state": "succeeded", "state_text": "成功", "trigger_text": "定时", "duration_ms": 2500.0, "jobs": 3.0, "succeeded": 3.0}, "client:r1", Options{})
-	if rec.Desktop != "" || rec.Tone != "good" || !strings.Contains(rec.Body, "单元 3/3") || !strings.Contains(rec.Body, "2.5s") {
+	rec, _, _ := in.Publish("task.completed", "system", "stock.nightly", map[string]any{
+		"task_id": "stock.nightly", "title": "每晚个股结论", "state": "succeeded", "state_text": "成功", "trigger_text": "定时",
+		"duration_ms": 2500.0, "jobs": 3.0, "succeeded": 3.0,
+		"apis": []any{"POST /api/v1/stocks/{code}/analyze"}, "detail": "写了 3 条结论",
+	}, "client:r1", Options{})
+	if rec.Desktop != "" || rec.Tone != "good" || !strings.Contains(rec.Body, "单元 3/3") || !strings.Contains(rec.Body, "2.5s") ||
+		!strings.Contains(rec.Body, "写了 3 条结论") || strings.Contains(rec.Body, "调用：") {
 		t.Fatalf("receipt = %+v", rec)
+	}
+	if rec.Link["page"] != "tasks" {
+		t.Fatalf("link = %+v", rec.Link)
 	}
 	if got := in.DesktopPending(); len(got) != 1 || got[0]["delivery_id"] != it.ID {
 		t.Fatalf("pending = %v", got)

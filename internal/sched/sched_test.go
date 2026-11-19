@@ -245,3 +245,37 @@ func TestStateSurvivesARestart(t *testing.T) {
 		t.Fatalf("calls=%d runs=%d", calls, len(s2.Store.Runs("a", 0)))
 	}
 }
+
+func TestReclaimInterruptedClearsOrphanRunningJobs(t *testing.T) {
+	path := t.TempDir() + "/sched.json"
+	f := &fake{now: at1("2026-11-05", "20:00")}
+	s := New(OpenStore(path), LoadCalendar(""), f.Now)
+	s.Register(&Spec{
+		ID: "a", Trigger: Trigger{Kind: "daily", At: "20:30", WindowMin: 60},
+		Handler: func(c *JobCtx) (any, error) {
+			<-c.Ctx.Done() // never finishes unless cancelled; simulate a crash mid-run
+			return nil, c.Ctx.Err()
+		},
+	})
+	s.Tick()
+	f.advance(35 * time.Minute)
+	s.Tick() // launch into running, don't wait
+	s.Store.Flush()
+	if _, ok := s.Store.ActiveJob("a", "-"); !ok {
+		t.Fatal("expected an active job while running")
+	}
+
+	// New process loads the same store: reclaim orphans then finish the run.
+	s2 := New(OpenStore(path), LoadCalendar(""), f.Now)
+	s2.Register(&Spec{ID: "a", Trigger: Trigger{Kind: "daily", At: "20:30", WindowMin: 60}, Handler: func(c *JobCtx) (any, error) { return nil, nil }})
+	if n := s2.Store.ReclaimInterrupted(ms(f.Now())); n != 1 {
+		t.Fatalf("reclaimed = %d", n)
+	}
+	s2.Tick()
+	if _, ok := s2.Store.ActiveJob("a", "-"); ok {
+		t.Fatal("orphaned running job still active after reclaim")
+	}
+	if run := s2.Store.Runs("a", 1)[0]; run.State != "failed" {
+		t.Fatalf("run state = %s, want failed", run.State)
+	}
+}

@@ -13,7 +13,8 @@ import (
 	coretools "go-harness/core/tools"
 )
 
-var planAllowed = []string{"volume_flow", "market", "sector", "news", "finance", "fundamental"}
+// planAllowed is also the display / speaking order: 大盘 always first when present.
+var planAllowed = []string{"market", "volume_flow", "sector", "news", "finance", "fundamental"}
 
 var planName = map[string]string{
 	"volume_flow": "资金流分析师",
@@ -174,8 +175,8 @@ func chiefPlanPrompt() string {
 7. 「市场资金/国家队/市场板块/好不好做/大盘」选 market；「这只股的板块归属/板内角色」选 sector；「这只股大单」选 volume_flow。
 
 最后一条回复只能是一个 JSON 对象，不要用代码围栏：
-{"analysts":["volume_flow","sector"],"note":"请资金流分析师、板块分析师来回答"}
-note 用一句话，点出被请到的人。analysts 为空时，note 写「这个问题我来回答」。`
+{"analysts":["market","volume_flow","sector"],"note":"该大盘分析师、资金流分析师、板块分析师开麦了"}
+note 用一句话，点出被请到的人，语气可以轻松一点（比如「该…开麦了」「球给…了」）。有大盘时把 market 放在 analysts 第一位。analysts 为空时，note 写「这个问题我来回答」。`
 }
 
 func parseChiefPlan(raw string) ([]string, string) {
@@ -247,14 +248,18 @@ func normalizePlanIDs(ids []string) []string {
 	for _, id := range planAllowed {
 		allowed[id] = true
 	}
-	var out []string
-	seen := map[string]bool{}
+	want := map[string]bool{}
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
-		if !allowed[id] || seen[id] {
+		if allowed[id] {
+			want[id] = true
+		}
+	}
+	var out []string
+	for _, id := range planAllowed {
+		if !want[id] {
 			continue
 		}
-		seen[id] = true
 		out = append(out, id)
 		if len(out) == 3 {
 			break
@@ -352,7 +357,7 @@ func planNote(ids []string, modelNote string) string {
 	for _, id := range ids {
 		names = append(names, planName[id])
 	}
-	fallback := "请" + strings.Join(names, "、") + "来回答"
+	fallback := "该" + strings.Join(names, "、") + "开麦了"
 	if note == "" {
 		return fallback
 	}

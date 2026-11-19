@@ -1,6 +1,9 @@
 package server
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestRoundFreshNeedsEveryAnalystOnTheSameDay(t *testing.T) {
 	s := &Server{}
@@ -24,6 +27,31 @@ func TestRoundFreshNeedsEveryAnalystOnTheSameDay(t *testing.T) {
 	s.appendGroup("600001.SH", groupLine{Agent: "chief", Kind: "analysis", Text: "今天的裁决", StatusText: "偏空", Day: "2026-11-07"})
 	if s.roundFresh("600001.SH", "2026-11-07") {
 		t.Fatal("看多看空还停在上一轮时，不能当成今天已经诊完")
+	}
+}
+
+func TestBullBearJudgedTodayKeepsArchiveAfterSecondChief(t *testing.T) {
+	s := &Server{}
+	day := "2026-11-14"
+	code := "600010.SH"
+	for _, id := range diagnosisDims {
+		s.appendGroup(code, groupLine{Agent: id, Kind: "analysis", Text: "维度", StatusText: "偏空", Day: day})
+	}
+	s.appendGroup(code, groupLine{Agent: "bull", Kind: "analysis", Text: "看多", Day: day})
+	s.appendGroup(code, groupLine{Agent: "bear", Kind: "analysis", Text: "看空", Day: day})
+	s.appendGroup(code, groupLine{Agent: "chief", Kind: "analysis", Text: "第一轮", StatusText: "偏空", Day: day})
+	s.updateDebate(code, func(file *debateFile) {
+		file.Bull = []debatePoint{{ID: "bull.1", Text: "钱在进"}}
+		file.Bear = []debatePoint{{ID: "bear.1", Text: "板块弱"}}
+		file.Chief = &chiefDecision{Verdict: "偏空", Text: "第二轮裁决"}
+	})
+	// 同日第二轮：维度重说 + 主分析师再裁决，看多看空复用存档（群里 bull/bear 仍在第一轮 chief 之前）
+	for _, id := range diagnosisDims {
+		s.appendGroup(code, groupLine{Agent: id, Kind: "analysis", Text: "维度再讲", StatusText: "偏空", Day: day})
+	}
+	s.appendGroup(code, groupLine{Agent: "chief", Kind: "analysis", Text: "第二轮", StatusText: "偏空", Day: day})
+	if !s.bullBearJudgedToday(code, day) {
+		t.Fatal("同日第二轮裁决后应仍可复用看多看空存档，否则会清掉刚写好的 Chief")
 	}
 }
 
@@ -60,5 +88,38 @@ func TestChiefDetailReadsTheSavedDebate(t *testing.T) {
 	bear := points["bear"].(map[string]any)["points"].([]map[string]any)
 	if bull[0]["state"] != "rejected" || bear[0]["state"] != "adopted" {
 		t.Fatalf("bull %#v bear %#v", bull, bear)
+	}
+}
+
+func TestFinishPointsDoesNotDeadlockWhenChiefExists(t *testing.T) {
+	// 回归：updateDebate 持锁时再 groupLines 会自死锁，大盘等分析师随后全部卡住。
+	s := &Server{}
+	day := diagnosisDay(time.Now())
+	code := "600011.SH"
+	s.appendGroup(code, groupLine{Agent: "volume_flow", Kind: "analysis", Text: "资金偏多", StatusText: "偏多", Day: day})
+	s.appendGroup(code, groupLine{Agent: "chief", Kind: "analysis", Text: "先裁一次", StatusText: "偏多", Day: day})
+	s.updateDebate(code, func(file *debateFile) {
+		file.Chief = &chiefDecision{Verdict: "偏多", Text: "先裁一次"}
+	})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		cfg := agentConfig{ID: "bull", Name: "看多", Speak: "points"}
+		raw := `{"points":[{"text":"近5日大单净流入","dimension":"volume_flow","weight":2}]}`
+		if _, err := s.finishPoints(cfg, code, raw, ""); err != nil {
+			t.Errorf("finishPoints: %v", err)
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("finishPoints deadlocked on groupsMu (groupLines inside updateDebate)")
+	}
+	file := s.loadDebate(code)
+	if file.Chief == nil || file.Chief.Verdict != "偏多" {
+		t.Fatalf("today chief should be kept, got %#v", file.Chief)
+	}
+	if len(file.Bull) != 1 {
+		t.Fatalf("bull points %#v", file.Bull)
 	}
 }

@@ -1,7 +1,9 @@
 // Package scan keeps the AI's predictions and checks them later. Every conclusion the client makes is
 // written down once, with its direction, strength and the day it started from; five and twenty trading days
 // on, the stock is compared with its sector, and the prediction counts as right, wrong or a draw. A written
-// prediction is never changed.
+// prediction's content is never edited. Stocks are judged every day: a newer conclusion with the *same*
+// direction leaves the open call alone (so the 5/20-day clock is not reset); only a *changed* direction
+// supersedes the still-open older call.
 package scan
 
 import (
@@ -52,25 +54,42 @@ type Result struct {
 
 // Prediction is one written-down call.
 type Prediction struct {
-	ID        string             `json:"id"`
-	Code      string             `json:"ts_code"`
-	Name      string             `json:"name"`
-	Source    string             `json:"source"` // scan | diagnose
-	Direction string             `json:"direction"`
-	Level     int                `json:"level"`
-	Verdict   string             `json:"verdict"`
-	Evidence  string             `json:"evidence"`
-	MadeAt    int64              `json:"made_at"`
-	BaseDay   string             `json:"base_day"` // the last close the prediction starts from
-	BaseClose float64            `json:"base_close,omitempty"`
-	Sector    string             `json:"sector,omitempty"`
-	Market    string             `json:"market,omitempty"` // 上涨市 | 震荡市 | 下跌市
-	BundleID  int64              `json:"bundle_id,omitempty"`
-	Analysts  []Analyst          `json:"analysts,omitempty"`
-	Results   map[string]*Result `json:"results,omitempty"`
+	ID           string             `json:"id"`
+	Code         string             `json:"ts_code"`
+	Name         string             `json:"name"`
+	Source       string             `json:"source"` // scan | diagnose
+	Direction    string             `json:"direction"`
+	Level        int                `json:"level"`
+	Verdict      string             `json:"verdict"`
+	Evidence     string             `json:"evidence"`
+	MadeAt       int64              `json:"made_at"`
+	BaseDay      string             `json:"base_day"` // the last close the prediction starts from
+	BaseClose    float64            `json:"base_close,omitempty"`
+	Sector       string             `json:"sector,omitempty"`
+	Market       string             `json:"market,omitempty"` // 上涨市 | 震荡市 | 下跌市
+	BundleID     int64              `json:"bundle_id,omitempty"`
+	Analysts     []Analyst          `json:"analysts,omitempty"`
+	Results      map[string]*Result `json:"results,omitempty"`
+	SupersededAt int64              `json:"superseded_at,omitempty"` // newer call for the same stock replaced this one
 }
 
 func (p *Prediction) Result(h int) *Result { return p.Results[strconv.Itoa(h)] }
+
+// Active reports whether this call still counts for tracking and settlement.
+func (p *Prediction) Active() bool { return p != nil && p.SupersededAt == 0 }
+
+// openHorizons is true while any 5/20-day check has not been written (unclear never settles, so it stays open until replaced).
+func (p *Prediction) openHorizons() bool {
+	if p.Direction == Unclear {
+		return true
+	}
+	for _, h := range Horizons {
+		if p.Result(h) == nil {
+			return true
+		}
+	}
+	return false
+}
 
 // Store is an append-only list kept in one JSON file.
 type Store struct {
@@ -97,6 +116,7 @@ func Open(path string, now func() time.Time) *Store {
 			}
 		}
 	}
+	st.collapseOpenLocked()
 	return st
 }
 
@@ -119,12 +139,28 @@ func (st *Store) save() {
 }
 
 // Add writes a prediction unless the same conclusion was already written for the same source.
+// Same stock + same direction while a call is still open: keep that call (no new row, clock unchanged).
+// Same stock + changed direction: supersede the open call and start a new one from today's base day.
 func (st *Store) Add(p Prediction) (*Prediction, bool) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	for _, x := range st.Items {
 		if p.BundleID != 0 && x.BundleID == p.BundleID && x.Source == p.Source && x.Code == p.Code {
 			return x, false
+		}
+	}
+	for _, x := range st.Items {
+		if x.Code != p.Code || x.SupersededAt != 0 || !x.openHorizons() {
+			continue
+		}
+		if x.Direction == p.Direction {
+			cp := *x
+			cp.Results = map[string]*Result{}
+			for k, v := range x.Results {
+				r := *v
+				cp.Results[k] = &r
+			}
+			return &cp, false
 		}
 	}
 	st.Seq++
@@ -135,8 +171,67 @@ func (st *Store) Add(p Prediction) (*Prediction, bool) {
 	p.Results = map[string]*Result{}
 	cp := p
 	st.Items = append(st.Items, &cp)
+	st.supersedeOlderLocked(cp.Code, cp.ID)
 	st.save()
 	return &cp, true
+}
+
+// supersedeOlderLocked marks unfinished open calls for code as superseded, except keepID.
+func (st *Store) supersedeOlderLocked(code, keepID string) {
+	now := st.now().UnixMilli()
+	for _, x := range st.Items {
+		if x.Code != code || x.ID == keepID || x.SupersededAt != 0 || !x.openHorizons() {
+			continue
+		}
+		x.SupersededAt = now
+	}
+}
+
+// collapseOpenLocked replays direction rules on a legacy file: same direction keeps the earliest
+// open call; a later changed direction supersedes what came before.
+func (st *Store) collapseOpenLocked() {
+	type openRec struct {
+		p *Prediction
+	}
+	byCode := map[string][]openRec{}
+	for _, p := range st.Items {
+		if p.SupersededAt != 0 || !p.openHorizons() {
+			continue
+		}
+		byCode[p.Code] = append(byCode[p.Code], openRec{p})
+	}
+	if len(byCode) == 0 {
+		return
+	}
+	now := st.now().UnixMilli()
+	changed := false
+	for _, list := range byCode {
+		sort.SliceStable(list, func(i, j int) bool {
+			if list[i].p.MadeAt != list[j].p.MadeAt {
+				return list[i].p.MadeAt < list[j].p.MadeAt
+			}
+			return list[i].p.ID < list[j].p.ID
+		})
+		var keep *Prediction
+		for _, rec := range list {
+			p := rec.p
+			if keep == nil {
+				keep = p
+				continue
+			}
+			if p.Direction == keep.Direction {
+				p.SupersededAt = now
+				changed = true
+				continue
+			}
+			keep.SupersededAt = now
+			changed = true
+			keep = p
+		}
+	}
+	if changed {
+		st.save()
+	}
 }
 
 // All returns copies, oldest first.

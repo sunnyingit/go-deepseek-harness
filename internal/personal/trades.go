@@ -226,6 +226,154 @@ func (st *Store) WishCloseWith(id int, status string) bool {
 // WishClose drops an open wish.
 func (st *Store) WishClose(id int) bool { return st.WishCloseWith(id, "dropped") }
 
+// ---- daily trading plans
+
+var planSides = map[string]bool{"buy": true, "sell": true, "add": true, "reduce": true, "watch": true}
+var planStatuses = map[string]bool{"planned": true, "done": true, "skipped": true, "cancelled": true}
+
+// PlanAdd stores one line in a day's trading plan.
+func (st *Store) PlanAdd(p PlanItem) (PlanItem, error) {
+	p.Reason = strings.TrimSpace(p.Reason)
+	p.Note = strings.TrimSpace(p.Note)
+	if p.Code == "" || p.Name == "" {
+		return PlanItem{}, InputError("先选一只股票")
+	}
+	if !ValidDay(p.Date) {
+		return PlanItem{}, InputError("日期要写成 2026-11-02 这样")
+	}
+	if !planSides[p.Side] {
+		return PlanItem{}, InputError("方向只能是买入、卖出、加仓、减仓或盯着")
+	}
+	if p.Price < 0 {
+		return PlanItem{}, InputError("价格不能是负数")
+	}
+	if p.Qty < 0 {
+		return PlanItem{}, InputError("数量不能是负数")
+	}
+	if p.PlanPct < 0 || p.PlanPct > 100 {
+		return PlanItem{}, InputError("仓位要在 0 到 100 之间")
+	}
+	if p.Side != "watch" && p.Reason == "" {
+		return PlanItem{}, InputError("先写一句今天为什么想做")
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	now := st.now().UnixMilli()
+	p.ID, p.Status, p.CreatedAt, p.UpdatedAt = st.id(), "planned", now, now
+	st.d.Plans = append(st.d.Plans, p)
+	st.save()
+	return p, nil
+}
+
+// PlansOf lists plan items for one day, oldest first.
+func (st *Store) PlansOf(day string) []PlanItem {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	var out []PlanItem
+	for _, p := range st.d.Plans {
+		if p.Date == day {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// PlansFrom lists plan items on or after day, oldest first.
+func (st *Store) PlansFrom(day string) []PlanItem {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	var out []PlanItem
+	for _, p := range st.d.Plans {
+		if p.Date >= day {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func (st *Store) PlanByID(id int) (PlanItem, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for _, p := range st.d.Plans {
+		if p.ID == id {
+			return p, true
+		}
+	}
+	return PlanItem{}, false
+}
+
+// PlanUpdate replaces the editable fields of a plan item.
+func (st *Store) PlanUpdate(id int, day, side string, price float64, qty int, planPct float64, reason, note string) (PlanItem, error) {
+	reason, note = strings.TrimSpace(reason), strings.TrimSpace(note)
+	if day != "" && !ValidDay(day) {
+		return PlanItem{}, InputError("日期要写成 2026-11-02 这样")
+	}
+	if !planSides[side] {
+		return PlanItem{}, InputError("方向只能是买入、卖出、加仓、减仓或盯着")
+	}
+	if price < 0 {
+		return PlanItem{}, InputError("价格不能是负数")
+	}
+	if qty < 0 {
+		return PlanItem{}, InputError("数量不能是负数")
+	}
+	if planPct < 0 || planPct > 100 {
+		return PlanItem{}, InputError("仓位要在 0 到 100 之间")
+	}
+	if side != "watch" && reason == "" {
+		return PlanItem{}, InputError("先写一句今天为什么想做")
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for i := range st.d.Plans {
+		if st.d.Plans[i].ID != id {
+			continue
+		}
+		p := &st.d.Plans[i]
+		if day != "" {
+			p.Date = day
+		}
+		p.Side, p.Price, p.Qty, p.PlanPct, p.Reason, p.Note = side, price, qty, planPct, reason, note
+		p.UpdatedAt = st.now().UnixMilli()
+		st.save()
+		return *p, nil
+	}
+	return PlanItem{}, InputError("没有这条计划")
+}
+
+// PlanSetStatus marks a plan item done / skipped / cancelled / planned again.
+func (st *Store) PlanSetStatus(id int, status string) (PlanItem, error) {
+	if !planStatuses[status] {
+		return PlanItem{}, InputError("状态只能是计划中、已做、没做或取消")
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for i := range st.d.Plans {
+		if st.d.Plans[i].ID != id {
+			continue
+		}
+		st.d.Plans[i].Status = status
+		st.d.Plans[i].UpdatedAt = st.now().UnixMilli()
+		st.save()
+		return st.d.Plans[i], nil
+	}
+	return PlanItem{}, InputError("没有这条计划")
+}
+
+// PlanRemove deletes a plan item.
+func (st *Store) PlanRemove(id int) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for i, p := range st.d.Plans {
+		if p.ID == id {
+			st.d.Plans = append(st.d.Plans[:i], st.d.Plans[i+1:]...)
+			st.save()
+			return true
+		}
+	}
+	return false
+}
+
 // ---- reasons
 
 func (st *Store) ReasonOf(code string) (Reason, bool) {

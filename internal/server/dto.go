@@ -63,8 +63,9 @@ type sessionDTO struct {
 	// surface — same 4-chars-per-token estimate as GET /sessions/{id}/tokens,
 	// not a billed API meter.
 	TotalTokens int `json:"totalTokens,omitempty"`
-	// CreatedAt is Unix epoch milliseconds — the sidebar sorts on this
-	// rather than the session id string, whose lexicographic order breaks
-	// once ids pass "session-9" -> "session-10".
+	// CreatedAt is Unix epoch milliseconds — when the session was opened.
 	CreatedAt int64 `json:"createdAt"`
+	// UpdatedAt is Unix epoch milliseconds of the latest log event.
+	// The sidebar sorts on this so the conversation you just touched stays on top.
+	UpdatedAt int64 `json:"updatedAt,omitempty"`
 }

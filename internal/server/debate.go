@@ -85,13 +85,27 @@ func (s *Server) finishPoints(cfg agentConfig, code, raw, turnErr string) (map[s
 		msg["errors"] = []string{"没有能对上群里发言的论据"}
 		return msg, nil
 	}
+	// 先在锁外读群记录。updateDebate 已持有 groupsMu，回调里再调 groupLines 会自死锁，
+	// 之后所有分析师（含大盘）的 prepareAnalyst/appendGroup 都会一直卡住。
+	day := diagnosisDay(time.Now())
+	keepChief := false
+	for _, line := range s.groupLines(code) {
+		if line.Agent == "chief" && line.Kind == "analysis" && strings.TrimSpace(line.Text) != "" && line.Day == day {
+			keepChief = true
+			break
+		}
+	}
 	s.updateDebate(code, func(file *debateFile) {
 		if cfg.ID == "bear" {
 			file.Bear = points
 		} else {
 			file.Bull = points
 		}
-		file.Chief = nil
+		// 只清「同一轮尚未裁决」时的旧 Chief。若存档里已有今天的裁决，
+		// 补采纳标记或同日复用论据时不要把刚写好的结论抹掉。
+		if file.Chief != nil && !keepChief {
+			file.Chief = nil
+		}
 	})
 	var spoken []string
 	for _, point := range points {

@@ -10,6 +10,9 @@ runtime/git/
 runtime/wheels/
 runtime/node-packages/
 runtime/skills/
+runtime/stock-agent/
+runtime/stock-venv/
+runtime/stock-wheels/
 runtime/config.yaml
 runtime/*.tar.gz
 runtime/*.zip

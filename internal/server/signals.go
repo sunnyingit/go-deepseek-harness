@@ -30,22 +30,42 @@ const dailyNormalCap = 5 // per stock per day; more than this only goes to the i
 
 func (s *Server) registerWatchTasks() {
 	s.sch.Register(&sched.Spec{
-		ID: "news.watch", Title: "公告监控", Queue: "data", Frequent: true, Fanout: s.subjectUnits,
+		ID: "news.watch", Title: "公告监控", Category: sched.CatWatch, Note: "盯你关注的股票有没有新公告",
+		Trace: map[string]any{
+			"apis":    []any{"GET /api/v1/shared/announcements/{code}"},
+			"purpose": "拉取关注股票公告并写入通知",
+		},
+		Queue: "data", Frequent: true, Fanout: s.subjectUnits,
 		Trigger: sched.Trigger{Kind: "every", EveryMin: 10, Days: "any"}, MaxAttempts: 2, Backoff: []time.Duration{time.Minute, 5 * time.Minute}, Timeout: 90 * time.Second,
 		Handler: s.watchAnnouncements,
 	})
 	s.sch.Register(&sched.Spec{
-		ID: "signals.close", Title: "收盘信号", Queue: "data", Gates: []string{"market_closed"}, Fanout: s.subjectUnits,
+		ID: "signals.close", Title: "收盘信号", Category: sched.CatWatch, Note: "收盘后检查资金流等信号变化",
+		Trace: map[string]any{
+			"apis":    []any{"GET /api/v1/shared/signals/{code}", "GET /api/v1/shared/flow/{code}"},
+			"purpose": "收盘后核对资金流与信号变化",
+		},
+		Queue: "data", Gates: []string{"market_closed"}, Fanout: s.subjectUnits,
 		Trigger: sched.Trigger{Kind: "daily", At: "15:45", WindowMin: 120, Days: "trading"}, MaxAttempts: 3, Backoff: []time.Duration{5 * time.Minute, 15 * time.Minute, 30 * time.Minute},
 		CatchupTTL: 20 * time.Hour, Timeout: 90 * time.Second, Handler: s.closeSignals,
 	})
 	s.sch.Register(&sched.Spec{
-		ID: "calendar.morning", Title: "日历提醒", Queue: "data",
+		ID: "calendar.morning", Title: "日历提醒", Category: sched.CatWatch, Note: "早上提醒解禁、财报等日历事件",
+		Trace: map[string]any{
+			"apis":    []any{"GET /api/v1/shared/calendar"},
+			"purpose": "读取关注股票近期日历事件并提醒",
+		},
+		Queue:   "data",
 		Trigger: sched.Trigger{Kind: "daily", At: "08:40", WindowMin: 120, Days: "any"}, MaxAttempts: 2, Backoff: []time.Duration{5 * time.Minute, 15 * time.Minute},
 		CatchupTTL: 6 * time.Hour, Timeout: 90 * time.Second, Handler: s.morningCalendar,
 	})
 	s.sch.Register(&sched.Spec{
-		ID: "holdings.watch", Title: "持仓复查", Queue: "data", Gates: []string{"market_closed"},
+		ID: "holdings.watch", Title: "持仓复查", Category: sched.CatWatch, Note: "收盘后复查持仓涨跌与提醒条件",
+		Trace: map[string]any{
+			"apis":    []any{"quotes.Fetch", "本地持仓/提醒条件复核"},
+			"purpose": "按收盘价复查持仓涨跌与提醒条件",
+		},
+		Queue: "data", Gates: []string{"market_closed"},
 		Trigger: sched.Trigger{Kind: "daily", At: "16:00", WindowMin: 180, Days: "trading"}, MaxAttempts: 2, Backoff: []time.Duration{10 * time.Minute, 30 * time.Minute},
 		CatchupTTL: 20 * time.Hour, Timeout: 3 * time.Minute, Handler: s.watchHoldings,
 	})

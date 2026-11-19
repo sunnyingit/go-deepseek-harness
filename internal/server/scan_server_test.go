@@ -59,16 +59,29 @@ func TestSettlingFillsFiveDayResultsOnceAndTellsTheUser(t *testing.T) {
 	s.personal.WatchAdd("600036.SH", "招商银行")
 	s.scan.Add(scan.Prediction{Code: "600036.SH", Name: "招商银行", Source: "scan", Direction: scan.Bullish, Level: 2, Verdict: "偏多 · 稍微", BaseDay: "2026-10-26",
 		BaseClose: 10, MadeAt: zoneTime("2026-10-26", "20:40").UnixMilli(), BundleID: 1, Analysts: []scan.Analyst{{Dimension: "news", Name: "新闻分析师", Lean: "bullish"}}})
-	s.scan.Add(scan.Prediction{Code: "600036.SH", Name: "招商银行", Source: "scan", Direction: scan.Unclear, Verdict: "不明", BaseDay: "2026-10-26", MadeAt: zoneTime("2026-10-26", "20:41").UnixMilli(), BundleID: 2})
+	// unclear on another stock: same-code unclear would supersede the bullish call under tracking rules
+	s.scan.Add(scan.Prediction{Code: "000001.SZ", Name: "平安银行", Source: "scan", Direction: scan.Unclear, Verdict: "不明", BaseDay: "2026-10-26", MadeAt: zoneTime("2026-10-26", "20:41").UnixMilli(), BundleID: 2})
 	_ = c
 	s.runTask(t, "scan.settle")
 	got := s.scan.All()
-	r := got[0].Result(5)
+	var bull, unclear *scan.Prediction
+	for i := range got {
+		switch got[i].Code {
+		case "600036.SH":
+			bull = &got[i]
+		case "000001.SZ":
+			unclear = &got[i]
+		}
+	}
+	if bull == nil || unclear == nil {
+		t.Fatalf("predictions = %+v", got)
+	}
+	r := bull.Result(5)
 	if r == nil || r.Outcome != "hit" || r.StockRet < 0.049 || r.StockRet > 0.051 {
 		t.Fatalf("result = %+v", r)
 	}
-	if got[0].Result(20) != nil || got[1].Result(5) != nil {
-		t.Fatalf("a 20-day or an unclear prediction was settled: %+v", got)
+	if bull.Result(20) != nil || unclear.Result(5) != nil {
+		t.Fatalf("a 20-day or an unclear prediction was settled: bull=%+v unclear=%+v", bull, unclear)
 	}
 	found := 0
 	for _, it := range s.inbox.List("system", false, 20) {
@@ -109,6 +122,7 @@ func TestScanViewsSplitTodayTrackingAndSettled(t *testing.T) {
 	ds.start(t)
 	s, _ := newClientServer(t, zoneTime("2026-11-04", "17:40"))
 	s.personal.TradeAdd(personal.Trade{Code: "600036.SH", Name: "招商银行", Side: "buy", Price: 10, Qty: 100, Date: "2026-10-01"})
+	s.personal.WishAdd(personal.Wish{Code: "000001.SZ", Name: "平安银行", Reason: "想买测试", PlanPct: 5})
 	add := func(code, source string, dir string, day string, id int64) {
 		s.scan.Add(scan.Prediction{Code: code, Name: code, Source: source, Direction: dir, Level: 2, Verdict: "x", BaseDay: day, BaseClose: 10, MadeAt: zoneTime(day, "20:40").UnixMilli(), BundleID: id})
 	}
@@ -117,10 +131,10 @@ func TestScanViewsSplitTodayTrackingAndSettled(t *testing.T) {
 	add("000001.SZ", "scan", scan.Unclear, "2026-11-03", 3)
 	s.runTask(t, "scan.settle")
 	sum := s.scanSummary()
-	if sum["made"] != 2 || sum["tracking"] != 3 {
-		t.Fatalf("summary = %+v", sum)
+	if sum["made"] != 2 || sum["tracking"] != 1 {
+		t.Fatalf("summary = %+v (newer call for 000001 supersedes the open one; only 600036's 20-day left)", sum)
 	}
-	today := s.scanToday("diagnose")
+	today := s.scanToday("diagnose", "")
 	if today["total"] != 1 {
 		t.Fatalf("today diagnose = %+v", today)
 	}
@@ -139,8 +153,8 @@ func TestScanViewsSplitTodayTrackingAndSettled(t *testing.T) {
 	if none := s.scanSettled(settledFilter{Query: "不存在"}); none["n_days"] != 0 {
 		t.Fatalf("query = %+v", none)
 	}
-	tr := s.scanTracking("all", false, "")
-	if tr["total"].(int) < 2 {
+	tr := s.scanTracking("all", "", "")
+	if tr["total"].(int) != 1 {
 		t.Fatalf("tracking = %+v", tr)
 	}
 	_ = fmt.Sprint
@@ -344,21 +358,31 @@ func TestTodayPicksOutWhatTheUserShouldReadAndHidingOnlyChangesTheTrackingList(t
 	add("600036.SH", "scan", scan.Bearish, "2026-11-04", 2) // held, bearish today: against the user's plan
 	add("000001.SZ", "scan", scan.Bearish, "2026-11-04", 3)
 	add("600519.SH", "scan", scan.Bullish, "2026-11-04", 4) // nothing special
-	focus := s.scanToday("")["focus"].([]map[string]any)
-	if len(focus) != 2 || focus[0]["kind"] != "conflict" || focus[0]["ts_code"] != "600036.SH" || focus[1]["kind"] != "flip" || focus[1]["ts_code"] != "000001.SZ" {
-		t.Fatalf("focus = %+v", focus)
+	today := s.scanToday("", "")
+	rows := today["rows"].([]map[string]any)
+	if len(rows) != 1 || rows[0]["ts_code"] != "600036.SH" {
+		t.Fatalf("today rows = %+v (自选不进战绩，只留持仓)", rows)
 	}
-	if text := focus[0]["text"].(string); text != "你持有，AI 偏空：理由" && text != "你持有，AI 偏空：理由。" {
-		t.Fatalf("conflict text = %q", text)
+	if mine := rows[0]["mine"].(map[string]any); mine["held"] != true {
+		t.Fatalf("mine = %+v", mine)
+	}
+	if today["total"].(int) != 1 {
+		t.Fatalf("today total = %v", today["total"])
+	}
+	if wishOnly := s.scanToday("", "wish"); wishOnly["total"].(int) != 0 {
+		t.Fatalf("kind=wish should be empty = %+v", wishOnly)
 	}
 
-	// hiding a stock takes it out of the tracking list and its count, not out of the record
-	before := s.scanTracking("all", false, "")["total"].(int)
+	// hiding a held stock takes it out of the tracking list and its count, not out of the record
+	before := s.scanTracking("all", "", "")["total"].(int)
+	if before != 1 {
+		t.Fatalf("tracking before hide = %d, want 1 held stock", before)
+	}
 	a := newCustomAPI(t, s)
-	if code, _ := a.call("POST", "/api/scan/hide", `{"code":"000001.SZ","on":true}`); code != 200 {
+	if code, _ := a.call("POST", "/api/scan/hide", `{"code":"600036.SH","on":true}`); code != 200 {
 		t.Fatalf("hide = %d", code)
 	}
-	tr := s.scanTracking("all", false, "")
+	tr := s.scanTracking("all", "", "")
 	if tr["total"].(int) >= before || len(tr["hidden"].([]map[string]any)) != 1 || s.scanSummary()["tracking"].(int) >= before {
 		t.Fatalf("after hiding = %+v (before %d)", tr, before)
 	}
@@ -368,8 +392,8 @@ func TestTodayPicksOutWhatTheUserShouldReadAndHidingOnlyChangesTheTrackingList(t
 	if code, _ := a.call("POST", "/api/scan/hide", `{"code":"","on":true}`); code != 400 {
 		t.Fatalf("hide nothing = %d", code)
 	}
-	a.call("POST", "/api/scan/hide", `{"code":"000001.SZ","on":false}`)
-	if got := s.scanTracking("all", false, "")["total"].(int); got != before {
+	a.call("POST", "/api/scan/hide", `{"code":"600036.SH","on":false}`)
+	if got := s.scanTracking("all", "", "")["total"].(int); got != before {
 		t.Fatalf("after showing again = %d, want %d", got, before)
 	}
 }

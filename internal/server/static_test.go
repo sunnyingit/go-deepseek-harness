@@ -23,7 +23,7 @@ func TestUIPages(t *testing.T) {
 		{"/space.html", "资料都在这儿，我来帮你。"},
 		{"/settings.html", "运行日志"},
 		{"/market.html", "A 股市场"},
-		{"/holdings.html", "<title>持仓</title>"},
+		{"/holdings.html", "<title>交易</title>"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {

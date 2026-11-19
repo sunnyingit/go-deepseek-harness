@@ -39,14 +39,14 @@ var (
 // groupLine is one spoken turn in a stock's shared 研判群. Fact sheets stay
 // out of this log; the next analyst only sees what was actually said.
 type groupLine struct {
-	Agent              string           `json:"agent"`
-	Name               string           `json:"name"`
-	Kind               string           `json:"kind"`
-	Quote              string           `json:"quote,omitempty"`
-	Text               string           `json:"text"`
-	Status             string           `json:"status,omitempty"`
-	StatusText         string           `json:"status_text,omitempty"`
-	SuggestedQuestions []map[string]any `json:"suggested_questions,omitempty"`
+	Agent              string              `json:"agent"`
+	Name               string              `json:"name"`
+	Kind               string              `json:"kind"`
+	Quote              string              `json:"quote,omitempty"`
+	Text               string              `json:"text"`
+	Status             string              `json:"status,omitempty"`
+	StatusText         string              `json:"status_text,omitempty"`
+	SuggestedQuestions []map[string]any    `json:"suggested_questions,omitempty"`
 	Tools              []map[string]string `json:"tools,omitempty"`
 	Day                string              `json:"day,omitempty"`
 }
@@ -142,7 +142,13 @@ func (s *Server) handleAnalyst(w http.ResponseWriter, r *http.Request, kind, que
 	}
 	msg, err := s.watchAnalyst(r.Context(), w, flusher, ag, charts, cfg, code, kind, question)
 	if err != nil {
-		writeAnalystSSE(w, flusher, "error", map[string]string{"dimension": cfg.ID, "error": analystErrText(cfg.Name, err)})
+		// 连接可能已断：尽量写 error，失败也无所谓；回合已在 watch 里尽力落盘。
+		if r.Context().Err() == nil {
+			writeAnalystSSE(w, flusher, "error", map[string]string{"dimension": cfg.ID, "error": analystErrText(cfg.Name, err)})
+		}
+		return
+	}
+	if r.Context().Err() != nil {
 		return
 	}
 	writeAnalystSSE(w, flusher, "message", msg)
@@ -373,15 +379,26 @@ func writeAnalystSSE(w http.ResponseWriter, flusher http.Flusher, event string, 
 }
 
 func analystErrText(name string, err error) string {
-	text := err.Error()
-	lower := strings.ToLower(text)
-	if strings.Contains(lower, "api_key") || strings.Contains(lower, "sk-") || strings.Contains(lower, "token") {
+	if err == nil {
 		return name + "这次没有说完"
 	}
-	if len([]rune(text)) > 180 {
+	// Reuse the same AUTH / quota masking as the session SSE path so raw
+	// provider text (api key fragments, request_id) never reaches the client
+	// or the orchestrator model.
+	friendly := friendlyLLMError(err.Error())
+	if friendly != err.Error() {
+		return friendly
+	}
+	lower := strings.ToLower(err.Error())
+	if strings.Contains(lower, "api_key") || strings.Contains(lower, "api key") ||
+		strings.Contains(lower, "sk-") || strings.Contains(lower, "token") ||
+		strings.Contains(err.Error(), "AUTH") {
+		return name + "这次没有说完（模型鉴权失败，请到设置检查 API Key）"
+	}
+	if len([]rune(err.Error())) > 180 {
 		return name + "这次没有说完"
 	}
-	return text
+	return err.Error()
 }
 
 // agentConfig is one named analyst. Prompt, rules, and installed skills come
@@ -398,7 +415,7 @@ type agentConfig struct {
 	Opening     string            `yaml:"opening"`
 	Forbid      []string          `yaml:"forbid"`
 	// Speak is headline for a dimension analyst, points for 看多/看空, chief for 主分析师.
-	Speak string `yaml:"speak"`
+	Speak  string `yaml:"speak"`
 	Prompt string `yaml:"-"`
 	Rules  string `yaml:"-"`
 	// Reply 可选：web/agents/<id>/reply.md；有则追问只用它，避免开场 JSON 示例带节奏。
@@ -413,6 +430,12 @@ func (c agentConfig) oneShot() bool {
 // stays keyed by the stock code, so a later analyst on the same stock sees
 // this speech and does not open another session.
 func (s *Server) runAnalyst(ctx context.Context, cfg agentConfig, code, kind, question string) (map[string]any, error) {
+	return s.runAnalystLive(ctx, cfg, code, kind, question, nil)
+}
+
+// runAnalystLive is runAnalyst with an optional live hook used by ask_analyst
+// so the chief SSE can show nested tool status and draft text.
+func (s *Server) runAnalystLive(ctx context.Context, cfg agentConfig, code, kind, question string, live func(status, draft string, tools []map[string]string)) (map[string]any, error) {
 	ag, charts, err := s.prepareAnalyst(ctx, cfg, code, kind, question)
 	if err != nil {
 		return nil, err
@@ -420,17 +443,93 @@ func (s *Server) runAnalyst(ctx context.Context, cfg agentConfig, code, kind, qu
 	if ag == nil {
 		return withChart(s.pointsAfterChiefMessage(code, cfg), charts), nil
 	}
+	// ctx 来自工具/调度：超时或会话显式 cancel 时停掉本回合。
+	// 问问切页只拆观看 SSE，不会 cancel 会话 agent，也就不会进这里。
 	stopped := make(chan struct{})
 	go func() {
 		select {
 		case <-ctx.Done():
-			ag.Cancel(agentloop.CancelCause{Kind: "user", Reason: "client disconnected"}, false)
+			ag.Cancel(agentloop.CancelCause{Kind: "user", Reason: "cancelled"}, false)
 		case <-stopped:
 		}
 	}()
-	ag.WhenIdle()
+	if live == nil {
+		ag.WhenIdle()
+		close(stopped)
+		return s.concludeAnalyst(ctx, cfg, code, kind, question, ag.Session(), charts)
+	}
+	msg, err := s.tailAnalystLive(ctx, ag, charts, cfg, code, kind, question, live)
 	close(stopped)
-	return s.concludeAnalyst(cfg, code, kind, question, ag.Session(), charts)
+	return msg, err
+}
+
+// tailAnalystLive mirrors watchAnalyst but pushes to a callback instead of SSE.
+func (s *Server) tailAnalystLive(ctx context.Context, ag *agentloop.Agent, charts *chartBox, cfg agentConfig, code, kind, question string, live func(status, draft string, tools []map[string]string)) (map[string]any, error) {
+	if live == nil {
+		ag.WhenIdle()
+		return s.concludeAnalyst(ctx, cfg, code, kind, question, ag.Session(), charts)
+	}
+	live("正在思考…", "", nil)
+	sess := ag.Session()
+	ticker := time.NewTicker(16 * time.Millisecond)
+	defer ticker.Stop()
+	lastSeq := 0
+	stepText := ""
+	lastDraft := ""
+	lastStatus := "正在思考…"
+	var draftTools []map[string]string
+	started := time.Now()
+	done := ctx.Done()
+	for {
+		select {
+		case <-done:
+			// Tool ctx cancelled: stop waiting; conclude whatever is there.
+			return s.concludeAnalyst(ctx, cfg, code, kind, question, sess, charts)
+		case <-ticker.C:
+			events := sess.Events()
+			for ; lastSeq < len(events); lastSeq++ {
+				ev := events[lastSeq]
+				data, _ := ev.Data.(map[string]any)
+				switch ev.Type {
+				case "step/start":
+					stepText = ""
+				case "assistant/chunk":
+					block, ok := data["chunk"].(session.ContentBlock)
+					if !ok || block.Kind != session.BlockText || block.Text == "" {
+						continue
+					}
+					stepText += block.Text
+					draft := visibleDraft(stepText)
+					if draft != lastDraft {
+						lastDraft = draft
+						live(lastStatus, draft, draftTools)
+					}
+				case "tool/call":
+					call, ok := data["call"].(session.ContentBlock)
+					if !ok {
+						continue
+					}
+					if label := analystToolLabel(call.ToolName); label != "" {
+						row := map[string]string{"name": call.ToolName, "label": label}
+						if note := toolArgsNote(call.Args); note != "" {
+							row["note"] = note
+						}
+						draftTools = append(draftTools, row)
+					}
+					if status := analystToolStatus(call.ToolName); status != "" {
+						lastStatus = status
+					}
+					live(lastStatus, lastDraft, draftTools)
+				}
+			}
+			if ag.Status() == "idle" && (len(sess.Events()) > 0 || time.Since(started) > 2*time.Second) {
+				if lastDraft != "" {
+					live("正在收尾…", lastDraft, draftTools)
+				}
+				return s.concludeAnalyst(ctx, cfg, code, kind, question, sess, charts)
+			}
+		}
+	}
 }
 
 // prepareAnalyst starts one utterance. A nil agent means the reply was
@@ -445,14 +544,22 @@ func (s *Server) prepareAnalyst(ctx context.Context, cfg agentConfig, code, kind
 		}
 	}
 	prior := s.groupLines(code)
-	sess := session.New(session.SessionId(cfg.ID+"-"+sanitizeCode(code)+"-"+fmt.Sprintf("%d", time.Now().UnixNano())), session.Header{})
+	sidCode := sanitizeCode(code)
+	if sidCode == "" {
+		sidCode = "topic"
+	}
+	sess := session.New(session.SessionId(cfg.ID+"-"+sidCode+"-"+fmt.Sprintf("%d", time.Now().UnixNano())), session.Header{})
 	charts := &chartBox{}
 	ag, err := s.buildConfiguredAgent(sess, cfg, charts, kind)
 	if err != nil {
 		return nil, nil, err
 	}
+	debate := (*debateFile)(nil)
+	if strings.TrimSpace(code) != "" {
+		debate = s.loadDebate(code)
+	}
 	ag.Followup(session.Message{Role: session.RoleUser, Content: []session.ContentBlock{{
-		Kind: session.BlockText, Text: analystUserPrompt(cfg, code, question, prior, s.loadDebate(code)),
+		Kind: session.BlockText, Text: analystUserPrompt(cfg, code, question, prior, debate),
 	}}})
 	return ag, charts, nil
 }
@@ -478,7 +585,12 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 	var draftTools []map[string]string
 	lastActivity := time.Now()
 	started := time.Now()
+	clientGone := false
+	done := ctx.Done()
 	pushDraft := func(text, status string) {
+		if clientGone {
+			return
+		}
 		payload := map[string]any{"text": text, "status": status}
 		if len(draftTools) > 0 {
 			payload["tools"] = draftTools
@@ -487,9 +599,11 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 	}
 	for {
 		select {
-		case <-ctx.Done():
-			ag.Cancel(agentloop.CancelCause{Kind: "user", Reason: "client disconnected"}, false)
-			return nil, ctx.Err()
+		case <-done:
+			// 客户端切页会拆掉 HTTP 流：停写 SSE，但回合继续跑到 idle 再落盘。
+			// 真正停止仍走显式 cancel / 新请求覆盖。页面常驻时通常不会走到这里。
+			done = nil
+			clientGone = true
 		case <-ticker.C:
 			events := sess.Events()
 			for ; lastSeq < len(events); lastSeq++ {
@@ -531,9 +645,9 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 				}
 			}
 			if ag.Status() == "idle" && (len(sess.Events()) > 0 || time.Since(started) > 2*time.Second) {
-				return s.concludeAnalyst(cfg, code, kind, question, sess, charts)
+				return s.concludeAnalyst(ctx, cfg, code, kind, question, sess, charts)
 			}
-			if time.Since(lastActivity) >= streamHeartbeatInterval {
+			if !clientGone && time.Since(lastActivity) >= streamHeartbeatInterval {
 				writeAnalystSSE(w, flusher, "heartbeat", map[string]any{})
 				lastActivity = time.Now()
 			}
@@ -541,7 +655,7 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 	}
 }
 
-func (s *Server) concludeAnalyst(cfg agentConfig, code, kind, question string, sess *session.Session, charts *chartBox) (map[string]any, error) {
+func (s *Server) concludeAnalyst(ctx context.Context, cfg agentConfig, code, kind, question string, sess *session.Session, charts *chartBox) (map[string]any, error) {
 	msgs := sess.DeriveMessages()
 	tools := toolsFromMessages(msgs)
 	if cfg.oneShot() {
@@ -556,17 +670,23 @@ func (s *Server) concludeAnalyst(cfg agentConfig, code, kind, question string, s
 		if cfg.ID == "volume_flow" {
 			text = compactFlowReply(text)
 		}
+		if cfg.ID == "news" {
+			if err := enforceNewsHotReply(text, question, code, tools); err != nil {
+				return nil, err
+			}
+		}
 		if text == "" || forbiddenHit(text, cfg.Forbid) {
 			if text == "" {
 				if turnErr := lastTurnError(sess); turnErr != "" {
 					return nil, errors.New(turnErr)
 				}
 				if n := len(tools); n > 0 {
-					return nil, fmt.Errorf("调用了 %d 个工具但没有写出正文，请再问一次", n)
+					// 不要写「请再问一次」：这句话是给主理人看的，会诱导它立刻再调一次 ask_analyst。
+					return nil, fmt.Errorf("调用了 %d 个工具但没有写出正文", n)
 				}
-				return nil, errors.New("没有写出回答正文，请再问一次")
+				return nil, errors.New("没有写出回答正文")
 			}
-			return nil, errors.New("回答触碰了禁止表述，请换个问法")
+			return nil, errors.New("回答触碰了禁止表述")
 		}
 		s.appendGroup(code, groupLine{
 			Agent: cfg.ID, Name: cfg.Name, Kind: kind, Quote: question, Text: text, Tools: tools,
@@ -576,6 +696,14 @@ func (s *Server) concludeAnalyst(cfg agentConfig, code, kind, question string, s
 	catalog := factsFromMessages(msgs)
 	rawSpeak := lastParseableAssistantText(msgs)
 	speak, speakErr := parseSpeak(rawSpeak)
+	if speakErr != nil && strings.TrimSpace(rawSpeak) == "" && len(tools) > 0 {
+		// 步数用尽时常停在 tool_call、没有正文；再逼一轮无工具 JSON。
+		if wrapped, wrapErr := s.wrapOpeningSpeak(ctx, cfg, sess); wrapErr == nil {
+			if sp, err := parseSpeak(wrapped); err == nil {
+				rawSpeak, speak, speakErr = wrapped, sp, nil
+			}
+		}
+	}
 	if speakErr != nil {
 		if turnErr := lastTurnError(sess); turnErr != "" {
 			return nil, errors.New(turnErr)
@@ -608,6 +736,51 @@ func (s *Server) concludeAnalyst(cfg agentConfig, code, kind, question string, s
 	return withChart(withTools(analystMessage(cfg, kind, question, text, headline), tools), charts), nil
 }
 
+// wrapOpeningSpeak 在开场已有工具结果但没有 JSON 正文时，禁用工具再逼一轮结论。
+func (s *Server) wrapOpeningSpeak(ctx context.Context, cfg agentConfig, sess *session.Session) (string, error) {
+	if s == nil || s.llm == nil {
+		return "", errors.New("模型还没有配置")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	wrapCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	msgs := append([]session.Message(nil), sess.DeriveMessages()...)
+	msgs = append(msgs, session.Message{
+		Role: session.RoleUser,
+		Content: []session.ContentBlock{{
+			Kind: session.BlockText,
+			Text: "已有工具结果。禁止再调用任何工具。立刻只输出开场 JSON：stance、strength、text、fact_ids、suggested_questions。text 内禁用英文双引号。",
+		}},
+	})
+	temp := 0.2
+	stream, err := s.llm.Stream(wrapCtx, agentloop.GenerateRequest{
+		Model:       s.cfg.Model,
+		System:      cfg.systemPrompt(),
+		Messages:    msgs,
+		MaxTokens:   2048,
+		Temperature: &temp,
+	})
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	for chunk := range stream {
+		if chunk.Err != nil {
+			return "", chunk.Err
+		}
+		if chunk.Delta.Kind == session.BlockText && chunk.Delta.Text != "" {
+			b.WriteString(chunk.Delta.Text)
+		}
+	}
+	text := strings.TrimSpace(b.String())
+	if text == "" {
+		return "", errors.New("收尾轮没有写出正文")
+	}
+	return text, nil
+}
+
 func emptyAnalystMessage(cfg agentConfig, kind, quote string) map[string]any {
 	return analystMessage(cfg, kind, quote, "", nil)
 }
@@ -626,7 +799,17 @@ func analystMessage(cfg agentConfig, kind, quote, text string, headline map[stri
 
 func analystUserPrompt(cfg agentConfig, code, question string, lines []groupLine, debate *debateFile) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "股票代码：%s\n", code)
+	if strings.TrimSpace(code) == "" {
+		if cfg.ID == "market" {
+			b.WriteString("本轮无绑定股票/个股代码。大盘工具的 ts_code 可省略（接口层会自行占位）。不要自己编一个代码。\n")
+		} else if cfg.ID == "news" {
+			b.WriteString("本轮无绑定股票/个股代码。未指定个股：全面分析；fetch_news 可不传 ts_code。可点名受益/承压板块与代表股，不要编造未出现的代码。\n")
+		} else {
+			b.WriteString("本轮无绑定股票/个股代码。不要硬套某只个股，也不要自己编一个代码。\n")
+		}
+	} else {
+		fmt.Fprintf(&b, "股票代码：%s\n", code)
+	}
 	fmt.Fprintf(&b, "当前时间：%s\n", time.Now().Format("2006-01-02 15:04"))
 	if strings.TrimSpace(question) == "" {
 		opening := strings.TrimSpace(cfg.Opening)
@@ -638,6 +821,9 @@ func analystUserPrompt(cfg agentConfig, code, question string, lines []groupLine
 	} else {
 		fmt.Fprintf(&b, "用户提问：%s\n", strings.TrimSpace(question))
 		b.WriteString("（追问任务；按系统提示回答）\n")
+		if cfg.ID == "news" && newsHotQuestion(question) && strings.TrimSpace(code) == "" {
+			b.WriteString("【硬性任务】这是市场热闻/热点分析：必须先 fetch_baidu_board；正文以「## 今日主事件」列出榜上主事件（默认 5、最多 10）。公司个案与可映射 A 股的海外事件优先纳入，禁止写「属个案/海外故不考虑」。每个事件必须含「历史类比」与受益链/承压链；禁止只写盘面一句话+分层影响散文。\n")
+		}
 	}
 	if cfg.oneShot() && strings.TrimSpace(question) == "" {
 		b.WriteString("群里已经说过的话是唯一材料，不要调用综合判断接口，不要新编数字：\n")
@@ -790,18 +976,33 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 	maxTokens := 2048
 	if kind == "reply" {
 		prompt = work.replyPrompt()
-		if work.ID == "volume_flow" {
-			// 总览追问需要展开写，不要再卡短输出
-			if steps < 6 {
-				steps = 6
+		switch work.ID {
+		case "volume_flow":
+			if steps < 12 {
+				steps = 12
 			}
-			maxTokens = 2048
+			maxTokens = 4096
+		case "sector", "fundamental":
+			if steps < 14 {
+				steps = 14
+			}
+			maxTokens = 4096
+		case "market", "finance":
+			if steps < 10 {
+				steps = 10
+			}
+			maxTokens = 4096
+		case "news":
+			if steps < 30 {
+				steps = 30
+			}
+			maxTokens = 8192
 		}
 	}
 	return s.newAnalyst(sess, toolRegistry, steps, prompt, maxTokens), nil
 }
 
-// openingSkills 开场可用技能。新闻/基本面/财报去掉展示类技能，避免开场空转调工具。
+// openingSkills 开场可用技能。各维去掉展示/追问类技能，避免开场空转调工具。
 func (c agentConfig) openingSkills() []string {
 	var keep map[string]bool
 	switch c.ID {
@@ -813,6 +1014,8 @@ func (c agentConfig) openingSkills() []string {
 		keep = map[string]bool{"finance-facts": true, "stock-basic": true}
 	case "market":
 		keep = map[string]bool{"market-facts": true, "stock-basic": true}
+	case "volume_flow":
+		keep = map[string]bool{"flow-facts": true, "stock-basic": true}
 	default:
 		return c.Skills
 	}
@@ -933,11 +1136,12 @@ func (s *Server) registerMarketTools(toolRegistry *coretools.Registry, cfg agent
 	}
 	for _, part := range parts {
 		name := strings.TrimPrefix(part.name, "fetch_market_")
+		partName := name
 		tool := coretools.ToolDefinition{
 			Name:        part.name,
-			Description: part.text + "走市场服务，不能改走 Tushare。",
+			Description: part.text + "走市场服务，不能改走 Tushare。不要为了凑参数去填上一只个股代码。",
 			Parameters: coretools.ParameterSchema{
-				"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，例如 600519.SH（市场级数据与代码无关，但接口需要）"}, Required: true},
+				"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "可省略。市场级数据与个股无关；若用户点名了指数可传 399006.SZ 等，禁止填无关个股"}},
 			},
 			Output: coretools.Output{
 				Schema: coretools.ValueSchema{Kind: coretools.KindString},
@@ -945,7 +1149,20 @@ func (s *Server) registerMarketTools(toolRegistry *coretools.Registry, cfg agent
 			},
 			TimeoutMs:         120_000,
 			IsConcurrencySafe: func(map[string]any) bool { return true },
-			Execute:           s.runPart(pythonBin, script, name),
+			Execute: func(ctx context.Context, args map[string]any, run *coretools.RunContext) (any, error) {
+				code := strings.ToUpper(strings.TrimSpace(fmt.Sprint(args["ts_code"])))
+				if code == "<NIL>" || code == "NIL" || code == "NULL" || code == "-" || code == "" {
+					// 仅给 HTTP 路径占位，不代表绑定某只个股。
+					code = "000001.SH"
+				} else if !tsCodePattern.MatchString(code) {
+					resolved, _, err := s.resolveStock(fmt.Sprint(args["ts_code"]))
+					if err != nil {
+						return "", fmt.Errorf("ts_code 无法识别: %s", code)
+					}
+					code = resolved
+				}
+				return s.runPart(pythonBin, script, partName)(ctx, map[string]any{"ts_code": code}, run)
+			},
 		}
 		if _, err := toolRegistry.Register(tool); err != nil {
 			return err
@@ -1263,11 +1480,13 @@ func (s *Server) fetchNewsTool() (coretools.ToolDefinition, error) {
 		return coretools.ToolDefinition{}, errors.New("python 还没有准备好")
 	}
 	return coretools.ToolDefinition{
-		Name:        "fetch_news",
-		Description: "按用户原话搜索新闻，不限于当前股票。keyword 传要搜的内容，例如最新的财经资讯、物理AI、国家政策。不要在前面加股票名称。走股票服务 /api/stocks/news，不能改走 Tushare。",
+		Name: "fetch_news",
+		Description: "按用户原话搜索新闻，不限于当前股票。" +
+			"keyword 传要搜的内容，例如最新的财经资讯、物理AI、国家政策。不要在前面加股票名称。" +
+			"主题/市场新闻可不传 ts_code（此时 keyword 必填）。走股票服务 /api/stocks/news，不能改走 Tushare。",
 		Parameters: coretools.ParameterSchema{
-			"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，例如 600519.SH"}, Required: true},
-			"keyword": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "主题词，可空。例如 储存"}},
+			"ts_code": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票代码，例如 600519.SH；主题新闻可省略"}},
+			"keyword": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "主题词。无股票时必填。例如 储存、财政政策"}},
 		},
 		Output: coretools.Output{
 			Schema: coretools.ValueSchema{Kind: coretools.KindString},
@@ -1277,13 +1496,25 @@ func (s *Server) fetchNewsTool() (coretools.ToolDefinition, error) {
 		IsConcurrencySafe: func(map[string]any) bool { return true },
 		Execute: func(ctx context.Context, args map[string]any, _ *coretools.RunContext) (any, error) {
 			code := strings.ToUpper(strings.TrimSpace(fmt.Sprint(args["ts_code"])))
-			if !tsCodePattern.MatchString(code) {
-				return "", fmt.Errorf("ts_code 必须是 600519.SH 这种代码")
+			if code == "<NIL>" || code == "NIL" || code == "NULL" || code == "-" {
+				code = ""
 			}
 			keyword, _ := args["keyword"].(string)
-			argv := []string{pythonBin, script, code}
-			if strings.TrimSpace(keyword) != "" {
-				argv = append(argv, strings.TrimSpace(keyword))
+			keyword = strings.TrimSpace(keyword)
+			if code != "" && !tsCodePattern.MatchString(code) {
+				return "", fmt.Errorf("ts_code 必须是 600519.SH 这种代码")
+			}
+			if code == "" && keyword == "" {
+				return "", fmt.Errorf("主题新闻需要 keyword；或传入 ts_code")
+			}
+			argv := []string{pythonBin, script}
+			if code == "" {
+				argv = append(argv, "-", keyword)
+			} else {
+				argv = append(argv, code)
+				if keyword != "" {
+					argv = append(argv, keyword)
+				}
 			}
 			cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 			cmd.Env = basicEnv()
@@ -1533,6 +1764,51 @@ func stockAPIBase() string {
 }
 
 var errOpeningJSONOnReply = errors.New("追问请用 markdown 展开分析，不要套开场摘要格式；请再问一次")
+
+func newsHotQuestion(question string) bool {
+	q := strings.TrimSpace(question)
+	if q == "" {
+		return false
+	}
+	for _, k := range []string{
+		"热闻", "热搜", "热点", "财经榜", "百度", "大家在关注", "大家在聊",
+		"对 A 股", "对A股", "对 a 股", "市场热", "今日热",
+	} {
+		if strings.Contains(q, k) {
+			return true
+		}
+	}
+	return false
+}
+
+func toolsNamed(tools []map[string]string, name string) bool {
+	for _, t := range tools {
+		if strings.TrimSpace(t["name"]) == name {
+			return true
+		}
+	}
+	return false
+}
+
+// enforceNewsHotReply：未绑定个股的市场热闻追问，必须先拉榜并写出主事件+历史类比骨架。
+func enforceNewsHotReply(text, question, code string, tools []map[string]string) error {
+	if strings.TrimSpace(code) != "" || !newsHotQuestion(question) {
+		return nil
+	}
+	if !toolsNamed(tools, "fetch_baidu_board") {
+		return errors.New("市场热闻须先调用 fetch_baidu_board 取榜，再按主事件展开")
+	}
+	if !strings.Contains(text, "今日主事件") {
+		return errors.New("市场热闻正文须先列出「今日主事件」，不要只写盘面散文")
+	}
+	if !strings.Contains(text, "历史类比") {
+		return errors.New("市场热闻每个主事件须含「历史类比」（同类事件后谁受益/承压）")
+	}
+	if !strings.Contains(text, "受益") && !strings.Contains(text, "承压") {
+		return errors.New("市场热闻须写明受益链或承压链")
+	}
+	return nil
+}
 
 func replyAnswer(raw string) (string, error) {
 	text := strings.TrimSpace(raw)
@@ -1943,24 +2219,12 @@ func headlineFromSpeak(speak analystSpeak, catalog map[string]factRow, cfg agent
 		return nil, false
 	}
 	text := speak.Text
-	// 开场 text 软截：资金流约 120 字、板块约 150 字、新闻约 100 字；优先在句号处截断
-	if cfg.ID == "volume_flow" {
-		text = trimSummaryRunes(text, 120)
-	}
-	if cfg.ID == "sector" {
-		text = trimSummaryRunes(text, 150)
-	}
-	if cfg.ID == "news" {
-		text = trimSummaryRunes(text, 100)
-	}
-	if cfg.ID == "fundamental" {
-		text = trimSummaryRunes(text, 120)
-	}
-	if cfg.ID == "finance" {
-		text = trimSummaryRunes(text, 100)
-	}
-	if cfg.ID == "market" {
-		text = trimSummaryRunes(text, 100)
+	// 开场 text：维度分析师不追求短字数，仅保留安全上限；新闻不截。优先在句号处截断。
+	switch cfg.ID {
+	case "news":
+		// 不截
+	case "volume_flow", "sector", "fundamental", "finance", "market":
+		text = trimSummaryRunes(text, 600)
 	}
 	pack := func(facts []map[string]string) map[string]any {
 		out := map[string]any{
@@ -1990,14 +2254,15 @@ func headlineFromSpeak(speak analystSpeak, catalog map[string]factRow, cfg agent
 	seen := map[string]bool{}
 	for _, id := range speak.FactIDs {
 		id = strings.TrimSpace(id)
-		if cfg.FactPrefix != "" && !strings.HasPrefix(id, cfg.FactPrefix) {
-			return nil, false
+		if id == "" {
+			continue
+		}
+		// 开场常会再调追问切片（fl./sm.）；同维度别名保留，其它维度编号直接丢掉，不要整段否决。
+		if !factIDAllowed(id, cfg) {
+			continue
 		}
 		row, ok := catalog[id]
 		if !ok || seen[id] {
-			if !ok {
-				return nil, false
-			}
 			continue
 		}
 		seen[id] = true
@@ -2008,9 +2273,31 @@ func headlineFromSpeak(speak analystSpeak, catalog map[string]factRow, cfg agent
 		facts = append(facts, map[string]string{"id": id, "label": name, "text": row.Text})
 	}
 	if len(facts) == 0 {
+		// 编号全被丢掉或不在表里：正文若在说没取到，允许空事实；否则仍失败。
+		if missingFactText(speak.Text) {
+			return pack([]map[string]string{}), true
+		}
 		return nil, false
 	}
 	return pack(facts), true
+}
+
+// factIDAllowed 开场 fact_ids：本维前缀（fr./sp.）或同维追问切片别名（fl./sm.）。
+func factIDAllowed(id string, cfg agentConfig) bool {
+	if cfg.FactPrefix == "" {
+		return true
+	}
+	if strings.HasPrefix(id, cfg.FactPrefix) {
+		return true
+	}
+	switch cfg.ID {
+	case "volume_flow":
+		return strings.HasPrefix(id, "fl.")
+	case "sector":
+		return strings.HasPrefix(id, "sm.")
+	default:
+		return false
+	}
 }
 
 func trimRunes(text string, max int) string {
@@ -2064,7 +2351,16 @@ func forbiddenHit(text string, words []string) bool {
 }
 
 func missingFactText(text string) bool {
-	return strings.Contains(text, "没有取到") || strings.Contains(text, "没有数据") || strings.Contains(text, "没有事实")
+	needles := []string{
+		"没有取到", "没有数据", "没有事实",
+		"没取到", "未取到", "未获取", "没有获取", "数据未获取", "无事实可用",
+	}
+	for _, n := range needles {
+		if n != "" && strings.Contains(text, n) {
+			return true
+		}
+	}
+	return false
 }
 
 func factsFromMessages(msgs []session.Message) map[string]factRow {
@@ -2162,29 +2458,39 @@ func lastTurnError(sess *session.Session) string {
 	return ""
 }
 
+func groupStorageKey(code string) string {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return "_topic_"
+	}
+	return code
+}
+
 func (s *Server) groupLines(code string) []groupLine {
+	key := groupStorageKey(code)
 	s.groupsMu.Lock()
 	defer s.groupsMu.Unlock()
 	if s.groups == nil {
 		s.groups = map[string][]groupLine{}
 	}
-	if lines, ok := s.groups[code]; ok {
+	if lines, ok := s.groups[key]; ok {
 		return append([]groupLine(nil), lines...)
 	}
-	lines := readGroupFile(s.groupPath(code))
-	s.groups[code] = lines
+	lines := readGroupFile(s.groupPath(key))
+	s.groups[key] = lines
 	return append([]groupLine(nil), lines...)
 }
 
 func (s *Server) appendGroup(code string, line groupLine) {
+	key := groupStorageKey(code)
 	s.groupsMu.Lock()
 	defer s.groupsMu.Unlock()
 	if s.groups == nil {
 		s.groups = map[string][]groupLine{}
 	}
-	lines := s.groups[code]
+	lines := s.groups[key]
 	if lines == nil {
-		lines = readGroupFile(s.groupPath(code))
+		lines = readGroupFile(s.groupPath(key))
 	}
 	if line.Day == "" {
 		line.Day = diagnosisDay(time.Now())
@@ -2193,8 +2499,8 @@ func (s *Server) appendGroup(code string, line groupLine) {
 	if len(lines) > maxGroupLines {
 		lines = lines[len(lines)-maxGroupLines:]
 	}
-	s.groups[code] = lines
-	_ = writeGroupFile(s.groupPath(code), lines)
+	s.groups[key] = lines
+	_ = writeGroupFile(s.groupPath(key), lines)
 }
 
 func (s *Server) handleGroupRecord(w http.ResponseWriter, r *http.Request) {
@@ -2280,7 +2586,11 @@ func (s *Server) groupPath(code string) string {
 	if strings.TrimSpace(s.cfg.DataDir) == "" {
 		return ""
 	}
-	return filepath.Join(s.cfg.DataDir, "groups", sanitizeCode(code)+".json")
+	key := sanitizeCode(code)
+	if key == "" {
+		key = "_topic_"
+	}
+	return filepath.Join(s.cfg.DataDir, "groups", key+".json")
 }
 
 func sanitizeCode(code string) string {

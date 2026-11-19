@@ -90,14 +90,16 @@ func EnsureEnv(ctx context.Context, opts EnvOptions) (*Env, error) {
 	// Relocatable interpreters (python-build-standalone in the desktop
 	// bundle) ship packages already installed, recorded next to the prefix.
 	// Reuse that interpreter instead of creating a venv with baked-in paths.
+	// Marker may list a superset (prepare-runtime installs the full desktop
+	// set); only require that every requested package is already recorded.
 	if prefix := interpreterPrefix(pythonBin); prefix != "" {
-		if cached, ok := readMarker(prefix); ok && slices.Equal(cached, sorted) {
+		if cached, ok := readMarker(prefix); ok && len(missingPackages(cached, sorted)) == 0 {
 			return &Env{Root: prefix, PythonPath: pythonBin, Packages: packages}, nil
 		}
 	}
 
 	cached, _ := readMarker(opts.CacheDir)
-	if slices.Equal(cached, sorted) {
+	if len(cached) > 0 && len(missingPackages(cached, sorted)) == 0 {
 		return &Env{Root: opts.CacheDir, PythonPath: venvPython(opts.CacheDir), Packages: packages}, nil
 	}
 

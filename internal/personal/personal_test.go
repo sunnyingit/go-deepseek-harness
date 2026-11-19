@@ -241,3 +241,28 @@ func TestCapitalIsKeptAndWishesCanBeRewritten(t *testing.T) {
 		t.Fatal("an unknown wish was updated")
 	}
 }
+
+func TestPlanLifecycle(t *testing.T) {
+	st := Open("", func() time.Time { return time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC) })
+	if _, err := st.PlanAdd(PlanItem{Code: "600036.SH", Name: "招商银行", Side: "buy", Date: "2026-11-10"}); err == nil {
+		t.Fatal("buy without reason accepted")
+	}
+	p, err := st.PlanAdd(PlanItem{Code: "600036.SH", Name: "招商银行", Side: "buy", Date: "2026-11-10", Reason: "跌到支撑", Price: 38, Qty: 500, PlanPct: 5})
+	if err != nil || p.Status != "planned" {
+		t.Fatalf("add = %+v %v", p, err)
+	}
+	if n := len(st.PlansOf("2026-11-10")); n != 1 {
+		t.Fatalf("plans = %d", n)
+	}
+	got, err := st.PlanUpdate(p.ID, "2026-11-11", "add", 37.5, 800, 8, "加仓一点", "")
+	if err != nil || got.Side != "add" || got.Price != 37.5 || got.Qty != 800 || got.Date != "2026-11-11" {
+		t.Fatalf("update = %+v %v", got, err)
+	}
+	got, err = st.PlanSetStatus(p.ID, "done")
+	if err != nil || got.Status != "done" {
+		t.Fatalf("status = %+v %v", got, err)
+	}
+	if !st.PlanRemove(p.ID) || st.PlanRemove(p.ID) {
+		t.Fatal("remove")
+	}
+}

@@ -128,15 +128,13 @@ func TestRelayUploadsOnlyAlertsAndCodesAndPullsWhatTheServerFired(t *testing.T) 
 	if len(fake.acked) != 1 || !s.relay.authoritative() {
 		t.Fatalf("acked = %v authoritative = %v", fake.acked, s.relay.authoritative())
 	}
-	if sys, _ := s.pullSystemEvents(); sys["created"] != 1 {
-		t.Fatalf("system = %v", sys)
+	if sys, _ := s.pullSystemEvents(); sys["created"] != 0 {
+		t.Fatalf("system receipts must stay out of the inbox: %v", sys)
 	}
-	var serverReceipt bool
 	for _, it := range s.inbox.List("system", false, 5) {
-		serverReceipt = serverReceipt || (it.Type == "task.completed" && it.Desktop == "")
-	}
-	if !serverReceipt {
-		t.Fatal("the server's task receipt did not reach the inbox quietly")
+		if it.Type == "task.completed" || it.Type == "task.failed" {
+			t.Fatalf("server system task receipt reached the inbox: %+v", it)
+		}
 	}
 }
 

@@ -82,7 +82,7 @@ func TestWriteStreamEventDisplayToolEmitsMessageTypeNotToolCall(t *testing.T) {
 			Kind: session.BlockToolCall, ToolName: "show_table", CallID: "c1",
 			Args: map[string]any{"headers": []any{"A"}, "rows": []any{[]any{"1"}}},
 		}},
-	}, pending)
+	}, pending, nil)
 	if rec.Body.Len() != 0 {
 		t.Fatalf("tool/call of a display tool must not emit yet (validation hasn't run), got %q", rec.Body.String())
 	}
@@ -95,7 +95,7 @@ func TestWriteStreamEventDisplayToolEmitsMessageTypeNotToolCall(t *testing.T) {
 				Kind: session.BlockToolResult, CallID: "c1", Text: displayedAck,
 			}},
 		}},
-	}, pending)
+	}, pending, nil)
 
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: table\n") {
@@ -119,7 +119,7 @@ func TestWriteStreamEventDisplayToolInvalidArgsStayHidden(t *testing.T) {
 			Kind: session.BlockToolCall, ToolName: "show_table", CallID: "c1",
 			Args: map[string]any{"rows": []any{}},
 		}},
-	}, pending)
+	}, pending, nil)
 	writeStreamEvent(rec, session.Event{
 		Type: "tool/result",
 		Data: map[string]any{"message": session.Message{
@@ -129,7 +129,7 @@ func TestWriteStreamEventDisplayToolInvalidArgsStayHidden(t *testing.T) {
 				Text: `Error: invalid arguments: "headers" is required`,
 			}},
 		}},
-	}, pending)
+	}, pending, nil)
 
 	if rec.Body.Len() != 0 {
 		t.Fatalf("a schema-invalid display call must emit nothing to the user, got %q", rec.Body.String())
@@ -146,7 +146,7 @@ func TestWriteStreamEventRealToolUnchanged(t *testing.T) {
 			Kind: session.BlockToolCall, ToolName: "bash", CallID: "c2",
 			Args: map[string]any{"command": "ls"},
 		}},
-	}, pending)
+	}, pending, nil)
 	writeStreamEvent(rec, session.Event{
 		Type: "tool/result",
 		Data: map[string]any{"message": session.Message{
@@ -155,7 +155,7 @@ func TestWriteStreamEventRealToolUnchanged(t *testing.T) {
 				Kind: session.BlockToolResult, CallID: "c2", Text: "ok",
 			}},
 		}},
-	}, pending)
+	}, pending, nil)
 
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: tool-call\n") || !strings.Contains(body, "event: tool-result\n") {

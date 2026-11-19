@@ -43,6 +43,9 @@ runtime-mac:
 	test -d runtime/node-packages/node_modules/react-icons
 	test -d runtime/node-packages/node_modules/react-dom
 	test -d runtime/node-packages/node_modules/sharp
+	test -f runtime/stock-agent/app/main.py
+	test -f runtime/stock-venv/.relocatable
+	test -d runtime/stock-venv/site-packages
 
 runtime-win:
 	PRUNE_ARCHIVES=$(PRUNE_ARCHIVES) $(PREPARE) win-x64
@@ -51,6 +54,8 @@ runtime-win:
 	test -f runtime/node/node.exe
 	test -d runtime/node-packages/node_modules/pptxgenjs
 	test -d runtime/node-packages/node_modules/sharp
+	test -f runtime/stock-agent/app/main.py
+	# Cross-build on Mac leaves stock-venv for first launch on Windows.
 
 start: deps
 	@if [ ! -x runtime/bin/pabuddy-web ]; then $(MAKE) runtime-mac; fi
@@ -65,6 +70,7 @@ win: deps runtime-win
 clean:
 	rm -rf dist node_modules
 	rm -rf runtime/bin runtime/python runtime/node runtime/git runtime/wheels runtime/node-packages runtime/skills runtime/config.yaml
+	rm -rf runtime/stock-agent runtime/stock-venv runtime/stock-wheels
 	rm -f runtime/*.tar.gz runtime/*.zip runtime/cpython-*
 
 ifneq ($(OS),)

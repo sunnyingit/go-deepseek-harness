@@ -65,6 +65,9 @@ func (s *Server) scanDayPanel() map[string]any {
 	}
 	var rows []row
 	for _, p := range preds {
+		if !related[p.Code] {
+			continue
+		}
 		for _, h := range scan.Horizons {
 			if r := p.Result(h); r != nil && r.Day == day && r.Outcome != "" {
 				rows = append(rows, row{p, h, r})
@@ -78,22 +81,21 @@ func (s *Server) scanDayPanel() map[string]any {
 		nowRight, mine, n := 0, 0, 0
 		made := map[string]bool{}
 		for _, p := range preds {
-			if p.Direction == scan.Unclear {
+			if !p.Active() || p.Direction == scan.Unclear || !related[p.Code] {
 				continue
 			}
-			px, ok := cache[p.Code]
-			if !ok {
-				px = s.pricesOf(p.Code)
-				cache[p.Code] = px
-			}
 			for _, h := range scan.Horizons {
-				if p.Result(h) != nil || s.dueDay(p.BaseDay, h, px.stock) != tm {
+				// Calendar estimate first — avoid closes fanout for every open prediction.
+				if p.Result(h) != nil || s.dueDay(p.BaseDay, h, nil) != tm {
 					continue
 				}
 				n++
 				made[p.BaseDay] = true
-				if related[p.Code] {
-					mine++
+				mine++
+				px, ok := cache[p.Code]
+				if !ok {
+					px = s.pricesOf(p.Code)
+					cache[p.Code] = px
 				}
 				if t := scan.Track(p, px.stock, px.sector, h); t.Have && scan.Judge(p.Direction, t.Excess) == "hit" {
 					nowRight++
@@ -156,7 +158,7 @@ func (s *Server) scanDayPanel() map[string]any {
 	} else {
 		rate.Pct = -1
 	}
-	acc := scan.Stats(preds, 5, 60, s.now())
+	acc := scan.Stats(s.ownedPredictions(), 5, 60, s.now())
 	var rs []map[string]any
 	for label, n := range reasons {
 		rs = append(rs, map[string]any{"label": label, "count": n})

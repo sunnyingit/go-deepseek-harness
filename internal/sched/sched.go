@@ -36,10 +36,24 @@ type PlanCtx struct {
 	Input map[string]any
 }
 
+// Task category labels used by the tasks page tabs.
+const (
+	CatMine   = "mine"   // user custom tasks
+	CatScan   = "scan"   // 研判战绩
+	CatMarket = "market" // 行情
+	CatNotify = "notify" // 通知
+	CatWatch  = "watch"  // 盯盘
+)
+
 // Spec describes a task.
 type Spec struct {
-	ID          string
-	Title       string
+	ID       string
+	Title    string
+	Category string // CatMine / CatScan / CatMarket / CatNotify / CatWatch
+	Note     string // one-line description for the UI
+	// Trace is merged into Job.Input when the task has no fan-out, so the
+	// tasks page can show what this run will call even without user input.
+	Trace       map[string]any
 	Trigger     Trigger
 	Queue       string
 	Fanout      func(*PlanCtx) []Unit
@@ -187,6 +201,12 @@ func (s *Scheduler) Wait() { s.wg.Wait() }
 func (s *Scheduler) Run(ctx context.Context, every time.Duration) {
 	t := time.NewTicker(every)
 	defer t.Stop()
+	// Drop in-flight work left on disk by the previous process before planning
+	// anything new, so orphaned "running" jobs cannot block the UI.
+	if n := s.Store.ReclaimInterrupted(ms(s.Clock())); n > 0 {
+		s.finishRuns(s.Clock())
+		s.Store.Flush()
+	}
 	s.Tick()
 	for {
 		select {
@@ -200,18 +220,45 @@ func (s *Scheduler) Run(ctx context.Context, every time.Duration) {
 
 // ---- planning
 
+// EffectiveTrigger merges a Spec's default Trigger with any persisted user override.
+func (s *Scheduler) EffectiveTrigger(sp *Spec) Trigger {
+	t := sp.Trigger
+	if o, ok := s.Store.Override(sp.ID); ok {
+		if o.Kind != "" {
+			t.Kind = o.Kind
+		}
+		if o.At != "" {
+			t.At = o.At
+		}
+		if o.Days != "" {
+			t.Days = o.Days
+		}
+		if o.WindowMin != 0 {
+			t.WindowMin = o.WindowMin
+		}
+		if o.EveryMin != 0 {
+			t.EveryMin = o.EveryMin
+		}
+	}
+	if t.Days == "" {
+		t.Days = "trading"
+	}
+	return t
+}
+
 func (s *Scheduler) plan(now time.Time) {
 	frequent := map[string]bool{}
 	for _, sp := range s.Specs() {
 		frequent[sp.ID] = sp.Frequent
-		if s.Store.Paused(sp.ID) {
+		if s.Store.Deleted(sp.ID) || s.Store.Paused(sp.ID) {
 			continue
 		}
-		switch sp.Trigger.Kind {
+		tr := s.EffectiveTrigger(sp)
+		switch tr.Kind {
 		case "daily":
-			s.planDaily(sp, now)
+			s.planDaily(sp, tr, now)
 		case "interval", "every":
-			s.planInterval(sp, now)
+			s.planInterval(sp, tr, now)
 		}
 	}
 	s.Store.prune(ms(now), frequent)
@@ -233,18 +280,18 @@ func (s *Scheduler) createRun(sp *Spec, period, trigger string, scheduled time.T
 	return run
 }
 
-func (s *Scheduler) planDaily(sp *Spec, now time.Time) {
+func (s *Scheduler) planDaily(sp *Spec, tr Trigger, now time.Time) {
 	first := s.Store.firstTick(ms(now))
 	for back := 0; back <= 1; back++ {
 		day := now.In(Zone).AddDate(0, 0, -back)
-		if sp.Trigger.Days == "trading" && !s.Cal.IsTradingDay(day) {
+		if tr.Days == "trading" && !s.Cal.IsTradingDay(day) {
 			continue
 		}
-		due := at(day, sp.Trigger.At)
+		due := at(day, tr.At)
 		if now.Before(due) || ms(due) < first {
 			continue
 		}
-		window := time.Duration(sp.Trigger.WindowMin) * time.Minute
+		window := time.Duration(tr.WindowMin) * time.Minute
 		trigger := "schedule"
 		if now.After(due.Add(window)) {
 			trigger = "catchup"
@@ -257,33 +304,36 @@ func (s *Scheduler) planDaily(sp *Spec, now time.Time) {
 			}
 		}
 		prefix := "trading_day:"
-		if sp.Trigger.Days != "trading" {
+		if tr.Days != "trading" {
 			prefix = "day:"
 		}
 		s.createRun(sp, prefix+Day(day), trigger, due, now, nil, nil)
 	}
 }
 
-func (s *Scheduler) planInterval(sp *Spec, now time.Time) {
-	if sp.Trigger.EveryMin <= 0 {
+func (s *Scheduler) planInterval(sp *Spec, tr Trigger, now time.Time) {
+	if tr.EveryMin <= 0 {
 		return
 	}
-	if sp.Trigger.Kind == "interval" && (!s.Cal.IsTradingDay(now) || !InSession(now)) {
+	if tr.Kind == "interval" && (!s.Cal.IsTradingDay(now) || !InSession(now)) {
 		return
 	}
 	n := now.In(Zone)
 	mins := n.Hour()*60 + n.Minute()
-	slot := mins / sp.Trigger.EveryMin * sp.Trigger.EveryMin
+	slot := mins / tr.EveryMin * tr.EveryMin
 	due := time.Date(n.Year(), n.Month(), n.Day(), slot/60, slot%60, 0, 0, Zone)
 	s.createRun(sp, fmt.Sprintf("slot:%sT%02d:%02d", Day(n), slot/60, slot%60), "schedule", due, now, nil, nil)
 }
 
 // Manual queues a run of a task by hand. units may be nil (the task's own fan-out is used). With
-// input["on_demand"] the run does not wait for data gates.
+// input["on_demand"] the run does not wait for data gates. Soft-deleted tasks must be restored first.
 func (s *Scheduler) Manual(taskID string, units []UnitSpec, input map[string]any) (Run, error) {
 	sp, ok := s.Spec(taskID)
 	if !ok {
 		return Run{}, fmt.Errorf("没有这个任务：%s", taskID)
+	}
+	if s.Store.Deleted(taskID) {
+		return Run{}, fmt.Errorf("任务已删除，请先恢复：%s", taskID)
 	}
 	run := s.createRun(sp, "", "manual", s.Clock(), s.Clock(), units, input)
 	return *run, nil
@@ -333,7 +383,8 @@ func (s *Scheduler) advance(now time.Time) {
 			continue
 		}
 		if !s.gatesReady(sp, run, now) {
-			deadline := time.UnixMilli(run.ScheduledFor).Add(maxDur(time.Duration(sp.Trigger.WindowMin)*time.Minute, sp.CatchupTTL, 12*time.Hour))
+			tr := s.EffectiveTrigger(sp)
+			deadline := time.UnixMilli(run.ScheduledFor).Add(maxDur(time.Duration(tr.WindowMin)*time.Minute, sp.CatchupTTL, 12*time.Hour))
 			st.mu.Lock()
 			if now.After(deadline) {
 				run.State, run.FinishedAt, run.Note = "expired", ms(now), "等到时限数据也没有就绪"
@@ -389,11 +440,11 @@ func (s *Scheduler) expand(sp *Spec, run *Run, now time.Time) []Unit {
 		return out
 	}
 	if sp.Fanout == nil {
-		return []Unit{{Key: "-", Priority: 50, Input: run.Input}}
+		return []Unit{{Key: "-", Priority: 50, Input: mergeInput(sp.Trace, run.Input)}}
 	}
 	units := sp.Fanout(&PlanCtx{Day: tradeDate(run, now), Now: now, Input: run.Input})
 	for i := range units {
-		units[i].Input = mergeInput(run.Input, units[i].Input)
+		units[i].Input = mergeInput(mergeInput(sp.Trace, run.Input), units[i].Input)
 	}
 	return units
 }
