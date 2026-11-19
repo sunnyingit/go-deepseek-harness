@@ -148,7 +148,7 @@ type Server struct {
 	planController *planmode.Controller
 	sandboxProv    *local.Provider
 	pythonEnv      *python.Env
-	llm            *deepseek.Adapter
+	llm            agentloop.LLM
 	cfg            appconfig.Config
 	configPath     string
 	cfgMu          sync.Mutex

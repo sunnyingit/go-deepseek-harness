@@ -550,12 +550,13 @@ function urlIntent(url) {
     const u = new URL(String(url || ''), BASE);
     return {
       text: u.searchParams.get('text') || '',
+      analyst: u.searchParams.get('analyst') || '',
       session: u.searchParams.get('session') || '',
       stock: u.searchParams.get('stock') || u.searchParams.get('code') || '',
       hash: u.hash || '',
     };
   } catch {
-    return { text: '', session: '', stock: '', hash: '' };
+    return { text: '', analyst: '', session: '', stock: '', hash: '' };
   }
 }
 
@@ -563,7 +564,8 @@ function shouldReloadPage(key, url) {
   const view = pageViews[key];
   if (!view || !view.webContents || view.webContents.isDestroyed()) return true;
   const next = urlIntent(url);
-  if (next.text) return true;
+  // 市场页「问大盘/新闻」等深链：有 text 或 analyst 都必须重载，否则常驻对话页吃不到参数。
+  if (next.text || next.analyst) return true;
   let curUrl = '';
   try { curUrl = view.webContents.getURL(); } catch { return true; }
   const cur = urlIntent(curUrl);

@@ -5,24 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="stock-api-base" content="http://127.0.0.1:8090">
 <title>定时任务</title>
+<link rel="stylesheet" href="/static/vendor/app.css">
 <style>
-body{margin:0;background:#EEF0F3}
+body{margin:0;background:#F1F2F4}
 a{color:inherit}
 button,input{font:inherit}
 .seg{display:flex;border:1px solid #DDE1E7;border-radius:8px;overflow:hidden}
 .seg button{height:28px;padding:0 10px;border:none;border-right:1px solid #DDE1E7;background:#FFFFFF;color:#3A4250;font-family:inherit;font-size:12px;cursor:pointer}
 .seg button:last-child{border-right:none}
 .seg button[aria-pressed="true"]{background:#14171F;color:#FFFFFF}
-.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#EEF0F3;color:#4A5260;font-size:11px;white-space:nowrap}
-.nav-a{width:48px;min-height:46px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#6B7280;text-decoration:none;font-size:12px;font-weight:500;letter-spacing:.02em;line-height:1.15;transition:color .15s ease,background .15s ease}
+.pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:#F1F2F4;color:#3A4250;font-size:11px;white-space:nowrap}
+.nav-a{width:48px;min-height:46px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#5B6372;text-decoration:none;font-size:12px;font-weight:500;letter-spacing:.02em;line-height:1.15;transition:color .15s ease,background .15s ease}
 .nav-a:hover{color:#14171F;background:rgba(0,0,0,.06)}
-.nav-a.on{color:#2457D6;background:#EEF3FC;font-weight:600}
+.nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:600}
 .empty{padding:36px 20px;text-align:center;color:#5B6372;display:flex;flex-direction:column;align-items:center;gap:12px}
 .skeleton{color:#8A919E;padding:24px 0}
 .toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);z-index:60;padding:9px 16px;border-radius:8px;background:#14171F;color:#FFFFFF;font-size:13px;max-width:80vw}
 .toast.err{background:#B42318}
 .modal{position:fixed;inset:0;z-index:30;background:rgba(20,23,31,.32);display:flex;align-items:center;justify-content:center}
-.modal>div{width:560px;max-width:calc(100% - 32px);max-height:80vh;overflow:auto;background:#FFFFFF;border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.7}
+.modal>div{width:560px;max-width:calc(100% - 32px);max-height:80vh;overflow:auto;background:#FFFFFF;border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.7}
 .xbtn{border:none;background:transparent;color:#8A919E;cursor:pointer;font-size:12px;padding:0 4px}
 .xbtn:hover{color:#B42318}
 .qmark{flex:none;width:16px;height:16px;padding:0;border:1px solid #C9CED6;border-radius:50%;background:#FFFFFF;color:#5B6372;font-size:11px;font-weight:700;line-height:14px;cursor:pointer}
@@ -31,23 +32,23 @@ a.row:hover,div.row:hover{background:#F7F8FA}
 </style>
 </head>
 <body>
-<div style="height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #F2F2F2; font-family: 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif; color: #14171F; font-size: 13px; line-height: 1.55">
+<div style="height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #F1F2F4; font-family: 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif; color: #14171F; font-size: 13px; line-height: 1.55">
 
-<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E8E8E8;gap:12px;min-width:0;overflow:hidden">
-<div style="flex:0 0 64px;border-right:1px solid #E8E8E8;height:48px;background:#FAFAFA" aria-hidden="true"></div>
+<header style="flex:none;display:flex;align-items:center;height:48px;background:#FAFAFA;border-bottom:1px solid #E3E6EB;gap:12px;min-width:0;overflow:hidden">
+<div style="flex:0 0 64px;border-right:1px solid #E3E6EB;height:48px;background:#FAFAFA" aria-hidden="true"></div>
 <div id="head" style="flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding-left:4px;overflow:hidden;white-space:nowrap"></div>
-<span id="session" style="flex:none;display:flex;align-items:center;gap:6px;font-size:13px;color:#6B7280;white-space:nowrap"></span>
-<button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="flex:none;position:relative;width:32px;height:32px;margin-right:12px;border:none;border-radius:8px;background:transparent;color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#D9483F;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
+<span id="session" style="flex:none;display:flex;align-items:center;gap:6px;font-size:13px;color:#5B6372;white-space:nowrap"></span>
+<button type="button" id="bell" data-act="notif" aria-label="通知" title="通知" style="flex:none;position:relative;width:32px;height:32px;margin-right:12px;border:none;border-radius:8px;background:transparent;color:#3A4250;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span id="bellDot" hidden style="position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:999px;background:#B42318;color:#FFFFFF;font-size:10px;font-weight:600;line-height:16px;text-align:center"></span></button>
 </header>
 
 <div style="flex: 1 1 auto; display: flex; flex-wrap: nowrap; align-items: stretch; min-width: 0; min-height: 0; overflow: hidden">
 
-<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#EFEFEF;border-right:1px solid #E8E8E8;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0">
+<nav aria-label="主导航" style="flex:0 0 64px;overflow:hidden;background:#F1F2F4;border-right:1px solid #E3E6EB;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0">
 <a class="nav-a" href="/"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
 <a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
 <a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
-<a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
 <a class="nav-a on" href="/tasks.html" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>任务</a>
+<a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
 <a class="nav-a" href="/dialog.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>问问</a>
 <a class="nav-a" href="/settings.html" style="margin-top: auto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>设置</a>
 </nav>
@@ -61,11 +62,11 @@ a.row:hover,div.row:hover{background:#F7F8FA}
 <aside id="notifAside" aria-label="通知" hidden style="flex: 0 0 400px; width: 400px; align-self: stretch; overflow-y: auto; background: #FFFFFF; border-left: 1px solid #DDE1E7; box-sizing: border-box; flex-direction: column; font-size: 13px"></aside>
 </div>
 
-<footer style="flex: none; height: 26px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 0 12px; border-top:1px solid #E8E8E8;background:#FAFAFA;font-size:12px;color:#9CA3AF; white-space: nowrap; overflow: hidden"><div style="display: flex; align-items: center; gap: 14px; min-width: 0; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footSum" style="color: #8A919E">任务在这台电脑的客户端里跑，结果放进通知</span><span id="footIndexes" style="display: flex; gap: 14px"></span></div><span role="note" style="text-align: center">研究分析，不构成投资建议</span><div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px; min-width: 0; overflow: hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div></footer>
+<footer style="flex: none; height: 26px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 18px; padding: 0 12px; border-top:1px solid #E3E6EB;background:#FAFAFA;font-size:12px;color:#8A919E; white-space: nowrap; overflow: hidden"><div style="display: flex; align-items: center; gap: 14px; min-width: 0; overflow: hidden"><span style="display: flex; align-items: center; gap: 6px"><span id="dot" style="width: 7px; height: 7px; border-radius: 50%; background: #A1A7B2"></span><span id="status">正在连接</span></span><span id="footSum" style="color: #8A919E">任务在这台电脑的客户端里跑，结果放进通知</span><span id="footIndexes" style="display: flex; gap: 14px"></span></div><span role="note" style="text-align: center">研究分析，不构成投资建议</span><div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px; min-width: 0; overflow: hidden"><span>数据源：行情 · 资金流 · 公告</span><span>v0.1</span></div></footer>
 </div>
 <div id="modal"></div>
 <script>
-const MONO_F = "font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace";
+const MONO_F = "font-family:  ui-monospace, Menlo, monospace";
 const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 const API = (new URLSearchParams(location.search).get('stockApi') || (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
 const SYS_TABS = [['mine', '我的'], ['scan', '研判战绩'], ['market', '行情'], ['notify', '通知'], ['watch', '盯盘']];
@@ -82,21 +83,21 @@ const diagnoseHref = (code) => '/?stock=' + encodeURIComponent(code);
 const num = (n) => Number(n || 0).toLocaleString('en-US');
 
 /* ---------- 设计稿里的样式积木 ---------- */
-const CARD = 'display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 14px; overflow: hidden';
+const CARD = 'display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 12px; overflow: hidden';
 const LINKBTN = 'display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 12px; color: #2457D6; text-decoration: none; white-space: nowrap; cursor: pointer; box-sizing: border-box';
-const pl = (bg, fg, text) => '<span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 6px; background: ' + bg + '; color: ' + fg + '; font-size: 12px; font-weight: 600; white-space: nowrap">' + esc(text) + '</span>';
+const pl = (bg, fg, text) => '<span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 8px; background: ' + bg + '; color: ' + fg + '; font-size: 12px; font-weight: 600; white-space: nowrap">' + esc(text) + '</span>';
 const dirPill = (r) => r.direction === 'bullish' ? pl('#FDF0EF', '#B42318', r.verdict || '偏多') : r.direction === 'bearish' ? pl('#EDF7F1', '#1E6B44', r.verdict || '偏空') : pl('#F1F2F4', '#5B6372', r.verdict || '不明');
 const srcPill = (r, short) => r.source === 'diagnose' ? pl('#EAF0FD', '#2457D6', '你诊断') : pl('#F1F2F4', '#5B6372', short ? '扫描' : '定时扫描');
 const OUT = { hit: ['#EDF7F1', '#1E6B44', '✓ 对'], miss: ['#FDF0EF', '#B42318', '✗ 错'], flat: ['#F1F2F4', '#5B6372', '＝ 持平'] };
 const NOW = { hit: ['#EDF7F1', '#1E6B44', '目前算对'], miss: ['#FDF0EF', '#B42318', '目前算错'], flat: ['#F1F2F4', '#5B6372', '目前持平'] };
-const box = (label, value, sub, o) => { o = o || {}; return '<div style="display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 10px; background: ' + (o.bg || '#F7F8FA') + '"><span style="font-size: 11px; color: #5B6372">' + label + '</span><b style="' + MONO_F + '; font-size: ' + (o.size || 18) + 'px; color: ' + (o.color || '#14171F') + '">' + value + '</b><span style="font-size: 11px; color: #8A919E">' + sub + '</span></div>'; };
+const box = (label, value, sub, o) => { o = o || {}; return '<div style="display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: ' + (o.bg || '#F7F8FA') + '"><span style="font-size: 11px; color: #5B6372">' + label + '</span><b style="' + MONO_F + '; font-size: ' + (o.size || 18) + 'px; color: ' + (o.color || '#14171F') + '">' + value + '</b><span style="font-size: 11px; color: #8A919E">' + sub + '</span></div>'; };
 const bigBox = (label, value, sub, color) => '<div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E3E6EB"><span style="font-size: 12px; color: #5B6372">' + label + '</span><b style="' + MONO_F + '; font-size: 20px; color: ' + (color || '#14171F') + '">' + value + '</b><span style="font-size: 11px; color: #8A919E">' + sub + '</span></div>';
 const segs = (items, cur, act) => '<span class="seg">' + items.map(([k, n]) => '<button type="button" style="white-space: nowrap" data-act="' + act + '" data-k="' + k + '" aria-pressed="' + (String(cur) === String(k)) + '">' + n + '</button>').join('') + '</span>';
 
 // 本股 / 板块 两根条：以这一行里较大的那个为满格（一半），颜色深浅区分
 function retBar(v, m, color) {
   const w = m > 0 ? Math.min(Math.abs(v) / m, 1) * 50 : 0, left = v >= 0 ? 50 : 50 - w;
-  return '<span style="position: relative; display: block; height: 6px; border-radius: 3px; background: #F1F2F4"><span style="position: absolute; left: 50%; top: -2px; width: 1px; height: 10px; background: #C9CED6"></span><span style="position: absolute; left: ' + left.toFixed(1) + '%; width: ' + w.toFixed(1) + '%; height: 100%; border-radius: 3px; background: ' + color + '"></span></span>';
+  return '<span style="position: relative; display: block; height: 6px; border-radius: 4px; background: #F1F2F4"><span style="position: absolute; left: 50%; top: -2px; width: 1px; height: 10px; background: #C9CED6"></span><span style="position: absolute; left: ' + left.toFixed(1) + '%; width: ' + w.toFixed(1) + '%; height: 100%; border-radius: 4px; background: ' + color + '"></span></span>';
 }
 function versus(r, right) {
   if (!r.have && r.have !== undefined) return '<span style="font-size: 11px; color: #8A919E">等发出后的第一根日线</span>';
@@ -129,7 +130,7 @@ function toast(text, bad) {
   document.body.appendChild(el);
   setTimeout(() => el.remove(), bad ? 4500 : 2200);
 }
-function setStatus(ok, text) { $('dot').style.background = ok ? '#2E8B57' : '#B42318'; $('status').textContent = text; }
+function setStatus(ok, text) { $('dot').style.background = ok ? '#1E6B44' : '#B42318'; $('status').textContent = text; }
 
 /* ---------- 即将执行的定时任务（设计稿之外，按设计稿的卡片样式放在页面底部） ---------- */
 const STATE_TEXT = { succeeded: '成功', partial: '部分成功', failed: '失败', skipped: '已跳过', running: '运行中', waiting: '等待中', planned: '已排队', expired: '已过期' };
@@ -147,7 +148,7 @@ function sysBtn(act, id, text, color) {
 function sysRow(t) {
   const last = t.last ? '<span style="display: flex; flex-direction: column; gap: 3px; align-items: flex-start"><span>' + pl((STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[t.last.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[t.last.state] || t.last.state) + '</span><span style="font-size: 11px; color: #8A919E">上次 ' + esc(t.last.at) + '</span></span>' : '<span style="font-size: 11px; color: #8A919E">还没跑过</span>';
   const on = S.detail && S.detail.task_id === t.task_id;
-  return '<div role="button" tabindex="0" data-act="sysdetail" data-id="' + esc(t.task_id) + '" style="display: grid; grid-template-columns: 200px minmax(0, 1fr) 130px auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #F1F2F4; cursor: pointer; background: ' + (on ? '#F1F5FE' : t.paused ? '#FAFAFB' : '#FFFFFF') + '">' +
+  return '<div role="button" tabindex="0" data-act="sysdetail" data-id="' + esc(t.task_id) + '" style="display: grid; grid-template-columns: 200px minmax(0, 1fr) 130px auto; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #F1F2F4; cursor: pointer; background: ' + (on ? '#EAF0FD' : t.paused ? '#FAFAFB' : '#FFFFFF') + '">' +
     '<span style="display: flex; flex-direction: column; gap: 3px"><b style="' + MONO_F + '; font-size: 13px">' + esc(t.trigger_text || '—') + '</b><span style="font-size: 11px; color: #8A919E">' + (t.when_text ? esc(t.when_text) : '') + (t.paused ? ' · 已停用' : '') + '</span></span>' +
     '<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><b style="font-size: 14px">' + esc(t.title) + '</b>' + (t.note ? '<span style="font-size: 12px; color: #5B6372; line-height: 1.5">' + esc(t.note) + '</span>' : '') + '</span>' + last +
     '<span style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end">' +
@@ -157,7 +158,7 @@ function sysRow(t) {
 }
 function watchAlertsCard() {
   const u = S.up, w = (u && u.watch) || { alerts: [] };
-  const alerts = (w.alerts || []).map((a) => '<div style="display: grid; grid-template-columns: minmax(0, 1fr) 190px 210px 44px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid #F4F5F7"><a href="' + diagnoseHref(a.ts_code) + '" style="text-decoration: none"><b style="font-size: 13px">' + esc(a.name || a.ts_code) + '</b> <span style="font-size: 12px; color: #3A4250">' + (a.side === 'down' ? '跌到' : '涨到') + ' <b style="' + MONO_F + '">' + Number(a.price).toFixed(2) + '</b>' + (a.confirm === 'close' ? ' <span style="display: inline-flex; align-items: center; height: 16px; padding: 0 5px; border-radius: 4px; background: #EEF0F3; color: #4A5260; font-size: 10px; font-weight: 600">收盘确认</span>' : '') + '</span></a>' +
+  const alerts = (w.alerts || []).map((a) => '<div style="display: grid; grid-template-columns: minmax(0, 1fr) 190px 210px 44px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid #F7F8FA"><a href="' + diagnoseHref(a.ts_code) + '" style="text-decoration: none"><b style="font-size: 13px">' + esc(a.name || a.ts_code) + '</b> <span style="font-size: 12px; color: #3A4250">' + (a.side === 'down' ? '跌到' : '涨到') + ' <b style="' + MONO_F + '">' + Number(a.price).toFixed(2) + '</b>' + (a.confirm === 'close' ? ' <span style="display: inline-flex; align-items: center; height: 16px; padding: 0 5px; border-radius: 4px; background: #F1F2F4; color: #3A4250; font-size: 10px; font-weight: 600">收盘确认</span>' : '') + '</span></a>' +
     '<span style="font-size: 11px; color: #8A919E">' + (a.now ? '现价 ' + Number(a.now).toFixed(2) + ' · 还差 ' + Math.abs(a.gap_pct * 100).toFixed(1) + '%' : '现价取不到') + '</span><span style="font-size: 11px; color: #8A919E">' + esc(a.check || '') + '</span><button type="button" class="xbtn" data-act="alertdel" data-id="' + a.id + '" title="撤掉这条提醒">撤掉</button></div>').join('');
   return '<div style="' + CARD + '; margin-top: 14px"><div style="display: flex; align-items: baseline; gap: 8px"><b style="font-size: 15px">到价提醒</b><span style="font-size: 12px; color: #8A919E">你设的价格条件</span></div>' +
     '<span style="font-size: 12px; color: #3A4250">' + ((w.alerts || []).length ? '你设了 ' + w.alerts.length + ' 条' : '你没有设到价提醒') + '，盘中每 3 分钟、收盘后各检查一次。' + (w.offline ? '离线转发已开。' : '') + '</span>' +
@@ -170,7 +171,7 @@ function renderSysCat(cat) {
   if (d.error) return '<div style="' + CARD + '"><b style="font-size: 15px">' + esc(label) + '</b><span style="color:#B42318">' + esc(d.error) + '</span></div>';
   const tasks = d.tasks || [], del = d.deleted || [];
   const head = '<div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap"><b style="font-size: 15px">' + esc(label) + '</b><span style="font-size: 12px; color: #8A919E">点一行看最近执行的输入和输出 · 可改时间/开关，删除后可恢复</span></div>';
-  const list = tasks.length ? '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: 200px minmax(0, 1fr) 130px auto; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>什么时候</span><span>任务</span><span>上次</span><span></span></div>' + tasks.map(sysRow).join('') + '</div>'
+  const list = tasks.length ? '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: 200px minmax(0, 1fr) 130px auto; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #F1F2F4"><span>什么时候</span><span>任务</span><span>上次</span><span></span></div>' + tasks.map(sysRow).join('') + '</div>'
     : '<div class="empty" style="padding: 24px">这一类暂时没有系统任务</div>';
   const deleted = del.length ? '<details style="margin-top: 12px"><summary style="cursor: pointer; font-size: 12px; color: #5B6372">已删除（' + del.length + '）· 可恢复</summary><div style="margin: 8px -16px 0">' + del.map(sysRow).join('') + '</div></details>' : '';
   return '<div style="display: flex; flex-direction: column; gap: 14px"><div style="' + CARD + '">' + head + list + deleted + '</div>' + (cat === 'watch' ? watchAlertsCard() : '') +
@@ -212,29 +213,29 @@ function scanJobCard(j) {
   const hit = !!out.hit;
   const failed = Array.isArray(out.failed) ? out.failed : [];
   const passed = Array.isArray(out.passed) ? out.passed : [];
-  const pill = hit ? pl('#EDF7F1', '#1E6B44', '符合') : pl('#FDECEA', '#B42318', '不符合');
+  const pill = hit ? pl('#EDF7F1', '#1E6B44', '符合') : pl('#FDF0EF', '#B42318', '不符合');
   let body = '';
   if (j.error) body += '<div style="font-size:12px;color:#B42318;margin-top:4px">' + esc(j.error.message || '') + '</div>';
   if (failed.length) body += '<div style="margin-top:6px;font-size:12px;color:#5B6372;line-height:1.55"><span style="color:#B42318;font-weight:600">未满足</span><ul style="margin:4px 0 0;padding-left:18px">' + failed.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
   if (passed.length) body += '<div style="margin-top:6px;font-size:12px;color:#5B6372;line-height:1.55"><span style="color:#1E6B44;font-weight:600">已满足</span><ul style="margin:4px 0 0;padding-left:18px">' + passed.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul></div>';
   if (!failed.length && !passed.length && !j.error) body += '<div style="margin-top:6px;font-size:12px;color:#8A919E">' + esc(out.summary || (hit ? '符合条件' : '不符合条件')) + '</div>';
-  return '<div style="padding:10px 0;border-top:1px solid #F4F5F7"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="font-size:13px">' + esc(jobName(j)) + '</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + esc(j.unit_key || '') + '</span>' + pill + '</div>' + body + '</div>';
+  return '<div style="padding:10px 0;border-top:1px solid #F1F2F4"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="font-size:13px">' + esc(jobName(j)) + '</b><span style="' + MONO_F + ';font-size:12px;color:#8A919E">' + esc(j.unit_key || '') + '</span>' + pill + '</div>' + body + '</div>';
 }
 function askJobCard(j) {
   const out = j.output || {};
   const href = out.link || (out.session_id ? ('/dialog.html?session=' + encodeURIComponent(out.session_id)) : '');
   const summary = out.summary || out.detail || out.text || '';
-  return '<div style="padding:12px 0;border-top:1px solid #F4F5F7"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="font-size:13px">' + esc(jobName(j)) + '</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + esc(j.unit_key || '') + '</span>' +
+  return '<div style="padding:12px 0;border-top:1px solid #F1F2F4"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b style="font-size:13px">' + esc(jobName(j)) + '</b><span style="' + MONO_F + ';font-size:12px;color:#8A919E">' + esc(j.unit_key || '') + '</span>' +
     (href ? '<a href="' + esc(href) + '" style="margin-left:auto;font-size:12px;color:#2457D6;text-decoration:none;white-space:nowrap">详情 · 去问问 →</a>' : '') + '</div>' +
     (out.question ? '<div style="margin-top:6px;font-size:12px;color:#8A919E">问：' + esc(out.question) + '</div>' : '') +
-    (summary ? '<div style="margin-top:8px;padding:10px 12px;background:#F7F8FA;border-radius:10px;font-size:13px;line-height:1.65;color:#14171F;white-space:pre-wrap">' + esc(summary) + '</div>' : '<div style="margin-top:6px;font-size:12px;color:#8A919E">还没有摘要</div>') +
+    (summary ? '<div style="margin-top:8px;padding:10px 12px;background:#F7F8FA;border-radius:12px;font-size:13px;line-height:1.65;color:#14171F;white-space:pre-wrap">' + esc(summary) + '</div>' : '<div style="margin-top:6px;font-size:12px;color:#8A919E">还没有摘要</div>') +
     (j.error ? '<div style="font-size:12px;color:#B42318;margin-top:6px">' + esc(j.error.message || '') + '</div>' : '') + '</div>';
 }
 function jobBlock(j) {
   const sc = STATE_COLOR[j.state] || ['#F1F2F4', '#5B6372'];
   const out = j.output || {};
   const dialogHref = out.link || (out.session_id ? ('/dialog.html?session=' + encodeURIComponent(out.session_id)) : '');
-  return '<div style="padding:8px 0;border-top:1px solid #F4F5F7"><div style="display:flex;gap:8px;align-items:baseline"><b style="' + MONO_F + ';font-size:12px">' + esc(j.unit_key || '—') + '</b>' + pl(sc[0], sc[1], STATE_TEXT[j.state] || j.state) +
+  return '<div style="padding:8px 0;border-top:1px solid #F1F2F4"><div style="display:flex;gap:8px;align-items:baseline"><b style="' + MONO_F + ';font-size:12px">' + esc(j.unit_key || '—') + '</b>' + pl(sc[0], sc[1], STATE_TEXT[j.state] || j.state) +
     (dialogHref ? '<a href="' + esc(dialogHref) + '" style="margin-left:auto;font-size:12px;color:#2457D6;text-decoration:none">去问问看 →</a>' : '') + '</div>' +
     (j.error ? '<div style="font-size:12px;color:#B42318;margin-top:4px">' + esc(j.error.message || '') + '</div>' : '') +
     ioBlock('输入', j.input, false) + ioBlock('输出', j.output, true) + '</div>';
@@ -245,7 +246,7 @@ function latestResultHTML(t, runs) {
   const r = runs[0];
   const jobs = S.detailJobs[r.run_id];
   const kind = customKindOf(t);
-  const head = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="font-size:13px">最近结果</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + esc(r.at || '') + (r.trigger === 'manual' ? ' · 手动' : '') + '</span>' + pl((STATE_COLOR[r.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[r.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[r.state] || r.state) + '</div>';
+  const head = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="font-size:13px">最近结果</b><span style="' + MONO_F + ';font-size:12px;color:#8A919E">' + esc(r.at || '') + (r.trigger === 'manual' ? ' · 手动' : '') + '</span>' + pl((STATE_COLOR[r.state] || ['#F1F2F4', '#5B6372'])[0], (STATE_COLOR[r.state] || ['#F1F2F4', '#5B6372'])[1], STATE_TEXT[r.state] || r.state) + '</div>';
   if (!jobs) return head + '<div class="skeleton" style="padding:8px">读取输出…</div>';
   if (!jobs.length) return head + '<div style="font-size:12px;color:#8A919E;padding:8px 0">这次没有分单位的作业</div>';
   if (kind === 'scan') {
@@ -270,7 +271,7 @@ function runBlock(r) {
     else if (kind === 'ask') jobsHTML = jobs.map(askJobCard).join('');
     else jobsHTML = jobs.map(jobBlock).join('');
   }
-  return '<div style="border-top:1px solid #EEF0F3"><button type="button" data-act="sysrunopen" data-run="' + esc(r.run_id) + '" style="display:flex;width:100%;gap:8px;align-items:center;padding:10px 0;border:none;background:transparent;text-align:left;font:inherit;cursor:pointer"><span style="color:#8A919E;font-size:12px">' + (open ? '▾' : '▸') + '</span><span style="' + MONO_F + ';font-size:12px">' + esc(r.at || '') + '</span>' + pl(sc[0], sc[1], STATE_TEXT[r.state] || r.state) + '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + esc(r.trigger || '') + '</span></button>' +
+  return '<div style="border-top:1px solid #F1F2F4"><button type="button" data-act="sysrunopen" data-run="' + esc(r.run_id) + '" style="display:flex;width:100%;gap:8px;align-items:center;padding:10px 0;border:none;background:transparent;text-align:left;font:inherit;cursor:pointer"><span style="color:#8A919E;font-size:12px">' + (open ? '▾' : '▸') + '</span><span style="' + MONO_F + ';font-size:12px">' + esc(r.at || '') + '</span>' + pl(sc[0], sc[1], STATE_TEXT[r.state] || r.state) + '<span style="margin-left:auto;font-size:11px;color:#8A919E">' + esc(r.trigger || '') + '</span></button>' +
     (open ? '<div style="padding:0 0 10px 18px">' + jobsHTML + '</div>' : '') + '</div>';
 }
 function renderDetailAside() {
@@ -292,11 +293,11 @@ function renderDetailAside() {
     : (isCustom
       ? sysBtn('curun', cuId, '现在跑') + sysBtn('cuedit', cuId, '编辑') + sysBtn('cudel', cuId, '删除', '#B42318')
       : sysBtn('sysrun', t.task_id, '现在跑') + sysBtn('sysedit', t.task_id, '编辑') + sysBtn('sysdel', t.task_id, '删除', '#B42318'));
-  el.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px;padding:16px 18px"><div style="display:flex;align-items:flex-start;gap:8px"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><b style="font-size:16px">' + esc(t.title || t.task_id) + '</b><span style="' + MONO_F + ';font-size:11px;color:#8A919E">' + esc(t.task_id) + '</span><span style="font-size:12px;color:#5B6372">' + esc(t.trigger_text || '') + (t.paused ? ' · 已停用' : '') + '</span></div><button type="button" data-act="sysdetailclose" style="margin-left:auto;border:none;background:transparent;font-size:18px;color:#8A919E;cursor:pointer">×</button></div>' +
+  el.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px;padding:16px 18px"><div style="display:flex;align-items:flex-start;gap:8px"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><b style="font-size:16px">' + esc(t.title || t.task_id) + '</b><span style="' + MONO_F + ';font-size:12px;color:#8A919E">' + esc(t.task_id) + '</span><span style="font-size:12px;color:#5B6372">' + esc(t.trigger_text || '') + (t.paused ? ' · 已停用' : '') + '</span></div><button type="button" data-act="sysdetailclose" style="margin-left:auto;border:none;background:transparent;font-size:18px;color:#8A919E;cursor:pointer">×</button></div>' +
     (t.note ? '<span style="font-size:12px;color:#5B6372;line-height:1.6">' + esc(t.note) + '</span>' : '') +
     apisLine(t.trace) +
     '<div style="display:flex;gap:6px;flex-wrap:wrap">' + actions + '</div>' +
-    (showResult ? '<div style="padding-top:4px;border-top:1px solid #EEF0F3">' + latestResultHTML(t, runs) + '</div>' : '') +
+    (showResult ? '<div style="padding-top:4px;border-top:1px solid #F1F2F4">' + latestResultHTML(t, runs) + '</div>' : '') +
     '<div><b style="font-size:13px">最近执行</b><div style="margin-top:6px">' + runsHTML + '</div></div></div>';
 }
 function findSysTask(id) {
@@ -365,11 +366,11 @@ function renderSysEdit() {
       '<label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:600">窗口（分钟）</span><input id="seWin" type="number" min="1" value="' + esc(f.window_min) + '" style="' + inp + '"></label>'
     : '<label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:600">间隔（分钟）</span><input id="seEvery" type="number" min="1" value="' + esc(f.every_min) + '" style="' + inp + '"></label>';
   const runIn = f.trace
-    ? '<div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:#F7F8FA;border-radius:10px;border:1px solid #EEF0F3">' +
+    ? '<div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:#F7F8FA;border-radius:12px;border:1px solid #F1F2F4">' +
       '<div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:12px">运行输入</b><span style="font-size:11px;color:#8A919E">只读 · 系统任务改不了</span></div>' +
       apisLine(f.trace) +
       '<pre style="margin:0;padding:8px;background:#FFFFFF;border-radius:8px;font-size:11px;overflow:auto;max-height:160px;white-space:pre-wrap;color:#5B6372">' + esc(prettyJSON(f.trace)) + '</pre></div>'
-    : (f.note ? '<div style="padding:10px 12px;background:#F7F8FA;border-radius:10px;font-size:12px;color:#5B6372;line-height:1.6">' + esc(f.note) + '</div>' : '');
+    : (f.note ? '<div style="padding:10px 12px;background:#F7F8FA;border-radius:12px;font-size:12px;color:#5B6372;line-height:1.6">' + esc(f.note) + '</div>' : '');
   $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1"><div style="display:flex;align-items:center"><b style="font-size:16px">编辑「' + esc(f.title) + '」</b><button type="button" class="xbtn" data-act="close" style="margin-left:auto;font-size:18px">×</button></div>' +
     '<span style="font-size:12px;color:#5B6372">只能改开关和触发时间，任务本身的逻辑改不了。</span>' +
     runIn +
@@ -382,7 +383,7 @@ function renderSysEdit() {
 /* ---------- 通知（和设计稿一样的抽屉） ---------- */
 const NOTIF_TABS = [['alert', '提醒'], ['change', '判断'], ['settle', '战绩']];
 const NOTIF_ALERT_KINDS = { alert: 1, upcoming: 1, move: 1, ann: 1 };
-const NOTIF_ICON = { alert: ['🔔', '#FDECEA'], change: ['⇄', '#FFF4E0'], upcoming: ['📅', '#F1F2F4'], settle: ['★', '#EDF7F1'], ann: ['📢', '#F1F2F4'], move: ['📈', '#F1F2F4'], system: ['⚙', '#F1F2F4'] };
+const NOTIF_ICON = { alert: ['🔔', '#FDF0EF'], change: ['⇄', '#FFF1D6'], upcoming: ['📅', '#F1F2F4'], settle: ['★', '#EDF7F1'], ann: ['📢', '#F1F2F4'], move: ['📈', '#F1F2F4'], system: ['⚙', '#F1F2F4'] };
 function notifMatch(tab, kind) {
   if (tab === 'alert') return !!NOTIF_ALERT_KINDS[kind];
   return kind === tab;
@@ -414,10 +415,10 @@ function renderNotif() {
   const d = S.nData;
   const items = d ? d.items.filter((i) => notifMatch(S.nTab, i.kind)) : [];
   const groups = ['今天', '即将发生', '昨天', '更早'].map((g) => [g, items.filter((i) => i.group === g)]).filter((x) => x[1].length);
-  el.innerHTML = '<div style="display: flex; align-items: center; gap: 12px; padding: 14px 12px 0 20px"><span style="font-size: 16px; font-weight: 700">通知</span><button type="button" data-act="notifread" style="margin-left: auto; font-size: 12px; color: #2457D6; border: none; background: transparent; cursor: pointer">全部已读</button><button type="button" aria-label="关闭（Esc）" data-act="notif" style="width: 28px; height: 28px; border: none; border-radius: 6px; background: transparent; color: #5B6372; font: inherit; font-size: 18px; cursor: pointer">×</button></div>' +
-    '<div style="display: flex; padding: 0 10px; border-bottom: 1px solid #EEF0F3">' + NOTIF_TABS.map(([k, n]) => '<button type="button" data-act="ntab" data-k="' + k + '" style="padding: 0 10px; height: 36px; display: inline-flex; align-items: center; font-size: 13px; border: none; background: transparent; cursor: pointer; ' + (S.nTab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : 'color: #5B6372') + '">' + n + '</button>').join('') + '</div>' +
-    (!d ? '<div class="skeleton" style="padding: 20px">正在取通知…</div>' : groups.length ? groups.map(([g, list]) => '<span style="padding: 10px 16px 2px 32px; font-size: 11px; font-weight: 600; color: #8A919E">' + g + '</span>' + list.map((i) => { const ic = NOTIF_ICON[i.kind] || ['•', '#F1F2F4']; const page = (i.link && i.link.page) || ''; const taskId = (i.link && i.link.task_id) || ''; return '<button type="button" data-act="nsel" data-id="' + esc(i.id || '') + '" data-kind="' + esc(i.kind) + '" data-code="' + esc(i.code) + '" data-page="' + esc(page) + '" data-task="' + esc(taskId) + '" style="display: grid; grid-template-columns: 6px 28px minmax(0, 1fr) auto; align-items: start; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: transparent; text-align: left; font: inherit; color: #14171F; cursor: pointer">' + (i.unread ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #D9483F; margin-top: 7px"></span>' : '<span style="width: 6px"></span>') + '<span style="width: 28px; height: 28px; border-radius: 8px; background: ' + ic[1] + '; display: flex; align-items: center; justify-content: center; font-size: 13px">' + ic[0] + '</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 11px; color: #8A919E">' + esc(i.title) + '</span><span style="font-weight: 600">' + esc(i.text) + '</span>' + (i.sub ? '<span style="font-size: 12px; color: #5B6372; white-space: pre-line">' + esc(i.sub) + '</span>' : '') + '</span><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(i.when) + '</span></button>'; }).join('')).join('') : '<div style="padding: 28px 20px; color: #8A919E">现在没有通知。</div>') +
-    '<div style="display: flex; align-items: center; gap: 12px; margin-top: auto; padding: 12px 20px; border-top: 1px solid #EEF0F3; background: #F7F8FA; font-size: 12px; color: #5B6372"><span>系统通知 · 仅交易时间提醒</span><a href="/settings.html" style="margin-left: auto; color: #2457D6; text-decoration: none">通知设置</a></div>';
+  el.innerHTML = '<div style="display: flex; align-items: center; gap: 12px; padding: 14px 12px 0 20px"><span style="font-size: 16px; font-weight: 700">通知</span><button type="button" data-act="notifread" style="margin-left: auto; font-size: 12px; color: #2457D6; border: none; background: transparent; cursor: pointer">全部已读</button><button type="button" aria-label="关闭（Esc）" data-act="notif" style="width: 28px; height: 28px; border: none; border-radius: 8px; background: transparent; color: #5B6372; font: inherit; font-size: 18px; cursor: pointer">×</button></div>' +
+    '<div style="display: flex; padding: 0 10px; border-bottom: 1px solid #F1F2F4">' + NOTIF_TABS.map(([k, n]) => '<button type="button" data-act="ntab" data-k="' + k + '" style="padding: 0 10px; height: 36px; display: inline-flex; align-items: center; font-size: 13px; border: none; background: transparent; cursor: pointer; ' + (S.nTab === k ? 'color: #2457D6; font-weight: 600; box-shadow: inset 0 -2px 0 #2457D6' : 'color: #5B6372') + '">' + n + '</button>').join('') + '</div>' +
+    (!d ? '<div class="skeleton" style="padding: 20px">正在取通知…</div>' : groups.length ? groups.map(([g, list]) => '<span style="padding: 10px 16px 2px 32px; font-size: 11px; font-weight: 600; color: #8A919E">' + g + '</span>' + list.map((i) => { const ic = NOTIF_ICON[i.kind] || ['•', '#F1F2F4']; const page = (i.link && i.link.page) || ''; const taskId = (i.link && i.link.task_id) || ''; return '<button type="button" data-act="nsel" data-id="' + esc(i.id || '') + '" data-kind="' + esc(i.kind) + '" data-code="' + esc(i.code) + '" data-page="' + esc(page) + '" data-task="' + esc(taskId) + '" style="display: grid; grid-template-columns: 6px 28px minmax(0, 1fr) auto; align-items: start; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: transparent; text-align: left; font: inherit; color: #14171F; cursor: pointer">' + (i.unread ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #B42318; margin-top: 7px"></span>' : '<span style="width: 6px"></span>') + '<span style="width: 28px; height: 28px; border-radius: 8px; background: ' + ic[1] + '; display: flex; align-items: center; justify-content: center; font-size: 13px">' + ic[0] + '</span><span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 11px; color: #8A919E">' + esc(i.title) + '</span><span style="font-weight: 600">' + esc(i.text) + '</span>' + (i.sub ? '<span style="font-size: 12px; color: #5B6372; white-space: pre-line">' + esc(i.sub) + '</span>' : '') + '</span><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(i.when) + '</span></button>'; }).join('')).join('') : '<div style="padding: 28px 20px; color: #8A919E">现在没有通知。</div>') +
+    '<div style="display: flex; align-items: center; gap: 12px; margin-top: auto; padding: 12px 20px; border-top: 1px solid #F1F2F4; background: #F7F8FA; font-size: 12px; color: #5B6372"><span>系统通知 · 仅交易时间提醒</span><a href="/settings.html" style="margin-left: auto; color: #2457D6; text-decoration: none">通知设置</a></div>';
 }
 async function loadNotif() {
   if (DEMO) { S.nData = demoNotif(); } else {
@@ -647,8 +648,8 @@ function renderCustom() {
   const d = S.data.custom;
   const head = '<div style="display: flex; align-items: center; gap: 8px"><b style="font-size: 15px">我的任务</b><span style="font-size: 12px; color: #8A919E">自己定时间、定范围、定做什么' + (d ? ' · 最多 ' + d.limit + ' 个' : '') + '</span><button type="button" data-act="cunew" style="margin-left: auto; height: 32px; padding: 0 14px; border: 1px solid #14171F; border-radius: 8px; background: #14171F; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">＋ 新建任务</button></div>';
   if (!d) return '<div style="' + CARD + '">' + head + '<div class="skeleton" style="padding: 16px">读取中…</div></div>';
-  const note = d.model ? '' : '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF8EC; font-size: 12px; color: #7A4A00">没有配置模型密钥：「定时分析」和「定时提问」要用到你的模型，先到设置里配好；「条件扫描」不受影响。</div>';
-  const list = d.tasks.length ? '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 150px 120px auto; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #EEF0F3"><span>任务</span><span>范围</span><span>什么时候跑</span><span>上次</span><span></span></div>' + d.tasks.map(cuRow).join('') + '</div>'
+  const note = d.model ? '' : '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF1D6; font-size: 12px; color: #7A4A00">没有配置模型密钥：「定时分析」和「定时提问」要用到你的模型，先到设置里配好；「条件扫描」不受影响。</div>';
+  const list = d.tasks.length ? '<div style="margin: 0 -16px -14px"><div style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 150px 120px auto; gap: 12px; padding: 8px 16px; font-size: 11px; color: #8A919E; background: #F7F8FA; border-top: 1px solid #F1F2F4"><span>任务</span><span>范围</span><span>什么时候跑</span><span>上次</span><span></span></div>' + d.tasks.map(cuRow).join('') + '</div>'
     : '<div class="empty" style="padding: 20px 12px 10px"><b style="font-size: 15px">还没有自定义任务</b><span style="max-width: 520px; line-height: 1.7">点「新建任务」，或者从常用的里面选一个改一改：</span><span style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center">' +
       Object.keys(CU_TEMPLATES).map((k) => '<button type="button" data-act="cutpl" data-k="' + k + '" title="' + esc(CU_TEMPLATES[k].desc) + '" style="' + LINKBTN + '">' + esc(CU_TEMPLATES[k].title) + '</button>').join('') + '</span></div>';
   return '<div style="' + CARD + '">' + head + note + list + '</div>';
@@ -704,21 +705,21 @@ function cuRuleWords(r) {
 function cuRender() {
   const f = S.cf;
   const body0 = $('cfBody'), keepTop = body0 ? body0.scrollTop : 0;
-  const inp = 'width: 100%; min-height: 36px; padding: 7px 11px; border: 1px solid #DDE1E7; border-radius: 9px; box-sizing: border-box; font-size: 13px; color: #14171F; background: #FFFFFF; outline: none';
+  const inp = 'width: 100%; min-height: 36px; padding: 7px 11px; border: 1px solid #DDE1E7; border-radius: 8px; box-sizing: border-box; font-size: 13px; color: #14171F; background: #FFFFFF; outline: none';
   const pill = (act, k, text, on, extra) => '<button type="button" data-act="' + act + '" data-k="' + k + '" aria-pressed="' + on + '" style="height: 32px; padding: 0 14px; border: 1px solid ' + (on ? '#2457D6' : '#DDE1E7') + '; border-radius: 999px; background: ' + (on ? '#EAF0FD' : '#FFFFFF') + '; color: ' + (on ? '#1F3F8A' : '#3A4250') + '; font: inherit; font-size: 13px; font-weight: ' + (on ? 600 : 400) + '; cursor: pointer; white-space: nowrap' + (extra || '') + '">' + text + '</button>';
-  const step = (n, title, hint, inner) => '<section style="display: flex; gap: 14px; padding: 18px 0; border-top: 1px solid #EEF0F3"><span style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #14171F; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">' + n + '</span>' +
+  const step = (n, title, hint, inner) => '<section style="display: flex; gap: 14px; padding: 18px 0; border-top: 1px solid #F1F2F4"><span style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #14171F; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">' + n + '</span>' +
     '<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px"><div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap"><b style="font-size: 14px">' + title + '</b>' + (hint ? '<span style="font-size: 12px; color: #8A919E; line-height: 1.6">' + hint + '</span>' : '') + '</div>' + inner + '</div></section>';
   // 1 做什么
   const cards = ['analyze', 'ask', 'scan'].map((k) => {
     const on = f.kind === k, c = CU_KIND[k];
-    return '<button type="button" data-act="cukind" data-k="' + k + '" aria-pressed="' + on + '" style="display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; text-align: left; border: 1.5px solid ' + (on ? '#2457D6' : '#E3E6EB') + '; border-radius: 12px; background: ' + (on ? '#F5F8FF' : '#FFFFFF') + '; cursor: pointer; font: inherit; color: inherit; box-shadow: ' + (on ? '0 0 0 3px rgba(36,87,214,.10)' : 'none') + '">' +
-      '<span style="display: flex; align-items: center; gap: 8px"><span style="width: 34px; height: 34px; border-radius: 9px; background: ' + c[1] + '; color: ' + c[2] + '; display: flex; align-items: center; justify-content: center">' + CU_ICON[k] + '</span><span style="display: flex; flex-direction: column; gap: 1px"><b style="font-size: 14px">' + CU_WORDS[k][0] + '</b><span style="font-size: 11px; color: ' + (k === 'scan' ? '#1E6B44' : '#7A4A00') + '">' + c[4] + '</span></span></span>' +
+    return '<button type="button" data-act="cukind" data-k="' + k + '" aria-pressed="' + on + '" style="display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; text-align: left; border: 1.5px solid ' + (on ? '#2457D6' : '#E3E6EB') + '; border-radius: 12px; background: ' + (on ? '#EAF0FD' : '#FFFFFF') + '; cursor: pointer; font: inherit; color: inherit; box-shadow: ' + (on ? '0 0 0 3px rgba(36,87,214,.10)' : 'none') + '">' +
+      '<span style="display: flex; align-items: center; gap: 8px"><span style="width: 34px; height: 34px; border-radius: 8px; background: ' + c[1] + '; color: ' + c[2] + '; display: flex; align-items: center; justify-content: center">' + CU_ICON[k] + '</span><span style="display: flex; flex-direction: column; gap: 1px"><b style="font-size: 14px">' + CU_WORDS[k][0] + '</b><span style="font-size: 11px; color: ' + (k === 'scan' ? '#1E6B44' : '#7A4A00') + '">' + c[4] + '</span></span></span>' +
       '<span style="font-size: 12px; color: #5B6372; line-height: 1.6">' + CU_WORDS[k][1] + '</span><span style="font-size: 11px; color: #8A919E; line-height: 1.5">' + CU_WORDS[k][2] + '</span></button>';
   }).join('');
-  const noModel = (f.kind !== 'scan' && S.data.custom && !S.data.custom.model) ? '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF8EC; font-size: 12px; color: #7A4A00">还没有配置模型密钥：这类任务跑起来会失败，先到设置里配好。</div>' : '';
+  const noModel = (f.kind !== 'scan' && S.data.custom && !S.data.custom.model) ? '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF1D6; font-size: 12px; color: #7A4A00">还没有配置模型密钥：这类任务跑起来会失败，先到设置里配好。</div>' : '';
   // 2 哪些股票
   const chips = f.codes.map((c) => '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border-radius: 999px; background: #EAF0FD; color: #1F3F8A; font-size: 12px">' + esc(f.names[c] || c) + '<button type="button" data-act="cudelcode" data-code="' + esc(c) + '" aria-label="去掉" style="border: none; background: transparent; color: #5B6372; cursor: pointer; font-size: 15px; line-height: 1">×</button></span>').join('');
-  const codes = f.scope === 'codes' ? '<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: #F7F8FA"><div style="display: flex; flex-wrap: wrap; gap: 6px">' + (chips || '<span style="font-size: 12px; color: #8A919E">还没选股票，在下面搜一搜</span>') + '</div><input id="cfSearch" data-f="search" placeholder="输入代码、名称或拼音首字母，搜到后点一下加上" autocomplete="off" style="' + inp + '"><div id="cfHits" style="display: flex; flex-direction: column"></div></div>' : '';
+  const codes = f.scope === 'codes' ? '<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: #F7F8FA"><div style="display: flex; flex-wrap: wrap; gap: 6px">' + (chips || '<span style="font-size: 12px; color: #8A919E">还没选股票，在下面搜一搜</span>') + '</div><input id="cfSearch" data-f="search" placeholder="输入代码、名称或拼音首字母，搜到后点一下加上" autocomplete="off" style="' + inp + '"><div id="cfHits" style="display: flex; flex-direction: column"></div></div>' : '';
   const scopeStep = step(2, '对哪些股票', f.scope === 'codes' ? '最多 50 只' : '跟着你的持仓、想买、自选变，新加的票下次就会带上',
     '<div style="display: flex; gap: 8px; flex-wrap: wrap">' + CU_SCOPE.map(([k, n]) => pill('cuscope', k, n, f.scope === k)).join('') + '</div>' + codes);
   // 3 具体怎么做
@@ -736,7 +737,7 @@ function cuRender() {
       const k = cuKindOf(r.kind);
       const val = r.kind === 'sector_is' ? '<select data-f="r:' + i + ':text" style="' + inp + '; width: 150px">' + ((S.data.custom && S.data.custom.sector_verdicts) || []).map((v) => '<option' + (r.text === v ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select>'
         : k.unit ? '<input data-f="r:' + i + ':value" inputmode="decimal" value="' + (r.value || '') + '" style="' + inp + '; width: 84px"><span style="font-size: 12px; color: #5B6372; white-space: nowrap">' + esc(k.unit) + '</span>' : '';
-      return '<div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid #E3E6EB; border-radius: 10px; background: #FFFFFF"><div style="display: flex; align-items: center; gap: 8px"><span style="flex: none; font-size: 11px; color: #8A919E; width: 36px">' + (i === 0 ? '当' : f.match === 'any' ? '或' : '且') + '</span><select data-f="r:' + i + ':kind" style="' + inp + '; flex: 1; min-width: 0">' + kinds.map((x) => '<option value="' + x.kind + '"' + (x.kind === r.kind ? ' selected' : '') + '>' + esc(x.label) + '</option>').join('') + '</select>' + val +
+      return '<div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid #E3E6EB; border-radius: 12px; background: #FFFFFF"><div style="display: flex; align-items: center; gap: 8px"><span style="flex: none; font-size: 11px; color: #8A919E; width: 36px">' + (i === 0 ? '当' : f.match === 'any' ? '或' : '且') + '</span><select data-f="r:' + i + ':kind" style="' + inp + '; flex: 1; min-width: 0">' + kinds.map((x) => '<option value="' + x.kind + '"' + (x.kind === r.kind ? ' selected' : '') + '>' + esc(x.label) + '</option>').join('') + '</select>' + val +
         '<button type="button" data-act="curuledel" data-i="' + i + '" aria-label="删掉这个条件" style="border: none; background: transparent; color: #8A919E; cursor: pointer; font-size: 18px; line-height: 1">×</button></div>' + (k.hint ? '<span style="font-size: 11px; color: #8A919E; padding-left: 44px">' + esc(k.hint) + '</span>' : '') + '</div>';
     }).join('');
     detail = step(3, '什么条件', '没有数据的条件算「不满足」，比如还没有 AI 结论时「AI 结论偏多」不会命中',
@@ -757,12 +758,12 @@ function cuRender() {
   // 5 名字
   const nameStep = step(5, '起个名字', '可以不填，会自动起一个', '<input data-f="title" maxlength="30" value="' + esc(f.title) + '" placeholder="' + esc(cuAutoTitle(f)) + '" style="' + inp + '">');
   $('modal').innerHTML = '<div class="modal" data-act="close"><div data-stop="1" style="width: 720px; padding: 0; gap: 0; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh">' +
-    '<div style="flex: none; display: flex; align-items: center; gap: 10px; padding: 18px 24px 14px"><div style="display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">' + (f.id ? '编辑任务' : '新建任务') + '</b><span style="font-size: 12px; color: #8A919E">让客户端按你定的时间，自动替你做一件事；结果放进通知</span></div><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 20px">×</button></div>' +
+    '<div style="flex: none; display: flex; align-items: center; gap: 10px; padding: 18px 24px 14px"><div style="display: flex; flex-direction: column; gap: 2px"><b style="font-size:18px">' + (f.id ? '编辑任务' : '新建任务') + '</b><span style="font-size: 12px; color: #8A919E">让客户端按你定的时间，自动替你做一件事；结果放进通知</span></div><button type="button" class="xbtn" data-act="close" style="margin-left: auto; font-size: 20px">×</button></div>' +
     '<div id="cfBody" style="flex: 1; min-height: 0; overflow-y: auto; padding: 0 24px 6px"><section style="display: flex; flex-direction: column; gap: 10px; padding: 4px 0 18px"><div style="display: flex; align-items: baseline; gap: 8px"><span style="flex: none; width: 24px; height: 24px; border-radius: 50%; background: #14171F; color: #FFFFFF; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center">1</span><b style="font-size: 14px">做什么</b></div>' +
     '<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">' + cards + '</div>' + noModel + '</section>' + scopeStep + detail + whenStep + nameStep + '</div>' +
-    '<div style="flex: none; padding: 12px 24px 16px; border-top: 1px solid #EEF0F3; background: #FAFBFC; display: flex; flex-direction: column; gap: 10px">' +
-      '<div style="display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: #F1F5FE; font-size: 13px; line-height: 1.65; color: #1F3F8A"><b style="flex: none">这个任务会：</b><span>' + esc(cuSentence(f)) + '</span></div>' +
-      '<div style="display: flex; align-items: center; gap: 8px"><span id="cfErr" style="font-size: 12px; color: #B42318; flex: 1; min-height: 16px">' + esc(f.err) + '</span><button type="button" data-act="close" style="height: 34px; padding: 0 16px; border: 1px solid #DDE1E7; border-radius: 9px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">取消</button><button type="button" id="cfSave" data-act="cusave" style="height: 34px; padding: 0 20px; border: none; border-radius: 9px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">' + (f.id ? '保存修改' : '创建任务') + '</button></div></div></div></div>';
+    '<div style="flex: none; padding: 12px 24px 16px; border-top: 1px solid #F1F2F4; background: #FAFAFA; display: flex; flex-direction: column; gap: 10px">' +
+      '<div style="display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: #EAF0FD; font-size: 13px; line-height: 1.65; color: #1F3F8A"><b style="flex: none">这个任务会：</b><span>' + esc(cuSentence(f)) + '</span></div>' +
+      '<div style="display: flex; align-items: center; gap: 8px"><span id="cfErr" style="font-size: 12px; color: #B42318; flex: 1; min-height: 16px">' + esc(f.err) + '</span><button type="button" data-act="close" style="height: 34px; padding: 0 16px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">取消</button><button type="button" id="cfSave" data-act="cusave" style="height: 34px; padding: 0 20px; border: none; border-radius: 8px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">' + (f.id ? '保存修改' : '创建任务') + '</button></div></div></div></div>';
   const nb = $('cfBody'); if (nb) nb.scrollTop = keepTop;
 }
 // 文字框里打字时只刷新底部那句话，不重画整张表单（不然光标会丢）
@@ -803,7 +804,7 @@ function cuSetField(f, el) {
       if (!q) { box.innerHTML = ''; return; }
       try {
         const j = await (await fetch(API + '/api/v1/stocks/search?q=' + encodeURIComponent(q))).json();
-        box.innerHTML = (j.items || []).slice(0, 6).map((x) => '<button type="button" data-act="cuaddcode" data-code="' + esc(x.ts_code) + '" data-name="' + esc(x.name) + '" style="display: flex; gap: 8px; align-items: baseline; text-align: left; border: none; border-top: 1px solid #F4F5F7; background: #FFFFFF; padding: 7px 4px; cursor: pointer; font: inherit; font-size: 13px"><b>' + esc(x.name) + '</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(x.ts_code) + '</span></button>').join('') || '<span style="font-size: 12px; color: #8A919E; padding: 6px 0">没搜到</span>';
+        box.innerHTML = (j.items || []).slice(0, 6).map((x) => '<button type="button" data-act="cuaddcode" data-code="' + esc(x.ts_code) + '" data-name="' + esc(x.name) + '" style="display: flex; gap: 8px; align-items: baseline; text-align: left; border: none; border-top: 1px solid #F7F8FA; background: #FFFFFF; padding: 7px 4px; cursor: pointer; font: inherit; font-size: 13px"><b>' + esc(x.name) + '</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(x.ts_code) + '</span></button>').join('') || '<span style="font-size: 12px; color: #8A919E; padding: 6px 0">没搜到</span>';
       } catch (e) { box.innerHTML = '<span style="font-size: 12px; color: #B42318; padding: 6px 0">搜索失败：股票数据服务没有响应</span>'; }
     }, 250);
   } else if (f.indexOf('r:') === 0) {
@@ -896,7 +897,7 @@ document.addEventListener('keydown', (e) => {
 function tickClock() {
   const d = new Date(), t = d.getHours() * 60 + d.getMinutes(), wk = d.getDay() > 0 && d.getDay() < 6;
   const live = wk && ((t >= 570 && t <= 690) || (t >= 780 && t <= 900));
-  $('session').innerHTML = '<span style="width: 7px; height: 7px; border-radius: 50%; background: ' + (live ? '#2E8B57' : '#A1A7B2') + '"></span>' + (live ? '交易中' : wk ? '已休市' : '休市日') + ' · 行情 <span style="' + MONO_F + '">' + [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':') + '</span>';
+  $('session').innerHTML = '<span style="width: 7px; height: 7px; border-radius: 50%; background: ' + (live ? '#1E6B44' : '#A1A7B2') + '"></span>' + (live ? '交易中' : wk ? '已休市' : '休市日') + ' · 行情 <span style="' + MONO_F + '">' + [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':') + '</span>';
 }
 async function loadIndexes() {
   try {

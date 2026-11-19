@@ -456,7 +456,7 @@ func (s *Server) runAnalystLive(ctx context.Context, cfg agentConfig, code, kind
 	if live == nil {
 		ag.WhenIdle()
 		close(stopped)
-		return s.concludeAnalyst(cfg, code, kind, question, ag.Session(), charts)
+		return s.concludeAnalyst(ctx, cfg, code, kind, question, ag.Session(), charts)
 	}
 	msg, err := s.tailAnalystLive(ctx, ag, charts, cfg, code, kind, question, live)
 	close(stopped)
@@ -467,7 +467,7 @@ func (s *Server) runAnalystLive(ctx context.Context, cfg agentConfig, code, kind
 func (s *Server) tailAnalystLive(ctx context.Context, ag *agentloop.Agent, charts *chartBox, cfg agentConfig, code, kind, question string, live func(status, draft string, tools []map[string]string)) (map[string]any, error) {
 	if live == nil {
 		ag.WhenIdle()
-		return s.concludeAnalyst(cfg, code, kind, question, ag.Session(), charts)
+		return s.concludeAnalyst(ctx, cfg, code, kind, question, ag.Session(), charts)
 	}
 	live("正在思考…", "", nil)
 	sess := ag.Session()
@@ -484,7 +484,7 @@ func (s *Server) tailAnalystLive(ctx context.Context, ag *agentloop.Agent, chart
 		select {
 		case <-done:
 			// Tool ctx cancelled: stop waiting; conclude whatever is there.
-			return s.concludeAnalyst(cfg, code, kind, question, sess, charts)
+			return s.concludeAnalyst(ctx, cfg, code, kind, question, sess, charts)
 		case <-ticker.C:
 			events := sess.Events()
 			for ; lastSeq < len(events); lastSeq++ {
@@ -526,7 +526,7 @@ func (s *Server) tailAnalystLive(ctx context.Context, ag *agentloop.Agent, chart
 				if lastDraft != "" {
 					live("正在收尾…", lastDraft, draftTools)
 				}
-				return s.concludeAnalyst(cfg, code, kind, question, sess, charts)
+				return s.concludeAnalyst(ctx, cfg, code, kind, question, sess, charts)
 			}
 		}
 	}
@@ -645,7 +645,7 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 				}
 			}
 			if ag.Status() == "idle" && (len(sess.Events()) > 0 || time.Since(started) > 2*time.Second) {
-				return s.concludeAnalyst(cfg, code, kind, question, sess, charts)
+				return s.concludeAnalyst(ctx, cfg, code, kind, question, sess, charts)
 			}
 			if !clientGone && time.Since(lastActivity) >= streamHeartbeatInterval {
 				writeAnalystSSE(w, flusher, "heartbeat", map[string]any{})
@@ -655,7 +655,7 @@ func (s *Server) watchAnalyst(ctx context.Context, w http.ResponseWriter, flushe
 	}
 }
 
-func (s *Server) concludeAnalyst(cfg agentConfig, code, kind, question string, sess *session.Session, charts *chartBox) (map[string]any, error) {
+func (s *Server) concludeAnalyst(ctx context.Context, cfg agentConfig, code, kind, question string, sess *session.Session, charts *chartBox) (map[string]any, error) {
 	msgs := sess.DeriveMessages()
 	tools := toolsFromMessages(msgs)
 	if cfg.oneShot() {
@@ -696,6 +696,14 @@ func (s *Server) concludeAnalyst(cfg agentConfig, code, kind, question string, s
 	catalog := factsFromMessages(msgs)
 	rawSpeak := lastParseableAssistantText(msgs)
 	speak, speakErr := parseSpeak(rawSpeak)
+	if speakErr != nil && strings.TrimSpace(rawSpeak) == "" && len(tools) > 0 {
+		// 步数用尽时常停在 tool_call、没有正文；再逼一轮无工具 JSON。
+		if wrapped, wrapErr := s.wrapOpeningSpeak(ctx, cfg, sess); wrapErr == nil {
+			if sp, err := parseSpeak(wrapped); err == nil {
+				rawSpeak, speak, speakErr = wrapped, sp, nil
+			}
+		}
+	}
 	if speakErr != nil {
 		if turnErr := lastTurnError(sess); turnErr != "" {
 			return nil, errors.New(turnErr)
@@ -726,6 +734,51 @@ func (s *Server) concludeAnalyst(cfg agentConfig, code, kind, question string, s
 	}
 	s.appendGroup(code, line)
 	return withChart(withTools(analystMessage(cfg, kind, question, text, headline), tools), charts), nil
+}
+
+// wrapOpeningSpeak 在开场已有工具结果但没有 JSON 正文时，禁用工具再逼一轮结论。
+func (s *Server) wrapOpeningSpeak(ctx context.Context, cfg agentConfig, sess *session.Session) (string, error) {
+	if s == nil || s.llm == nil {
+		return "", errors.New("模型还没有配置")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	wrapCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	msgs := append([]session.Message(nil), sess.DeriveMessages()...)
+	msgs = append(msgs, session.Message{
+		Role: session.RoleUser,
+		Content: []session.ContentBlock{{
+			Kind: session.BlockText,
+			Text: "已有工具结果。禁止再调用任何工具。立刻只输出开场 JSON：stance、strength、text、fact_ids、suggested_questions。text 内禁用英文双引号。",
+		}},
+	})
+	temp := 0.2
+	stream, err := s.llm.Stream(wrapCtx, agentloop.GenerateRequest{
+		Model:       s.cfg.Model,
+		System:      cfg.systemPrompt(),
+		Messages:    msgs,
+		MaxTokens:   2048,
+		Temperature: &temp,
+	})
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	for chunk := range stream {
+		if chunk.Err != nil {
+			return "", chunk.Err
+		}
+		if chunk.Delta.Kind == session.BlockText && chunk.Delta.Text != "" {
+			b.WriteString(chunk.Delta.Text)
+		}
+	}
+	text := strings.TrimSpace(b.String())
+	if text == "" {
+		return "", errors.New("收尾轮没有写出正文")
+	}
+	return text, nil
 }
 
 func emptyAnalystMessage(cfg agentConfig, kind, quote string) map[string]any {
@@ -949,7 +1002,7 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 	return s.newAnalyst(sess, toolRegistry, steps, prompt, maxTokens), nil
 }
 
-// openingSkills 开场可用技能。新闻/基本面/财报去掉展示类技能，避免开场空转调工具。
+// openingSkills 开场可用技能。各维去掉展示/追问类技能，避免开场空转调工具。
 func (c agentConfig) openingSkills() []string {
 	var keep map[string]bool
 	switch c.ID {
@@ -961,6 +1014,8 @@ func (c agentConfig) openingSkills() []string {
 		keep = map[string]bool{"finance-facts": true, "stock-basic": true}
 	case "market":
 		keep = map[string]bool{"market-facts": true, "stock-basic": true}
+	case "volume_flow":
+		keep = map[string]bool{"flow-facts": true, "stock-basic": true}
 	default:
 		return c.Skills
 	}

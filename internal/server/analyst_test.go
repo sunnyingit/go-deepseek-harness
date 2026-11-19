@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"go-harness/core/agentloop"
 	"go-harness/core/session"
 	"go-harness/internal/appconfig"
 	"go-harness/skill/skill"
@@ -59,6 +61,43 @@ func TestParseSpeakAcceptsFencedJSON(t *testing.T) {
 	}
 }
 
+type wrapSpeakLLM struct {
+	text string
+	saw  *agentloop.GenerateRequest
+}
+
+func (w wrapSpeakLLM) Stream(_ context.Context, req agentloop.GenerateRequest) (<-chan agentloop.StreamChunk, error) {
+	if w.saw != nil {
+		*w.saw = req
+	}
+	ch := make(chan agentloop.StreamChunk, 1)
+	ch <- agentloop.StreamChunk{Delta: session.ContentBlock{Kind: session.BlockText, Text: w.text}}
+	close(ch)
+	return ch, nil
+}
+
+func TestWrapOpeningSpeakForcesJSONWithoutTools(t *testing.T) {
+	var saw agentloop.GenerateRequest
+	s := &Server{llm: wrapSpeakLLM{text: `{"stance":"中性","strength":"弱","text":"资金面无明显信号","fact_ids":[],"suggested_questions":[]}`, saw: &saw}, cfg: appconfig.Config{Model: "test-model"}}
+	sess := session.New("wrap-test", session.Header{})
+	sess.Append("user/message", map[string]any{
+		"message": session.Message{Role: session.RoleUser, Content: []session.ContentBlock{{Kind: session.BlockText, Text: "开场"}}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	got, err := s.wrapOpeningSpeak(context.Background(), agentConfig{ID: "volume_flow", Prompt: "你是资金流分析师"}, sess)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseSpeak(got); err != nil {
+		t.Fatalf("wrap text not JSON speak: %v (%q)", err, got)
+	}
+	if len(saw.Tools) != 0 {
+		t.Fatalf("wrap-up must disable tools, got %d", len(saw.Tools))
+	}
+	if saw.Model != "test-model" {
+		t.Fatalf("model = %q", saw.Model)
+	}
+}
+
 func TestOpeningSkillsNewsTrimsReplyOnly(t *testing.T) {
 	cfg := agentConfig{ID: "news", Skills: []string{"news-facts", "news-raw", "baidu-board", "stock-basic", "d3js-visualization"}}
 	got := cfg.openingSkills()
@@ -77,9 +116,9 @@ func TestOpeningSkillsNewsTrimsReplyOnly(t *testing.T) {
 	if got := mkt.openingSkills(); strings.Join(got, ",") != "market-facts,stock-basic" {
 		t.Fatalf("market openingSkills = %v", got)
 	}
-	flow := agentConfig{ID: "volume_flow", Skills: []string{"flow-facts", "d3js-visualization"}}
-	if got := flow.openingSkills(); strings.Join(got, ",") != strings.Join(flow.Skills, ",") {
-		t.Fatalf("non-news openingSkills should be unchanged, got %v", got)
+	flow := agentConfig{ID: "volume_flow", Skills: []string{"flow-facts", "answer-outline", "d3js-visualization", "stock-basic"}}
+	if got := flow.openingSkills(); strings.Join(got, ",") != "flow-facts,stock-basic" {
+		t.Fatalf("volume_flow openingSkills = %v", got)
 	}
 }
 
@@ -511,6 +550,9 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 	if !strings.Contains(flow.systemPrompt(), "0～2") {
 		t.Fatal("flow opening tools should allow limited gap fill like sector")
 	}
+	if flow.MaxSteps < 14 {
+		t.Fatalf("volume_flow max_steps should leave room for gap-fill tools + JSON, got %d", flow.MaxSteps)
+	}
 	if _, err := replyAnswer(`{"stance":"中性","strength":"弱","text":"资金面无明显信号"}`); !errors.Is(err, errOpeningJSONOnReply) {
 		t.Fatalf("opening JSON on reply should be rejected, err=%v", err)
 	}
@@ -579,6 +621,9 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 	finance, err := loadAgent("finance")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if finance.MaxSteps < 14 {
+		t.Fatalf("finance max_steps should leave room for load+fetch+JSON, got %d", finance.MaxSteps)
 	}
 	if strings.TrimSpace(finance.Reply) == "" || !strings.Contains(finance.replyPrompt(), "fetch_facts") || !strings.Contains(finance.replyPrompt(), "可以接着问") {
 		t.Fatal("finance reply.md should list fetch_facts and 可以接着问")

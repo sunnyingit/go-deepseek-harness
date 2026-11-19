@@ -131,6 +131,13 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 .facts>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F7F8FA;color:#5B6372;font-size:14px;line-height:20px;white-space:nowrap;user-select:none}
 .facts>summary::-webkit-details-marker{display:none}
 .facts>summary:hover,.facts[open]>summary{background:#E3E6EB;color:#14171F}
+/* 研判右侧各维 AI 总结：默认约 100 字，点「更多」展开全文 */
+.ai-sum{margin:0}
+.ai-sum>summary{list-style:none;cursor:pointer;user-select:none}
+.ai-sum>summary::-webkit-details-marker{display:none}
+.ai-sum[open]>summary{display:none}
+.ai-sum-btn{border:0;background:transparent;padding:0;font:inherit;font-size:14px;font-weight:600;color:#2457D6;cursor:pointer}
+.ai-sum-btn:hover{color:#1F3F8A;text-decoration:underline}
 .facts-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;max-height:min(420px,60vh);overflow-y:auto;overflow-x:hidden;padding:12px 14px;border-radius:8px;background:#FFFFFF;border:1px solid #E3E6EB;box-shadow:0 6px 18px rgba(20,23,31,.14);font-size:13px;color:#5B6372}
 .tools{align-self:flex-start;max-width:100%}
 /* 元信息不是操作：弱化成纯文字，悬停下划线，和可点的追问胶囊拉开语义 */
@@ -185,8 +192,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 <a class="nav-a on" href="/" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>研判</a>
 <a class="nav-a" href="/market.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"></path><path d="M5 16l4-5 4 3 6-7"></path></svg>市场</a>
 <a class="nav-a" href="/holdings.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4z"></path><path d="M8 7V5h8v2"></path></svg>交易</a>
-<a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
 <a class="nav-a" href="/tasks.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>任务</a>
+<a class="nav-a" href="/scan.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 10h8M8 14h5"></path></svg>战绩</a>
 <a class="nav-a" href="/dialog.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>问问</a>
 <a class="nav-a" href="/settings.html" style="margin-top:auto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>设置</a>
 </nav>
@@ -1516,7 +1523,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const right = chg == null ? '' : '<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#8A919E">' + chgLabel + '</span>' +
       '<span style="' + MONO + ';font-size:26px;font-weight:700;line-height:1.2;color:' + signColor(chg) + '">' + (pct(chg, 2) || '0.00%') + '</span></div>';
     const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
-    const sentence = cc && !cc.pending && cc.text ? '<p style="margin:0;font-size:16px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
+    const sentence = cc && !cc.pending && cc.text ? aiSummaryHTML(cc.text) : '';
     const newsNote = cc && cc.pending ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">新闻分析师正在分析，完成后自动给出结论。</span>'
       : (d.analyst_failed || d._analystFailed) && cc && cc.source === 'rule' ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">新闻分析师没有给出结论，以下为规则摘要。</span>' : '';
 
@@ -1808,7 +1815,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const note = cc && cc.pending ? '资金流分析师正在分析，完成后自动给出结论。'
       : (d.analyst_failed || d._analystFailed) && cc && cc.source === 'rule' ? '资金流分析师没有给出结论，以下为规则摘要。'
       : !rv ? (st === 'unavailable' ? (d.review_error || '这只股票暂时没法做资金面体检。') : '') : '';
-    const sentHTML = cc && !cc.pending ? '<div style="display:flex;flex-direction:column;gap:6px"><p style="margin:0;font-size:16px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' +
+    const sentHTML = cc && !cc.pending ? '<div style="display:flex;flex-direction:column;gap:6px">' + aiSummaryHTML(cc.text) +
       (behind ? '<span style="font-size:14px;color:#7A4A00">' + (st === 'refreshing' ? '这是上一份体检，新的正在生成，完成后自动更新。' : '这份体检基于 ' + esc(mmdd(rv.as_of)) + ' 的数据。') + '</span>' : '') + '</div>' : '';
 
     const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;color:#8A919E">方向</span>' +
@@ -1933,6 +1940,20 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 
   // 折叠行：一行标题，点开才看说明。
   const accRow = (head, body) => '<details class="acc"><summary>' + head + '</summary><div class="acc-body">' + body + '</div></details>';
+  // 研判右侧 AI 总结：默认约 100 字，超出用「更多」展开、「收起」收回。
+  function aiSummaryHTML(text) {
+    const t = String(text || '').trim();
+    if (!t) return '';
+    const style = 'margin:0;font-size:16px;font-weight:600;line-height:1.7;color:#14171F';
+    const chars = Array.from(t);
+    const limit = 100;
+    if (chars.length <= limit) return '<p style="' + style + '">' + esc(t) + '</p>';
+    const short = chars.slice(0, limit).join('') + '…';
+    return '<details class="ai-sum"><summary style="' + style + '">' + esc(short) +
+      ' <span class="ai-sum-btn">更多</span></summary>' +
+      '<p style="' + style + '">' + esc(t) +
+      ' <button type="button" class="ai-sum-btn" data-ai-sum-less>收起</button></p></details>';
+  }
   // 放在图表后面：十个问题的回答，以及体检用到的全部数据。
   // “偏空”旁边：有体检数据时是“依据”按钮，点开看体检用到的全部数据（标题里写结论来源）；没有就只标结论来源。
   function sourceChipHTML(d, cc, extra) {
@@ -1970,6 +1991,13 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   }
 
   document.addEventListener('click', (e) => { document.querySelectorAll('details.facts[open]').forEach((el) => { if (!el.contains(e.target)) el.open = false; }); });
+  document.addEventListener('click', (e) => {
+    const less = e.target.closest('[data-ai-sum-less]');
+    if (!less) return;
+    const box = less.closest('details.ai-sum');
+    if (box) box.open = false;
+    e.preventDefault();
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('details.facts[open]').forEach((el) => { el.open = false; }); });
 
   // 后台还在生成的面板：详情先返回，没生成好就隔几秒悄悄再取一次，不重新显示"分析中"。
@@ -2228,7 +2256,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const right = num(val.value) == null ? '' : '<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#8A919E">' + esc((val.metric_text || '估值').replace(/（.*$/, '')) + '</span>' +
       '<span style="' + MONO + ';font-size:26px;font-weight:700;line-height:1.2">' + esc(val.value) + '<span style="font-size:14px;font-weight:600;margin-left:3px">' + unit.trim() + '</span></span></div>';
     const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
-    const sentence = cc && !cc.pending && cc.text ? '<p style="margin:0;font-size:16px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
+    const sentence = cc && !cc.pending && cc.text ? aiSummaryHTML(cc.text) : '';
     const note = cc && cc.pending ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">基本面分析师正在分析，完成后自动给出结论。</span>'
       : (d.analyst_failed || d._analystFailed) && cc && cc.source === 'rule' ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">基本面分析师没有给出结论，以下为规则摘要。</span>'
       : !rv && d.review_state === 'unavailable' ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">' + esc(d.review_error || '这只股票暂时没法做基本面体检。') + '</span>' : '';
@@ -2339,7 +2367,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const right = yoy == null ? '' : '<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#8A919E">' + esc(qLabel(cur.end)) + ' 单季营收同比</span>' +
       '<span style="' + MONO + ';font-size:26px;font-weight:700;line-height:1.2;color:' + signColor(yoy) + '">' + (pct(yoy, 1) || '0.0%') + '</span></div>';
     const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
-    const sentence = cc && !cc.pending && cc.text ? '<p style="margin:0;font-size:16px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
+    const sentence = cc && !cc.pending && cc.text ? aiSummaryHTML(cc.text) : '';
     const note = cc && cc.pending ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">财报分析师正在分析，完成后自动给出结论。</span>'
       : (d.analyst_failed || d._analystFailed) && cc && cc.source === 'rule' ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">财报分析师没有给出结论，以下为规则摘要。</span>'
       : !rv && d.review_state === 'unavailable' ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">' + esc(d.review_error || '这只股票暂时没法做财报体检。') + '</span>' : '';
@@ -2533,7 +2561,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const right = !drvText ? '' : '<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#8A919E">谁在驱动本股</span>' +
       '<span style="font-size:26px;font-weight:700;line-height:1.2;color:#14171F">' + esc(drvText) + '</span></div>';
     const head = '<div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start">' + left + right + '</div>';
-    const sentence = cc && !cc.pending && cc.text ? '<p style="margin:0;font-size:16px;font-weight:600;line-height:1.7;color:#14171F">' + esc(cc.text) + '</p>' : '';
+    const sentence = cc && !cc.pending && cc.text ? aiSummaryHTML(cc.text) : '';
     const note = cc && cc.pending ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">板块分析师正在分析，完成后自动给出结论。</span>'
       : (d.analyst_failed || d._analystFailed) && cc && cc.source === 'rule' ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">板块分析师没有给出结论，以下为规则摘要。</span>'
       : !rv && d.review_state === 'unavailable' ? '<span style="font-size:14px;color:#8A919E;line-height:1.7">' + esc(d.review_error || '这只股票暂时没法做板块体检。') + '</span>' : '';
