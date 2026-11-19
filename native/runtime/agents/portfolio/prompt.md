@@ -24,9 +24,11 @@
 
 ## 输出
 
-开场最后一条只能是一个 JSON 对象，不要代码围栏：
+**整段回复只能是一个 JSON 对象**，不要先写分析正文，不要代码围栏，不要前后缀：
 
 {"text":"一两句总判断，不超过 120 字","items":[{"code":"600036.SH","title":"一句话标题","why":"为什么，不超过 80 字","action":"条件式做法，不超过 60 字","fact_ids":["s1.who","p.flag.1"]}],"fact_ids":["s1.who"],"suggested_questions":["追问一"]}
+
+能比/不能比、逐只先后、同逻辑两只，都写进 text 与 items，不要另起 markdown 段落。
 
 - text、why、action、suggested_questions 里**不要出现英文双引号**，书名、标题、引语一律用「」，否则 JSON 会解析失败。
 - items 按先后排；code 必须是事实表里出现的代码。

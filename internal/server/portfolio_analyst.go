@@ -115,7 +115,12 @@ func (s *Server) portfolioCall(ctx context.Context, system, user string) (string
 }
 
 // parsePortfolio reads the model's JSON and keeps only what checks out against the table.
+// allowSalvage keeps usable prose when JSON is missing/broken (items may be empty).
 func parsePortfolio(raw string, facts []pfFact, codes []string, nameOf func(string) string) (portfolioResult, error) {
+	return parsePortfolioOpt(raw, facts, codes, nameOf, false)
+}
+
+func parsePortfolioOpt(raw string, facts []pfFact, codes []string, nameOf func(string) string, allowSalvage bool) (portfolioResult, error) {
 	var out struct {
 		Text      string   `json:"text"`
 		FactIDs   []string `json:"fact_ids"`
@@ -128,7 +133,32 @@ func parsePortfolio(raw string, facts []pfFact, codes []string, nameOf func(stri
 			FactIDs []string `json:"fact_ids"`
 		} `json:"items"`
 	}
-	if err := decodeObject(raw, &out); err != nil || strings.TrimSpace(out.Text) == "" {
+	try := func(src string) bool {
+		out = struct {
+			Text      string   `json:"text"`
+			FactIDs   []string `json:"fact_ids"`
+			Questions []any    `json:"suggested_questions"`
+			Items     []struct {
+				Code    string   `json:"code"`
+				Title   string   `json:"title"`
+				Why     string   `json:"why"`
+				Action  string   `json:"action"`
+				FactIDs []string `json:"fact_ids"`
+			} `json:"items"`
+		}{}
+		return decodeObject(src, &out) == nil && strings.TrimSpace(out.Text) != ""
+	}
+	ok := try(raw)
+	if !ok {
+		ok = try(repairSpeakQuotes(raw))
+	}
+	if !ok {
+		if allowSalvage {
+			if text := salvagePortfolioText(raw); text != "" {
+				log.Printf("portfolio analyst: using prose fallback (%d runes)", len([]rune(text)))
+				return portfolioResult{Text: text, Items: []portfolioItem{}}, nil
+			}
+		}
 		return portfolioResult{}, errors.New("持仓分析师这次没有给出可用的结论，请再试一次")
 	}
 	known := map[string]bool{}
@@ -172,6 +202,34 @@ func parsePortfolio(raw string, facts []pfFact, codes []string, nameOf func(stri
 		res.Questions = res.Questions[:3]
 	}
 	return res, nil
+}
+
+// salvagePortfolioText keeps model prose when JSON is missing or broken.
+func salvagePortfolioText(raw string) string {
+	text := strings.TrimSpace(raw)
+	text = strings.TrimPrefix(text, "```json")
+	text = strings.TrimPrefix(text, "```")
+	text = strings.TrimSuffix(strings.TrimSpace(text), "```")
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	// Drop a trailing incomplete JSON object if the model started one after the prose.
+	if i := strings.LastIndex(text, "\n{"); i > 40 {
+		before := strings.TrimSpace(text[:i])
+		if before != "" && !strings.HasPrefix(before, "{") {
+			text = before
+		}
+	}
+	if strings.HasPrefix(text, "{") {
+		return ""
+	}
+	if r := []rune(text); len(r) < 20 {
+		return ""
+	} else if len(r) > 1200 {
+		text = string(r[:1200]) + "…"
+	}
+	return text
 }
 
 // ---- keeping the latest result for each set of stocks
@@ -264,11 +322,28 @@ func (s *Server) analysePortfolio(ctx context.Context, mode string, codes []stri
 	if saved, ok := store.get(key); ok && !force && saved.InputHash == hash {
 		return saved, true, nil
 	}
-	raw, err := s.portfolioCall(ctx, portfolioSystem(false), factsPrompt(mode, used, "", facts))
+	user := factsPrompt(mode, used, "", facts)
+	raw, err := s.portfolioCall(ctx, portfolioSystem(false), user)
 	if err != nil {
 		return portfolioResult{}, false, err
 	}
-	res, err := parsePortfolio(raw, facts, used, s.stockName)
+	res, err := parsePortfolioOpt(raw, facts, used, s.stockName, false)
+	if err != nil {
+		// One tight retry: model often writes the essay and forgets the JSON object.
+		retryUser := user + "\n\n上次没有输出合法 JSON。请只输出一个 JSON 对象（含 text / items / fact_ids / suggested_questions），不要正文，不要代码围栏。"
+		if raw2, err2 := s.portfolioCall(ctx, portfolioSystem(false), retryUser); err2 == nil {
+			if res2, err3 := parsePortfolioOpt(raw2, facts, used, s.stockName, true); err3 == nil {
+				res, err = res2, nil
+			} else {
+				log.Printf("portfolio analyst: retry still unreadable: %q", pfClip(raw2, 400))
+			}
+		}
+		if err != nil {
+			if res2, err3 := parsePortfolioOpt(raw, facts, used, s.stockName, true); err3 == nil {
+				res, err = res2, nil
+			}
+		}
+	}
 	if err != nil {
 		log.Printf("portfolio analyst: could not read its answer: %q", pfClip(raw, 600))
 		return portfolioResult{}, false, err

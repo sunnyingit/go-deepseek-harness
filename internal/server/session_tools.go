@@ -177,10 +177,12 @@ func (s *Server) registerSessionTools(toolRegistry *coretools.Registry, sessionI
 
 func (s *Server) toolSearchStock() coretools.ToolDefinition {
 	return coretools.ToolDefinition{
-		Name:        "search_stock",
-		Description: "用股票/指数名称或代码解析标的，返回 ts_code 与名称。点名分析师或对比前先调用。支持创业板指、上证、沪深300 等宽基指数别名。",
+		Name: "search_stock",
+		Description: "用股票/指数名称或代码解析标的，返回 ts_code 与名称。点名分析师或对比前先调用。" +
+			"默认优先 A 股（SH/SZ/BJ）；用户明确说港股或给出 .HK / 1～5 位港股代码时才解析港股。" +
+			"支持创业板指、上证、沪深300 等宽基指数别名。",
 		Parameters: coretools.ParameterSchema{
-			"q": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票/指数名或代码，如 兆易创新 / 创业板指 / 603986 / 603986.SH"}, Required: true},
+			"q": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "股票/指数名或代码，如 三花智控 / 创业板指 / 002050 / 002050.SZ；港股写 00700.HK 或「腾讯 港股」"}, Required: true},
 		},
 		Output:            coretools.Output{Schema: coretools.ValueSchema{Kind: coretools.KindString}, Render: renderStringResult},
 		TimeoutMs:         15_000,
@@ -188,11 +190,12 @@ func (s *Server) toolSearchStock() coretools.ToolDefinition {
 		Execute: func(ctx context.Context, args map[string]any, run *coretools.RunContext) (any, error) {
 			q := strings.TrimSpace(fmt.Sprint(args["q"]))
 			if q == "" {
-				return "", fmt.Errorf("缺少 q")
+				return "缺少股票名称或代码，请换个说法再搜。", nil
 			}
 			code, name, err := s.resolveStock(q)
 			if err != nil {
-				return "", err
+				// Soft result: keep the model informed without surfacing Error: in the UI rail.
+				return fmt.Sprintf("没有搜到「%s」，请换代码或常用简称再试。", q), nil
 			}
 			s.stashCard(callIDOf(run), map[string]any{"kind": "stock", "code": code, "name": name})
 			return fmt.Sprintf("ts_code=%s name=%s", code, name), nil
@@ -207,7 +210,8 @@ func (s *Server) toolAskAnalyst(sessionID string) coretools.ToolDefinition {
 		Description: "请一位维度分析师作答（追问级 reply）。" +
 			"analyst 可选：" + ids + "。" +
 			"对应关系：技术位置/走势/资金=volume_flow，基本面=fundamental，新闻=news，财报=finance，板块=sector，大盘=market。" +
-			"不要用 chief 充当其中一维，也不要把它放在第一位；chief 只在用户明确点名主分析师时使用。综合结论由你自己写。" +
+			"不要用 chief 充当其中一维，也不要把它放在第一位；chief 只在用户明确点名主分析师时使用。" +
+			"本轮若只请这一位：答完后不要总结复述，用户已看到直播正文。本轮请了多位再短综合。" +
 			"禁止默认带上会话里上一只个股代码；只有用户本句明确点了股票/指数时才传 ts_code。" +
 			"volume_flow / fundamental / finance / sector：用户点了标的才传 ts_code，否则先 search_stock；不要臆造代码。" +
 			"market / news 可以不带 ts_code（纯大盘、主题新闻、财经热点）。点名创业板指等指数时再 search_stock 传入。一次只请一位。",
@@ -279,7 +283,7 @@ func (s *Server) toolAskAnalyst(sessionID string) coretools.ToolDefinition {
 			}
 			s.stashCard(callID, map[string]any{
 				"kind": "analyst", "analyst": id, "name": name, "code": code, "stock": stock,
-				"excerpt": excerptRunes(text, 180),
+				"text": text, "excerpt": excerptRunes(text, 180),
 			})
 			label := "主题新闻"
 			if code != "" {
@@ -309,7 +313,12 @@ func (s *Server) toolCompareStocks() coretools.ToolDefinition {
 			force, _ := args["force"].(bool)
 			res, _, err := s.analysePortfolio(ctx, "compare", codes, force)
 			if err != nil {
-				return "", err
+				// Soft result so the chat rail does not show Error: … to the user.
+				msg := strings.TrimSpace(err.Error())
+				if msg == "" {
+					msg = "这次对比没有整理出可用结论"
+				}
+				return msg + "。请换两只股票或稍后再试。", nil
 			}
 			var b strings.Builder
 			b.WriteString(res.Text)

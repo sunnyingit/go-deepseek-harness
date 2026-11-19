@@ -2,6 +2,38 @@ package server
 
 import "testing"
 
+func TestPreferHKQuery(t *testing.T) {
+	if preferHKQuery("三花智控") {
+		t.Fatal("name should prefer A-share")
+	}
+	if preferHKQuery("002050") {
+		t.Fatal("6-digit code is A-share form")
+	}
+	for _, q := range []string{"02050.HK", "700.HK", "00700", "700", "腾讯港股", "三花 H股"} {
+		if !preferHKQuery(q) {
+			t.Fatalf("%q should prefer HK", q)
+		}
+	}
+}
+
+func TestPickSearchHitPrefersAShare(t *testing.T) {
+	items := []struct {
+		TSCode string `json:"ts_code"`
+		Name   string `json:"name"`
+	}{
+		{TSCode: "02050.HK", Name: "三花智控"},
+		{TSCode: "002050.SZ", Name: "三花智控"},
+	}
+	code, name := pickSearchHit("三花智控", items)
+	if code != "002050.SZ" || name != "三花智控" {
+		t.Fatalf("got %s/%s", code, name)
+	}
+	code, _ = pickSearchHit("02050.HK", items)
+	if code != "02050.HK" {
+		t.Fatalf("explicit HK kept %s", code)
+	}
+}
+
 func TestResolveStockIndexAliases(t *testing.T) {
 	s := &Server{}
 	cases := []struct {

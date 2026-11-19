@@ -12,7 +12,7 @@ description: >-
 返回 JSON：
 
 - `facts[]`：`id` 以 `mk.` 开头。结论看 `mk.conclusion.*`，三信号看 `mk.signal.*`。
-- 开场输出 stance/strength/text（≤280 字）/fact_ids/suggested_questions；text 禁用英文双引号 `"`。
+- 开场输出 stance/strength/text（六维写透，不追求字数上限）/fact_ids/suggested_questions；text 禁用英文双引号 `"`。
 - 开场禁止再调 `market-reply` 分片工具。
 
 ## 开场结构：固定六维（有数才写，不编造）

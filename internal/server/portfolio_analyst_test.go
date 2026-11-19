@@ -128,11 +128,32 @@ func TestComparingStocksAddsHowTheyMoveTogetherAndFollowUpsAreAnswered(t *testin
 	}
 }
 
-func TestAnUnreadableAnswerIsAnErrorNotAHalfResult(t *testing.T) {
+func TestProseWithoutJSONIsSalvagedNotRejected(t *testing.T) {
+	portfolioService(t)
+	s, _ := newClientServer(t, zoneTime("2026-11-09", "10:00"))
+	var calls atomic.Int32
+	s.portfolioFn = func(context.Context, string, string) (string, error) {
+		calls.Add(1)
+		return "这两只不能简单比谁更好：一只走势更稳，另一只质地缺数据，先看招商银行再谈分散。", nil
+	}
+	code, out := newCustomAPI(t, s).call("POST", "/api/portfolio/analyst", `{"mode":"compare","codes":["600036.SH","000001.SZ"]}`)
+	if code != 200 || out["status"] != "ok" {
+		t.Fatalf("got %d %v", code, out)
+	}
+	res := out["result"].(map[string]any)
+	if text, _ := res["text"].(string); !strings.Contains(text, "不能简单比") {
+		t.Fatalf("prose not salvaged: %v", res)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("expected one retry after missing JSON, got %d calls", calls.Load())
+	}
+}
+
+func TestEmptyAnswerStillErrors(t *testing.T) {
 	portfolioService(t)
 	s, _ := newClientServer(t, zoneTime("2026-11-09", "10:00"))
 	s.portfolioFn = func(context.Context, string, string) (string, error) {
-		return "我觉得都不错，没有 JSON。", nil
+		return "短", nil
 	}
 	code, out := newCustomAPI(t, s).call("POST", "/api/portfolio/analyst", `{"mode":"compare","codes":["600036.SH","000001.SZ"]}`)
 	if code != 502 || !strings.Contains(out["error"].(string), "没有给出可用的结论") {

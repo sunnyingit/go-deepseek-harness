@@ -426,8 +426,25 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 	if strings.Contains(reply, "## 开场输出") || strings.Contains(reply, "开场工具") {
 		t.Fatal("news reply.md must not drag opening sections")
 	}
-	if cfg.MaxSteps < 5 || cfg.MaxSteps > 10 {
-		t.Fatalf("news max_steps should stay lean but allow fetch+json, got %d", cfg.MaxSteps)
+	if cfg.MaxSteps < 28 {
+		t.Fatalf("news max_steps should allow hot-board + up to 10-event history fetches, got %d", cfg.MaxSteps)
+	}
+	if !strings.Contains(reply, "公司个案") || !strings.Contains(reply, "最多 10") {
+		t.Fatal("news reply.md should prioritize company/overseas cases and allow up to 10 events")
+	}
+	if !strings.Contains(reply, "今日主事件") || !strings.Contains(reply, "历史类比") {
+		t.Fatal("news reply.md should require 5-event impact map with historical analogs")
+	}
+	hotUser := analystUserPrompt(cfg, "", "请根据今天市场热闻，分析对 A 股的影响", nil, nil)
+	if !strings.Contains(hotUser, "硬性任务") || !strings.Contains(hotUser, "今日主事件") {
+		t.Fatalf("unbound hot-news user prompt should inject hard task, got %s", hotUser)
+	}
+	if err := enforceNewsHotReply("一句话：盘面偏弱", "请根据今天市场热闻分析", "", []map[string]string{{"name": "fetch_news"}}); err == nil {
+		t.Fatal("hot reply without board/structure should fail")
+	}
+	okBody := "## 今日主事件（5）\n1. 测试\n### 1. 测试\n- **历史类比**：上次受益半导体、承压贵金属\n- **受益链**：光刻胶\n- **承压链**：贵金属\n"
+	if err := enforceNewsHotReply(okBody, "请根据今天市场热闻分析", "", []map[string]string{{"name": "fetch_baidu_board"}, {"name": "fetch_news"}}); err != nil {
+		t.Fatalf("structured hot reply should pass: %v", err)
 	}
 	got, err := replyAnswer("近几日没有标题写内存的新闻。\n\n| 时间 | 标题 |\n| --- | --- |\n| 11-02 | 主力资金监控 |")
 	if err != nil || !strings.Contains(got, "内存") || !strings.Contains(got, "主力资金监控") {
@@ -488,8 +505,8 @@ func TestDimensionReplyFollowsTheQuestion(t *testing.T) {
 	if !strings.Contains(flow.systemPrompt(), "stance") || !strings.Contains(flow.systemPrompt(), `"text"`) {
 		t.Fatal("flow opening contract missing from config")
 	}
-	if !strings.Contains(flow.systemPrompt(), "80～120") || strings.Contains(flow.systemPrompt(), "开场只给结论，不展开") {
-		t.Fatal("flow opening should analyze fully then compress to ~80–120字 text")
+	if !strings.Contains(flow.systemPrompt(), "不追求字数上限") || strings.Contains(flow.systemPrompt(), "开场只给结论，不展开") {
+		t.Fatal("flow opening should analyze fully without chasing a short char cap")
 	}
 	if !strings.Contains(flow.systemPrompt(), "0～2") {
 		t.Fatal("flow opening tools should allow limited gap fill like sector")
@@ -620,9 +637,9 @@ func TestVolumeFlowStanceSpeakNormalizes(t *testing.T) {
 	if err != nil || legacy.Text != "近3日净流入明显" || legacy.Status != "support" {
 		t.Fatalf("summary alias = %+v err=%v", legacy, err)
 	}
-	long := "主信号偏多但把握弱：近5日净流入明显。" + strings.Repeat("续", 100) + "大单-0.49亿元独撑而且没有句号"
-	if n := len([]rune(long)); n <= 120 {
-		t.Fatalf("fixture should exceed 120 runes, got %d", n)
+	long := "主信号偏多但把握弱：近5日净流入明显。" + strings.Repeat("续", 580) + "大单-0.49亿元独撑而且没有句号"
+	if n := len([]rune(long)); n <= 600 {
+		t.Fatalf("fixture should exceed 600 runes, got %d", n)
 	}
 	longSpeak, err := parseSpeak(`{"stance":"中性","strength":"弱","text":"` + long + `","fact_ids":["fr.path"]}`)
 	if err != nil {
@@ -633,8 +650,8 @@ func TestVolumeFlowStanceSpeakNormalizes(t *testing.T) {
 		t.Fatal("long headline rejected")
 	}
 	got := fmt.Sprint(longOut["text"])
-	if n := len([]rune(got)); n > 120 {
-		t.Fatalf("volume_flow text soft cap should be ≤120 runes, got %d", n)
+	if n := len([]rune(got)); n > 600 {
+		t.Fatalf("volume_flow text soft cap should be ≤600 runes, got %d", n)
 	}
 	if got != "主信号偏多但把握弱：近5日净流入明显。" || strings.Contains(got, "大单-0.49") {
 		t.Fatalf("should soft-trim at first sentence end, got %q", got)

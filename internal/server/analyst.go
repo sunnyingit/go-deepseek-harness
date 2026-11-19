@@ -670,6 +670,11 @@ func (s *Server) concludeAnalyst(cfg agentConfig, code, kind, question string, s
 		if cfg.ID == "volume_flow" {
 			text = compactFlowReply(text)
 		}
+		if cfg.ID == "news" {
+			if err := enforceNewsHotReply(text, question, code, tools); err != nil {
+				return nil, err
+			}
+		}
 		if text == "" || forbiddenHit(text, cfg.Forbid) {
 			if text == "" {
 				if turnErr := lastTurnError(sess); turnErr != "" {
@@ -742,13 +747,13 @@ func analystMessage(cfg agentConfig, kind, quote, text string, headline map[stri
 func analystUserPrompt(cfg agentConfig, code, question string, lines []groupLine, debate *debateFile) string {
 	var b strings.Builder
 	if strings.TrimSpace(code) == "" {
-		b.WriteString("本轮无绑定股票/个股代码。不要硬套某只个股，也不要自己编一个代码。")
 		if cfg.ID == "market" {
-			b.WriteString("大盘工具的 ts_code 可省略（接口层会自行占位）。")
+			b.WriteString("本轮无绑定股票/个股代码。大盘工具的 ts_code 可省略（接口层会自行占位）。不要自己编一个代码。\n")
 		} else if cfg.ID == "news" {
-			b.WriteString("fetch_news 可不传 ts_code，或只传 keyword。")
+			b.WriteString("本轮无绑定股票/个股代码。未指定个股：全面分析；fetch_news 可不传 ts_code。可点名受益/承压板块与代表股，不要编造未出现的代码。\n")
+		} else {
+			b.WriteString("本轮无绑定股票/个股代码。不要硬套某只个股，也不要自己编一个代码。\n")
 		}
-		b.WriteString("\n")
 	} else {
 		fmt.Fprintf(&b, "股票代码：%s\n", code)
 	}
@@ -763,6 +768,9 @@ func analystUserPrompt(cfg agentConfig, code, question string, lines []groupLine
 	} else {
 		fmt.Fprintf(&b, "用户提问：%s\n", strings.TrimSpace(question))
 		b.WriteString("（追问任务；按系统提示回答）\n")
+		if cfg.ID == "news" && newsHotQuestion(question) && strings.TrimSpace(code) == "" {
+			b.WriteString("【硬性任务】这是市场热闻/热点分析：必须先 fetch_baidu_board；正文以「## 今日主事件」列出榜上主事件（默认 5、最多 10）。公司个案与可映射 A 股的海外事件优先纳入，禁止写「属个案/海外故不考虑」。每个事件必须含「历史类比」与受益链/承压链；禁止只写盘面一句话+分层影响散文。\n")
+		}
 	}
 	if cfg.oneShot() && strings.TrimSpace(question) == "" {
 		b.WriteString("群里已经说过的话是唯一材料，不要调用综合判断接口，不要新编数字：\n")
@@ -915,12 +923,27 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 	maxTokens := 2048
 	if kind == "reply" {
 		prompt = work.replyPrompt()
-		if work.ID == "volume_flow" {
-			// 总览追问需要展开写，不要再卡短输出
-			if steps < 6 {
-				steps = 6
+		switch work.ID {
+		case "volume_flow":
+			if steps < 12 {
+				steps = 12
 			}
-			maxTokens = 2048
+			maxTokens = 4096
+		case "sector", "fundamental":
+			if steps < 14 {
+				steps = 14
+			}
+			maxTokens = 4096
+		case "market", "finance":
+			if steps < 10 {
+				steps = 10
+			}
+			maxTokens = 4096
+		case "news":
+			if steps < 30 {
+				steps = 30
+			}
+			maxTokens = 8192
 		}
 	}
 	return s.newAnalyst(sess, toolRegistry, steps, prompt, maxTokens), nil
@@ -1687,6 +1710,51 @@ func stockAPIBase() string {
 
 var errOpeningJSONOnReply = errors.New("追问请用 markdown 展开分析，不要套开场摘要格式；请再问一次")
 
+func newsHotQuestion(question string) bool {
+	q := strings.TrimSpace(question)
+	if q == "" {
+		return false
+	}
+	for _, k := range []string{
+		"热闻", "热搜", "热点", "财经榜", "百度", "大家在关注", "大家在聊",
+		"对 A 股", "对A股", "对 a 股", "市场热", "今日热",
+	} {
+		if strings.Contains(q, k) {
+			return true
+		}
+	}
+	return false
+}
+
+func toolsNamed(tools []map[string]string, name string) bool {
+	for _, t := range tools {
+		if strings.TrimSpace(t["name"]) == name {
+			return true
+		}
+	}
+	return false
+}
+
+// enforceNewsHotReply：未绑定个股的市场热闻追问，必须先拉榜并写出主事件+历史类比骨架。
+func enforceNewsHotReply(text, question, code string, tools []map[string]string) error {
+	if strings.TrimSpace(code) != "" || !newsHotQuestion(question) {
+		return nil
+	}
+	if !toolsNamed(tools, "fetch_baidu_board") {
+		return errors.New("市场热闻须先调用 fetch_baidu_board 取榜，再按主事件展开")
+	}
+	if !strings.Contains(text, "今日主事件") {
+		return errors.New("市场热闻正文须先列出「今日主事件」，不要只写盘面散文")
+	}
+	if !strings.Contains(text, "历史类比") {
+		return errors.New("市场热闻每个主事件须含「历史类比」（同类事件后谁受益/承压）")
+	}
+	if !strings.Contains(text, "受益") && !strings.Contains(text, "承压") {
+		return errors.New("市场热闻须写明受益链或承压链")
+	}
+	return nil
+}
+
 func replyAnswer(raw string) (string, error) {
 	text := strings.TrimSpace(raw)
 	if text == "" {
@@ -2096,24 +2164,12 @@ func headlineFromSpeak(speak analystSpeak, catalog map[string]factRow, cfg agent
 		return nil, false
 	}
 	text := speak.Text
-	// 开场 text 软截：资金流约 120 字、板块约 150 字、新闻约 100 字、大盘六维约 280 字；优先在句号处截断
-	if cfg.ID == "volume_flow" {
-		text = trimSummaryRunes(text, 120)
-	}
-	if cfg.ID == "sector" {
-		text = trimSummaryRunes(text, 150)
-	}
-	if cfg.ID == "news" {
-		text = trimSummaryRunes(text, 100)
-	}
-	if cfg.ID == "fundamental" {
-		text = trimSummaryRunes(text, 120)
-	}
-	if cfg.ID == "finance" {
-		text = trimSummaryRunes(text, 100)
-	}
-	if cfg.ID == "market" {
-		text = trimSummaryRunes(text, 280)
+	// 开场 text：维度分析师不追求短字数，仅保留安全上限；新闻不截。优先在句号处截断。
+	switch cfg.ID {
+	case "news":
+		// 不截
+	case "volume_flow", "sector", "fundamental", "finance", "market":
+		text = trimSummaryRunes(text, 600)
 	}
 	pack := func(facts []map[string]string) map[string]any {
 		out := map[string]any{

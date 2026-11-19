@@ -232,8 +232,50 @@ var knownIndexNameByCode = map[string]string{
 	"000688.SH": "科创50",
 }
 
+// preferHKQuery is true when the user clearly asked for a Hong Kong listing.
+func preferHKQuery(q string) bool {
+	raw := strings.TrimSpace(q)
+	upper := strings.ToUpper(raw)
+	if strings.Contains(upper, ".HK") || strings.HasSuffix(upper, "HK") {
+		return true
+	}
+	for _, tok := range []string{"港股", "港股通", "恒生", "H股", "H 股"} {
+		if strings.Contains(raw, tok) {
+			return true
+		}
+	}
+	// 1–5 digit bare codes are the usual HK ticker form (A-shares are 6 digits).
+	digits := 0
+	for _, r := range raw {
+		if r < '0' || r > '9' {
+			return false
+		}
+		digits++
+	}
+	return digits >= 1 && digits <= 5
+}
+
+func pickSearchHit(q string, items []struct {
+	TSCode string `json:"ts_code"`
+	Name   string `json:"name"`
+}) (string, string) {
+	if len(items) == 0 {
+		return "", ""
+	}
+	if !preferHKQuery(q) {
+		for _, it := range items {
+			c := strings.ToUpper(strings.TrimSpace(it.TSCode))
+			if strings.HasSuffix(c, ".SH") || strings.HasSuffix(c, ".SZ") || strings.HasSuffix(c, ".BJ") {
+				return c, it.Name
+			}
+		}
+	}
+	return strings.ToUpper(items[0].TSCode), items[0].Name
+}
+
 // resolveStock turns what the user typed into a ts_code and a name. A ts_code is used as it is; a name or
 // bare number is looked up in the shared stock service. Common index aliases resolve locally.
+// Name search defaults to A-shares (SH/SZ/BJ); HK only when the query looks like a HK listing.
 func (s *Server) resolveStock(q string) (string, string, error) {
 	q = strings.TrimSpace(q)
 	upper := strings.ToUpper(q)
@@ -255,7 +297,11 @@ func (s *Server) resolveStock(q string) (string, string, error) {
 	if err := s.stockGetJSON("/api/v1/stocks/search?q="+url.QueryEscape(q), &found); err != nil || len(found.Items) == 0 {
 		return "", "", fmt.Errorf("未找到股票: %s", q)
 	}
-	return strings.ToUpper(found.Items[0].TSCode), found.Items[0].Name, nil
+	code, name := pickSearchHit(q, found.Items)
+	if code == "" {
+		return "", "", fmt.Errorf("未找到股票: %s", q)
+	}
+	return code, name, nil
 }
 
 func (s *Server) lookupName(code string) string {
@@ -425,6 +471,19 @@ func (s *Server) handleStockSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	if found.Items == nil {
 		found.Items = []map[string]any{}
+	}
+	if !preferHKQuery(q) {
+		var aShare, other []map[string]any
+		for _, row := range found.Items {
+			code, _ := row["ts_code"].(string)
+			c := strings.ToUpper(strings.TrimSpace(code))
+			if strings.HasSuffix(c, ".SH") || strings.HasSuffix(c, ".SZ") || strings.HasSuffix(c, ".BJ") {
+				aShare = append(aShare, row)
+			} else {
+				other = append(other, row)
+			}
+		}
+		found.Items = append(aShare, other...)
 	}
 	for i, row := range found.Items {
 		code, _ := row["ts_code"].(string)
