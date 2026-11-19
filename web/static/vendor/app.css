@@ -1,0 +1,57 @@
+/* app.css —— 两个页面（研判 index.html / 行情 market.html）共享的设计基座。
+ *
+ * 只放"全站一致"的三件事，页面自己的样式仍写在各自 <style> 里：
+ *   1. 数字一律等宽对齐：金融页面所有数值列不许抖动（tabular-nums 可继承）。
+ *   2. 等宽数字字体栈：不再引用没打包的 "IBM Plex Mono"，落到系统等宽字体，
+ *      保证 macOS/Windows 一致。
+ *   3. 设计令牌（token）：字号 6 档 / 圆角 4 档 / 灰阶 6 级 / 语义色成对。
+ *      现有页面尚未全面迁移到变量，先把"标准值"钉在这里，新代码和收敛都以此为准。
+ */
+
+:root {
+  /* 字号（6 档；页面正迁移中，旧值会被逐步归并到这六档） */
+  --fs-xs: 11px;   /* 注释、口径、轴标签 */
+  --fs-sm: 12px;   /* 辅助说明、chip */
+  --fs-md: 13px;   /* 正文、表格 */
+  --fs-lg: 15px;   /* 卡片标题、强调正文 */
+  --fs-xl: 18px;   /* 区块标题 */
+  --fs-num: 26px;  /* 大数字 / 一句话结论 */
+
+  /* 圆角（4 档） */
+  --r-sm: 4px;     /* 微标、小方块 */
+  --r-md: 8px;     /* 按钮、输入框、chip */
+  --r-lg: 12px;    /* 卡片、弹层 */
+  --r-full: 999px; /* 胶囊、头像 */
+
+  /* 灰阶（6 级：墨→浅） */
+  --ink-900: #14171F;
+  --ink-700: #3A4250;
+  --ink-600: #5B6372;
+  --ink-400: #8A919E;
+  --ink-300: #A1A7B2;
+  --ink-200: #C9CED6;
+
+  /* 中性面 / 描边 */
+  --bg-page: #F2F2F2;
+  --bg-card: #FFFFFF;
+  --bg-subtle: #F7F8FA;   /* 悬停、浅底块 */
+  --bg-muted: #F1F2F4;    /* 分隔线级浅底 */
+  --line: #E3E6EB;        /* 常规描边 */
+  --line-strong: #DDE1E7; /* 输入框、强分隔 */
+
+  /* 品牌与语义（A 股习惯：红涨绿跌；好坏与涨跌同向） */
+  --blue: #2457D6;  --blue-deep: #1F3F8A;  --blue-bg: #EAF0FD;  --blue-line: #C9D7F5;
+  --up: #B42318;    --up-bg: #FDF0EF;      /* 涨 / 利多 / 警示重 */
+  --dn: #1E6B44;    --dn-bg: #EDF7F1;      /* 跌 / 利空 / 偏弱 */
+  --warn: #7A4A00;  --warn-bg: #FFF1D6;    /* 留意 / 数据龄 */
+  --flat: #5B6372;  --flat-bg: #F1F2F4;    /* 中性 / 无方向 */
+
+  /* 等宽数字字体栈 */
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* 数字列对齐：可继承属性，全站生效 */
+html { font-variant-numeric: tabular-nums; }
+
+/* 数字滚动刷新时不跳动（如行情页轮询重绘） */
+.mono, .num { font-family: var(--mono); }
