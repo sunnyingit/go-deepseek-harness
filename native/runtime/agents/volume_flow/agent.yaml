@@ -13,4 +13,4 @@ fact_prefix: "fr."
 detail_query:
   window: "3"
 max_steps: 14
-opening: 请给出这只股票的资金流结论。只 load flow-facts 再 fetch_facts；关键缺口最多再补 0～2 个 fetch_flow_*，禁止机械全开。输出 stance/strength/text（写透有效信息，不追求字数上限，正文禁用英文引号）/fact_ids/suggested_questions；补完立刻结束，不要再空转调工具。
+opening: 请给出这只股票的资金流结论。只 load flow-facts 再 fetch_facts；关键缺口最多再补 0～2 个 fetch_flow_*，禁止机械全开。输出 stance/strength/text（150～350 字：先结论再关键数字，正文禁用英文引号）/fact_ids/suggested_questions；补完立刻结束，不要再空转调工具。
