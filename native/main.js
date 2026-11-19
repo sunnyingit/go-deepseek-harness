@@ -578,7 +578,7 @@ function shouldReloadPage(key, url) {
 function insertChromeCSS(wc) {
   if (!wc || wc.isDestroyed()) return;
   wc.insertCSS(`
-    html { --electron-title-pad: 72px; }
+    html { --electron-title-pad: 0px; }
     .navbar { padding-left: var(--electron-title-pad) !important; -webkit-app-region: drag; }
     .navbar .brand, .navbar .nav-right, .navbar .back-btn,
     .navbar .nav-tabs, .navbar button { -webkit-app-region: no-drag; }
@@ -713,7 +713,7 @@ function createWindow() {
     show: false,
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
     // Keep traffic lights clear of the 48px header (left rail starts after this).
-    trafficLightPosition: { x: 14, y: 16 },
+    trafficLightPosition: { x: 8, y: 16 },
     ...(isMac ? {} : {
       titleBarOverlay: { color: '#fafafa', symbolColor: '#1c2a44', height: 48 },
     }),
