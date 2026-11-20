@@ -49,6 +49,7 @@ func (s *Server) registerClientRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/watchlist", s.handleWatchList)
 	mux.HandleFunc("POST /api/v1/watchlist", s.handleWatchAdd)
 	mux.HandleFunc("DELETE /api/v1/watchlist/{code}", s.handleWatchRemove)
+	mux.HandleFunc("PUT /api/v1/watchlist/{code}/tags", s.handleWatchSetTags)
 	mux.HandleFunc("GET /api/v1/stocks/search", s.handleStockSearch)
 	mux.HandleFunc("GET /api/v1/stocks/{code}/alerts", s.handleAlertList)
 	mux.HandleFunc("POST /api/v1/stocks/{code}/alerts", s.handleAlertAdd)
@@ -358,6 +359,11 @@ func (s *Server) watchItems(only string) []map[string]any {
 
 func (s *Server) watchItem(w personal.Watch, q quotes.Quote, now time.Time) map[string]any {
 	item := map[string]any{"ts_code": w.Code, "name": w.Name, "price": nil, "change": nil, "change_pct": nil, "judged_at": nil}
+	if tags := personal.NormalizeTags(w.Tags); len(tags) > 0 {
+		item["tags"] = tags
+	} else {
+		item["tags"] = []string{}
+	}
 	if q.Price > 0 {
 		item["price"], item["change"], item["change_pct"] = q.Price, q.Change, q.ChangePct
 	}
@@ -451,6 +457,29 @@ func (s *Server) handleWatchRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "ts_code": code})
+}
+
+func (s *Server) handleWatchSetTags(w http.ResponseWriter, r *http.Request) {
+	code := strings.ToUpper(strings.TrimSpace(r.PathValue("code")))
+	var body struct {
+		Tags []string `json:"tags"`
+		Tag  string   `json:"tag"`
+	}
+	_ = readJSON(r, &body)
+	tags := body.Tags
+	if len(tags) == 0 && strings.TrimSpace(body.Tag) != "" {
+		tags = []string{body.Tag}
+	}
+	if _, ok := s.personal.WatchSetTags(code, tags); !ok {
+		writeError(w, http.StatusNotFound, fmt.Errorf("自选里没有: %s", code))
+		return
+	}
+	items := s.watchItems(code)
+	var item any
+	if len(items) > 0 {
+		item = items[0]
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "ts_code": code, "item": item})
 }
 
 // handleStockSearch proxies the stock service search and enriches each hit with the local diagnosis lean.

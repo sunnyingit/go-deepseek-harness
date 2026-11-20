@@ -71,7 +71,7 @@ const DEMO = new URLSearchParams(location.search).get('demo') === '1';
 const API = (new URLSearchParams(location.search).get('stockApi') || (document.querySelector('meta[name="stock-api-base"]') || {}).content || 'http://127.0.0.1:8090').replace(/\/$/, '');
 const SYS_TABS = [['mine', '我的'], ['scan', '研判战绩'], ['market', '行情'], ['notify', '通知'], ['watch', '盯盘']];
 const S = { tab: 'mine', up: null, data: {}, sys: {}, notif: false, nData: null, nTab: 'alert', cuCount: null,
-  detail: null, detailRuns: null, detailJobs: {}, openRun: null, se: null };
+  detail: null, detailRuns: null, detailJobs: {}, openRun: null, se: null, sectors: null, browseTimer: 0 };
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = (id) => document.getElementById(id);
@@ -656,7 +656,7 @@ function renderCustom() {
 }
 // 定时任务：从右边滑出来，自己的任务和系统任务都在这里，不占扫描页的位置
 // ---- 表单
-const cuDefault = () => ({ id: '', title: '', kind: 'analyze', scope: 'hold', codes: [], names: {}, at: '15:40', days: 'trading', mode: 'daily', everyNum: '30', everyUnit: 'min', analysts: [], question: '', rules: [], match: 'all', hits: null, err: '' });
+const cuDefault = () => ({ id: '', title: '', kind: 'analyze', scope: 'hold', codes: [], names: {}, at: '15:40', days: 'trading', mode: 'daily', everyNum: '30', everyUnit: 'min', analysts: [], question: '', rules: [], match: 'all', hits: null, err: '', browseSector: '', browseMode: 'quality' });
 function cuOpen(t) {
   S.cf = Object.assign(cuDefault(), t ? { id: t.id || '', title: t.title, kind: t.kind, scope: t.scope, codes: (t.codes || []).slice(), at: t.at, days: t.days || 'trading', question: t.question || '', analysts: (t.analysts || []).slice(), rules: (t.rules || []).map((r) => Object.assign({}, r)), match: t.match || 'all',
     mode: t.every > 0 ? 'every' : 'daily', everyNum: String(t.every > 0 ? (t.every % 60 === 0 ? t.every / 60 : t.every) : 30), everyUnit: t.every > 0 && t.every % 60 === 0 ? 'hour' : 'min' } : {});
@@ -719,7 +719,14 @@ function cuRender() {
   const noModel = (f.kind !== 'scan' && S.data.custom && !S.data.custom.model) ? '<div style="padding: 8px 12px; border-radius: 8px; background: #FFF1D6; font-size: 12px; color: #7A4A00">还没有配置模型密钥：这类任务跑起来会失败，先到设置里配好。</div>' : '';
   // 2 哪些股票
   const chips = f.codes.map((c) => '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border-radius: 999px; background: #EAF0FD; color: #1F3F8A; font-size: 12px">' + esc(f.names[c] || c) + '<button type="button" data-act="cudelcode" data-code="' + esc(c) + '" aria-label="去掉" style="border: none; background: transparent; color: #5B6372; cursor: pointer; font-size: 15px; line-height: 1">×</button></span>').join('');
-  const codes = f.scope === 'codes' ? '<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: #F7F8FA"><div style="display: flex; flex-wrap: wrap; gap: 6px">' + (chips || '<span style="font-size: 12px; color: #8A919E">还没选股票，在下面搜一搜</span>') + '</div><input id="cfSearch" data-f="search" placeholder="输入代码、名称或拼音首字母，搜到后点一下加上" autocomplete="off" style="' + inp + '"><div id="cfHits" style="display: flex; flex-direction: column"></div></div>' : '';
+  const sectorOpts = ['<option value="">按板块选优质股票…</option>'].concat((S.sectors || []).map((n) => '<option value="' + esc(n) + '"' + (f.browseSector === n ? ' selected' : '') + '>' + esc(n) + '</option>')).join('');
+  const modePill = (k, lab) => pill('cubrowse', k, lab, f.browseMode === k, '; height: 28px; padding: 0 12px; font-size: 12px');
+  const browse = '<div style="display: flex; flex-direction: column; gap: 8px">' +
+    '<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"><select id="cfSector" data-f="browseSector" style="' + inp + '; flex: 1; min-width: 160px">' + sectorOpts + '</select>' +
+    '<span style="display: flex; gap: 6px; flex-wrap: wrap">' + modePill('quality', '优质') + modePill('leaders', '龙头') + modePill('gainers', '领涨') + '</span></div>' +
+    '<span style="font-size: 11px; color: #8A919E; line-height: 1.5">选板块后点「优质」看同行业质地靠前的票；也可搜代码直接加。</span></div>';
+  const codes = f.scope === 'codes' ? '<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; background: #F7F8FA"><div style="display: flex; flex-wrap: wrap; gap: 6px">' + (chips || '<span style="font-size: 12px; color: #8A919E">还没选股票，下面按板块挑，或搜一搜</span>') + '</div>' + browse +
+    '<input id="cfSearch" data-f="search" placeholder="输入代码、名称或拼音首字母，搜到后点一下加上" autocomplete="off" style="' + inp + '"><div id="cfHits" style="display: flex; flex-direction: column"></div></div>' : '';
   const scopeStep = step(2, '对哪些股票', f.scope === 'codes' ? '最多 50 只' : '跟着你的持仓、想买、自选变，新加的票下次就会带上',
     '<div style="display: flex; gap: 8px; flex-wrap: wrap">' + CU_SCOPE.map(([k, n]) => pill('cuscope', k, n, f.scope === k)).join('') + '</div>' + codes);
   // 3 具体怎么做
@@ -765,6 +772,19 @@ function cuRender() {
       '<div style="display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: #EAF0FD; font-size: 13px; line-height: 1.65; color: #1F3F8A"><b style="flex: none">这个任务会：</b><span>' + esc(cuSentence(f)) + '</span></div>' +
       '<div style="display: flex; align-items: center; gap: 8px"><span id="cfErr" style="font-size: 12px; color: #B42318; flex: 1; min-height: 16px">' + esc(f.err) + '</span><button type="button" data-act="close" style="height: 34px; padding: 0 16px; border: 1px solid #DDE1E7; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px; cursor: pointer">取消</button><button type="button" id="cfSave" data-act="cusave" style="height: 34px; padding: 0 20px; border: none; border-radius: 8px; background: #2457D6; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">' + (f.id ? '保存修改' : '创建任务') + '</button></div></div></div></div>';
   const nb = $('cfBody'); if (nb) nb.scrollTop = keepTop;
+  if (f.scope === 'codes') {
+    cuEnsureSectors().then(() => {
+      const sel = $('cfSector');
+      if (sel && S.sectors && !sel.options.length) { /* rebuilt elsewhere */ }
+      // 板块列表晚到时补 options，不整表重画以免丢焦点
+      if (sel && S.sectors && sel.options.length <= 1) {
+        const cur = f.browseSector || '';
+        sel.innerHTML = '<option value="">按板块选优质股票…</option>' + S.sectors.map((n) => '<option value="' + esc(n) + '"' + (cur === n ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+        if (cur) sel.value = cur;
+      }
+      if (f.browseSector) cuLoadBrowse();
+    });
+  }
 }
 // 文字框里打字时只刷新底部那句话，不重画整张表单（不然光标会丢）
 function cuRefreshSentence() { const el = document.querySelector('#modal b + span'); if (el && S.cf) el.textContent = cuSentence(S.cf); }
@@ -787,6 +807,66 @@ async function cuCall(method, path, body) {
   if (!res.ok) throw new Error(json.error || '请求失败（' + res.status + '）');
   return json;
 }
+
+function cuHitBtn(code, name, sub) {
+  return '<button type="button" data-act="cuaddcode" data-code="' + esc(code) + '" data-name="' + esc(name || code) + '" style="display: flex; gap: 8px; align-items: baseline; text-align: left; width: 100%; border: none; border-top: 1px solid #F7F8FA; background: #FFFFFF; padding: 7px 4px; cursor: pointer; font: inherit; font-size: 13px; box-sizing: border-box"><b style="flex:none">' + esc(name || code) + '</b><span style="' + MONO_F + '; flex:none; font-size: 11px; color: #8A919E">' + esc(code) + '</span>' + (sub ? '<span style="margin-left: auto; min-width: 0; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #8A919E">' + esc(sub) + '</span>' : '') + '</button>';
+}
+function cuEnsureSectors() {
+  if (S.sectors) return Promise.resolve(S.sectors);
+  return fetch(API + '/api/v1/market/summary').then((r) => r.json()).then((j) => {
+    const secs = (j && j.sectors) || {};
+    const names = new Set();
+    const take = (arr) => (arr || []).forEach((x) => { if (x && x.name) names.add(x.name); });
+    take(secs.rows); take(secs.picks); take(secs.dip_watch);
+    Object.keys(secs.boards || {}).forEach((k) => take((secs.boards || {})[k]));
+    S.sectors = [...names].sort((a, b) => a.localeCompare(b, 'zh'));
+    return S.sectors;
+  }).catch(() => { S.sectors = S.sectors || []; return S.sectors; });
+}
+function cuRenderHits(html) {
+  const box = $('cfHits'); if (box) box.innerHTML = html || '';
+}
+async function cuLoadBrowse() {
+  const f = S.cf; if (!f || f.scope !== 'codes') return;
+  const name = f.browseSector;
+  clearTimeout(S.browseTimer);
+  if (!name) { if (!$('cfSearch') || !$('cfSearch').value.trim()) cuRenderHits(''); return; }
+  const seq = (f._browseSeq = (f._browseSeq || 0) + 1);
+  const mode = f.browseMode || 'quality';
+  cuRenderHits('<span style="font-size: 12px; color: #8A919E; padding: 8px 0">正在取「' + esc(name) + '」' + (mode === 'quality' ? '优质股票' : mode === 'leaders' ? '龙头' : '领涨') + '…</span>');
+  try {
+    const sec = await (await fetch(API + '/api/v1/market/sector/' + encodeURIComponent(name))).json();
+    if (!S.cf || S.cf._browseSeq !== seq) return;
+    const leaders = sec.leaders || [];
+    const gainers = sec.gainers || [];
+    if (mode === 'leaders' || mode === 'gainers') {
+      const rows = (mode === 'leaders' ? leaders : gainers).slice(0, 12);
+      cuRenderHits(rows.length ? rows.map((x) => cuHitBtn(x.ts_code, x.name, x.role || (x.pct != null ? ((x.pct > 0 ? '+' : '') + Number(x.pct).toFixed(1) + '%') : ''))).join('') : '<span style="font-size: 12px; color: #8A919E; padding: 8px 0">这个板块暂时没有成分</span>');
+      return;
+    }
+    // 优质：拿龙头代表股 → 同行业质地靠前
+    const seed = (leaders[0] && leaders[0].ts_code) || (gainers[0] && gainers[0].ts_code) || '';
+    if (!seed) { cuRenderHits('<span style="font-size: 12px; color: #8A919E; padding: 8px 0">这个板块暂时没有成分，换一个或直接搜索</span>'); return; }
+    const paintQuality = async (tries) => {
+      const q = await (await fetch(API + '/api/v1/shared/quality-peers/' + encodeURIComponent(seed) + '?limit=10')).json();
+      if (!S.cf || S.cf._browseSeq !== seq) return;
+      if (q.status === 'computing' || q.status === 'pending') {
+        cuRenderHits('<span style="font-size: 12px; color: #8A919E; padding: 8px 0">正在筛「' + esc(q.industry || name) + '」优质股…' + (tries ? '（' + tries + '）' : '') + '</span>');
+        if (tries < 8) S.browseTimer = setTimeout(() => paintQuality(tries + 1), 1500);
+        return;
+      }
+      if (q.status === 'error') { cuRenderHits('<span style="font-size: 12px; color: #B42318; padding: 8px 0">' + esc(q.error || '优质股暂时取不到') + '</span>'); return; }
+      const items = q.items || [];
+      const head = q.industry ? '<span style="font-size: 11px; color: #8A919E; padding: 6px 0 2px">申万行业「' + esc(q.industry) + '」质地靠前</span>' : '';
+      cuRenderHits(items.length ? head + items.map((x) => cuHitBtn(x.ts_code, x.name, x.why || (x.total_mv_yi != null ? '市值 ' + x.total_mv_yi + ' 亿' : ''))).join('') : '<span style="font-size: 12px; color: #8A919E; padding: 8px 0">这个行业暂时没有过线的优质股</span>');
+    };
+    await paintQuality(0);
+  } catch (e) {
+    if (!S.cf || S.cf._browseSeq !== seq) return;
+    cuRenderHits('<span style="font-size: 12px; color: #B42318; padding: 8px 0">板块数据取不到，请稍后重试或直接搜索</span>');
+  }
+}
+
 let cuSearchTimer = null;
 function cuSetField(f, el) {
   const c = S.cf; if (!c) return;
@@ -796,15 +876,19 @@ function cuSetField(f, el) {
   else if (f === 'everyNum') c.everyNum = el.value;
   else if (f === 'everyUnit') { c.everyUnit = el.value; cuRender(); }
   else if (f === 'scope') { c.scope = el.value; cuRender(); }
-  else if (f === 'search') {
+  else if (f === 'browseSector') {
+    c.browseSector = el.value;
+    if (!c.browseMode) c.browseMode = 'quality';
+    cuLoadBrowse();
+  } else if (f === 'search') {
     clearTimeout(cuSearchTimer);
     const q = el.value.trim();
     cuSearchTimer = setTimeout(async () => {
       const box = $('cfHits'); if (!box) return;
-      if (!q) { box.innerHTML = ''; return; }
+      if (!q) { if (c.browseSector) cuLoadBrowse(); else box.innerHTML = ''; return; }
       try {
         const j = await (await fetch(API + '/api/v1/stocks/search?q=' + encodeURIComponent(q))).json();
-        box.innerHTML = (j.items || []).slice(0, 6).map((x) => '<button type="button" data-act="cuaddcode" data-code="' + esc(x.ts_code) + '" data-name="' + esc(x.name) + '" style="display: flex; gap: 8px; align-items: baseline; text-align: left; border: none; border-top: 1px solid #F7F8FA; background: #FFFFFF; padding: 7px 4px; cursor: pointer; font: inherit; font-size: 13px"><b>' + esc(x.name) + '</b><span style="' + MONO_F + '; font-size: 11px; color: #8A919E">' + esc(x.ts_code) + '</span></button>').join('') || '<span style="font-size: 12px; color: #8A919E; padding: 6px 0">没搜到</span>';
+        box.innerHTML = (j.items || []).slice(0, 6).map((x) => cuHitBtn(x.ts_code, x.name, '')).join('') || '<span style="font-size: 12px; color: #8A919E; padding: 6px 0">没搜到</span>';
       } catch (e) { box.innerHTML = '<span style="font-size: 12px; color: #B42318; padding: 6px 0">搜索失败：股票数据服务没有响应</span>'; }
     }, 250);
   } else if (f.indexOf('r:') === 0) {
@@ -829,6 +913,7 @@ Object.assign(ACT, {
   cumatch: (el) => { S.cf.match = el.dataset.k; cuRender(); },
   curuleadd: () => { S.cf.rules.push(cuNewRule()); cuRender(); },
   curuledel: (el) => { S.cf.rules.splice(Number(el.dataset.i), 1); cuRender(); },
+  cubrowse: (el) => { S.cf.browseMode = el.dataset.k; cuRender(); },
   cuaddcode: (el) => { const c = el.dataset.code; if (!S.cf.codes.includes(c)) { S.cf.codes.push(c); S.cf.names[c] = el.dataset.name; } cuRender(); const s = $('cfSearch'); if (s) s.focus(); },
   cudelcode: (el) => { S.cf.codes = S.cf.codes.filter((c) => c !== el.dataset.code); cuRender(); },
   cusave: async () => {

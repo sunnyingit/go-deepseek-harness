@@ -174,6 +174,8 @@ header .mini{height:28px}
 /* 仅 pair 内结论/热闻的 card-body 限高可滚；不能全局 flex:1 1 0，否则会把「能不能做」内容压成 0 */
 .card-body{min-width:0}
 .pair > section > .card-body{flex:1 1 0;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+/* 滚动卡片底部渐隐：截断处给出「下面还有」的视觉暗示 */
+.pair > section > .card-body::after{content:"";position:sticky;bottom:0;display:block;height:18px;margin-top:-6px;background:linear-gradient(to top,#FFFFFF,rgba(255,255,255,0));pointer-events:none}
 .can-do-card > .card-body{flex:0 0 auto;min-height:auto;overflow:visible}
 .card>.scope,.card>.hero-foot,.card>.card-foot{flex:none}
 .card-foot{padding-top:8px;font-size:11px;color:#A1A7B2}
@@ -898,7 +900,7 @@ function skeletonCard(n, title, hint) {
     '<div class="mzbox"></div><div class="mzbox"></div><div class="mzbox"></div><div class="scope"></div></section>';
 }
 function qaRows(rows) {
-  return '<div style="display:flex;flex-direction:column">' + rows.map((r) => '<div class="qa"><span class="dot" style="background:' + (DOT[r.tone] || DOT.flat) + '"></span><span style="display:grid;grid-template-columns:1fr auto;gap:2px 10px"><span style="font-size:12px;color:#8A919E">' + esc(r.q) + '</span><b style="font-size:14px;text-align:right">' + esc(r.a) + '</b><span style="grid-column:1/-1;font-size:12px;color:#5B6372">' + esc(r.detail) + '</span></span></div>').join('') + '</div>';
+  return '<div style="display:flex;flex-direction:column">' + rows.map((r) => '<div class="qa"><span class="dot" style="background:' + (DOT[r.tone] || DOT.flat) + '"></span><span style="display:grid;grid-template-columns:1fr auto;gap:2px 10px"><span style="font-size:12px;color:#8A919E">' + esc(r.q) + '</span><b style="font-size:14px;text-align:right">' + (r.aHtml || esc(r.a)) + '</b><span style="grid-column:1/-1;font-size:12px;color:#5B6372">' + esc(r.detail) + '</span></span></div>').join('') + '</div>';
 }
 function splitFact(v) {
   const m = String(v == null ? '' : v).match(/^([+−-]?\d[\d.,/]*%?)\s+(.+)$/);
@@ -935,8 +937,8 @@ function noteBox(means, when) {
 function bullets(title, items, tone) {
   const list = items || [];
   const open = list.filter((i) => !i.met).length;
-  const col = tone === 'good' ? '#B42318' : '#1E6B44';
-  return '<div class="chk-col ' + (tone === 'good' ? 'good' : 'bad') + '"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:12px;color:' + col + '">' + title + '</b><span style="margin-left:auto;font-size:11px;color:#8A919E">' + (open ? '还差 ' + open : '齐了') + '</span></div>' +
+  const col = '#14171F'; /* 总结模块无彩色 */
+  return '<div class="chk-col" style="background:#F7F8FA"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:12px;color:' + col + '">' + title + '</b><span style="margin-left:auto;font-size:11px;color:#8A919E">' + (open ? '还差 ' + open : '齐了') + '</span></div>' +
     list.map((i) => '<span title="' + esc(i.text || i.short || '') + '" style="display:flex;align-items:baseline;gap:6px;font-size:12px;line-height:1.35;color:' + (i.met ? '#14171F' : '#8A919E') + '"><span style="flex:none;color:' + (i.met ? col : '#C9CED6') + '">' + (i.met ? '●' : '○') + '</span><span style="flex:none">' + esc(i.short || i.text) + '</span><b class="mono" style="margin-left:auto;font-weight:600;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(String(i.now || '').replace(/^现在\s*/, '')) + '</b></span>').join('') + '</div>';
 }
 function checklist(better, worse) {
@@ -947,11 +949,11 @@ function checklist(better, worse) {
     '<div class="chk-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">' + bullets('变好', better || [], 'good') + bullets('变差', worse || [], 'bad') + '</div></div></div>';
 }
 function hero(s) {
-  const c = s.conclusion, tilt = c.tilt ? '<span style="font-size:16px;font-weight:700;color:' + (c.tilt === '偏弱' ? '#7A4A00' : c.tilt === '偏强' ? '#B42318' : '#5B6372') + '">' + esc(c.tilt) + '</span>' : '';
+  const c = s.conclusion, tilt = c.tilt ? '<span style="font-size:16px;font-weight:700;color:' + ('#3A4250') + '">' + esc(c.tilt) + '</span>' : '';
   const tabOf = { money: 'fund', team: 'team', mood: 'mood' };
-  const sigs = c.signals.map((g) => '<button type="button" class="sig" data-tab="' + tabOf[g.key] + '" title="' + esc(g.text) + '" style="flex-direction:row;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px"><span style="font-size:12px;color:#5B6372;white-space:nowrap">' + g.n + ' ' + esc(g.name) + '</span><b class="t-' + g.tone + '" style="height:22px;padding:0 8px;border-radius:8px;font-size:13px;line-height:22px;white-space:nowrap">' + esc(g.label) + '</b></button>').join('');
-  const levelColor = c.level === '顺风' ? '#B42318' : c.level === '逆风' ? '#1E6B44' : '#14171F';
-  const gateColor = c.gate === '通过' ? '#B42318' : '#1E6B44';
+  const sigs = c.signals.map((g) => '<button type="button" class="sig" data-tab="' + tabOf[g.key] + '" title="' + esc(g.text) + '" style="flex-direction:row;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px"><span style="font-size:12px;color:#5B6372;white-space:nowrap">' + g.n + ' ' + esc(g.name) + '</span><b class="t-flat" style="height:22px;padding:0 8px;border-radius:8px;font-size:13px;line-height:22px;white-space:nowrap">' + esc(g.label) + '</b></button>').join('');
+  const levelColor = c.level === '顺风' ? '#B42318' : c.level === '逆风' ? '#1E6B44' : '#14171F'; /* 结论大字带方向色，其余无彩色 */
+  const gateColor = '#14171F';
   return '<section class="card" aria-label="今天的结论" style="gap:12px;border-color:#C9CED6">' +
     '<div class="pair-head"><span style="font-size:15px;font-weight:700;flex:none">今天的结论</span><span id="heroSince" style="font-size:12px;color:#8A919E;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + sinceText() + '</span>' +
     '<span class="acts">' + whenHtml(s.generated_at) + askMarketBtn('', '问大盘分析师') + '<button type="button" class="link" data-history="1">历次结论 →</button></span></div>' +
@@ -959,7 +961,7 @@ function hero(s) {
     '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b style="font-size:26px;line-height:1.1;letter-spacing:-0.02em;color:' + levelColor + '">' + esc(c.level) + '</b>' + tilt +
       '<span style="display:inline-flex;align-items:baseline;gap:6px;font-size:13px;white-space:nowrap"><span style="color:#8A919E">闸门</span><b style="font-size:15px;color:' + gateColor + '">' + esc(c.gate) + '</b><span style="color:#5B6372">' + esc(c.gate_text) + '</span></span></div>' +
     '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' + sigs + '</div>' +
-    (c.action ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:12px;background:#EAF0FD;border:1px solid #C9D7F5"><span style="font-size:12px;font-weight:700;letter-spacing:.04em;color:#2457D6">怎么做</span><span style="font-size:15px;font-weight:600;line-height:1.65;color:#14171F">' + esc(c.action) + '</span></div>' : '') +
+    (c.action ? '<div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:12px;background:#F7F8FA;border:1px solid #E3E6EB"><span style="font-size:12px;font-weight:700;letter-spacing:.04em;color:#8A919E">怎么做</span><span style="font-size:15px;font-weight:600;line-height:1.65;color:#14171F">' + esc(c.action) + '</span></div>' : '') +
     checklist(c.better, c.worse) +
     '</div>' +
     '<div class="hero-foot" style="display:flex;align-items:center;gap:8px;font-size:11px;color:#A1A7B2">' + esc(c.note) + '</div></section>';
@@ -1615,7 +1617,7 @@ function moodCard(m) {
 }
 function scoreTone(score) { return score >= 5 ? 'good' : score <= 1 ? 'bad' : 'flat'; }
 function macroCard(m) {
-  const qa = m.rows.map((r) => ({ q: r.name, a: r.score + ' 分', detail: r.text, tone: scoreTone(r.score) }));
+  const qa = m.rows.map((r) => ({ q: r.name, aHtml: r.score + ' <span style="font-size:11px;color:#8A919E;font-weight:500">分</span>', detail: r.text, tone: scoreTone(r.score) }));
   return '<section class="card" aria-label="宏观">' + head('③', '宏观', m.label + ' · ' + m.score.toFixed(2), m.tone, 'macro', 'macro', m) +
     '<p style="margin:0;font-size:14px;font-weight:600;line-height:1.5">' + esc(m.headline) + '</p>' + qaRows(qa) +
     '<span style="font-size:12px;color:#5B6372">外部：' + m.external.map((e) => esc(e.name) + e.word).join(' · ') + '　' + esc(m.next) + '</span>' +
@@ -2040,8 +2042,8 @@ function trendCard(s) {
 }
 function slimMarketCard(s) {
   const c = s.conclusion || {};
-  const levelColor = c.level === '顺风' ? '#B42318' : c.level === '逆风' ? '#1E6B44' : '#14171F';
-  const tiltColor = c.tilt === '偏弱' ? '#7A4A00' : c.tilt === '偏强' ? '#B42318' : '#5B6372';
+  const levelColor = c.level === '顺风' ? '#B42318' : c.level === '逆风' ? '#1E6B44' : '#14171F'; /* 结论大字带方向色，其余无彩色 */
+  const tiltColor = '#3A4250';
   const since = s.unchanged_since ? (String(s.unchanged_since).slice(5) + ' 起没变') : sinceText();
   const sigs = (c.signals || []).map((g) => '<span class="sigp">' + esc(g.name) + '<span class="pill s t-' + (g.tone || 'flat') + '">' + esc(g.label) + '</span></span>').join('');
   return '<section class="card wb-market" aria-label="市场"><div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:15px;color:#14171F">市场</b>' + (since ? '<span style="font-size:12px;color:#8A919E">' + esc(since) + '</span>' : '') + '<span class="card-meta">' + whenHtml(s.generated_at) + '<button type="button" class="wb-cta" data-wtab="ma">看市场分析 →</button></span></div>' +

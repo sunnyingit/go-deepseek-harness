@@ -31,6 +31,16 @@ func sessionUpdatedAt(sess *session.Session) int64 {
 // original user task after "用户任务：".
 var skillWrapRe = regexp.MustCompile(`(?s)^请先调用 load_skill 工具，参数 name 为 "[^"]+"。.*?\n用户任务：\n`)
 
+// askAnalystWrapRe matches dialog @-mention routing written into the user turn
+// ("请调用 ask_analyst：analyst=…，question=…"). Sidebar titles must show the
+// human question, not the orchestration cue.
+var askAnalystWrapRe = regexp.MustCompile(`(?is)^请(?:调用|优先调用)\s*ask_analyst\s*[：:]\s*analyst=\w+[\s\S]*?(?:question\s*=|回答\s*[：:])\s*([\s\S]+)$`)
+
+var (
+	ctxBracketPrefixRe = regexp.MustCompile(`^【(?:带上|上下文)：[^】]*】\s*`)
+	askAnalystTailRe   = regexp.MustCompile(`。本轮只请这一位[\s\S]*$`)
+)
+
 func sessionTitle(sess *session.Session) string {
 	if sess == nil {
 		return ""
@@ -65,7 +75,7 @@ func sessionTitle(sess *session.Session) string {
 		if onlyToolResults || len(parts) == 0 {
 			continue
 		}
-		text := stripSkillWrap(strings.Join(parts, " "))
+		text := humanSessionTitleText(strings.Join(parts, " "))
 		if strings.HasPrefix(strings.TrimSpace(text), scheduledAskTitlePrefix) {
 			return scheduledAskTitle(text)
 		}
@@ -79,6 +89,20 @@ func sessionTitle(sess *session.Session) string {
 		return ""
 	}
 	return truncateRunes(strings.Join(uploaded, "、"), sessionTitleMaxRunes)
+}
+
+// humanSessionTitleText strips orchestration wrappers so the sidebar shows what
+// the user asked, matching prettyUserText in dailog.html.
+func humanSessionTitleText(text string) string {
+	t := strings.TrimSpace(text)
+	t = stripSkillWrap(t)
+	t = ctxBracketPrefixRe.ReplaceAllString(t, "")
+	t = strings.TrimSpace(t)
+	if m := askAnalystWrapRe.FindStringSubmatch(t); len(m) == 2 {
+		t = strings.TrimSpace(m[1])
+	}
+	t = askAnalystTailRe.ReplaceAllString(t, "")
+	return strings.TrimSpace(t)
 }
 
 // sessionQuestionCount is how many user-authored turns are on the surface.

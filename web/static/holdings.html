@@ -29,6 +29,7 @@ button,input,textarea{font:inherit}
 .nav-a:hover{color:#14171F;background:rgba(0,0,0,.06)}
 .nav-a.on{color:#2457D6;background:#EAF0FD;font-weight:600}
 .card{display:flex;flex-direction:column;gap:10px;padding:14px 16px;background:#FFFFFF;border:1px solid #E3E6EB;border-radius:12px}
+.card.sel{border-color:#2457D6;background:#EAF0FD;box-shadow:inset 3px 0 0 #2457D6}
 .card h3{margin:0;font-size:15px;font-weight:700}
 .sub{font-size:12px;color:#8A919E}
 .lbl{font-size:11px;color:#8A919E}
@@ -508,10 +509,11 @@ function moreText(text, limit, opts) {
   return '<details class="wish-more" data-act="stop"><summary><span class="when-closed" style="font-size:13px;line-height:1.55' + (o.color ? ';color:' + o.color : '') + '">' + wrap(short) + ' <span style="color:#2457D6;font-size:12px">更多</span></span><span class="when-open" style="font-size:12px;color:#2457D6">收起</span></summary><span style="display:block;font-size:13px;line-height:1.55' + (o.color ? ';color:' + o.color : '') + '">' + wrap(t) + '</span></details>';
 }
 function wishCard(w) {
+  const on = S.sel === w.ts_code;
   const st = TONE_STYLE[{ good: 'blue', warn: 'blue', bad: 'warn', flat: 'flat' }[w.status.tone] || 'flat'];
   const sector = w.sector && w.sector.name ? '<button type="button" data-act="secpop" data-name="' + esc(w.sector.name) + '" class="pl" title="看板块详情" style="border:none;cursor:pointer;background:' + (VERDICT_STYLE[w.sector.verdict] || TONE_STYLE.flat)[0] + ';color:' + (VERDICT_STYLE[w.sector.verdict] || TONE_STYLE.flat)[1] + '">' + esc(w.sector.name) + (w.sector.verdict ? ' · ' + esc(w.sector.verdict) : '') + '</button>' : '';
   const buyTip = w.ai && w.ai.actions && w.ai.actions.buy ? moreText('想买：' + w.ai.actions.buy, 36, { quote: false, color: '#1F3F8A' }) : '';
-  return '<div class="card" role="button" tabindex="0" data-act="sel" data-code="' + esc(w.ts_code) + '" style="cursor:pointer"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">' + esc(w.name) + '</b>' + qualityTag(w.ts_code) + '<span ' + MONO + ' style="font-size:12px;color:#8A919E">' + codeOnly(w.ts_code) + ' · ' + px(w.price) + '</span>' + sector +
+  return '<div class="card' + (on ? ' sel' : '') + '" role="button" tabindex="0" data-act="sel" data-code="' + esc(w.ts_code) + '" aria-current="' + (on ? 'true' : 'false') + '" style="cursor:pointer"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">' + esc(w.name) + '</b>' + qualityTag(w.ts_code) + '<span ' + MONO + ' style="font-size:12px;color:#8A919E">' + codeOnly(w.ts_code) + ' · ' + px(w.price) + '</span>' + sector +
     '<span class="sub">' + esc(w.source) + '</span><span style="margin-left:auto">' + pill(w.status.text, st) + '</span></div>' +
     '<div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:16px">' +
     '<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span class="lbl">为什么想买</span>' + moreText(w.reason, 72) + '</span>' +
@@ -539,7 +541,7 @@ function planCard(p) {
   const rec = (p.status === 'planned' || p.status === 'done') && p.side !== 'watch'
     ? '<button type="button" class="mini" data-act="planrec" data-id="' + p.id + '">记一笔</button>' : '';
   const on = S.sel === p.ts_code;
-  return '<div class="card" role="button" tabindex="0" data-act="sel" data-code="' + esc(p.ts_code) + '" style="gap:10px;cursor:pointer' + (on ? ';border-color:#2457D6;background:#EAF0FD' : '') + '"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">' + esc(p.name) + '</b><span ' + MONO + ' class="sub">' + codeOnly(p.ts_code) + '</span>' +
+  return '<div class="card' + (on ? ' sel' : '') + '" role="button" tabindex="0" data-act="sel" data-code="' + esc(p.ts_code) + '" aria-current="' + (on ? 'true' : 'false') + '" style="gap:10px;cursor:pointer"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:15px">' + esc(p.name) + '</b><span ' + MONO + ' class="sub">' + codeOnly(p.ts_code) + '</span>' +
     pill(p.side_label || p.side, TONE_STYLE.blue) + pill(p.status_label || p.status, st) +
     '<span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">' + rec + acts + '</span></div>' +
     (bits.length ? '<span class="sub">' + bits.map(esc).join(' · ') + '</span>' : '') +
@@ -887,16 +889,105 @@ const field = (label, inner, hint) => '<div style="display:flex;flex-direction:c
 const modalHead = (title, extra) => '<div style="display:flex;align-items:center;gap:10px"><b style="font-size:16px">' + title + '</b>' + (extra || '') + '<button type="button" class="x" data-act="close" aria-label="关闭" style="margin-left:auto;font-size:18px">×</button></div>';
 const val = (id) => { const el = $(id); return el ? el.value : ''; };
 
+
+/* 买入理由：核心一句 + 可选维度，合成一条 reason 字符串 */
+const REASON_DIMS = [
+  { key: 'flow', label: '资金流', placeholder: '比如：近几日大单净流入 / 主力还在加' },
+  { key: 'fund', label: '基本面', placeholder: '比如：业绩拐点、估值便宜、订单能见度' },
+  { key: 'price', label: '价格位置', placeholder: '比如：回踩均线、突破后回踩确认' },
+  { key: 'sector', label: '板块/催化', placeholder: '比如：板块仍热、政策催化、事件落地' },
+];
+function emptyReasonParts() {
+  return { core: '', dims: { flow: '', fund: '', price: '', sector: '' }, open: { flow: false, fund: false, price: false, sector: false } };
+}
+function parseReasonText(text) {
+  const parts = emptyReasonParts();
+  const raw = String(text || '').trim();
+  if (!raw) return parts;
+  const positions = [];
+  REASON_DIMS.forEach((d) => {
+    [d.label + '：', d.label + ':'].forEach((token) => {
+      let from = 0;
+      while (true) {
+        const i = raw.indexOf(token, from);
+        if (i < 0) break;
+        positions.push({ key: d.key, i: i, body: i + token.length });
+        from = i + token.length;
+      }
+    });
+  });
+  positions.sort((a, b) => a.i - b.i);
+  // drop duplicate keys keeping earliest
+  const seen = {};
+  const uniq = [];
+  positions.forEach((p) => { if (!seen[p.key]) { seen[p.key] = true; uniq.push(p); } });
+  if (!uniq.length) { parts.core = raw; return parts; }
+  if (uniq[0].i > 0) parts.core = raw.slice(0, uniq[0].i).replace(/[。；;\s]+$/g, '').trim();
+  uniq.forEach((p, idx) => {
+    const end = idx + 1 < uniq.length ? uniq[idx + 1].i : raw.length;
+    const val = raw.slice(p.body, end).replace(/^[\s]+|[\s；;。]+$/g, '').trim();
+    if (val) { parts.dims[p.key] = val; parts.open[p.key] = true; }
+  });
+  return parts;
+}
+function composeReasonText(parts) {
+  const core = String((parts && parts.core) || '').trim();
+  const bits = [];
+  REASON_DIMS.forEach((d) => {
+    const v = String((parts && parts.dims && parts.dims[d.key]) || '').trim();
+    if (v) bits.push(d.label + '：' + v);
+  });
+  if (!core && !bits.length) return '';
+  if (!bits.length) return core;
+  if (!core) return bits.join('；');
+  return core + ( /[。！？.!?]$/.test(core) ? '' : '。') + bits.join('；');
+}
+function reasonFrameworkHTML(prefix, parts, hint, label) {
+  const p = parts || emptyReasonParts();
+  const chips = REASON_DIMS.map((d) => {
+    const on = !!(p.open && p.open[d.key]) || !!(p.dims && String(p.dims[d.key] || '').trim());
+    return '<button type="button" class="chip' + (on ? ' on' : '') + '" data-act="' + prefix + 'dim" data-k="' + d.key + '">' + d.label + '</button>';
+  }).join('');
+  const inputs = REASON_DIMS.map((d) => {
+    const on = !!(p.open && p.open[d.key]) || !!(p.dims && String(p.dims[d.key] || '').trim());
+    if (!on) return '';
+    return '<input class="inp" id="' + prefix + 'Dim_' + d.key + '" value="' + esc(p.dims[d.key] || '') + '" placeholder="' + esc(d.placeholder) + '" style="width:100%">';
+  }).filter(Boolean).join('');
+  return field(label || '我为什么买',
+    '<div style="display:flex;flex-direction:column;gap:8px">' +
+      '<input class="inp" id="' + prefix + 'Core" value="' + esc(p.core || '') + '" placeholder="我主要赌什么（一句话）">' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span class="sub" style="margin:0">还可以补（可选）</span>' + chips + '</div>' +
+      (inputs ? '<div style="display:flex;flex-direction:column;gap:6px">' + inputs + '</div>' : '') +
+    '</div>',
+    hint || '核心必填；维度可空。以后会拿整段理由和事实对照');
+}
+function clipText(t, n) {
+  t = String(t || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? t.slice(0, n - 1) + '…' : t;
+}
+function captureReasonParts(prefix, parts) {
+  if (!parts) return emptyReasonParts();
+  const el = $(prefix + 'Core');
+  if (el) parts.core = el.value;
+  REASON_DIMS.forEach((d) => {
+    const inp = $(prefix + 'Dim_' + d.key);
+    if (inp) parts.dims[d.key] = inp.value;
+  });
+  return parts;
+}
+
 /* 记一笔 */
 function openRec(opts) {
   const o = opts || {};
-  S.rec = { side: o.side || 'buy', stock: o.stock || null, price: o.price || '', qty: o.qty || '', date: today(), reason: o.reason || '', closeBelow: o.closeBelow || '', sectorOut: false, flowOut: false, custom: '', customOn: false, from: o.from || '', wish: o.wish || null, preview: null, hits: [] };
+  const parts = parseReasonText(o.reason || '');
+  S.rec = { side: o.side || 'buy', stock: o.stock || null, price: o.price || '', qty: o.qty || '', date: today(), reasonParts: parts, closeBelow: o.closeBelow || '', sectorOut: false, flowOut: false, custom: '', customOn: false, from: o.from || '', wish: o.wish || null, preview: null, hits: [] };
   renderRec();
   if (S.rec.stock) refreshPreview();
 }
 function captureRec() {
   const r = S.rec; if (!r || !$('rPrice')) return;
-  r.price = val('rPrice'); r.qty = val('rQty'); r.date = val('rDate'); r.reason = val('rReason'); r.closeBelow = val('rBelow'); r.custom = val('rCustom');
+  r.price = val('rPrice'); r.qty = val('rQty'); r.date = val('rDate'); r.closeBelow = val('rBelow'); r.custom = val('rCustom');
+  if (r.side === 'buy') captureReasonParts('r', r.reasonParts || (r.reasonParts = emptyReasonParts()));
 }
 function renderRec() {
   const r = S.rec, buy = r.side === 'buy';
@@ -908,7 +999,8 @@ function renderRec() {
     '可以先空着，体检会提醒你补；跌破的价格会设成提醒，到价时通知你') : '';
   modal(modalHead('记一笔', '<span class="seg"><button type="button" data-act="rside" data-k="buy" aria-pressed="' + buy + '">买入</button><button type="button" data-act="rside" data-k="sell" aria-pressed="' + !buy + '">卖出</button></span>' + (r.from ? '<span class="sub">' + esc(r.from) + '</span>' : '')) +
     '<div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px">' + field('股票', stock) + field('价格', '<input class="inp" id="rPrice" inputmode="decimal" value="' + esc(r.price) + '" placeholder="成交价">') + field('数量', '<input class="inp" id="rQty" inputmode="numeric" value="' + esc(r.qty) + '" placeholder="股">', '<span id="rPct"></span>') + '</div>' +
-    '<div style="display:grid;grid-template-columns:1fr 2fr;gap:10px">' + field('日期', '<input class="inp" id="rDate" type="date" value="' + esc(r.date) + '">') + (buy ? field('我为什么买', '<input class="inp" id="rReason" value="' + esc(r.reason) + '" placeholder="一句话就够">', '以后会拿它和事实对照，看理由还在不在') : '<div></div>') + '</div>' + invalid +
+    field('日期', '<input class="inp" id="rDate" type="date" value="' + esc(r.date) + '">') +
+    (buy ? reasonFrameworkHTML('r', r.reasonParts || emptyReasonParts()) : '') + invalid +
     '<div class="note" id="rGlance" style="font-size:12px;color:#3A4250;line-height:1.6"><span class="sub">选好股票后，这里会提醒你大盘现在怎么说、AI 怎么看。</span></div>' +
     '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="close">取消</button><button type="button" class="btn pri" id="rSubmit" data-act="rsubmit">记下</button></div>');
   const search = $('rSearch');
@@ -945,7 +1037,10 @@ async function submitRec() {
   const r = S.rec; if (!r) return;
   if (!r.stock) return toast('先选一只股票', true);
   const invalid = [];
+  let reason = '';
   if (r.side === 'buy') {
+    reason = composeReasonText(r.reasonParts);
+    if (!String((r.reasonParts && r.reasonParts.core) || '').trim()) return toast('先写一句核心判断：我主要赌什么', true);
     if (r.closeBelow) invalid.push({ kind: 'close_below', value: r.closeBelow });
     if (r.sectorOut) invalid.push({ kind: 'sector_out' });
     if (r.flowOut) invalid.push({ kind: 'flow_out', days: 3 });
@@ -953,7 +1048,7 @@ async function submitRec() {
   }
   const btn = $('rSubmit'); btn.disabled = true;
   try {
-    const out = await api('/trades', 'POST', { ts_code: r.stock.ts_code, side: r.side, price: r.price, qty: r.qty, date: r.date, reason: r.reason, invalid });
+    const out = await api('/trades', 'POST', { ts_code: r.stock.ts_code, side: r.side, price: r.price, qty: r.qty, date: r.date, reason: reason, invalid });
     const code = r.stock.ts_code, label = out.label;
     closeModal(); toast('已记下：' + label + ' ' + r.stock.name);
     S.tabs = {}; S.detail = {}; S.sel = out.closed ? null : code;
@@ -995,7 +1090,7 @@ function renderAddPick() {
 }
 async function pickWishStock(stock) {
   S.add.stock = stock; S.add.step = 2;
-  S.add.form = { plan: 8, match: 'all', price: true, etf: true, ai: false, market: false, flowIn: false, custom: '', customOn: false, reason: '', below: '', invBelow: '', invSector: false };
+  S.add.form = { plan: 8, match: 'all', price: true, etf: true, ai: false, market: false, flowIn: false, custom: '', customOn: false, reasonParts: emptyReasonParts(), below: '', invBelow: '', invSector: false, moreConds: false, evOpen: false, invOpen: false };
   modal(modalHead('加一只想买的') + stepper(2) + '<div class="skeleton">正在取这只票的现价、AI 判断和板块…</div>', '加一只想买的');
   try { S.add.preview = await api('/wishes/preview', 'POST', { ts_code: stock.ts_code, plan_pct: S.add.form.plan }); } catch (e) { toast(e.message, true); S.add.preview = null; }
   const p = S.add.preview;
@@ -1004,29 +1099,53 @@ async function pickWishStock(stock) {
   if (p && p.ma20) S.add.form.below = p.ma20.toFixed(2);
   renderAddForm();
 }
-function captureAdd() { const f = S.add && S.add.form; if (!f || !$('wReason')) return; f.reason = val('wReason'); f.below = val('wBelow'); f.custom = val('wCustom'); f.invBelow = val('wInv'); const pl = $('wPlan'); if (pl && pl.value) f.plan = Number(pl.value); }
+function captureAdd() {
+  const f = S.add && S.add.form; if (!f || !$('wCore')) return;
+  captureReasonParts('w', f.reasonParts || (f.reasonParts = emptyReasonParts()));
+  f.below = val('wBelow'); f.custom = val('wCustom'); f.invBelow = val('wInv');
+  const pl = $('wPlan'); if (pl && pl.value) f.plan = Number(pl.value);
+}
 function renderAddForm() {
   const a = S.add, f = a.form, p = a.preview || {};
+  if (!f.reasonParts) f.reasonParts = parseReasonText(f.reason || '');
   const stock = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:16px">' + esc(a.stock.name) + '</b><span ' + MONO + ' class="sub">' + codeOnly(a.stock.ts_code) + ' · ' + px(p.price) + '</span>' + (p.sector && p.sector.name ? '<span class="sub">' + esc(p.sector.name) + (p.sector.verdict ? ' · ' + esc(p.sector.verdict) : '') + '</span>' : '') + (p.ai ? aiPill(p.ai) : '<span class="sub">AI 还没判断过</span>') + '<button type="button" class="x" style="margin-left:auto;font-size:12px" data-act="addback">换一只</button></div>';
-  const ev = (p.evidence || []).map((t, i) => '<button type="button" class="chip" data-act="wevid" data-i="' + i + '">' + esc(t) + '</button>').join('');
-  const ck = (k, label, detail) => '<label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer"><input type="checkbox" data-act="wchk" data-k="' + k + '"' + (f[k] ? ' checked' : '') + '><span style="flex:1">' + label + '</span><span class="sub">' + detail + '</span></label>';
+  const evList = p.evidence || [];
+  const evPanel = !evList.length ? '' : (
+    '<button type="button" class="mini" data-act="wev" style="align-self:flex-start;color:#2457D6">' + (f.evOpen ? '收起 AI 依据' : '插入 AI 依据 ▾') + '</button>' +
+    (f.evOpen ? '<div style="display:flex;flex-wrap:wrap;gap:6px">' + evList.map((t, i) => '<button type="button" class="chip" data-act="wevid" data-i="' + i + '" title="' + esc(t) + '">' + esc(clipText(t, 28)) + '</button>').join('') + '</div>' : '')
+  );
+  const ck = (k, label, detail) => '<label style="display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" data-act="wchk" data-k="' + k + '"' + (f[k] ? ' checked' : '') + '><span>' + label + '</span><span class="sub">' + detail + '</span></label>';
   const hasEtf = p.sector && p.sector.tracked;
-  const conds = '<div style="display:flex;flex-direction:column;gap:8px">' +
-    '<label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" data-act="wchk" data-k="price"' + (f.price ? ' checked' : '') + '><span>价格 回踩到</span><input class="inp" id="wBelow" style="width:96px;min-height:28px;padding:3px 8px" inputmode="decimal" value="' + esc(f.below) + '"><span class="sub">' + (p.ma20 ? '20 日线附近 · 现价' + (p.ma20_gap > 0 ? '下方约 ' + (p.ma20_gap * 100 / (1 + p.ma20_gap)).toFixed(1) + '%' : '已在 20 日线下') : '现价 ' + px(p.price)) + '</span></label>' +
-    ck('etf', '资金 ' + esc((p.sector && p.sector.name) || '板块') + (hasEtf ? ' ETF' : '') + ' 继续净申购', p.sector_flow != null ? (p.sector_flow > 0 ? '现在已满足' : '现在 ' + p.sector_flow.toFixed(1) + ' 亿') : '没有数据') +
-    ck('ai', 'AI 转为「偏多」', p.ai ? '现在' + esc(p.ai.label) : '还没判断') +
-    ck('market', '大盘不再是「不加仓」', p.market ? '现在' + esc(p.market.text) + '；不勾也会在条件到时提醒你这一点' : '没取到') +
-    ck('flowIn', '大资金连续 3 天流入', '') +
-    '<label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" data-act="wchk" data-k="customOn"' + (f.customOn ? ' checked' : '') + '><span>自己写一个条件</span>' + (f.customOn ? '<input class="inp" id="wCustom" style="flex:1;min-height:28px;padding:3px 8px" value="' + esc(f.custom) + '" placeholder="比如：三季报落地">' : '') + '</label></div>';
-  const plan = [5, 8, 10].map((n) => '<button type="button" class="chip' + (f.plan === n ? ' on' : '') + '" data-act="wplan" data-n="' + n + '">' + n + '%</button>').join('') + '<input class="inp" id="wPlan" style="width:72px;min-height:28px;padding:3px 8px" inputmode="decimal" value="' + (f.plan || '') + '" placeholder="自定义"> <span class="sub" id="wAmt">' + (p.amount ? '约 ' + money(p.amount) + ' 元 · 按现在持仓市值算' : p.total ? '' : '现在没有持仓，占比无从算起') + '</span>';
+  const priceHint = p.ma20 ? (p.ma20_gap > 0 ? '现价在 20 日线下' : '近 20 日线') : ('现价 ' + px(p.price));
+  const primary = '<div style="display:flex;flex-direction:column;gap:10px">' +
+    '<label style="display:grid;grid-template-columns:auto auto 1fr auto;gap:8px;align-items:center;font-size:13px"><input type="checkbox" data-act="wchk" data-k="price"' + (f.price ? ' checked' : '') + '><span>价格回踩到</span><input class="inp" id="wBelow" style="width:96px;min-height:28px;padding:3px 8px" inputmode="decimal" value="' + esc(f.below) + '"><span class="sub">' + priceHint + '</span></label>' +
+    ck('etf', '资金 ' + esc((p.sector && p.sector.name) || '板块') + (hasEtf ? ' ETF' : '') + ' 净申购', p.sector_flow != null ? (p.sector_flow > 0 ? '已满足' : (p.sector_flow.toFixed(1) + ' 亿')) : '无数据') +
+    ck('ai', 'AI 转为偏多', p.ai ? ('现在' + esc(p.ai.label)) : '还没判断') +
+  '</div>';
+  const extraOpen = !!(f.moreConds || f.market || f.flowIn || f.customOn);
+  const extra = '<div style="display:flex;flex-direction:column;gap:8px;padding-top:4px">' +
+    '<button type="button" class="mini" data-act="wmore" style="align-self:flex-start;color:#5B6372">' + (extraOpen ? '收起更多条件' : '更多条件…') + '</button>' +
+    (extraOpen ? (
+      ck('market', '大盘不再是「不加仓」', p.market ? ('现在' + esc(clipText(p.market.text || p.market.stance || '', 18))) : '没取到') +
+      ck('flowIn', '大资金连续 3 天流入', '') +
+      '<label style="display:grid;grid-template-columns:auto auto 1fr;gap:8px;align-items:center;font-size:13px"><input type="checkbox" data-act="wchk" data-k="customOn"' + (f.customOn ? ' checked' : '') + '><span>自己写</span>' + (f.customOn ? '<input class="inp" id="wCustom" style="min-height:28px;padding:3px 8px" value="' + esc(f.custom) + '" placeholder="比如：三季报落地">' : '<span></span>') + '</label>'
+    ) : '') +
+  '</div>';
+  const plan = [5, 8, 10].map((n) => '<button type="button" class="chip' + (f.plan === n ? ' on' : '') + '" data-act="wplan" data-n="' + n + '">' + n + '%</button>').join('') + '<input class="inp" id="wPlan" style="width:72px;min-height:28px;padding:3px 8px" inputmode="decimal" value="' + (f.plan || '') + '" placeholder="自定义"> <span class="sub" id="wAmt">' + (p.amount ? '约 ' + money(p.amount) + ' 元' : '') + '</span>';
+  const invOpen = !!(f.invOpen || f.invBelow || f.invSector);
+  const invBlock = '<div style="display:flex;flex-direction:column;gap:8px">' +
+    '<button type="button" class="mini" data-act="winvopen" style="align-self:flex-start;color:#5B6372">' + (invOpen ? '收起证伪条件' : '可选：什么情况说明我错了…') + '</button>' +
+    (invOpen ? '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:12px;color:#5B6372">收盘跌破</span><input class="inp" id="wInv" style="width:96px;min-height:28px;padding:3px 8px" inputmode="decimal" value="' + esc(f.invBelow) + '"><span class="sub" style="margin:0 4px">或</span><button type="button" class="chip' + (f.invSector ? ' on' : '') + '" data-act="winv">板块转为在流出</button></div>' : '') +
+  '</div>';
   modal(modalHead(a.editId ? '编辑想买' : '加一只想买的') + (a.editId ? '' : stepper(2)) + stock +
-    field('为什么想买 <span style="color:#B42318">*</span>', '<textarea class="inp" id="wReason" rows="2" placeholder="用你自己的话，一句就够；买入后它会变成逻辑卡，拿来和事实对照">' + esc(f.reason) + '</textarea>', (ev ? '点一下插入 AI 最近的依据：<span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-top:4px">' + ev + '</span>' : '')) +
-    field('什么时候买 <span class="seg" style="display:inline-flex;margin-left:6px"><button type="button" data-act="wmatch" data-k="all" aria-pressed="' + (f.match === 'all') + '">全部</button><button type="button" data-act="wmatch" data-k="any" aria-pressed="' + (f.match === 'any') + '">任一</button></span>', conds) +
+    reasonFrameworkHTML('w', f.reasonParts, '买入后会变成逻辑卡，拿来和事实对照', '为什么想买 <span style="color:#B42318">*</span>') +
+    (evPanel ? '<div style="display:flex;flex-direction:column;gap:6px;margin-top:-4px">' + evPanel + '</div>' : '') +
+    field('什么时候买 <span class="seg" style="display:inline-flex;margin-left:6px"><button type="button" data-act="wmatch" data-k="all" aria-pressed="' + (f.match === 'all') + '">全部</button><button type="button" data-act="wmatch" data-k="any" aria-pressed="' + (f.match === 'any') + '">任一</button></span>', primary + extra) +
     field('打算买多少', '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' + plan + '</div>') +
-    '<div class="note" id="wImpact" style="font-size:12px;color:#3A4250">' + (p.impact ? esc(impactText(p.impact).replace(/<[^>]+>/g, '')) : '<span class="sub">选了仓位，这里显示买入后各板块占比怎么变。</span>') + '</div>' +
-    field('什么情况说明我错了 <span class="sub">· 可选</span>', '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:12px;color:#5B6372">收盘跌破</span><input class="inp" id="wInv" style="width:96px;min-height:28px;padding:3px 8px" inputmode="decimal" value="' + esc(f.invBelow) + '"><span class="sub" style="margin:0 4px">或</span><button type="button" class="chip' + (f.invSector ? ' on' : '') + '" data-act="winv">板块转为在流出</button></div>', '现在可以不填，买入时再补') +
-    '<span class="sub">保存后每天盯：离条件还差多少、AI 看法变没变、大盘允不允许；条件到了通知你。</span>' +
-    '<div style="display:flex;justify-content:flex-end;gap:8px">' + (a.editId ? '<button type="button" class="btn" data-act="close">取消</button><button type="button" class="btn pri" id="wSave" data-act="wsave">保存修改</button>' : '<button type="button" class="btn" data-act="addback">上一步</button><button type="button" class="btn pri" id="wSave" data-act="wsave">保存到想买</button>') + '</div>', '加一只想买的');
+    '<div class="note" id="wImpact" style="font-size:12px;color:#3A4250">' + (p.impact ? esc(impactText(p.impact).replace(/<[^>]+>/g, '')) : '<span class="sub">选了仓位，这里显示买入后板块占比怎么变。</span>') + '</div>' +
+    invBlock +
+    '<div style="display:flex;justify-content:flex-end;gap:8px">' + (a.editId ? '<button type="button" class="btn" data-act="close">取消</button><button type="button" class="btn pri" id="wSave" data-act="wsave">保存修改</button>' : '<button type="button" class="btn" data-act="addback">上一步</button><button type="button" class="btn pri" id="wSave" data-act="wsave">保存到想买</button>') + '</div>',
+    '加一只想买的', { wide: true });
   const pl = $('wPlan'); if (pl) pl.addEventListener('input', debounce(async () => { captureAdd(); f.plan = Number(pl.value) || 0; await refreshWishImpact(); }, 400));
 }
 async function refreshWishImpact() {
@@ -1041,6 +1160,8 @@ async function refreshWishImpact() {
 async function saveWish() {
   captureAdd();
   const a = S.add, f = a.form;
+  const reason = composeReasonText(f.reasonParts);
+  if (!String((f.reasonParts && f.reasonParts.core) || '').trim()) return toast('先写一句核心判断：我主要赌什么', true);
   const conditions = [];
   if (f.price && f.below) conditions.push({ kind: 'price_below', value: f.below });
   if (f.etf) conditions.push({ kind: 'etf_inflow' });
@@ -1053,8 +1174,8 @@ async function saveWish() {
   if (f.invSector) invalid.push({ kind: 'sector_out' });
   const btn = $('wSave'); btn.disabled = true;
   try {
-    if (a.editId) await api('/wishes/' + a.editId, 'PUT', { reason: f.reason, conditions, match: f.match, plan_pct: f.plan || 0, invalid });
-    else await api('/wishes', 'POST', { ts_code: a.stock.ts_code, reason: f.reason, conditions, match: f.match, plan_pct: f.plan || 0, invalid, source: (a.source || 'manual') });
+    if (a.editId) await api('/wishes/' + a.editId, 'PUT', { reason: reason, conditions, match: f.match, plan_pct: f.plan || 0, invalid });
+    else await api('/wishes', 'POST', { ts_code: a.stock.ts_code, reason: reason, conditions, match: f.match, plan_pct: f.plan || 0, invalid, source: (a.source || 'manual') });
     closeModal(); toast(a.editId ? '已保存修改' : '已加到想买'); S.tabs = {}; S.detail = {}; S.tab = 'buy'; await refreshAll();
   } catch (e) { toast(e.message, true); btn.disabled = false; }
 }
@@ -1078,18 +1199,26 @@ function openReason(code) {
   const d = S.detail[code]; if (!d || !d.reason) return;
   const inv = d.reason.invalid || [];
   const below = (inv.find((i) => i.kind === 'close_below') || {}).value || '';
-  S.rsn = { code, sectorOut: inv.some((i) => i.kind === 'sector_out'), flowOut: inv.some((i) => i.kind === 'flow_out'), custom: (inv.find((i) => i.kind === 'custom') || {}).text || '' };
-  modal(modalHead('改一下理由 · ' + esc(d.name)) + field('我为什么买', '<textarea class="inp" id="eText" rows="2">' + esc(d.reason.text) + '</textarea>', '改了以后「写于」日期不变；理由还在不在，体检会按新的重新核对') +
-    field('什么情况说明我错了', '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:12px;color:#5B6372">收盘跌破</span><input class="inp" id="eBelow" style="width:96px" inputmode="decimal" value="' + esc(below) + '"><span class="sub" style="margin:0 4px">或</span><button type="button" class="chip' + (S.rsn.sectorOut ? ' on' : '') + '" data-act="etoggle" data-k="sectorOut">板块转为在流出</button><button type="button" class="chip' + (S.rsn.flowOut ? ' on' : '') + '" data-act="etoggle" data-k="flowOut">大资金连续 3 天流出</button></div><input class="inp" id="eCustom" placeholder="自己写一条（可选）" value="' + esc(S.rsn.custom) + '">') +
+  const parts = parseReasonText(d.reason.text || '');
+  S.rsn = { code, reasonParts: parts, sectorOut: inv.some((i) => i.kind === 'sector_out'), flowOut: inv.some((i) => i.kind === 'flow_out'), custom: (inv.find((i) => i.kind === 'custom') || {}).text || '' };
+  renderReasonEdit(d.name, below);
+}
+function renderReasonEdit(name, below) {
+  const r = S.rsn;
+  modal(modalHead('改一下理由 · ' + esc(name)) + reasonFrameworkHTML('e', r.reasonParts, '改了以后「写于」日期不变；理由还在不在，体检会按新的重新核对') +
+    field('什么情况说明我错了', '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-size:12px;color:#5B6372">收盘跌破</span><input class="inp" id="eBelow" style="width:96px" inputmode="decimal" value="' + esc(below || '') + '"><span class="sub" style="margin:0 4px">或</span><button type="button" class="chip' + (r.sectorOut ? ' on' : '') + '" data-act="etoggle" data-k="sectorOut">板块转为在流出</button><button type="button" class="chip' + (r.flowOut ? ' on' : '') + '" data-act="etoggle" data-k="flowOut">大资金连续 3 天流出</button></div><input class="inp" id="eCustom" placeholder="自己写一条（可选）" value="' + esc(r.custom) + '">') +
     '<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-act="close">取消</button><button type="button" class="btn pri" id="eGo" data-act="esave">保存</button></div>', '改理由');
 }
 async function saveReason() {
   const r = S.rsn; const invalid = [];
+  captureReasonParts('e', r.reasonParts);
+  const text = composeReasonText(r.reasonParts);
+  if (!String((r.reasonParts && r.reasonParts.core) || '').trim()) return toast('先写一句核心判断：我主要赌什么', true);
   if (val('eBelow')) invalid.push({ kind: 'close_below', value: val('eBelow') });
   if (r.sectorOut) invalid.push({ kind: 'sector_out' });
   if (r.flowOut) invalid.push({ kind: 'flow_out', days: 3 });
   if (val('eCustom').trim()) invalid.push({ kind: 'custom', text: val('eCustom').trim() });
-  try { await api('/stock/' + encodeURIComponent(r.code) + '/reason', 'PUT', { text: val('eText'), invalid }); closeModal(); toast('理由已更新'); S.tabs = {}; delete S.detail[r.code]; await refreshAll(); } catch (e) { toast(e.message, true); }
+  try { await api('/stock/' + encodeURIComponent(r.code) + '/reason', 'PUT', { text: text, invalid }); closeModal(); toast('理由已更新'); S.tabs = {}; delete S.detail[r.code]; await refreshAll(); } catch (e) { toast(e.message, true); }
 }
 function openPriceLine(code) {
   const d = S.detail[code]; if (!d) return;
@@ -1161,7 +1290,7 @@ async function saveTradeEdit() {
 async function openWishEdit(id) {
   const w = ((S.tabs.buy || {}).items || []).find((x) => String(x.id) === String(id)); if (!w) return;
   const e = w.edit || {};
-  const f = { plan: e.plan_pct || 0, match: e.match || 'all', price: false, etf: false, ai: false, market: false, flowIn: false, custom: '', customOn: false, reason: e.reason || '', below: '', invBelow: '', invSector: false };
+  const f = { plan: e.plan_pct || 0, match: e.match || 'all', price: false, etf: false, ai: false, market: false, flowIn: false, custom: '', customOn: false, reasonParts: parseReasonText(e.reason || ''), below: '', invBelow: '', invSector: false, moreConds: false, evOpen: false, invOpen: false };
   (e.conditions || []).forEach((c) => {
     if (c.kind === 'price_below') { f.price = true; f.below = String(c.value); }
     else if (c.kind === 'etf_inflow') f.etf = true;
@@ -1171,6 +1300,8 @@ async function openWishEdit(id) {
     else if (c.kind === 'custom') { f.customOn = true; f.custom = c.text || ''; }
   });
   (e.invalid || []).forEach((i) => { if (i.kind === 'close_below') f.invBelow = String(i.value); else if (i.kind === 'sector_out') f.invSector = true; });
+  if (f.market || f.flowIn || f.customOn) f.moreConds = true;
+  if (f.invBelow || f.invSector) f.invOpen = true;
   S.add = { step: 2, editId: w.id, stock: { ts_code: w.ts_code, name: w.name }, form: f, preview: null };
   modal(modalHead('编辑想买') + '<div class="skeleton">正在取这只票的现价、AI 判断和板块…</div>', '编辑想买');
   try { S.add.preview = await api('/wishes/preview', 'POST', { ts_code: w.ts_code, plan_pct: f.plan }); } catch (err) { S.add.preview = null; }
@@ -1226,6 +1357,37 @@ const ACT = {
   },
   rside: (el) => { captureRec(); S.rec.side = el.dataset.k; S.rec.preview = null; renderRec(); refreshPreview(); },
   rtoggle: (el) => { captureRec(); S.rec[el.dataset.k] = !S.rec[el.dataset.k]; renderRec(); },
+  rdim: (el) => {
+    captureRec();
+    const k = el.dataset.k;
+    const p = S.rec.reasonParts || (S.rec.reasonParts = emptyReasonParts());
+    p.open[k] = !p.open[k];
+    if (!p.open[k]) p.dims[k] = '';
+    renderRec();
+  },
+  edim: (el) => {
+    const k = el.dataset.k;
+    const p = S.rsn.reasonParts || (S.rsn.reasonParts = emptyReasonParts());
+    captureReasonParts('e', p);
+    S.rsn.custom = val('eCustom');
+    p.open[k] = !p.open[k];
+    if (!p.open[k]) p.dims[k] = '';
+    const below = val('eBelow');
+    const name = (S.detail[S.rsn.code] && S.detail[S.rsn.code].name) || S.rsn.code;
+    renderReasonEdit(name, below);
+  },
+  etoggle: (el) => {
+    if (S.rsn) {
+      captureReasonParts('e', S.rsn.reasonParts || (S.rsn.reasonParts = emptyReasonParts()));
+      S.rsn.custom = val('eCustom');
+      S.rsn[el.dataset.k] = !S.rsn[el.dataset.k];
+      const below = val('eBelow');
+      const name = (S.detail[S.rsn.code] && S.detail[S.rsn.code].name) || S.rsn.code;
+      renderReasonEdit(name, below);
+      return;
+    }
+    el.classList.toggle('on');
+  },
   recpick: () => { captureRec(); S.rec.stock = null; S.rec.preview = null; renderRec(); },
   rpick: (el) => { captureRec(); const h = S.hits[Number(el.dataset.i)]; S.rec.stock = { ts_code: h.ts_code, name: h.name }; S.rec.preview = null; renderRec(); refreshPreview(); },
   rsubmit: submitRec,
@@ -1233,11 +1395,28 @@ const ACT = {
   addpick: (el) => { const list = S.add.data[el.dataset.g]; const x = list[Number(el.dataset.i)]; S.add.source = el.dataset.g === 'scan' ? 'scan' : 'diagnose'; pickWishStock({ ts_code: x.ts_code, name: x.name }); },
   asearch: (el) => { const h = S.hits[Number(el.dataset.i)]; S.add.source = 'manual'; pickWishStock({ ts_code: h.ts_code, name: h.name }); },
   addback: () => { renderAddPick(); },
-  wchk: (el) => { captureAdd(); S.add.form[el.dataset.k] = el.checked; renderAddForm(); },
+  wchk: (el) => { captureAdd(); S.add.form[el.dataset.k] = el.checked; if (el.dataset.k === 'customOn' || el.dataset.k === 'market' || el.dataset.k === 'flowIn') S.add.form.moreConds = true; renderAddForm(); },
   wmatch: (el) => { captureAdd(); S.add.form.match = el.dataset.k; renderAddForm(); },
   wplan: async (el) => { captureAdd(); S.add.form.plan = Number(el.dataset.n); renderAddForm(); refreshWishImpact(); },
-  winv: () => { captureAdd(); S.add.form.invSector = !S.add.form.invSector; renderAddForm(); },
-  wevid: (el) => { captureAdd(); const t = S.add.preview.evidence[Number(el.dataset.i)]; const f = S.add.form; f.reason = (f.reason ? f.reason + '；' : '') + t; renderAddForm(); },
+  winv: () => { captureAdd(); S.add.form.invSector = !S.add.form.invSector; S.add.form.invOpen = true; renderAddForm(); },
+  wmore: () => { captureAdd(); S.add.form.moreConds = !S.add.form.moreConds; renderAddForm(); },
+  wev: () => { captureAdd(); S.add.form.evOpen = !S.add.form.evOpen; renderAddForm(); },
+  winvopen: () => { captureAdd(); S.add.form.invOpen = !S.add.form.invOpen; renderAddForm(); },
+  wdim: (el) => {
+    captureAdd();
+    const p = S.add.form.reasonParts || (S.add.form.reasonParts = emptyReasonParts());
+    const k = el.dataset.k;
+    p.open[k] = !p.open[k];
+    if (!p.open[k]) p.dims[k] = '';
+    renderAddForm();
+  },
+  wevid: (el) => {
+    captureAdd();
+    const t = S.add.preview.evidence[Number(el.dataset.i)];
+    const p = S.add.form.reasonParts || (S.add.form.reasonParts = emptyReasonParts());
+    p.core = (p.core ? String(p.core).replace(/[。；;\s]+$/g, '') + '；' : '') + t;
+    renderAddForm();
+  },
   wsave: saveWish,
   capital: openCapital,
   csave: saveCapital,
@@ -1292,7 +1471,6 @@ const ACT = {
   import: openImport,
   idoit: doImport,
   reason: (el) => openReason(el.dataset.code),
-  etoggle: (el) => { S.rsn[el.dataset.k] = !S.rsn[el.dataset.k]; el.classList.toggle('on'); },
   esave: saveReason,
   priceline: (el) => openPriceLine(el.dataset.code),
   psave: savePriceLine,

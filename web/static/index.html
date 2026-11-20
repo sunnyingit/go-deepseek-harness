@@ -19,9 +19,22 @@ a{color:inherit}
 .wl .chg{min-width:52px}
 .wl .up{color:#B42318}
 .wl .dn{color:#1E6B44}
-.wl .sub{grid-column:1/-1;font-size:13px;color:#8A919E;padding-top:1px}
+.wl .sub{grid-column:1/-1;font-size:13px;color:#8A919E;padding-top:1px;padding-right:8px}
+.wl.has-tags .sub{padding-right:72px}
 .wl .sub.warn{color:#7A4A00}
-.wl .wl-more{position:absolute;right:6px;bottom:7px;display:none;width:22px;height:22px;padding:0;border:none;border-radius:8px;background:#F1F2F4;color:#5B6372;font:inherit;font-size:15px;line-height:22px;cursor:pointer}
+.wl .wl-tags{position:absolute;right:8px;bottom:7px;z-index:1;display:inline-flex;flex-wrap:nowrap;gap:3px;max-width:calc(100% - 40px);justify-content:flex-end;overflow:hidden;pointer-events:none}
+.wl:hover .wl-tags,.wl:focus-within .wl-tags{right:30px}
+.wl .wl-tag{display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:999px;background:#EEF2FB;color:#2457D6;font-size:11px;font-weight:600;line-height:18px;white-space:nowrap;flex:none}
+.wl .wl-more{position:absolute;right:6px;bottom:7px;z-index:2;display:none;width:22px;height:22px;padding:0;border:none;border-radius:8px;background:#F1F2F4;color:#5B6372;font:inherit;font-size:15px;line-height:22px;cursor:pointer}
+#tagEdit{position:fixed;z-index:61;width:280px;padding:12px;background:#FFFFFF;border:1px solid #DDE1E7;border-radius:12px;box-shadow:0 12px 32px -8px rgba(20,23,31,.28),0 2px 8px rgba(20,23,31,.08)}
+#tagEdit h3{margin:0 0 8px;font-size:14px;font-weight:600;color:#14171F}
+#tagEdit .tag-hint{margin:0 0 8px;font-size:12px;color:#8A919E;line-height:1.4}
+#tagEdit input{box-sizing:border-box;width:100%;height:34px;padding:0 10px;border:1px solid #DDE1E7;border-radius:8px;font:inherit;font-size:14px;color:#14171F;outline:none}
+#tagEdit input:focus{border-color:#2457D6;box-shadow:0 0 0 3px rgba(36,87,214,.12)}
+#tagEdit .tag-sugs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+#tagEdit .tag-sug{height:24px;padding:0 8px;border:1px solid #DDE1E7;border-radius:999px;background:#F7F8FA;color:#3A4250;font:inherit;font-size:12px;cursor:pointer}
+#tagEdit .tag-sug:hover,#tagEdit .tag-sug.on{border-color:#2457D6;background:#EAF0FD;color:#1F3F8A}
+#tagEdit .tag-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
 .wl:hover .wl-more,.wl:focus-within .wl-more{display:block}
 .wl .wl-more:hover{background:#EAF0FD;color:#2457D6}
 .wl.drag-src{opacity:.45}
@@ -2886,15 +2899,53 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
 
   function liveChat(code, gen) {
     const cur = chats[code];
-    return cur && cur.gen === gen ? cur : null;
+    return cur && !cur.abandoned && !cur.idle && cur.gen === gen ? cur : null;
+  }
+
+  function postAgentsStop(code, reason) {
+    if (!code) return;
+    fetch(HARNESS_ORIGIN + '/api/stocks/' + encodeURIComponent(code) + '/agents/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: reason || 'user stop' }),
+    }).catch(() => {});
   }
 
   function abandonChat(code) {
     const c = chats[code];
-    if (!c || c.restored) return;
+    if (!c || c.restored || c.idle) return;
+    if (c.liveDiag) postAgentsStop(code, 'switched stock');
     c.abandoned = true;
+    c.gen = ++chatEpoch;
     (c.stops || []).forEach((stop) => { try { stop(); } catch (e) { /* 已经停了 */ } });
+    c.stops = [];
     if (!c.results || !c.results.chief) delete chats[code];
+  }
+
+  function idleChat(code) {
+    return {
+      idle: true, msgs: [], results: {}, revealed: 0, holding: false,
+      startedAt: new Date(), debateStarted: false, chiefStarted: false, started: {},
+      gen: ++chatEpoch, restored: false, liveDiag: false, abandoned: false, lastAnalysts: [],
+    };
+  }
+
+  function stopDiagnosis(code) {
+    code = code || state.stock;
+    if (!code) return;
+    const c = chats[code];
+    postAgentsStop(code, 'user stop');
+    if (c && !c.restored) {
+      c.abandoned = true;
+      c.liveDiag = false;
+      c.gen = ++chatEpoch;
+      (c.stops || []).forEach((stop) => { try { stop(); } catch (e) { /* 已经停了 */ } });
+      c.stops = [];
+    }
+    chats[code] = idleChat(code);
+    toast('已停止本轮研判');
+    renderChat();
+    renderHead();
   }
 
   function loadOne(code, who) {
@@ -3029,13 +3080,52 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       .catch(() => { if (chats[code] === c) c.committed = false; });
   }
 
+  // 结论包还没出来时，把研判群里已成功的发言先铺上；轮询时只追加新人，不整包重画。
+  function applyGroupPartial(c, code, group) {
+    const lines = ((group && group.lines) || []).filter((line) => line.kind === 'analysis' && ROLE[line.agent] && String(line.text || '').trim());
+    const have = {};
+    c.msgs.forEach((m) => { if ((m.kind === 'analysis' || m.kind === 'nodata' || m.kind === 'empty') && m.who) have[m.who] = true; });
+    let added = false;
+    ROUND.concat(DEBATE).forEach((who) => {
+      if (have[who]) return;
+      const line = lines.find((l) => l.agent === who);
+      if (!line) return;
+      const h = headlineOf(line);
+      if (who === 'chief') {
+        c.msgs.push({ id: ++chatSeq, who: who, kind: 'analysis', round: true, card: Object.assign({}, line), text: line.text || '', headline: h, at: new Date(), partial: true });
+        c.results[who] = { msg: { text: line.text || '', headline: h } };
+      } else if (who === 'bull' || who === 'bear') {
+        c.msgs.push({ id: ++chatSeq, who: who, kind: 'analysis', round: true, text: line.text || '', headline: h, at: new Date(), partial: true });
+        c.results[who] = { msg: { text: line.text || '', headline: h } };
+      } else {
+        c.msgs.push({ id: ++chatSeq, who: who, kind: 'analysis', round: true, text: line.text, headline: h, at: new Date(), partial: true });
+        c.results[who] = { msg: { text: line.text, headline: h } };
+        const dim = BUNDLE_DIM[who];
+        if (dim && code) patchDimCache(dim, code, { headline: { text: line.text, status: (h && h.status) || 'neutral', status_text: (h && h.status_text) || '不明', source: 'model' }, analyst_failed: false });
+      }
+      added = true;
+    });
+    return added;
+  }
+
+  // 群记录里每位分析师最后一次 analysis（用来补工具调用；正文优先用结论包 headline）。
+  function lastGroupAnalysis(group) {
+    const out = {};
+    ((group && group.lines) || []).forEach((line) => {
+      if (line && line.kind === 'analysis' && line.agent && ROLE[line.agent]) out[line.agent] = line;
+    });
+    return out;
+  }
+
   function conclusionChat(code, concl, group) {
     const c = { msgs: [{ id: ++chatSeq, who: 'chief', kind: 'opening', at: new Date() }], results: {}, revealed: FULL.length, holding: false, startedAt: new Date(), debateStarted: true, chiefStarted: true, gen: ++chatEpoch, restored: true, bundle: null, job: concl.job || null, pending: null };
     const b = concl.bundle;
+    const lastLine = lastGroupAnalysis(group);
     if (!b) {
       c.pending = { state: concl.state, message: (concl.job && concl.job.message) || '' };
       c.results.chief = concl.state === 'failed' ? { error: c.pending.message || '还没有生成结论' } : null;
       if (!c.results.chief) delete c.results.chief;
+      applyGroupPartial(c, code, group);
       return c;
     }
     c.bundle = b;
@@ -3045,9 +3135,12 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       const row = (b.analysts || []).find((x) => x.dimension === who) || {};
       const h = row.headline;
       const dim = BUNDLE_DIM[who];
+      const gLine = lastLine[who];
       if (h && h.text) {
-        c.msgs.push({ id: ++chatSeq, who: who, kind: 'analysis', round: true, text: h.text, headline: headlineOf(h), at: at });
-        c.results[who] = { msg: { text: h.text, headline: headlineOf(h) } };
+        // 正文取更完整的一份（结论包 / 群记录），工具调用来自群记录
+        const text = (gLine && gLine.text && gLine.text.length > h.text.length) ? gLine.text : h.text;
+        c.msgs.push({ id: ++chatSeq, who: who, kind: 'analysis', round: true, text: text, headline: headlineOf(h), tools: (gLine && gLine.tools) || null, at: at });
+        c.results[who] = { msg: { text: text, headline: headlineOf(h) } };
         patchDimCache(dim, code, { headline: { text: h.text, status: h.status || 'neutral', status_text: h.status_text || '不明', source: 'model' }, analyst_failed: false });
       } else {
         const why = row.state === 'no_data' ? '没有取到这一块的数据' + (row.reason ? '：' + row.reason : '') : row.state === 'failed' ? '这次没能给出结论' + (row.reason ? '：' + row.reason : '') : '这次没有结论';
@@ -3059,14 +3152,15 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     c.msgs.push({ id: ++chatSeq, who: 'chief', kind: 'divider', text: dimSummary(c), at: at });
     const debate = b.debate || {};
     ['bull', 'bear'].forEach((who) => {
-      const pts = (debate[who] && debate[who].points) || [];
-      c.msgs.push({ id: ++chatSeq, who: who, kind: 'analysis', round: true, fromBundle: true, points: pts, errors: debate[who] ? debate[who].errors : null, at: at });
+      const pts = normalizeSidePoints((debate[who] && debate[who].points) || []);
+      const gLine = lastLine[who];
+      c.msgs.push({ id: ++chatSeq, who: who, kind: 'analysis', round: true, fromBundle: true, points: pts, errors: debate[who] ? debate[who].errors : null, text: (gLine && gLine.text) || '', tools: (gLine && gLine.tools) || null, at: at });
       c.results[who] = { msg: { points: pts } };
     });
     const card = Object.assign({}, b.chief || {});
     c.msgs.push({ id: ++chatSeq, who: 'chief', kind: 'analysis', round: true, card: card, text: card.text || '', at: at });
     c.results.chief = { msg: card };
-    // 之后的追问和回答来自群里的记录（只取结论之后的 reply）
+    // 之后的追问和回答来自群里的记录
     ((group && group.lines) || []).filter((line) => line.kind === 'reply' && ROLE[line.agent]).forEach((line) => {
       if (line.quote) c.msgs.push({ id: ++chatSeq, who: 'me', kind: 'reply', text: line.quote, at: new Date() });
       c.msgs.push({ id: ++chatSeq, who: line.agent, kind: 'reply', text: line.text || '', quote: line.quote || '', headline: headlineOf(line), tools: line.tools || null, at: new Date() });
@@ -3102,7 +3196,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     }).then(() => { pollConclusion(code); });
   }
 
-  // 还在生成（首次打开）或正在重新分析时，每 3 秒看一次进度；出了新结论包就换上。
+  // 还在生成（首次打开）或正在重新分析时，每 3 秒看一次进度；成功的先从群里铺上，出了新结论包再整包换上。
   function pollConclusion(code) {
     const c = chats[code];
     if (!c || !c.restored || c.pollTimer) return;
@@ -3111,8 +3205,13 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     c.pollTimer = setTimeout(() => {
       c.pollTimer = 0;
       if (chats[code] !== c) return;
-      fetchStockJSON(conclUrl(code)).then((concl) => {
+      const enc = encodeURIComponent(code);
+      Promise.all([
+        fetchStockJSON(conclUrl(code)),
+        fetch(HARNESS_ORIGIN + '/api/stocks/' + enc + '/agents/group').then((res) => (res.ok ? res.json() : null)).catch(() => null),
+      ]).then((pair) => {
         if (chats[code] !== c) return;
+        const concl = pair[0], group = pair[1];
         const newer = concl.bundle && (!c.bundle || concl.bundle.id !== c.bundle.id);
         const running = /^(queued|running|retrying)$/.test((concl.job && concl.job.state) || '');
         if (newer || (!running && concl.state !== 'pending')) {
@@ -3121,6 +3220,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
         }
         c.job = concl.job;
         if (concl.state === 'failed') { c.pending = { state: 'failed', message: (concl.job && concl.job.message) || '' }; c.refreshing = false; }
+        else if (!c.bundle) applyGroupPartial(c, code, group);
         renderChat();
         pollConclusion(code);
       }).catch(() => { pollConclusion(code); });
@@ -3139,11 +3239,11 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
             .catch(() => null)
             .then((g) => { chats[code] = conclusionChat(code, concl, g); });
         }
-        // 后台任务已经占用股票锁时，继续轮询结论包；否则直播 SSE
+        // 后台任务已经占用股票锁时，继续轮询结论包；否则等用户点「开始研判」
         if (running) return loadConclusion(code);
-        startLiveDiagnosis(code);
+        chats[code] = idleChat(code);
       })
-      .catch(() => { startLiveDiagnosis(code); })
+      .catch(() => { chats[code] = idleChat(code); })
       .finally(() => { delete chatLoads[code]; renderChat(); });
   }
 
@@ -3165,18 +3265,26 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     const b = c.bundle, job = c.job || {};
     const muted = 'font-size:14px;color:#5B6372;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:0 2px';
     const progress = job.total ? '正在重新分析 ' + (job.done || 0) + '/' + job.total : '正在重新分析';
+    if (c.idle) {
+      return '<div style="padding:16px 12px;border-radius:12px;background:#F7F8FA;color:#5B6372;font-size:15px;line-height:1.6;display:flex;flex-direction:column;align-items:flex-start;gap:12px">' +
+        '<span>还没有这只股票的研判。点下面开始，分析师会依次发言。</span>' +
+        '<button type="button" class="cta" data-click="reanalyze">开始研判</button></div>';
+    }
     if (c.liveDiag && !c.restored) {
       const done = Math.min(FULL.length, c.revealed || 0);
-      return '<div style="padding:12px;border-radius:12px;background:#EAF0FD;color:#2457D6;font-size:15px;line-height:1.6;display:flex;align-items:center;gap:10px"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>' +
-        '<span>正在直播诊断 · 分析师依次发言 ' + done + '/' + FULL.length + '</span></div>';
+      return '<div style="padding:12px;border-radius:12px;background:#EAF0FD;color:#2457D6;font-size:15px;line-height:1.6;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>' +
+        '<span style="flex:1;min-width:0">正在直播诊断 · 分析师依次发言 ' + done + '/' + FULL.length + '</span>' +
+        '<button type="button" class="mini" data-click="stopDiagnosis" style="flex:none;color:#5B6372">停止</button></div>';
     }
     if (!b) {
       if (c.pending && c.pending.state === 'failed') {
         return '<div style="padding:10px 12px;border-radius:12px;background:#FFF1D6;color:#7A4A00;font-size:15px;line-height:1.6">这只股票的结论还没有生成出来' + (c.pending.message ? '：' + esc(c.pending.message) : '') +
-          '<button type="button" class="cta" data-click="reanalyze" style="margin-left:8px">重新分析</button></div>';
+          '<button type="button" class="cta" data-click="reanalyze" style="margin-left:8px">开始研判</button></div>';
       }
+      const spoken = ROUND.filter((who) => c.results[who] && c.results[who].msg).length;
+      const spokenHint = spoken ? '已有 ' + spoken + ' 位先发言，其余继续' : '成功的会先出现在群里';
       return '<div style="padding:12px;border-radius:12px;background:#EAF0FD;color:#2457D6;font-size:15px;line-height:1.6;display:flex;align-items:center;gap:10px"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>' +
-        '<span>正在生成这只股票的结论（五位分析师在本机依次分析，约一两分钟）' + (job.total ? ' · ' + (job.done || 0) + '/' + job.total : '') + '</span></div>';
+        '<span>正在生成这只股票的结论（' + spokenHint + '）' + (job.total ? ' · ' + (job.done || 0) + '/' + job.total : '') + '</span></div>';
     }
     const failed = (b.analysts || []).filter((a) => a.state !== 'ok').map((a) => a.label);
     return '<div style="' + muted + '"><span>' + esc(b.trade_date) + (b.session === 'intraday' ? ' 盘中' : ' 收盘后') + ' · ' + esc(b.generated_at) + ' 生成</span>' +
@@ -3258,7 +3366,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   // 按顺序亮出来：上一位说完再请下一位；每位之间隔一小会儿。
   function advanceRound(code) {
     const c = chats[code];
-    if (!c || c.holding || c.restored) return;
+    if (!c || c.holding || c.restored || c.abandoned || c.idle) return;
     for (;;) {
       const who = FULL[c.revealed];
       if (!who) break;
@@ -3409,7 +3517,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   const statusPill = (h) => {
     if (!h || !h.status_text) return '';
     const str = h.strength ? ' · ' + h.strength : '';
-    return '<span class="pill" style="' + (STATUS_STYLE[h.status] || STATUS_STYLE.neutral) + ';font-weight:600">' + esc(h.status_text + str) + '</span>';
+    return '<span class="pill" style="max-width:100%;overflow:hidden;text-overflow:ellipsis;' + (STATUS_STYLE[h.status] || STATUS_STYLE.neutral) + ';font-weight:600">' + esc(h.status_text + str) + '</span>';
   };
   const divider = (label) => '<div style="display:flex;align-items:center;gap:10px;font-size:14px;color:#8A919E"><span style="flex:1;height:1px;background:#E3E6EB"></span><span>' + esc(label) + '</span><span style="flex:1;height:1px;background:#E3E6EB"></span></div>';
   const BUBBLE = 'font-size:16px;line-height:1.7;color:#14171F;display:flex;flex-direction:column;gap:12px;width:100%;min-width:0';
@@ -3430,6 +3538,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   };
 
   // 看多 / 看空的论据：编号、一句话、依据（哪位分析师）、主分析师裁决后的采纳或未采纳。
+  // 裁决理由常是长文，不能塞进固定高度胶囊，否则会溢出盖住下一条。
   function pointsHTML(m) {
     const pts = m.points || [];
     if (!pts.length) {
@@ -3440,9 +3549,21 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     return '<span>' + (m.kind === 'reply' ? '' : atName('主分析师') + ' 我的 ' + pts.length + ' 条：') + '</span>' + pts.map((p, i) => {
       const by = p.analyst && ROLE[p.analyst.dimension];
       const v = p.verdict;
+      let verdictHTML = '';
+      if (v) {
+        const label = v.adopt ? '✓ 采纳' : '✗ 未采纳';
+        const reason = String(v.text || '').trim();
+        const pill = 'align-self:flex-start;display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:13px;white-space:nowrap;' + (v.adopt ? 'background:#EAF0FD;color:#1F3F8A' : 'background:#F7F8FA;color:#5B6372');
+        const shortReason = reason && reason !== '采纳' && reason !== '未采纳' && reason.length <= 16;
+        if (!reason || shortReason) {
+          verdictHTML = '<span style="margin-left:24px;' + pill + '">' + (shortReason ? (v.adopt ? '✓ ' : '✗ ') + esc(reason) : label) + '</span>';
+        } else {
+          verdictHTML = '<div style="margin-left:24px;display:flex;flex-direction:column;gap:4px;min-width:0"><span style="' + pill + '">' + label + '</span><span style="font-size:14px;line-height:1.65;color:#5B6372;overflow-wrap:anywhere">' + esc(reason) + '</span></div>';
+        }
+      }
       return '<div style="display:flex;flex-direction:column;gap:4px;padding-top:4px"><div style="display:flex;gap:8px"><span style="flex:none;color:#2457D6;font-weight:600">' + (CIRCLED[i] || (i + 1)) + '</span><span style="min-width:0;overflow-wrap:anywhere">' + esc(p.text || p.claim || '') +
         (by ? ' <span style="color:#8A919E">— 依据 <button type="button" class="ev" style="height:20px;padding:0 8px" data-click="' + by.drawer + '"><span>@' + esc(by.name) + '</span></button></span>' : '') + '</span></div>' +
-        (v ? '<span style="align-self:flex-start;margin-left:24px;display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:13px;' + (v.adopt ? 'background:#EAF0FD;color:#1F3F8A' : 'background:#F7F8FA;color:#5B6372') + '">' + (v.adopt ? '✓ ' : '✗ ') + esc(v.text || (v.adopt ? '采纳' : '未采纳')) + '</span>' : '') + '</div>';
+        verdictHTML + '</div>';
     }).join('');
   }
 
@@ -3516,8 +3637,8 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     return '<section aria-label="研判群" style="display:flex;flex-direction:column;gap:14px;padding-top:2px;width:100%">' +
       '<div style="display:grid;grid-template-columns:34px minmax(0,1fr) 34px;column-gap:8px;align-items:center;padding-top:2px"><span aria-hidden="true"></span><div style="display:flex;align-items:center;gap:10px;min-width:0"><span style="font-size:14px;font-weight:700">研判群</span><span style="display:inline-flex">' + stack + '</span>' +
       '<span style="font-size:14px;color:#5B6372">' + (FULL.length) + ' 位 AI 分析师</span></div><span aria-hidden="true"></span></div>' +
-      (c.restored || c.liveDiag ? conclusionBarHTML(c) : divider(pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + WEEK[d.getDay()] + ' ' + clock(d) + ' · 开始研判')) +
-      c.msgs.map((m) => msgHTML(m, code)).join('') + '</section>';
+      (c.idle || c.restored || c.liveDiag ? conclusionBarHTML(c) : divider(pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + WEEK[d.getDay()] + ' ' + clock(d) + ' · 开始研判')) +
+      (c.idle ? '' : c.msgs.map((m) => msgHTML(m, code)).join('')) + '</section>';
   }
 
   // 重画只在内容变了才动 DOM；你正在看上面的内容时不抢滚动条，在底部或刚发完消息才跟到最新一条。
@@ -4162,6 +4283,80 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
       })
       .catch((err) => toast('移出自选失败：' + err.message));
   }
+  function parseTagInput(raw) {
+    return String(raw || '').split(/[,，、;\s]+/).map((t) => t.trim()).filter(Boolean);
+  }
+  function allKnownTags() {
+    const seen = {}, out = [];
+    (watchState.items || []).forEach((it) => (it.tags || []).forEach((t) => {
+      const k = String(t).toLowerCase();
+      if (!k || seen[k]) return;
+      seen[k] = 1; out.push(String(t));
+    }));
+    return out;
+  }
+  let tagEdit = null; // { code, el }
+  function closeTagEdit() { if (tagEdit) { tagEdit.el.remove(); tagEdit = null; } }
+  function openTagEdit(code, x, y) {
+    closeWlMenu(); closeTagEdit();
+    const it = watchItem(code);
+    if (!it) { toast('请先把这只股票加入自选'); return; }
+    const cur = (it.tags || []).slice();
+    const known = allKnownTags();
+    const el = document.createElement('div');
+    el.id = 'tagEdit';
+    el.innerHTML = '<h3>给「' + esc(it.name || code) + '」打标签</h3>' +
+      '<p class="tag-hint">多个标签用空格或逗号分隔，最多 8 个</p>' +
+      '<input type="text" id="tagEditInput" maxlength="96" placeholder="例如：高股息 银行 观察" value="' + esc(cur.join(' ')) + '" autocomplete="off">' +
+      (known.length ? '<div class="tag-sugs">' + known.map((t) => '<button type="button" class="tag-sug' + (cur.indexOf(t) >= 0 ? ' on' : '') + '" data-tag="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>' : '') +
+      '<div class="tag-actions"><button type="button" class="mini" data-tag-act="clear">清空</button><button type="button" class="mini" data-tag-act="cancel">取消</button><button type="button" class="cta" data-tag-act="save">保存</button></div>';
+    document.body.appendChild(el);
+    el.style.left = Math.max(8, Math.min(x, innerWidth - el.offsetWidth - 8)) + 'px';
+    el.style.top = Math.max(8, Math.min(y, innerHeight - el.offsetHeight - 8)) + 'px';
+    tagEdit = { code: code, el: el };
+    const input = el.querySelector('#tagEditInput');
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    const toggleSug = (t) => {
+      const tags = parseTagInput(input.value);
+      const i = tags.findIndex((x) => x.toLowerCase() === t.toLowerCase());
+      if (i >= 0) tags.splice(i, 1); else tags.push(t);
+      input.value = tags.join(' ');
+      el.querySelectorAll('.tag-sug').forEach((b) => b.classList.toggle('on', tags.some((x) => x.toLowerCase() === b.dataset.tag.toLowerCase())));
+      input.focus();
+    };
+    el.addEventListener('click', (e) => {
+      const sug = e.target.closest && e.target.closest('.tag-sug');
+      if (sug) { e.preventDefault(); toggleSug(sug.dataset.tag); return; }
+      const act = e.target.closest && e.target.closest('[data-tag-act]');
+      if (!act) return;
+      e.preventDefault();
+      if (act.dataset.tagAct === 'cancel') closeTagEdit();
+      else if (act.dataset.tagAct === 'clear') { input.value = ''; el.querySelectorAll('.tag-sug').forEach((b) => b.classList.remove('on')); input.focus(); }
+      else if (act.dataset.tagAct === 'save') saveWatchTags(code, parseTagInput(input.value));
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); saveWatchTags(code, parseTagInput(input.value)); }
+      else if (e.key === 'Escape') { e.preventDefault(); closeTagEdit(); }
+    });
+  }
+  function saveWatchTags(code, tags) {
+    fetchStockJSON(HARNESS_ORIGIN + '/api/v1/watchlist/' + encodeURIComponent(code) + '/tags', undefined, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tags: tags }),
+    }).then((body) => {
+      const item = body.item;
+      if (item) {
+        const i = watchState.items.findIndex((x) => x.ts_code === code);
+        if (i >= 0) watchState.items[i] = Object.assign({}, watchState.items[i], item);
+      } else {
+        const it = watchItem(code);
+        if (it) it.tags = tags;
+      }
+      closeTagEdit();
+      toast((item && item.tags && item.tags.length) || tags.length ? '已更新标签' : '已清空标签');
+      render();
+    }).catch((err) => toast('保存标签失败：' + err.message));
+  }
   actions.unwatch = (el) => removeWatch(el.dataset.code);
   actions.wlMore = (el) => {
     const r = el.getBoundingClientRect();
@@ -4171,6 +4366,11 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     closeWlMenu();
     if (kind === 'open') { openStock(code); render(); } else if (kind === 'rediag') rediagnose(code);
     else if (kind === 'pin') pinStock(code);
+    else if (kind === 'tag') {
+      const row = document.querySelector('.wl[data-code="' + CSS.escape(code) + '"]');
+      const r = row ? row.getBoundingClientRect() : { left: 24, bottom: 120 };
+      openTagEdit(code, r.left, (row ? r.bottom : 120) + 4);
+    }
     else if (kind === 'remove') removeWatch(code);
   }
 
@@ -4182,9 +4382,9 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     its.forEach((b, k) => b.classList.toggle('on', k === wlMenu.sel));
   }
   function openWlMenu(code, x, y) {
-    closeWlMenu();
+    closeWlMenu(); closeTagEdit();
     const it = watchItem(code);
-    const rows = [['open', '打开诊断', 'Enter'], ['rediag', '重新诊断', '⌘R']].concat(it && isAttention(it) ? [] : [['pin', '置顶', '']]);
+    const rows = [['open', '打开诊断', 'Enter'], ['rediag', '重新诊断', '⌘R'], ['tag', '设置标签', '']].concat(it && isAttention(it) ? [] : [['pin', '置顶', '']]);
     const btn = (r, danger) => '<button type="button" role="menuitem" class="wlm-it' + (danger ? ' danger' : '') + '" data-wlm="' + r[0] + '"><span>' + r[1] + '</span>' + (r[2] ? '<span class="wlm-k">' + r[2] + '</span>' : '') + '</button>';
     const el = document.createElement('div');
     el.id = 'wlMenu'; el.setAttribute('role', 'menu');
@@ -4201,7 +4401,10 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     e.preventDefault();
     openWlMenu(row.dataset.code, e.clientX, e.clientY);
   });
-  document.addEventListener('mousedown', (e) => { if (wlMenu && !e.target.closest('#wlMenu')) closeWlMenu(); }, true);
+  document.addEventListener('mousedown', (e) => {
+    if (wlMenu && !e.target.closest('#wlMenu')) closeWlMenu();
+    if (tagEdit && !e.target.closest('#tagEdit')) closeTagEdit();
+  }, true);
   document.addEventListener('mouseover', (e) => {
     const b = wlMenu && e.target.closest && e.target.closest('.wlm-it');
     if (b) highlightWlMenu([].indexOf.call(wlMenu.el.querySelectorAll('.wlm-it'), b));
@@ -4284,12 +4487,17 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
   }
 
   // ---- 自选列表 ----
+  function tagsHTML(tags) {
+    const list = (tags || []).filter(Boolean);
+    if (!list.length) return '';
+    return '<span class="wl-tags">' + list.map((t) => '<span class="wl-tag">' + esc(t) + '</span>').join('') + '</span>';
+  }
   function renderWatch() {
     const root = document.getElementById('watchList');
     if (!root) return;
     const list = orderedWatch();
     const key = [state.stock, watchState.status, watchState.error && watchState.error.at].concat(list.map((i) =>
-      [i.ts_code, i.name, i.price, i.change_pct, i.judged_at, (i.subtitle || {}).text, (i.subtitle || {}).tone, i.computing, rediag[i.ts_code] ? 'r' : ''].join(':'))).join('|');
+      [i.ts_code, i.name, i.price, i.change_pct, i.judged_at, (i.subtitle || {}).text, (i.subtitle || {}).tone, i.computing, (i.tags || []).join(','), rediag[i.ts_code] ? 'r' : ''].join(':'))).join('|');
     if (root.dataset.key === key) return;
     root.dataset.key = key;
     if (watchState.status === 'loading') {
@@ -4307,11 +4515,13 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     root.innerHTML = list.map((s) => {
       const sel = s.ts_code === state.stock, sub = s.subtitle || {}, diag = s.computing || rediag[s.ts_code];
       const ok = num(s.price) != null, pct = num(s.change_pct);
-      return '<a role="button" tabindex="0" class="wl" data-click="pickStock" data-code="' + esc(s.ts_code) + '"' + (sel ? ' aria-current="true"' : '') +
+      const tags = tagsHTML(s.tags);
+      return '<a role="button" tabindex="0" class="wl' + (tags ? ' has-tags' : '') + '" data-click="pickStock" data-code="' + esc(s.ts_code) + '"' + (sel ? ' aria-current="true"' : '') +
         ' title="右键或点 ⋯ 打开操作" style="cursor:pointer"><span>' + esc(s.name || s.ts_code) + '</span>' +
         '<span class="px">' + (ok ? s.price.toFixed(2) : '—') + '</span>' +
         '<span class="chg ' + (pct > 0 ? 'up' : pct < 0 ? 'dn' : '') + '">' + (pct != null ? fmtSigned(pct, 2) + '%' : '') + '</span>' +
         '<span class="sub' + (sub.tone === 'warn' && !diag ? ' warn' : '') + '">' + (diag ? '<span class="dc-spin" style="display:inline-block;margin-right:4px;color:#2457D6">⟳</span>诊断中…' : esc(sub.text || '')) + '</span>' +
+        tags +
         '<button type="button" class="wl-more" data-click="wlMore" data-code="' + esc(s.ts_code) + '" title="更多操作（也可右键）" aria-label="更多操作">⋯</button></a>';
     }).join('');
   }
@@ -4322,17 +4532,24 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (!root) return;
     const st = curStock(), q = quoteOf(st.code);
     // 首页上面的结论是主分析师的裁决（chief/stream 的主持卡），不是综合判断接口里的那句规则摘要。
-    const ch = chats[st.code], res = ch && ch.results.chief;
+    const ch = chats[st.code], res = ch && ch.results && ch.results.chief;
     const card = res && res.msg;
     const verdict = card ? { label: card.verdict || '不明', text: card.text || '', color: DIRECTION_COLOR(card.verdict) } : null;
-    const phase = !ch ? '' : card ? 'done' : res ? 'failed' : 'waiting';
+    const idle = !!(ch && ch.idle);
+    const phase = !ch || idle ? '' : card ? 'done' : res ? 'failed' : 'waiting';
     const we = wishCache[st.code], pe = planCache[st.code] && planCache[st.code].plan;
     if (verdict && (!we || !we.checked) && (!we || (we.status !== 'loading' && we.status !== 'adding'))) loadWishStatus(st.code);
-    const key = [st.code, st.name, q && q.price, q && q.pct, phase, verdict && verdict.label, verdict && verdict.text, state.concl, we && we.status, pe && pe.wish, pe && pe.held].join('|');
+    const live = !!(ch && ch.liveDiag && !ch.restored);
+    const wIt = watchItem(st.code), headTags = (wIt && wIt.tags) || [];
+    const key = [st.code, st.name, q && q.price, q && q.pct, phase, verdict && verdict.label, verdict && verdict.text, state.concl, we && we.status, pe && pe.wish, pe && pe.held, live, idle, headTags.join(',')].join('|');
     if (root.dataset.key === key) return;
     root.dataset.key = key;
+    const actionBtn = live
+      ? '<button type="button" class="cta" data-click="stopDiagnosis" style="flex:none;background:#5B6372">停止</button>'
+      : '<button type="button" class="cta" data-click="reanalyze" style="flex:none">' + (idle || !ch || (!card && !ch.restored) ? '开始研判' : '重新分析') + '</button>';
     root.innerHTML = '<div style="display:flex;align-items:center;gap:10px;min-height:28px;padding:0 2px;white-space:nowrap">' +
       '<h1 style="margin:0;flex:none;font-size:18px;font-weight:700">' + esc(st.name || st.code) + '</h1>' +
+      (headTags.length ? '<span style="flex:none;display:inline-flex;gap:4px">' + headTags.map((t) => '<span class="wl-tag">' + esc(t) + '</span>').join('') + '</span>' : '') +
       '<span style="' + MONO + ';flex:none;color:#5B6372;font-size:13px">' + esc(st.code) + '</span>' +
       '<span style="' + MONO + ';flex:none;font-size:18px;font-weight:600">' + (q ? q.price.toFixed(2) : '—') + '</span>' +
       (q && q.pct != null ? '<span style="' + MONO + ';flex:none;font-size:13px;color:' + moveColor(q.pct) + '">' + (q.chg != null ? fmtSigned(q.chg, 2) + ' ' : '') + fmtSigned(q.pct, 2) + '%</span>' : '') +
@@ -4344,7 +4561,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
           : phase === 'failed' ? '<span style="flex:1;min-width:0;font-size:13px;color:#8A919E">主分析师这次没有给出裁决，点“重新分析”再试一次</span>'
           : '<span style="flex:1;min-width:0;display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#8A919E"><span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>结论正在生成…</span>')
         : '<span style="flex:1"></span>') +
-      '<button type="button" class="cta" data-click="reanalyze" style="flex:none">重新分析</button>' +
+      actionBtn +
       '<a href="/scan.html" title="在战绩中心查看这只股票的全部研判" style="flex:none;display:flex;align-items:baseline;gap:6px;font-size:13px;text-decoration:none;color:#5B6372">战绩<span style="color:#2457D6">→</span></a></div>';
   }
 
@@ -4483,6 +4700,7 @@ button[data-ask-send][disabled]{opacity:.55;cursor:progress}
     if (row && e.target === row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); row.click(); }
   });
   actions.reanalyze = () => reanalyze(state.stock);
+  actions.stopDiagnosis = () => stopDiagnosis(state.stock);
   actions.pickStock = (el) => openStock(el.dataset.code);
   actions.srchOpen = (el) => { openStock(el.dataset.code, el.dataset.name); set({ srch: '' }); };
   actions.srchAdd = (el) => { addWatch(el.dataset.code); };

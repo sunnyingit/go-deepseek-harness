@@ -894,12 +894,46 @@ button,input,textarea{font:inherit}
     t = t.replace(/^【上下文：[^\]]*】\s*/u, '').trim();
     // 兼容「无 ts_code 时夹一句先 search_stock」的括号说明。
     const m = t.match(/^请(?:调用|优先调用)\s*ask_analyst[：:]\s*analyst=\w+[\s\S]*?(?:question\s*=|回答\s*[：:])([\s\S]+)$/i);
-    if (m) return String(m[1] || '').trim();
+    if (m) t = String(m[1] || '').trim();
+    // 点名单席时夹的收束说明不要进气泡/标题。
+    t = t.replace(/。本轮只请这一位[\s\S]*$/u, '').trim();
     return t;
   }
   function parseAskAnalystRoute(text) {
     const m = String(text || '').trim().match(/^请(?:调用|优先调用)\s*ask_analyst[：:]\s*analyst=(\w+)/i);
     return m && ROLE[m[1]] ? m[1] : '';
+  }
+  function messageBlocks(m) {
+    if (!m || typeof m !== 'object') return [];
+    if (Array.isArray(m.content)) return m.content.filter((b) => b && typeof b === 'object');
+    if (Array.isArray(m.parts)) return m.parts.filter((b) => b && typeof b === 'object');
+    return [];
+  }
+  function parseAnalystResultText(raw) {
+    const m = String(raw || '').match(/^【([^·\]]+)(?:\s*·\s*([^\]]+))?】\s*([\s\S]*)$/);
+    if (!m) return null;
+    const text = String(m[3] || '').trim();
+    if (!text) return null;
+    return { name: String(m[1] || '').trim(), stock: String(m[2] || '').trim(), text: text };
+  }
+  // 历史里 ask_analyst 的正文落在 user/tool-result；按 callId 找回分析师身份并画独立气泡。
+  function addHistoryAnalyst(meta, parsed, at) {
+    const who = resolveAnalystId((meta && meta.analyst) || '', (parsed && parsed.name) || '') || 'assistant';
+    const name = (parsed && parsed.name) || (ROLE[who] && ROLE[who].name) || '分析师';
+    const card = addAI(who);
+    card.classList.add('analyst-peer');
+    card._sealed = true;
+    const whoEl = card.querySelector('.whoName');
+    if (whoEl) whoEl.textContent = name;
+    const stock = (parsed && parsed.stock) || '';
+    const code = ((meta && meta.ts_code) || '') || ((stock.match(/(\d{6}(?:\.\w+)?|\d{5}\.HK)/i) || [])[1] || '');
+    if (code || stock) setPeerStock(card, code, stock.replace(code, '').trim() || stock);
+    setAIText(card, parsed.text, true);
+    const st = card.querySelector('.status');
+    if (st) { st.style.cssText = MONO + ';font-size:13px;color:#A1A7B2'; st.textContent = hhmm(at || Date.now()); }
+    if (code) state.lastCode = code;
+    if (who && who !== 'assistant') state.lastAnalysts = [who];
+    return card;
   }
 
   async function openSession(id, opts) {
@@ -919,33 +953,61 @@ button,input,textarea{font:inherit}
       const data = await api('/sessions/' + encodeURIComponent(id) + '/messages');
       const msgs = Array.isArray(data) ? data : (data.messages || data.items || []);
       let shown = 0;
+      const analystByCall = {};
       msgs.forEach((m) => {
         const role = m.role || m.author || '';
+        const blocks = messageBlocks(m);
+        const at = m.createdAt || m.ts;
+        const isUser = role === 'user' || role === 'human';
+        const isAsst = role === 'assistant' || role === 'ai' || role === 'model' || !role;
+
+        if (isAsst) {
+          blocks.forEach((b) => {
+            const kind = b.kind || b.type || '';
+            const tool = b.toolName || b.name || '';
+            if ((kind === 'tool-call' || kind === 'tool_call') && tool === 'ask_analyst') {
+              const callId = b.callId || b.call_id || '';
+              const args = b.args || {};
+              if (callId) analystByCall[callId] = { analyst: args.analyst || '', ts_code: args.ts_code || args.code || '', question: args.question || '' };
+            }
+          });
+        }
+
+        const toolResults = blocks.filter((b) => {
+          const k = b.kind || b.type || '';
+          return k === 'tool-result' || k === 'tool_result';
+        });
+        if (isUser && toolResults.length) {
+          let restored = 0;
+          toolResults.forEach((b) => {
+            const callId = b.callId || b.call_id || '';
+            const meta = analystByCall[callId];
+            const raw = String(b.text || '');
+            if (!meta && !/^【/.test(raw)) return;
+            if (/^Error:/i.test(raw) || raw === 'Displayed to the user.') return;
+            const parsed = parseAnalystResultText(raw);
+            if (!parsed) return;
+            if (!meta && !resolveAnalystId('', parsed.name)) return;
+            addHistoryAnalyst(meta || {}, parsed, at);
+            restored += 1;
+            shown += 1;
+          });
+          if (restored || toolResults.length) return; // 工具回执不当作用户气泡
+        }
+
         const text = stripCtxPrefix(messageText(m));
         if (!text) return;
-        if (role === 'user' || role === 'human') {
-          addUser(prettyUserText(text), { ctx: [], at: m.createdAt || m.ts });
+        if (isUser) {
+          addUser(prettyUserText(text), { ctx: [], at: at });
           const codes = extractCodes(text);
           if (codes[0]) state.lastCode = codes[0];
-        } else if (role === 'assistant' || role === 'ai' || role === 'model' || !role) {
+        } else if (isAsst) {
           const card = addAI('assistant');
+          const whoLabel = card.querySelector('.whoName');
+          if (whoLabel) whoLabel.textContent = '主理人';
           setAIText(card, text, true);
-          const st = card.querySelector('.status'); if (st) { st.style.cssText = MONO + ';font-size:13px;color:#A1A7B2'; st.textContent = hhmm(m.createdAt || m.ts || Date.now()); }
+          const st = card.querySelector('.status'); if (st) { st.style.cssText = MONO + ';font-size:13px;color:#A1A7B2'; st.textContent = hhmm(at || Date.now()); }
         } else return;
-        shown += 1;
-      });
-      // 会话流没有分析师气泡：把本页路由过的回答补回来（带上对应提问）
-      const hadSession = shown > 0;
-      loadExtra().forEach((ex) => {
-        if (!ex || !ex.text || ex.role === 'user') return;
-        if (!hadSession && ex.q) addUser(ex.q, { ctx: [], at: ex.at });
-        const card = addAI(ex.who || 'assistant');
-        setAIText(card, ex.text, true);
-        if (ex.code) {
-          state.lastCode = ex.code;
-          if (ex.name) state.lastName = ex.name;
-        }
-        if (Array.isArray(ex.analysts)) state.lastAnalysts = ex.analysts.slice();
         shown += 1;
       });
       if (!shown && !opts.text) emptyState();
@@ -1003,7 +1065,11 @@ button,input,textarea{font:inherit}
     if (elicit) elicit.remove();
     if (state.es) { try { state.es.close(); } catch (_) {} state.es = null; }
     if (state.abort) { try { state.abort.abort(); } catch (e) {} state.abort = null; }
-    if (state.id) fetch('/sessions/' + encodeURIComponent(state.id) + '/cancel', { method: 'POST' }).catch(() => {});
+    if (state.id) fetch('/sessions/' + encodeURIComponent(state.id) + '/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: 'user stop' }),
+    }).catch(() => {});
     state.streaming = false;
     state.streamCard = null;
     if (card) {
@@ -1312,6 +1378,8 @@ button,input,textarea{font:inherit}
     search_stock: '搜股票',
     ask_analyst: '请分析师',
     compare_stocks: '对比',
+    fetch_flow_compare: '对比资金',
+    fetch_web_search: '网搜',
     list_holdings: '持仓',
     list_wishlist: '想买',
     add_to_wishlist: '想买',

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 
@@ -172,6 +173,13 @@ func (s *Server) registerSessionTools(toolRegistry *coretools.Registry, sessionI
 			return err
 		}
 	}
+	if search, err := s.fetchWebSearchTool(); err == nil {
+		if _, err := toolRegistry.Register(search); err != nil {
+			return err
+		}
+	} else {
+		log.Printf("ask session without fetch_web_search: %v", err)
+	}
 	return nil
 }
 
@@ -214,7 +222,8 @@ func (s *Server) toolAskAnalyst(sessionID string) coretools.ToolDefinition {
 			"本轮若只请这一位：答完后不要总结复述，用户已看到直播正文。本轮请了多位再短综合。" +
 			"禁止默认带上会话里上一只个股代码；只有用户本句明确点了股票/指数时才传 ts_code。" +
 			"volume_flow / fundamental / finance / sector：用户点了标的才传 ts_code，否则先 search_stock；不要臆造代码。" +
-			"market / news 可以不带 ts_code（纯大盘、主题新闻、财经热点）。点名创业板指等指数时再 search_stock 传入。一次只请一位。",
+			"market / news 可以不带 ts_code（纯大盘、主题新闻、财经热点）。点名创业板指等指数时再 search_stock 传入。一次只请一位。" +
+			"news 只面向时效性新闻流（个股消息、盘面传闻、最近发生了什么）；政策条文、宏观常识、人物背景不要路由给 news——这些先 fetch_web_search，搜到即答。",
 		Parameters: coretools.ParameterSchema{
 			"analyst":  {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "分析师 id：" + ids}, Required: true},
 			"ts_code":  {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "仅当用户明确点名股票/指数时传入，如 603986.SH、399006.SZ 或创业板指；大盘/主题新闻可省略。禁止沿用上一只个股"}},

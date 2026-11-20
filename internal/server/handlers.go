@@ -68,6 +68,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("POST /sessions/{id}/cancel", s.handleCancelSession)
 	mux.HandleFunc("GET /api/stocks/{code}/agents/group", s.handleGroupRecord)
 	mux.HandleFunc("POST /api/stocks/{code}/diagnose", s.handleDiagnose)
+	mux.HandleFunc("POST /api/stocks/{code}/agents/stop", s.handleAnalystStop)
 	mux.HandleFunc("GET /api/stocks/{code}/agents/chief/detail", s.handleChiefDetail)
 	mux.HandleFunc("GET /api/stocks/{code}/agents/{agent}/stream", s.handleAnalystStream)
 	mux.HandleFunc("POST /api/stocks/{code}/agents/{agent}/reply", s.handleAnalystReply)

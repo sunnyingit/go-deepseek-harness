@@ -60,7 +60,7 @@ func (s *Server) handleChiefPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sess := session.New(session.SessionId("chief-plan-"+sanitizeCode(code)+"-"+fmt.Sprintf("%d", time.Now().UnixNano())), session.Header{})
-	ag := s.newAnalyst(sess, coretools.NewRegistry(), 1, chiefPlanPrompt())
+	ag := s.newAnalyst(sess, coretools.NewRegistry(), 1, chiefPlanPrompt(), 0, false)
 	ctx := r.Context()
 	stopped := make(chan struct{})
 	go func() {

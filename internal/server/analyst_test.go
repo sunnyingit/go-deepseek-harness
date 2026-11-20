@@ -83,7 +83,10 @@ func TestWrapOpeningSpeakForcesJSONWithoutTools(t *testing.T) {
 	sess.Append("user/message", map[string]any{
 		"message": session.Message{Role: session.RoleUser, Content: []session.ContentBlock{{Kind: session.BlockText, Text: "开场"}}},
 	}, session.WithSurfaceOp(session.AppendOp()))
-	got, err := s.wrapOpeningSpeak(context.Background(), agentConfig{ID: "volume_flow", Prompt: "你是资金流分析师"}, sess, "")
+	// 父 ctx 已取消时收尾仍须能跑（回合结束常见）。
+	dead, cancel := context.WithCancel(context.Background())
+	cancel()
+	got, err := s.wrapOpeningSpeak(dead, agentConfig{ID: "volume_flow", Name: "资金流分析师", Prompt: "你是资金流分析师", FactPrefix: "fr."}, sess, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,13 +99,63 @@ func TestWrapOpeningSpeakForcesJSONWithoutTools(t *testing.T) {
 	if saw.Model != "test-model" {
 		t.Fatalf("model = %q", saw.Model)
 	}
+	if dead.Err() == nil {
+		t.Fatal("expected cancelled parent")
+	}
 	var saw2 agentloop.GenerateRequest
 	s2 := &Server{llm: wrapSpeakLLM{text: `{"stance":"偏多","strength":"弱","text":"短结论","fact_ids":[],"suggested_questions":[]}`, saw: &saw2}, cfg: appconfig.Config{Model: "test-model"}}
-	if _, err := s2.wrapOpeningSpeak(context.Background(), agentConfig{ID: "finance", Prompt: "你是财报分析师"}, sess, `{"stance":"偏多","text":"被截断`); err != nil {
+	if _, err := s2.wrapOpeningSpeak(context.Background(), agentConfig{ID: "finance", Name: "财报分析师", Prompt: "你是财报分析师"}, sess, `{"stance":"偏多","text":"被截断`); err != nil {
 		t.Fatal(err)
 	}
 	if msg := saw2.Messages[len(saw2.Messages)-1].Content[0].Text; !strings.Contains(msg, "解不开") {
 		t.Fatalf("broken hint should ask rewrite, got %q", msg)
+	}
+}
+
+func TestSoftSpeakFromFactsBuildsUsableOpening(t *testing.T) {
+	cat := map[string]factRow{
+		"fr.path":      {ID: "fr.path", Label: "路径", Text: "资金转出"},
+		"fr.level":     {ID: "fr.level", Label: "力度", Text: "偏流出"},
+		"fr.structure": {ID: "fr.structure", Label: "结构", Text: "大单同向卖出"},
+	}
+	cfg := agentConfig{ID: "volume_flow", Name: "资金流分析师", FactPrefix: "fr."}
+	sp, ok := softSpeakFromFacts(cat, cfg)
+	if !ok {
+		t.Fatal("expected soft speak")
+	}
+	h, ok := headlineFromSpeak(sp, cat, cfg)
+	if !ok {
+		t.Fatalf("soft speak should pass headline check: %+v", sp)
+	}
+	if h["status"] != "neutral" || h["text"] == nil || h["text"] == "" {
+		t.Fatalf("headline = %+v", h)
+	}
+	if _, ok := softSpeakFromFacts(nil, cfg); ok {
+		t.Fatal("nil catalog must not soft-speak")
+	}
+	if _, ok := softSpeakFromFacts(map[string]factRow{}, cfg); ok {
+		t.Fatal("empty catalog must not soft-speak")
+	}
+	// 开场只调了追问切片、只有 fl.* 时也能收口。
+	onlyFL := map[string]factRow{"fl.path": {ID: "fl.path", Label: "路径", Text: "资金转出（切片）"}}
+	if sp, ok := softSpeakFromFacts(onlyFL, cfg); !ok {
+		t.Fatal("fl.* alias should soft-speak")
+	} else if _, ok := headlineFromSpeak(sp, onlyFL, cfg); !ok {
+		t.Fatalf("fl soft speak headline failed: %+v", sp)
+	}
+}
+
+func TestFactsDigestForWrapKeepsFlowIDs(t *testing.T) {
+	msgs := []session.Message{{
+		Role: session.RoleUser,
+		Content: []session.ContentBlock{{
+			Kind: session.BlockToolResult,
+			Text: `{"facts":[{"id":"fr.path","label":"路径","text":"资金转出"},{"id":"fl.level","label":"力度","text":"弱"}]}`,
+		}},
+	}}
+	got := factsDigestForWrap(msgs, agentConfig{ID: "volume_flow", FactPrefix: "fr."})
+	if !strings.Contains(got, "fr.path") || !strings.Contains(got, "fl.level") {
+		t.Fatalf("digest = %q", got)
 	}
 }
 

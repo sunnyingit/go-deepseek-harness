@@ -1,10 +1,22 @@
-const { app, BrowserWindow, BrowserView, Menu, shell, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, BrowserView, Menu, shell, dialog, ipcMain, nativeImage } = require('electron');
 const { spawn, execSync } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const electron = require('electron');
 const host = require('./host');
+
+function appIconPath() {
+  return path.join(__dirname, 'icon.png');
+}
+
+function applyDockIcon() {
+  if (process.platform !== 'darwin' || !app.dock) return;
+  try {
+    const img = nativeImage.createFromPath(appIconPath());
+    if (!img.isEmpty()) app.dock.setIcon(img);
+  } catch { /* ignore */ }
+}
 
 const PORT = process.env.PORT || '8081';
 const BASE = (process.env.HARNESS_URL || `http://127.0.0.1:${PORT}`).replace(/\/$/, '');
@@ -266,7 +278,7 @@ function showSetupWindow() {
       resizable: true,
       title: '牛宝',
       backgroundColor: '#ffffff',
-      icon: path.join(__dirname, 'icon.png'),
+      icon: appIconPath(),
       titleBarStyle: isMac ? 'hiddenInset' : 'default',
       trafficLightPosition: isMac ? { x: 14, y: 14 } : undefined,
       webPreferences: {
@@ -501,7 +513,7 @@ function showSplash() {
     frame: false,
     title: '牛宝',
     backgroundColor: '#ffe8e4',
-    icon: path.join(__dirname, 'icon.png'),
+    icon: appIconPath(),
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
   splash.loadFile(path.join(__dirname, 'splash.html'));
@@ -600,8 +612,26 @@ function layoutActivePage() {
   const view = pageViews[activePageKey];
   if (!view) return;
   const b = win.getContentBounds();
+  // Guard against transient 0×0 bounds mid fullscreen transition.
+  if (!b.width || !b.height) return;
   view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
   view.setAutoResize({ width: true, height: true });
+}
+
+// macOS leave-full-screen / unmaximize often fires before content bounds settle;
+// one resize tick is not enough — re-apply for a few frames.
+let layoutTimer = 0;
+function scheduleLayoutActivePage() {
+  layoutActivePage();
+  if (layoutTimer) clearTimeout(layoutTimer);
+  let n = 0;
+  const tick = () => {
+    layoutActivePage();
+    n += 1;
+    if (n < 4) layoutTimer = setTimeout(tick, 40 * n);
+    else layoutTimer = 0;
+  };
+  layoutTimer = setTimeout(tick, 16);
 }
 
 function attachPageView(view) {
@@ -619,6 +649,21 @@ function attachPageView(view) {
     loadPage(url);
   });
   wc.on('did-finish-load', () => insertChromeCSS(wc));
+  // 渲染进程崩溃/被杀（OOM、段错误等）时自动整页重载，别让用户对着白屏。
+  wc.on('render-process-gone', (_event, details) => {
+    if (details.reason === 'clean-exit') return;
+    console.error(`[crash] page renderer gone (${details.reason}), reloading`, wc.getURL());
+    setTimeout(() => {
+      try {
+        if (!wc.isDestroyed()) wc.reload();
+      } catch (err) {
+        console.error('[crash] reload after renderer crash failed:', err);
+      }
+    }, 800);
+  });
+  // 主线程卡死只记日志；研判长渲染可能短暂触发，自动 reload 会误杀进行中的流。
+  wc.on('unresponsive', () => console.warn('[warn] page renderer unresponsive:', wc.getURL()));
+  wc.on('responsive', () => console.info('[info] page renderer responsive again:', wc.getURL()));
 }
 
 function makePageView() {
@@ -702,6 +747,7 @@ function buildMenu() {
 
 function createWindow() {
   const isMac = process.platform === 'darwin';
+  applyDockIcon();
   win = new BrowserWindow({
     width: 1400,
     height: 940,
@@ -709,7 +755,7 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: '#ffffff',
     title: '牛宝',
-    icon: path.join(__dirname, 'icon.png'),
+    icon: appIconPath(),
     show: false,
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
     // Keep traffic lights clear of the 48px header (left rail starts after this).
@@ -726,6 +772,11 @@ function createWindow() {
 
   win.once('ready-to-show', () => { if (!startHidden) win.show(); });
   win.on('resize', () => layoutActivePage());
+  // Windows/Linux: fires after resize finishes. macOS: no-op if unsupported.
+  win.on('resized', () => layoutActivePage());
+  ['enter-full-screen', 'leave-full-screen', 'maximize', 'unmaximize', 'restore', 'show'].forEach((ev) => {
+    win.on(ev, () => scheduleLayoutActivePage());
+  });
   win.on('closed', () => {
     Object.keys(pageViews).forEach((k) => {
       try {
@@ -813,6 +864,7 @@ async function ensureStockBackend() {
 }
 
 async function boot() {
+  applyDockIcon();
   buildMenu();
   // 开机自启时只带托盘起来，不抢焦点弹窗口
   startHidden = process.argv.includes('--hidden') || (app.getLoginItemSettings && app.getLoginItemSettings().wasOpenedAsHidden);
@@ -856,7 +908,7 @@ async function boot() {
   createWindow();
   hostApi = host.init({
     app, electron, pageBase: BASE, showMainWindow, loadPage,
-    iconPath: path.join(__dirname, 'icon.png'), userData: app.getPath('userData'),
+    iconPath: appIconPath(), userData: app.getPath('userData'),
   });
 }
 

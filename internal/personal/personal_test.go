@@ -266,3 +266,28 @@ func TestPlanLifecycle(t *testing.T) {
 		t.Fatal("remove")
 	}
 }
+
+func TestWatchSetTagsNormalizeAndPersist(t *testing.T) {
+	path := t.TempDir() + "/personal.json"
+	st := Open(path, func() time.Time { return time.Unix(1_800_000_000, 0) })
+	st.WatchAdd("600036.SH", "招商银行")
+	if _, ok := st.WatchSetTags("000001.SZ", []string{"银行"}); ok {
+		t.Fatal("tagged a missing stock")
+	}
+	w, ok := st.WatchSetTags("600036.SH", []string{" 高股息 ", "银行", "银行", "成长", "", "这是一个特别长的标签会被截断"})
+	if !ok || len(w.Tags) != 4 || w.Tags[0] != "高股息" || w.Tags[1] != "银行" {
+		t.Fatalf("tags = %+v", w.Tags)
+	}
+	if utf8 := []rune(w.Tags[3]); len(utf8) != maxWatchTagRunes {
+		t.Fatalf("long tag = %q (%d runes)", w.Tags[3], len(utf8))
+	}
+	re := Open(path, nil)
+	list := re.WatchList()
+	if len(list) != 1 || len(list[0].Tags) != 4 {
+		t.Fatalf("persisted = %+v", list)
+	}
+	cleared, ok := st.WatchSetTags("600036.SH", nil)
+	if !ok || cleared.Tags != nil {
+		t.Fatalf("clear = %+v", cleared)
+	}
+}

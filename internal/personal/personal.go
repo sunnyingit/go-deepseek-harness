@@ -9,15 +9,18 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 type Watch struct {
-	Code    string  `json:"ts_code"`
-	Name    string  `json:"name"`
-	AddedAt int64   `json:"added_at"`
-	Order   float64 `json:"sort_order"`
+	Code    string   `json:"ts_code"`
+	Name    string   `json:"name"`
+	AddedAt int64    `json:"added_at"`
+	Order   float64  `json:"sort_order"`
+	Tags    []string `json:"tags,omitempty"`
 }
 
 type Alert struct {
@@ -202,6 +205,59 @@ func (st *Store) WatchRemove(code string) bool {
 		}
 	}
 	return false
+}
+
+const (
+	maxWatchTags     = 8
+	maxWatchTagRunes = 12
+)
+
+// NormalizeTags trims, drops empties, dedupes (case-insensitive for ASCII), and caps length/count.
+func NormalizeTags(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(in))
+	for _, raw := range in {
+		t := strings.Join(strings.Fields(strings.TrimSpace(raw)), " ")
+		if t == "" {
+			continue
+		}
+		if utf8.RuneCountInString(t) > maxWatchTagRunes {
+			t = string([]rune(t)[:maxWatchTagRunes])
+		}
+		key := strings.ToLower(t)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, t)
+		if len(out) >= maxWatchTags {
+			break
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// WatchSetTags replaces tags on a watchlist stock. Returns false when the stock is not watched.
+func (st *Store) WatchSetTags(code string, tags []string) (Watch, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	tags = NormalizeTags(tags)
+	for i, w := range st.d.Watch {
+		if w.Code != code {
+			continue
+		}
+		w.Tags = tags
+		st.d.Watch[i] = w
+		st.save()
+		return w, true
+	}
+	return Watch{}, false
 }
 
 // ---- alerts

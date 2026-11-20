@@ -84,6 +84,8 @@ func (s *Server) buildSystemPrompt(cwd string) (string, error) {
 				"   新闻例外：若你仍要转述 news（仅多分析师综合时），必须保留「今日主事件」清单（可含公司个案与海外映射，最多约 10 条）及传导机制、历史类比、受益/承压、本次差异、跟踪线索；禁止改成没有主事件列表的「一句话结论 + 三层影响」。单请 news 时同样不要总结，让原文说话。\n" +
 				"3. 「对比这几只」「怎么选」：compare_stocks。\n" +
 				"4. 只想看榜单标题/热度时才直接 fetch_baidu_board；要「影响/风险/跟踪」必须 ask_analyst(news)，不要自己根据热搜编盘面长文。\n" +
+				"   问题与任何个股的基本面/资金/新闻都无关（宏观与货币政策、财政与行业政策、海外市场事件、人物、常识）时：先 fetch_web_search 搜事实再回答，回答开头注明「来自网络搜索，截至 X 日」；搜不到就直说，不要编。涉及个股时要落到行情与数据，别拿网页摘要当行情。同一个问题 fetch_web_search 最多 1～2 次（换个更具体的关键词再搜，不要原样重搜）；搜索结果直接读，禁止再用 bash 处理网页内容。\n" +
+				"   搜索后收敛：拿到足够事实就直接作答，不要为了「更稳」再请分析师。升级只限两种——用户要影响判断且需要行情/资金/板块的数据口径（请 market 或 sector，不是 news）；用户问「最近有什么消息/盘面在传什么」（才请 news）。政策条文、宏观常识、人物背景类问题禁止请新闻分析师，它的工具是新闻流不是法规检索。\n" +
 				"5. 加入想买：先说明理由，征得用户同意后 add_to_wishlist(confirm=true)；未确认只能 confirm=false 预览。可先 list_wishlist 防重复。\n" +
 				"6. 「这几个板块/这些题材」但本轮没点名：先看会话上文有没有刚提过的板块名并沿用；没有则 fetch_baidu_board 取当前热门题材作候选，或立刻 ask_user_question 给出 2-4 个具体板块选项。禁止只写「需要确认」却不调用 ask_user_question，否则界面会假死。\n" +
 				"7. 不要编造行情数字；数字只来自工具返回。不要替用户下买卖指令，只给条件式研判。\n" +
@@ -92,7 +94,7 @@ func (s *Server) buildSystemPrompt(cwd string) (string, error) {
 		})
 		b.Section(systemprompt.Section{
 			Name: "tool:stock", Order: systemprompt.OrderToolGuidanceMin,
-			Text: "- search_stock / ask_analyst / compare_stocks / list_holdings / list_wishlist / add_to_wishlist / fetch_baidu_board：股票编排工具。个股、持仓与板块研判优先走它们，而不是自己猜。",
+			Text: "- search_stock / ask_analyst / compare_stocks / list_holdings / list_wishlist / add_to_wishlist / fetch_baidu_board：股票编排工具。个股、持仓与板块研判优先走它们，而不是自己猜。\n- fetch_web_search：通用网络搜索。非个股问题（宏观、政策、事件、人物、常识）的事实补充。",
 		})
 		b.Section(systemprompt.Section{
 			Name: "tool:fs", Order: systemprompt.OrderToolGuidanceMin + 1,
@@ -173,6 +175,10 @@ type Server struct {
 	// codeMu 让同一只股票的诊断同时只跑一轮：页面上的分析师和每晚任务共用这一把锁。
 	codeMu sync.Mutex
 	codes  map[string]*sync.Mutex
+	// liveAgents 登记按股票（或 topic lockKey）正在跑的分析师 Agent，
+	// 供 POST …/agents/stop 真正 Cancel；与 code 锁分开，避免 stop 被锁堵住。
+	liveMu     sync.Mutex
+	liveAgents map[string]map[*agentloop.Agent]struct{}
 	// 客户端的定时任务、收件箱和个人数据（自选、提醒、成交）。都只在本机。
 	sch      *sched.Scheduler
 	inbox    *inbox.Inbox

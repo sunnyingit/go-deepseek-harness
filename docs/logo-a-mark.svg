@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <desc>牛宝 App 图标：A股之 A，红底白标；右笔重左笔轻，无横杠——平台 + 双笔即抽象的山峰/向上突破</desc>
+  <rect width="512" height="512" rx="52" fill="#B42318"/>
+  <g fill="#FFFFFF">
+    <!-- 左笔画（轻笔，等宽 60） -->
+    <path d="M220 88 L280 88 L160 456 L100 456 Z"/>
+    <!-- 右笔画（重笔，等宽 76） -->
+    <path d="M220 88 L296 88 L416 456 L340 456 Z"/>
+  </g>
+</svg>

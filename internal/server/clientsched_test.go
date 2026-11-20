@@ -130,7 +130,7 @@ func TestNightlyMakesOneBundlePerStockWithoutAReceipt(t *testing.T) {
 	}
 }
 
-func TestRetryOnlyRedoesTheAnalystThatFailedAndAFreshBundleIsNotRedone(t *testing.T) {
+func TestDimFailureStillWritesBundleAndAFreshBundleIsNotRedone(t *testing.T) {
 	s, c := newClientServer(t, zoneTime("2026-11-05", "20:00"))
 	sp := &speaker{fail: map[string]int{"news": 1}}
 	s.stepFn = sp.fn
@@ -138,16 +138,20 @@ func TestRetryOnlyRedoesTheAnalystThatFailedAndAFreshBundleIsNotRedone(t *testin
 	seedDebate(s, "600036.SH")
 	due(s, c)
 	s.sch.TickSync()
-	if s.readBundle("600036.SH") != nil {
-		t.Fatal("a bundle was written while an analyst still had retries left")
+	b := s.readBundle("600036.SH")
+	if b == nil {
+		t.Fatal("expected a bundle even when one dimension failed")
 	}
-	c.advance(3 * time.Minute)
-	s.sch.TickSync()
-	if sp.calls["news"] != 2 || sp.calls["finance"] != 1 || sp.calls["chief"] != 1 {
+	for _, a := range b.Analysts {
+		if a.Dimension == "news" && (a.State != "failed" || a.Reason == "") {
+			t.Fatalf("news = %+v", a)
+		}
+		if a.Dimension == "finance" && a.State != "ok" {
+			t.Fatalf("finance should still succeed = %+v", a)
+		}
+	}
+	if sp.calls["news"] != 1 || sp.calls["finance"] != 1 || sp.calls["chief"] != 1 {
 		t.Fatalf("calls = %v", sp.calls)
-	}
-	if s.readBundle("600036.SH") == nil {
-		t.Fatal("no bundle after the retry")
 	}
 	before := sp.calls["chief"]
 	s.sch.Manual(nightlyID, []sched.UnitSpec{{Key: "600036.SH"}}, map[string]any{"on_demand": true})
@@ -169,13 +173,10 @@ func TestAnalystThatNeverWorksIsShownAsNoConclusionNotMadeUp(t *testing.T) {
 	s.personal.WatchAdd("600036.SH", "招商银行")
 	seedDebate(s, "600036.SH")
 	due(s, c)
-	for i := 0; i < 4; i++ {
-		s.sch.TickSync()
-		c.advance(31 * time.Minute)
-	}
+	s.sch.TickSync()
 	b := s.readBundle("600036.SH")
 	if b == nil {
-		t.Fatal("no bundle after the last attempt")
+		t.Fatal("no bundle after a single dim failure")
 	}
 	for _, a := range b.Analysts {
 		if a.Dimension == "finance" && (a.State != "failed" || a.Headline != nil || a.Reason == "") {
@@ -184,6 +185,34 @@ func TestAnalystThatNeverWorksIsShownAsNoConclusionNotMadeUp(t *testing.T) {
 	}
 	if s.sch.Store.Runs(nightlyID, 1)[0].State != "succeeded" {
 		t.Fatalf("run = %+v", s.sch.Store.Runs(nightlyID, 1)[0])
+	}
+}
+
+func TestAllDimsFailRetriesUntilLastTry(t *testing.T) {
+	s, c := newClientServer(t, zoneTime("2026-11-05", "20:00"))
+	sp := &speaker{fail: map[string]int{
+		"market": 99, "volume_flow": 99, "sector": 99, "news": 99, "finance": 99, "fundamental": 99,
+	}}
+	s.stepFn = sp.fn
+	s.personal.WatchAdd("600036.SH", "招商银行")
+	seedDebate(s, "600036.SH")
+	due(s, c)
+	s.sch.TickSync()
+	if s.readBundle("600036.SH") != nil {
+		t.Fatal("bundle should wait while every dimension still has retries")
+	}
+	for i := 0; i < 4; i++ {
+		c.advance(31 * time.Minute)
+		s.sch.TickSync()
+	}
+	b := s.readBundle("600036.SH")
+	if b == nil {
+		t.Fatal("expected a bundle on the last attempt even when all dims failed")
+	}
+	for _, a := range b.Analysts {
+		if a.State != "failed" {
+			t.Fatalf("analyst = %+v", a)
+		}
 	}
 }
 
@@ -196,9 +225,12 @@ func TestWithoutAModelTheJobFailsAtOnceAndPopsUp(t *testing.T) {
 	if run.State != "failed" {
 		t.Fatalf("run = %+v", run)
 	}
-	pending := s.inbox.DesktopPending()
-	if len(pending) != 1 || !strings.Contains(pending[0]["title"].(string), "每晚个股结论") {
-		t.Fatalf("pending = %+v", pending)
+	// 系统定时任务（CatScan）失败不再写桌面弹窗；结论页用 lastFailure 展示原因。
+	if pending := s.inbox.DesktopPending(); len(pending) != 0 {
+		t.Fatalf("system nightly must not desktop-pop: %+v", pending)
+	}
+	if msg := s.lastFailure("600036.SH"); !strings.Contains(msg, "模型") {
+		t.Fatalf("lastFailure = %q", msg)
 	}
 }
 

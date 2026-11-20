@@ -269,24 +269,27 @@ func (s *Server) nightly(c *sched.JobCtx) (any, error) {
 	outcomes := map[string]stepOutcome{}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	var errs []string
+	// 维度允许失败：成功的先写入群里，残缺结果也继续多空/主裁；只有全灭才 Transient。
 	for _, id := range diagnosisDims {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
-			o, err := step("analyst."+id, id, true)
+			o, _ := step("analyst."+id, id, false)
 			mu.Lock()
 			defer mu.Unlock()
 			o.ID = id
 			outcomes[id] = o
-			if err != nil {
-				errs = append(errs, err.Error())
-			}
 		}(id)
 	}
 	wg.Wait()
-	if len(errs) > 0 {
-		return nil, sched.Transient(strings.Join(errs, "；"))
+	okDims := 0
+	for _, id := range diagnosisDims {
+		if outcomes[id].State == "ok" {
+			okDims++
+		}
+	}
+	if okDims == 0 && !c.LastTry() {
+		return nil, sched.Transient("维度分析师都没能发言")
 	}
 	for _, id := range []string{"bull", "bear", "chief"} {
 		o, err := step(id, id, id == "chief")

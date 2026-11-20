@@ -6,14 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go-harness/core/agentloop"
@@ -139,6 +142,10 @@ func (s *Server) handleAnalyst(w http.ResponseWriter, r *http.Request, kind, que
 	if err != nil {
 		writeAnalystSSE(w, flusher, "error", map[string]string{"dimension": cfg.ID, "error": analystErrText(cfg.Name, err)})
 		return
+	}
+	if ag != nil {
+		untrack := s.trackAnalyst(analystTrackKey(code, cfg), ag)
+		defer untrack()
 	}
 	msg, err := s.watchAnalyst(r.Context(), w, flusher, ag, charts, cfg, code, kind, question)
 	if err != nil {
@@ -284,6 +291,10 @@ func analystToolLabel(name string) string {
 		return "读东财板块"
 	case "fetch_flow_dc":
 		return "读个股资金"
+	case "fetch_flow_compare":
+		return "对比多票资金"
+	case "fetch_web_search":
+		return "网搜"
 	case "fetch_flow_factor":
 		return "读技术指标"
 	case "fetch_flow_chip":
@@ -443,8 +454,11 @@ func (s *Server) runAnalystLive(ctx context.Context, cfg agentConfig, code, kind
 	if ag == nil {
 		return withChart(s.pointsAfterChiefMessage(code, cfg), charts), nil
 	}
+	untrack := s.trackAnalyst(analystTrackKey(code, cfg), ag)
+	defer untrack()
 	// ctx 来自工具/调度：超时或会话显式 cancel 时停掉本回合。
 	// 问问切页只拆观看 SSE，不会 cancel 会话 agent，也就不会进这里。
+	// 研判页显式 stop 走 cancelAnalysts，不依赖本 goroutine。
 	stopped := make(chan struct{})
 	go func() {
 		select {
@@ -698,10 +712,22 @@ func (s *Server) concludeAnalyst(ctx context.Context, cfg agentConfig, code, kin
 	speak, speakErr := parseSpeak(rawSpeak)
 	if speakErr != nil {
 		// 步数用尽无正文，或写了超长/破引号 JSON 解不开：禁用工具再逼一轮短结论。
-		if wrapped, wrapErr := s.wrapOpeningSpeak(ctx, cfg, sess, rawSpeak); wrapErr == nil {
-			if sp, err := parseSpeak(wrapped); err == nil {
-				rawSpeak, speak, speakErr = wrapped, sp, nil
-			}
+		wrapped, wrapErr := s.wrapOpeningSpeak(ctx, cfg, sess, rawSpeak)
+		if wrapErr != nil {
+			log.Printf("analyst %s on %s: wrapOpeningSpeak failed: %v", cfg.ID, code, wrapErr)
+		} else if sp, err := parseSpeak(wrapped); err == nil {
+			rawSpeak, speak, speakErr = wrapped, sp, nil
+		} else {
+			rawSpeak = wrapped // 保留收尾原文，方便看解不开的原因
+			log.Printf("analyst %s on %s: wrapOpeningSpeak wrote unparseable JSON: %v", cfg.ID, code, err)
+			logUnparsedSpeak(cfg.ID, code, wrapped)
+		}
+	}
+	// 收尾仍失败但工具已带回事实：用事实表拼一条可用开场，避免整席空白。
+	if speakErr != nil {
+		if soft, ok := softSpeakFromFacts(catalog, cfg); ok {
+			speak, speakErr = soft, nil
+			log.Printf("analyst %s on %s: used softSpeakFromFacts after wrap/parse failure", cfg.ID, code)
 		}
 	}
 	if speakErr != nil {
@@ -718,6 +744,15 @@ func (s *Server) concludeAnalyst(ctx context.Context, cfg agentConfig, code, kin
 		return nil, errors.New("开场没有给出可用的 JSON 结论（常见原因：正文里的英文引号弄破了 JSON，或步数用尽还在调工具）")
 	}
 	headline, ok := headlineFromSpeak(speak, catalog, cfg)
+	if !ok {
+		// 模型写了 JSON 但 fact_ids 对不上：有目录时再试事实兜底。
+		if soft, softOK := softSpeakFromFacts(catalog, cfg); softOK {
+			if h, hOK := headlineFromSpeak(soft, catalog, cfg); hOK {
+				speak, headline, ok = soft, h, true
+				log.Printf("analyst %s on %s: softSpeakFromFacts after headline reject", cfg.ID, code)
+			}
+		}
+	}
 	if !ok {
 		if turnErr := lastTurnError(sess); turnErr != "" {
 			return nil, errors.New(turnErr)
@@ -738,20 +773,35 @@ func (s *Server) concludeAnalyst(ctx context.Context, cfg agentConfig, code, kin
 
 // wrapOpeningSpeak 在开场解不出 JSON 时，禁用工具再逼一轮短结论。
 // brokenHint 非空时说明上一轮写了正文但解不开（截断/引号），提示重写短 JSON。
+// 不继承已取消的父 ctx（回合结束时常已 Done），否则收尾轮会立刻失败。
 func (s *Server) wrapOpeningSpeak(ctx context.Context, cfg agentConfig, sess *session.Session, brokenHint string) (string, error) {
 	if s == nil || s.llm == nil {
 		return "", errors.New("模型还没有配置")
 	}
-	if ctx == nil {
-		ctx = context.Background()
+	parent := ctx
+	if parent == nil {
+		parent = context.Background()
 	}
-	wrapCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	wrapCtx, cancel := context.WithTimeout(context.WithoutCancel(parent), 90*time.Second)
 	defer cancel()
-	prompt := "已有工具结果。禁止再调用任何工具。立刻只输出开场 JSON：stance、strength、text、fact_ids、suggested_questions。text 控制在 150～350 字，禁用英文双引号。"
+	digest := factsDigestForWrap(sess.DeriveMessages(), cfg)
+	var b strings.Builder
 	if strings.TrimSpace(brokenHint) != "" {
-		prompt = "上一轮开场 JSON 解不开（常见：正文太长被截断，或英文引号弄破）。禁止再调用任何工具。按已有工具结果重写一段短开场 JSON：stance、strength、text（150～350 字，禁用英文双引号）、fact_ids、suggested_questions。"
+		b.WriteString("上一轮开场 JSON 解不开（常见：正文太长被截断，或英文引号弄破）。")
+	} else {
+		b.WriteString("已有工具结果，但还没有可用的开场 JSON。")
 	}
-	msgs := append([]session.Message(nil), sess.DeriveMessages()...)
+	b.WriteString("禁止再调用任何工具。立刻只输出一段开场 JSON 对象，字段：stance、strength、text、fact_ids、suggested_questions。")
+	b.WriteString("text 150～350 字，先结论再关键数字，禁用英文双引号。fact_ids 只能引用下面摘要里出现的 id。不要 markdown 围栏。\n")
+	if digest != "" {
+		b.WriteString("\n【本轮事实摘要】\n")
+		b.WriteString(digest)
+	} else {
+		b.WriteString("\n（工具结果里没有解析出 facts 列表；stance 给中性，text 写「资金面/本维数据没有取到可用结论」，fact_ids 用空数组。）\n")
+	}
+	prompt := b.String()
+	// 收尾轮只带最近若干消息 + 摘要指令，避免超长工具原文挤掉输出。
+	msgs := trimMessagesForWrap(sess.DeriveMessages(), 12)
 	msgs = append(msgs, session.Message{
 		Role: session.RoleUser,
 		Content: []session.ContentBlock{{
@@ -760,9 +810,13 @@ func (s *Server) wrapOpeningSpeak(ctx context.Context, cfg agentConfig, sess *se
 		}},
 	})
 	temp := 0.2
+	sys := cfg.Name + "开场收尾：只输出 JSON，禁止工具，禁止解释。"
+	if strings.TrimSpace(cfg.ID) != "" {
+		sys = cfg.Name + "（" + cfg.ID + "）开场收尾：只输出 JSON，禁止工具，禁止解释。"
+	}
 	stream, err := s.llm.Stream(wrapCtx, agentloop.GenerateRequest{
 		Model:       s.cfg.Model,
-		System:      cfg.systemPrompt(),
+		System:      sys,
 		Messages:    msgs,
 		MaxTokens:   2048,
 		Temperature: &temp,
@@ -770,20 +824,154 @@ func (s *Server) wrapOpeningSpeak(ctx context.Context, cfg agentConfig, sess *se
 	if err != nil {
 		return "", err
 	}
-	var b strings.Builder
+	var out strings.Builder
 	for chunk := range stream {
 		if chunk.Err != nil {
 			return "", chunk.Err
 		}
 		if chunk.Delta.Kind == session.BlockText && chunk.Delta.Text != "" {
-			b.WriteString(chunk.Delta.Text)
+			out.WriteString(chunk.Delta.Text)
 		}
 	}
-	text := strings.TrimSpace(b.String())
+	text := strings.TrimSpace(out.String())
 	if text == "" {
 		return "", errors.New("收尾轮没有写出正文")
 	}
 	return text, nil
+}
+
+// factsDigestForWrap 把工具结果里的事实压成短摘要，给收尾轮当唯一可靠依据。
+func factsDigestForWrap(msgs []session.Message, cfg agentConfig) string {
+	cat := factsFromMessages(msgs)
+	if len(cat) == 0 {
+		return ""
+	}
+	ids := make([]string, 0, len(cat))
+	for id := range cat {
+		if !factIDAllowed(id, cfg) && cfg.FactPrefix != "" {
+			// 无前缀配置时全收；有前缀时只收本维 + 别名。
+			continue
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		for id := range cat {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	var b strings.Builder
+	n := 0
+	for _, id := range ids {
+		row := cat[id]
+		label := row.Label
+		if label == "" {
+			label = id
+		}
+		fmt.Fprintf(&b, "- %s | %s: %s\n", id, label, clipText(row.Text, 160))
+		n++
+		if n >= 36 {
+			break
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func trimMessagesForWrap(msgs []session.Message, keep int) []session.Message {
+	if keep <= 0 || len(msgs) <= keep {
+		return append([]session.Message(nil), msgs...)
+	}
+	return append([]session.Message(nil), msgs[len(msgs)-keep:]...)
+}
+
+// softSpeakFromFacts 在模型始终不写 JSON 时，用已取到的事实拼一条弱开场，保证席位能出结论。
+func softSpeakFromFacts(catalog map[string]factRow, cfg agentConfig) (analystSpeak, bool) {
+	if len(catalog) == 0 {
+		return analystSpeak{}, false
+	}
+	prefer := softFactPreferIDs(cfg.ID)
+	ids := make([]string, 0, 8)
+	seen := map[string]bool{}
+	pick := func(id string) {
+		if id == "" || seen[id] {
+			return
+		}
+		row, ok := catalog[id]
+		if !ok || !factIDAllowed(id, cfg) {
+			return
+		}
+		if strings.TrimSpace(row.Text) == "" {
+			return
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	for _, id := range prefer {
+		pick(id)
+		if len(ids) >= 6 {
+			break
+		}
+	}
+	if len(ids) == 0 {
+		all := make([]string, 0, len(catalog))
+		for id := range catalog {
+			if factIDAllowed(id, cfg) {
+				all = append(all, id)
+			}
+		}
+		sort.Strings(all)
+		for _, id := range all {
+			pick(id)
+			if len(ids) >= 4 {
+				break
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return analystSpeak{}, false
+	}
+	var parts []string
+	for _, id := range ids {
+		row := catalog[id]
+		label := row.Label
+		if label == "" {
+			label = id
+		}
+		parts = append(parts, label+"："+clipText(row.Text, 80))
+	}
+	dim := cfg.Name
+	if dim == "" {
+		dim = "本维"
+	}
+	text := dim + "根据已取到的数据给出结论（开场未写出规范 JSON，已按事实表收口）：" + strings.Join(parts, "；") + "。力度偏弱，仅供参考。"
+	text = trimSummaryRunes(text, 350)
+	return analystSpeak{
+		Stance:   "中性",
+		Strength: "弱",
+		Status:   "neutral",
+		Text:     text,
+		FactIDs:  ids,
+	}, true
+}
+
+func softFactPreferIDs(agentID string) []string {
+	switch agentID {
+	case "volume_flow":
+		return []string{"fr.path", "fr.path_detail", "fr.trend", "fr.level", "fr.level_z", "fr.structure", "fr.price_flow", "fl.path", "fl.level", "fl.structure", "fl.price_flow"}
+	case "finance":
+		// 前缀是 ff.（见 finance agent.yaml），不是 fi.
+		return []string{"ff.growth.q_rev_yoy", "ff.growth.q_np_yoy", "ff.quality.gpm", "ff.cash.ocf_to_np", "ff.verdict"}
+	case "market":
+		return []string{"mk.conclusion.action", "mk.conclusion.level", "mk.index.trend", "mk.money.with_tape", "mk.mood.stage", "mk.breadth.structure"}
+	case "sector":
+		return []string{"sp.name", "sp.verdict", "sp.rank", "sm.verdict"}
+	case "fundamental":
+		return []string{"fd.business", "fd.valuation", "fd.quality"}
+	case "news":
+		return []string{"nw.summary", "nw.stance", "nw.event"}
+	default:
+		return nil
+	}
 }
 
 func emptyAnalystMessage(cfg agentConfig, kind, quote string) map[string]any {
@@ -918,7 +1106,7 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 				steps = 6
 			}
 		}
-		return s.newAnalyst(sess, toolRegistry, steps, prompt), nil
+		return s.newAnalyst(sess, toolRegistry, steps, prompt, 0, false), nil
 	}
 	if _, err := toolRegistry.Register(listSkillsTool(s.skills, work.Skills)); err != nil {
 		return nil, err
@@ -936,6 +1124,9 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 			if _, err := toolRegistry.Register(fetch); err != nil {
 				return nil, err
 			}
+		case "fetch_flow_compare":
+			// 多票资金流对比：与 fetch_flow_* 系列同源（flow-facts 的 python 脚本），
+			// 由下方无条件的 registerFlowTools 统一装配；这里只放行 agent.yaml 白名单。
 		default:
 			return nil, fmt.Errorf("未知工具 %s", name)
 		}
@@ -959,6 +1150,15 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 		}
 		if err := s.registerBaiduBoardTool(toolRegistry, work); err != nil {
 			return nil, err
+		}
+		// 追问常越过本维度射程（政策背景、行业事件、宏观）：给个网搜补充信源。
+		// 收敛写在工具描述里：搜到即答背景，结论仍以本维度数据为准，搜不到不编。
+		if search, err := s.fetchWebSearchTool(); err == nil {
+			if _, err := toolRegistry.Register(search); err != nil {
+				return nil, err
+			}
+		} else {
+			log.Printf("analyst %s reply without fetch_web_search: %v", cfg.ID, err)
 		}
 	}
 	if err := s.registerFundamentalTools(toolRegistry, work); err != nil {
@@ -1004,7 +1204,7 @@ func (s *Server) buildConfiguredAgent(sess *session.Session, cfg agentConfig, ch
 			maxTokens = 8192
 		}
 	}
-	return s.newAnalyst(sess, toolRegistry, steps, prompt, maxTokens), nil
+	return s.newAnalyst(sess, toolRegistry, steps, prompt, maxTokens, kind != "reply"), nil
 }
 
 // openingSkills 开场可用技能。各维去掉展示/追问类技能，避免开场空转调工具。
@@ -1036,20 +1236,46 @@ func (c agentConfig) openingSkills() []string {
 	return out
 }
 
-func (s *Server) newAnalyst(sess *session.Session, toolRegistry *coretools.Registry, steps int, prompt string, maxTokens ...int) *agentloop.Agent {
+func (s *Server) newAnalyst(sess *session.Session, toolRegistry *coretools.Registry, steps int, prompt string, maxTokens int, forceOpeningJSON bool) *agentloop.Agent {
 	tok := 2048
-	if len(maxTokens) > 0 && maxTokens[0] > 0 {
-		tok = maxTokens[0]
+	if maxTokens > 0 {
+		tok = maxTokens
 	}
 	return agentloop.NewAgent(sess, s.llm, coretools.Bridge{Registry: toolRegistry}, prompt, agentloop.Hooks{
 		PreStep: func(_ context.Context, _ *agentloop.Agent, _, step int, messages []session.Message) (bool, []session.Message) {
 			if step > steps {
 				return false, nil
 			}
+			// 开场最后一步：禁止再调工具，逼出 JSON，留给 wrap/兜底的空间更少浪费在空转上。
+			if forceOpeningJSON && step == steps && !messagesEndWithOpeningJSONNudge(messages) {
+				messages = append(messages, session.Message{
+					Role: session.RoleUser,
+					Content: []session.ContentBlock{{
+						Kind: session.BlockText,
+						Text: "步数将尽。禁止再调用任何工具。立刻只输出开场 JSON：stance、strength、text、fact_ids、suggested_questions。text 150～350 字，禁用英文双引号。",
+					}},
+				})
+			}
 			return true, messages
 		},
 		RequestError: llmretry.Hook(s.cfg.Retry),
 	}).WithModel(s.cfg.Model).WithTemperature(0.2).WithMaxTokens(tok)
+}
+
+func messagesEndWithOpeningJSONNudge(msgs []session.Message) bool {
+	if len(msgs) == 0 {
+		return false
+	}
+	last := msgs[len(msgs)-1]
+	if last.Role != session.RoleUser {
+		return false
+	}
+	for _, b := range last.Content {
+		if b.Kind == session.BlockText && strings.Contains(b.Text, "步数将尽") {
+			return true
+		}
+	}
+	return false
 }
 
 // fetchFactsTool runs the shared detail script. The model only passes a
@@ -1275,7 +1501,252 @@ func (s *Server) registerFlowTools(toolRegistry *coretools.Registry, cfg agentCo
 			return err
 		}
 	}
+	compareTool := s.flowCompareTool(pythonBin, script)
+	if _, err := toolRegistry.Register(compareTool); err != nil {
+		return err
+	}
 	return nil
+}
+
+// flowDCPayload 是 fetch_part.py dc 切片的 JSON 形状；聚合对比只需要 facts 文本。
+type flowDCPayload struct {
+	StockName string `json:"stock_name"`
+	TSCode    string `json:"ts_code"`
+	Facts     []struct {
+		ID   string `json:"id"`
+		Text string `json:"text"`
+	} `json:"facts"`
+}
+
+// fetchFlowDCJSON 拉一只票的 dc 切片并解码成 JSON（days>0 时带逐日窗口）。
+func (s *Server) fetchFlowDCJSON(ctx context.Context, pythonBin, script, code string, days int) (flowDCPayload, error) {
+	argv := []string{script, code, "dc"}
+	if days > 0 {
+		argv = append(argv, strconv.Itoa(days))
+	}
+	cmd := exec.CommandContext(ctx, pythonBin, argv...)
+	cmd.Env = basicEnv()
+	out, err := cmd.Output()
+	if err != nil {
+		return flowDCPayload{}, fmt.Errorf("读取 %s 资金流失败: %v", code, err)
+	}
+	var payload flowDCPayload
+	if err := json.Unmarshal(bytes.TrimSpace(out), &payload); err != nil {
+		return flowDCPayload{}, fmt.Errorf("解析 %s 资金流失败: %v", code, err)
+	}
+	return payload, nil
+}
+
+// flowNetInflow 从「近 N 日东财净流入 X 亿元…」这类 fact 文本里抽主净额（亿）。
+var flowNetRe = regexp.MustCompile(`净流入\s*(-?[+\-−]?\d[\d.]*)\s*亿元`)
+
+func flowNetInflow(text string) (float64, bool) {
+	m := flowNetRe.FindStringSubmatch(text)
+	if m == nil {
+		return 0, false
+	}
+	v, err := strconv.ParseFloat(strings.NewReplacer("−", "-", "+", "").Replace(m[1]), 64)
+	if err != nil {
+		return 0, false
+	}
+	return v, true
+}
+
+// flowDailyValues 从「近 N 日逐日净流入：11-16 -0.27 亿元，…」里抽逐日序列（按出现顺序，旧→新）。
+var flowDailyRe = regexp.MustCompile(`\d{2}-\d{2}\s*([+\-−]?\d[\d.]*)\s*亿元`)
+
+func flowDailyValues(text string) []float64 {
+	out := []float64{}
+	for _, m := range flowDailyRe.FindAllStringSubmatch(text, -1) {
+		v, err := strconv.ParseFloat(strings.NewReplacer("−", "-", "+", "").Replace(m[1]), 64)
+		if err == nil {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// flowCompareTool 聚合 2～6 只票的东财资金流成对比表；窗口默认 1/3/5/15，
+// 15 日这类非标准档从逐日累加（表里注明口径）。
+func (s *Server) flowCompareTool(pythonBin, script string) coretools.ToolDefinition {
+	standardWindow := map[int]bool{1: true, 3: true, 5: true, 10: true, 20: true, 60: true}
+	return coretools.ToolDefinition{
+		Name: "fetch_flow_compare",
+		Description: "多只股票（2～6 只）的资金流对比：默认近 1/3/5/15 日东财净流入，" +
+			"一次取齐并汇总谁进得最猛、谁出得最狠与价资路径。用户一次点名多只票问资金流/钱往哪走时用它，" +
+			"禁止逐票各跑一遍单票工具。15 日是从逐日累加的口径。不要把净流入叫做主力。",
+		Parameters: coretools.ParameterSchema{
+			"ts_codes": {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "逗号分隔的股票代码，如 603986.SH,300750.SZ,002050.SZ"}, Required: true},
+			"windows":  {ValueSchema: coretools.ValueSchema{Kind: coretools.KindString, Description: "逗号分隔的交易日窗口，默认 1,3,5,15；可选 1/3/5/10/15/20/60"}},
+		},
+		Output:    coretools.Output{Schema: coretools.ValueSchema{Kind: coretools.KindString}, Render: renderStringResult},
+		TimeoutMs: 150_000,
+		IsConcurrencySafe: func(map[string]any) bool { return true },
+		Execute: func(ctx context.Context, args map[string]any, _ *coretools.RunContext) (any, error) {
+			codes := splitCodes(fmt.Sprint(args["ts_codes"]))
+			if len(codes) < 2 {
+				return "", errors.New("至少要两只股票才有对比意义；单票请用 fetch_flow_dc")
+			}
+			if len(codes) > 6 {
+				codes = codes[:6]
+			}
+			windows := []int{1, 3, 5, 15}
+			if raw := strings.TrimSpace(fmt.Sprint(args["windows"])); raw != "" && raw != "<nil>" {
+				windows = []int{}
+				for _, part := range strings.Split(raw, ",") {
+					if n := flowDays(part); n > 0 && n <= 120 {
+						windows = append(windows, n)
+					}
+				}
+				if len(windows) == 0 {
+					windows = []int{1, 3, 5, 15}
+				}
+			}
+			needDaily := 0
+			for _, w := range windows {
+				if !standardWindow[w] && w > needDaily {
+					needDaily = w
+				}
+			}
+			type row struct {
+				code   string
+				name   string
+				err    error
+				byWin  map[int]float64
+				path   string
+				daily  []float64
+			}
+			rows := make([]row, len(codes))
+			var wg sync.WaitGroup
+			for i, code := range codes {
+				wg.Add(1)
+				go func(i int, code string) {
+					defer wg.Done()
+					r := row{code: code, byWin: map[int]float64{}}
+					payload, err := s.fetchFlowDCJSON(ctx, pythonBin, script, code, 0)
+					if err != nil {
+						r.err = err
+						rows[i] = r
+						return
+					}
+					r.name = payload.StockName
+					for _, f := range payload.Facts {
+						if v, ok := flowNetInflow(f.Text); ok {
+							for _, w := range windows {
+								if f.ID == fmt.Sprintf("fl.dc_%dd", w) {
+									r.byWin[w] = v
+								}
+							}
+						}
+						if f.ID == "fl.path" {
+							r.path = f.Text
+						}
+						if f.ID == "fl.dc_daily" {
+							r.daily = flowDailyValues(f.Text)
+						}
+					}
+					if needDaily > 0 && len(r.daily) < needDaily {
+						// 默认 dc 只带 5 日逐日：窗口更长时按需要的长度再取一次。
+						if payload2, err := s.fetchFlowDCJSON(ctx, pythonBin, script, code, needDaily); err == nil {
+							for _, f := range payload2.Facts {
+								if f.ID == "fl.dc_daily" {
+									r.daily = flowDailyValues(f.Text)
+								}
+							}
+						}
+					}
+					for _, w := range windows {
+						if _, ok := r.byWin[w]; ok || standardWindow[w] {
+							continue
+						}
+						if len(r.daily) >= w {
+							sum := 0.0
+							for _, v := range r.daily[len(r.daily)-w:] {
+								sum += v
+							}
+							r.byWin[w] = sum
+						}
+					}
+					rows[i] = r
+				}(i, code)
+			}
+			wg.Wait()
+			var b strings.Builder
+			b.WriteString("多票资金流对比（东财口径，净流入：亿元，正=流入）\n\n")
+			b.WriteString("| 窗口 |")
+			for _, r := range rows {
+				if r.err != nil {
+					continue
+				}
+				b.WriteString(" " + r.name + " " + r.code + " |")
+			}
+			b.WriteString("\n | --- |")
+			for range rows {
+				b.WriteString(" --- |")
+			}
+			b.WriteString("\n")
+			for _, w := range windows {
+				label := fmt.Sprintf("近 %d 日", w)
+				if !standardWindow[w] {
+					label += "（逐日累加）"
+				}
+				b.WriteString("| " + label + " |")
+				for _, r := range rows {
+					if r.err != nil {
+						continue
+					}
+					if v, ok := r.byWin[w]; ok {
+						b.WriteString(fmt.Sprintf(" %+.2f |", v))
+					} else {
+						b.WriteString(" — |")
+					}
+				}
+				b.WriteString("\n")
+			}
+			b.WriteString("| 路径 |")
+			for _, r := range rows {
+				if r.err != nil {
+					continue
+				}
+				b.WriteString(" " + r.path + " |")
+			}
+			b.WriteString("\n\n")
+			var failed []string
+			for _, r := range rows {
+				if r.err != nil {
+					failed = append(failed, r.code+": "+r.err.Error())
+				}
+			}
+			if len(failed) > 0 {
+				b.WriteString("没取到的票：" + strings.Join(failed, "；") + "\n")
+			}
+			// 最进/最出按最长窗口比较，给模型一眼锚点。
+			longest := windows[len(windows)-1]
+			best, worst := "", ""
+			var bestV, worstV float64
+			first := true
+			for _, r := range rows {
+				if r.err != nil {
+					continue
+				}
+				v, ok := r.byWin[longest]
+				if !ok {
+					continue
+				}
+				if first || v > bestV {
+					best, bestV = r.name+" "+r.code, v
+				}
+				if first || v < worstV {
+					worst, worstV = r.name+" "+r.code, v
+				}
+				first = false
+			}
+			if !first {
+				fmt.Fprintf(&b, "近 %d 日进得最猛：%s（%+.2f 亿）；出得最狠：%s（%+.2f 亿）。\n", longest, best, bestV, worst, worstV)
+			}
+			return b.String(), nil
+		},
+	}
 }
 
 func (s *Server) runFlowPart(pythonBin, script, part string) func(context.Context, map[string]any, *coretools.RunContext) (any, error) {

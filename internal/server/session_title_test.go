@@ -126,3 +126,30 @@ func TestSessionTitleFallsBackToUploadedFilename(t *testing.T) {
 		t.Fatalf("title = %q, want the filename without the upload boilerplate", got)
 	}
 }
+
+func TestSessionTitleStripsAskAnalystWrap(t *testing.T) {
+	s := session.New("s1", session.Header{})
+	s.Append("user/message", session.Message{
+		Role: session.RoleUser,
+		Content: []session.ContentBlock{{Kind: session.BlockText, Text: "请调用 ask_analyst：analyst=volume_flow，ts_code=002428.SZ，question=近3日大资金是进还是出。本轮只请这一位；其正文已展示给用户，不要总结或复述，最多一句极短收束或只补「可以接着问」。"}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	got := sessionTitle(s)
+	if strings.Contains(got, "ask_analyst") || strings.Contains(got, "请调用") {
+		t.Fatalf("orchestration cue leaked into title: %q", got)
+	}
+	if got != "近3日大资金是进还是出" {
+		t.Fatalf("title = %q, want the human question", got)
+	}
+}
+
+func TestSessionTitleStripsPreferAskAnalystWrap(t *testing.T) {
+	s := session.New("s1", session.Header{})
+	s.Append("user/message", session.Message{
+		Role: session.RoleUser,
+		Content: []session.ContentBlock{{Kind: session.BlockText, Text: "【带上：云南锗业】请优先调用 ask_analyst：analyst=news，回答：近3日有没有新公告"}},
+	}, session.WithSurfaceOp(session.AppendOp()))
+	got := sessionTitle(s)
+	if got != "近3日有没有新公告" {
+		t.Fatalf("title = %q", got)
+	}
+}

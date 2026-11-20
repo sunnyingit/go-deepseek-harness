@@ -9,6 +9,7 @@ skills:
   - stock-basic
 tools:
   - fetch_facts
+  - fetch_flow_compare
 fact_prefix: "fr."
 detail_query:
   window: "3"

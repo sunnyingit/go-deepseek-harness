@@ -92,7 +92,7 @@ func (s *Server) portfolioCall(ctx context.Context, system, user string) (string
 		return "", errors.New("模型还没有配置：先到设置里配好模型密钥")
 	}
 	sess := session.New(session.SessionId(fmt.Sprintf("portfolio-%d", time.Now().UnixNano())), session.Header{})
-	ag := s.newAnalyst(sess, coretools.NewRegistry(), 2, system, 2048)
+	ag := s.newAnalyst(sess, coretools.NewRegistry(), 2, system, 2048, false)
 	ag.Followup(session.Message{Role: session.RoleUser, Content: []session.ContentBlock{{Kind: session.BlockText, Text: user}}})
 	stopped := make(chan struct{})
 	go func() {
